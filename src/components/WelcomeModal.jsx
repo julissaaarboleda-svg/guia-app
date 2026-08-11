@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { X, Target, FileText, Briefcase, Building2, CreditCard, Plane, FolderOpen, BarChart2 } from "lucide-react";
+import { X, Target, FileText, Briefcase, Building2, CreditCard, Plane, FolderOpen } from "lucide-react";
 
 const SECTIONS = [
   { icon: Target, label: "Goals", desc: "Set long-term goals and track daily tasks" },
@@ -9,7 +9,6 @@ const SECTIONS = [
   { icon: CreditCard, label: "Finance", desc: "Manage bills, credit, and savings" },
   { icon: Plane, label: "Travel", desc: "Plan trips and itineraries" },
   { icon: FolderOpen, label: "Projects", desc: "Organize personal projects" },
-  { icon: BarChart2, label: "Recap", desc: "Review your year in review" },
 ];
 
 export default function WelcomeModal({ onClose }) {

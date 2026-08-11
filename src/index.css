@@ -11,7 +11,8 @@ html, body { overflow-x: hidden; max-width: 100vw; }
 
 .quill-notes .ql-toolbar,
 .quill-career .ql-toolbar,
-.quill-business .ql-toolbar {
+.quill-business .ql-toolbar,
+.quill-projects .ql-toolbar {
   border: none;
   border-bottom: 1px solid hsl(var(--border));
   background: hsl(var(--secondary));
@@ -19,7 +20,8 @@ html, body { overflow-x: hidden; max-width: 100vw; }
 }
 .quill-notes .ql-container,
 .quill-career .ql-container,
-.quill-business .ql-container {
+.quill-business .ql-container,
+.quill-projects .ql-container {
   border: none;
   font-size: 0.875rem;
   font-family: 'Inter', sans-serif;
@@ -28,7 +30,8 @@ html, body { overflow-x: hidden; max-width: 100vw; }
 }
 .quill-notes .ql-editor,
 .quill-career .ql-editor,
-.quill-business .ql-editor {
+.quill-business .ql-editor,
+.quill-projects .ql-editor {
   padding: 1rem;
   min-height: 120px;
 }

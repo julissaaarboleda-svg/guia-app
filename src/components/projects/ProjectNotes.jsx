@@ -1,19 +1,34 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
 
 export default function ProjectNotes({ notes, onSave }) {
   const [value, setValue] = useState(notes || "");
+  const saveTimer = useRef(null);
 
   useEffect(() => { setValue(notes || ""); }, [notes]);
 
+  const handleChange = (html) => {
+    setValue(html);
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => onSave(html), 800); // debounced autosave, like Notes.jsx
+  };
+
   return (
-    <div>
-      <textarea
+    <div className="quill-projects">
+      <ReactQuill
+        theme="snow"
         value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={() => value !== notes && onSave(value)}
-        rows={8}
+        onChange={handleChange}
         placeholder="Notes about this project..."
-        className="w-full bg-muted border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring resize-none"
+        modules={{
+          toolbar: [
+            ["bold", "italic", "underline"],
+            [{ list: "ordered" }, { list: "bullet" }],
+            ["link"],
+            ["clean"],
+          ],
+        }}
       />
     </div>
   );

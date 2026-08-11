@@ -10,6 +10,7 @@ import {
   ListTodo,
   Sparkles,
   Palette,
+  Upload,
 } from "lucide-react";
 import ProjectCollaborators from "@/components/projects/ProjectCollaborators";
 import ProjectResources from "@/components/projects/ProjectResources";
@@ -28,6 +29,8 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
   const [editing, setEditing] = useState(false);
   const [accentColor, setAccentColor] = useState(project.accent_color || "#1c1917");
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [coverImage, setCoverImage] = useState(project.cover_image_url || null);
   const [form, setForm] = useState({
     title: project.title,
     description: project.description || "",
@@ -98,9 +101,27 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
 
   const updateAccentColor = async (hex) => {
     setAccentColor(hex);
+    setCoverImage(null);
     setShowColorPicker(false);
-    const updated = await base44.entities.Project.update(project.id, { accent_color: hex });
+    const updated = await base44.entities.Project.update(project.id, { accent_color: hex, cover_image_url: null });
     onUpdate(updated);
+  };
+
+  const uploadCoverPhoto = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingCover(true);
+    setShowColorPicker(false);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      setCoverImage(file_url);
+      const updated = await base44.entities.Project.update(project.id, { cover_image_url: file_url });
+      onUpdate(updated);
+    } catch (err) {
+      console.error("Cover photo upload failed:", err);
+    } finally {
+      setUploadingCover(false);
+    }
   };
 
   const addCollaborator = async (email) => {
@@ -142,8 +163,19 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
     <div className="min-h-screen bg-stone-50">
       <div className="p-4 md:p-8 max-w-4xl mx-auto">
         {/* Header */}
-        <div className="rounded-2xl p-5 mb-6 relative" style={{ background: accentColor }}>
-          <div className="flex items-center gap-3">
+        <div className="rounded-2xl p-5 mb-6 relative overflow-hidden" style={{ background: coverImage ? undefined : accentColor }}>
+          {coverImage && (
+            <>
+              <img src={coverImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-black/45" />
+            </>
+          )}
+          {uploadingCover && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40">
+              <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            </div>
+          )}
+          <div className="relative flex items-center gap-3">
             <button
               onClick={onBack}
               className="text-stone-400 hover:text-white transition-colors"
@@ -199,7 +231,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
           </div>
 
           {showColorPicker && (
-            <div className="absolute top-14 right-5 bg-card border border-border rounded-xl p-2.5 shadow-lg z-10 flex gap-2">
+            <div className="absolute top-14 right-5 bg-card border border-border rounded-xl p-2.5 shadow-lg z-30 flex items-center gap-2">
               {["#1c1917", "#A7773F", "#7D8A53", "#A77C81", "#8A6530"].map((hex) => (
                 <button
                   key={hex}
@@ -209,6 +241,15 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
                   aria-label={`Set background to ${hex}`}
                 />
               ))}
+              <div className="w-px h-6 bg-border mx-0.5" />
+              <label
+                className="w-7 h-7 rounded-full flex items-center justify-center cursor-pointer border-2 border-white shadow-sm ring-1 ring-border transition-transform hover:scale-110"
+                style={{ background: "linear-gradient(135deg,#6E9AC4,#B87D4E)" }}
+                title="Upload a photo"
+              >
+                <Upload className="w-3 h-3 text-white" />
+                <input type="file" accept="image/*" className="hidden" onChange={uploadCoverPhoto} />
+              </label>
             </div>
           )}
 
@@ -220,6 +261,8 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
               onAdd={addCollaborator}
               onRemove={removeCollaborator}
               canManage={isOwner}
+              projectId={project.id}
+              projectTitle={project.title}
             />
           </div>
         </div>

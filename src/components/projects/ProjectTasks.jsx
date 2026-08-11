@@ -90,18 +90,20 @@ export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd
       />
       <div className="flex gap-2 mb-2">
         <div className="flex-1">
-          <label className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1"><Calendar className="w-3 h-3" /> Due date</label>
-          <input
-            type="date"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-            className="w-full bg-muted border border-input rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-ring"
-          />
+          <label className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1">Due date</label>
+          <div className="relative">
+            <Calendar className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="w-full bg-muted border border-input rounded-lg pl-8 pr-2.5 py-1.5 text-sm outline-none focus:border-ring"
+            />
+          </div>
         </div>
         <div className="flex-1">
           <label className="text-[10px] text-muted-foreground mb-1 block">Assign to</label>
           <select value={assignee} onChange={(e) => setAssignee(e.target.value)} className="w-full bg-muted border border-input rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-ring">
-            <option value="">Me</option>
             <option value={currentEmail}>Me</option>
             {collaborators.map((c) => <option key={c} value={c}>{c.split("@")[0]}</option>)}
           </select>
