@@ -1,0 +1,167 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { overflow-x: hidden; max-width: 100vw; }
+
+.quill-notes .ql-toolbar,
+.quill-career .ql-toolbar,
+.quill-business .ql-toolbar {
+  border: none;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--secondary));
+  border-radius: 0.75rem 0.75rem 0 0;
+}
+.quill-notes .ql-container,
+.quill-career .ql-container,
+.quill-business .ql-container {
+  border: none;
+  font-size: 0.875rem;
+  font-family: 'Inter', sans-serif;
+  color: hsl(var(--foreground));
+  border-radius: 0 0 0.75rem 0.75rem;
+}
+.quill-notes .ql-editor,
+.quill-career .ql-editor,
+.quill-business .ql-editor {
+  padding: 1rem;
+  min-height: 120px;
+}
+
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Guia Design System — Light */
+  :root {
+    /* Surfaces */
+    --background: 40 30% 96%;        /* #F8F6F2 cream */
+    --foreground: 0 0% 12%;          /* #1F1F1F black */
+    --card: 40 24% 99%;              /* near-white card */
+    --card-foreground: 0 0% 12%;
+    --popover: 40 24% 99%;
+    --popover-foreground: 0 0% 12%;
+
+    /* Brand */
+    --primary: 0 0% 12%;             /* #1F1F1F */
+    --primary-foreground: 40 30% 96%;
+    --secondary: 34 26% 92%;         /* #EFEAE4 beige */
+    --secondary-foreground: 0 0% 12%;
+    --muted: 37 22% 88%;            /* #E8E3DB off-white */
+    --muted-foreground: 0 0% 40%;   /* #666666 dark grey */
+    --accent: 34 38% 40%;           /* #8B6A3F brown */
+    --accent-foreground: 40 30% 96%;
+
+    /* Semantic */
+    --destructive: 0 64% 55%;       /* #D64545 alert */
+    --destructive-foreground: 40 30% 96%;
+    --success: 123 46% 34%;         /* #2E7D32 */
+    --info: 212 59% 44%;            /* #2F6CB3 */
+    --warning: 43 100% 46%;        /* #ECA800 */
+    --alert: 0 64% 55%;             /* #D64545 */
+
+    /* Lines */
+    --border: 37 19% 82%;           /* #D9D2C7 light grey */
+    --input: 37 19% 82%;
+    --ring: 34 38% 40%;             /* brown ring */
+
+    /* Legacy aliases (kept for existing components, remapped to system) */
+    --sage: 29 6% 63%;              /* grey #A6A09A */
+    --olive: 34 38% 40%;            /* brown #8B6A3F */
+    --charcoal: 0 0% 12%;           /* #1F1F1F */
+    --forest: 123 46% 34%;          /* success #2E7D32 */
+
+    /* Charts — monochrome editorial scale */
+    --chart-1: 0 0% 18%;
+    --chart-2: 0 0% 38%;
+    --chart-3: 0 0% 52%;
+    --chart-4: 35 15% 72%;
+    --chart-5: 38 25% 86%;
+
+    --radius: 0.5rem;
+
+    /* Sidebar */
+    --sidebar-background: 40 28% 94%;
+    --sidebar-foreground: 0 0% 12%;
+    --sidebar-primary: 0 0% 12%;
+    --sidebar-primary-foreground: 40 30% 96%;
+    --sidebar-accent: 34 26% 92%;
+    --sidebar-accent-foreground: 0 0% 12%;
+    --sidebar-border: 37 19% 82%;
+    --sidebar-ring: 34 38% 40%;
+
+    /* Fonts */
+    --font-heading: 'Playfair Display', Georgia, serif;
+    --font-body: 'Inter', -apple-system, sans-serif;
+  }
+
+  /* Guia Design System — Dark */
+  .dark {
+    --background: 0 0% 9%;
+    --foreground: 40 24% 92%;
+    --card: 0 0% 12%;
+    --card-foreground: 40 24% 92%;
+    --popover: 0 0% 12%;
+    --popover-foreground: 40 24% 92%;
+    --primary: 40 24% 92%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 16%;
+    --secondary-foreground: 40 24% 92%;
+    --muted: 0 0% 16%;
+    --muted-foreground: 0 0% 55%;
+    --accent: 34 38% 56%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 64% 55%;
+    --destructive-foreground: 40 24% 92%;
+    --success: 123 46% 50%;
+    --info: 212 59% 60%;
+    --warning: 43 100% 56%;
+    --alert: 0 64% 60%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 34 38% 56%;
+    --sage: 29 6% 63%;
+    --olive: 34 38% 56%;
+    --charcoal: 0 0% 12%;
+    --forest: 123 46% 50%;
+    --chart-1: 0 0% 78%;
+    --chart-2: 0 0% 58%;
+    --chart-3: 0 0% 42%;
+    --chart-4: 35 15% 28%;
+    --chart-5: 38 25% 18%;
+    --sidebar-background: 0 0% 9%;
+    --sidebar-foreground: 40 24% 88%;
+    --sidebar-primary: 40 24% 92%;
+    --sidebar-primary-foreground: 0 0% 9%;
+    --sidebar-accent: 0 0% 14%;
+    --sidebar-accent-foreground: 40 24% 88%;
+    --sidebar-border: 0 0% 18%;
+    --sidebar-ring: 34 38% 56%;
+  }
+}
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  body { @apply bg-background text-foreground; }
+}
+
+html, body, input, select, textarea, button {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+h1, h2, h3, h4, .font-heading {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+.quill-render ul { list-style: disc; padding-left: 1.5rem; margin: 0.4rem 0; }
+.quill-render ol { list-style: decimal; padding-left: 1.5rem; margin: 0.4rem 0; }
+.quill-render li { margin: 0.2rem 0; }
+.quill-render a { text-decoration: underline; color: hsl(var(--accent)); cursor: pointer; }
+.quill-render p { margin: 0.2rem 0; }
+.quill-render strong { font-weight: 600; }
+.quill-render em { font-style: italic; }
