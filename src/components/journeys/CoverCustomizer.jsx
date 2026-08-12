@@ -95,7 +95,7 @@ export default function CoverCustomizer({ trip, onClose, onUpdate, onRegeneratin
 
             <label className="w-full flex items-center justify-center gap-2 border border-border py-3 rounded-xl text-[14px] text-foreground hover:bg-secondary transition-colors cursor-pointer">
               <Upload className="w-4 h-4" /> {uploading ? "Uploading…" : "Upload Personal Photo"}
-              <input type="file" accept="image/*" onChange={uploadPhoto} disabled={uploading} className="hidden" />
+              <input type="file" accept="image/*,image/heic,image/heif,.heic,.heif" onChange={uploadPhoto} disabled={uploading} className="hidden" />
             </label>
           </div>
         </div>

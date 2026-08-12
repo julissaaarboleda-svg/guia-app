@@ -77,7 +77,7 @@ export default function AttachmentSheet({ open, onClose, onUpload }) {
         <input
           ref={cameraRef}
           type="file"
-          accept="image/*"
+          accept="image/*,image/heic,image/heif,.heic,.heif"
           capture="environment"
           className="hidden"
           onChange={e => handleFile(e.target.files)}
@@ -85,7 +85,7 @@ export default function AttachmentSheet({ open, onClose, onUpload }) {
         <input
           ref={photoRef}
           type="file"
-          accept="image/*"
+          accept="image/*,image/heic,image/heif,.heic,.heif"
           multiple
           className="hidden"
           onChange={e => handleFile(e.target.files)}

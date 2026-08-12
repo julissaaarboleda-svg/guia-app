@@ -74,7 +74,7 @@ export default function EditorialHero({ image, quote, mode, setMode, onUpload })
             </div>
           </>
         )}
-        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f); }} />
+        <input ref={fileRef} type="file" accept="image/*,image/heic,image/heif,.heic,.heif" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f); }} />
       </div>
     </motion.div>
   );

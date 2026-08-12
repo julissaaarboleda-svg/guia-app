@@ -452,7 +452,7 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
                 <div className="flex items-center gap-3">
                   <label className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs cursor-pointer transition-colors ${uploading ? "bg-muted text-muted-foreground" : "bg-muted border border-input text-foreground hover:border-ring"}`}>
                     {uploading ? "Uploading..." : <><Upload className="w-3 h-3" /> Upload image</>}
-                    <input type="file" accept="image/*" onChange={async (e) => {
+                    <input type="file" accept="image/*,image/heic,image/heif,.heic,.heif" onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
                       setUploading(true);

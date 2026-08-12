@@ -297,6 +297,69 @@ Only include real travel/booking items. Return as { activities: [...] }.`,
           </button>
         </div>
         <WishListSection trip={trip} onUpdate={onUpdate} />
+
+        {/* Day edit modal — this needs to be reachable from the empty state too,
+            since "Add a day" opens it before any day exists yet. It used to live
+            only in the populated-itinerary render path below, so tapping "Add a
+            day" on a brand-new trip set dayEdit.open=true but nothing ever
+            appeared, since this component was still returning the empty-state
+            branch above (itinerary was still empty). */}
+        {dayEdit.open && (
+          <div
+            className="fixed inset-0 z-[70] flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm"
+            onClick={() => setDayEdit({ open: false, index: null, title: "", description: "", date: "" })}
+          >
+            <div
+              className="bg-card border border-border rounded-t-3xl md:rounded-2xl w-full max-w-md shadow-editorial flex flex-col max-h-[80vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between p-5 pb-3">
+                <h2 className="font-heading text-lg text-foreground">{dayEdit.index === null ? "Add day" : "Edit day"}</h2>
+                <button onClick={() => setDayEdit({ open: false, index: null, title: "", description: "", date: "" })} className="text-muted-foreground hover:text-foreground transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-4">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1.5 block">Date</label>
+                  <DateInput
+                    value={dayEdit.date}
+                    onChange={(e) => setDayEdit((s) => ({ ...s, date: e.target.value }))}
+                    className="w-full bg-muted border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1.5 block">Day title</label>
+                  <input
+                    value={dayEdit.title}
+                    onChange={(e) => setDayEdit((s) => ({ ...s, title: e.target.value }))}
+                    placeholder="e.g. Explore old town"
+                    className="w-full bg-muted border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring transition-colors font-heading"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1.5 block">Description</label>
+                  <ReactQuill
+                    value={dayEdit.description}
+                    onChange={(v) => setDayEdit((s) => ({ ...s, description: v }))}
+                    placeholder="Notes about this day…"
+                    className="bg-muted rounded-lg quill-notes"
+                    theme="snow"
+                    modules={{ clipboard: { matchVisual: false } }}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 p-5 pt-3 border-t border-border">
+                <button onClick={saveDayEdit} className="flex-1 flex items-center justify-center gap-1.5 bg-accent text-accent-foreground px-4 py-2.5 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">
+                  <Check className="w-4 h-4" /> Save
+                </button>
+                <button onClick={() => setDayEdit({ open: false, index: null, title: "", description: "", date: "" })} className="px-4 py-2.5 text-muted-foreground text-sm hover:text-foreground transition-colors">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

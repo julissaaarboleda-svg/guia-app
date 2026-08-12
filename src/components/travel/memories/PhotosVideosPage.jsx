@@ -25,7 +25,7 @@ export default function PhotosVideosPage({ trip, onUpdate, onBack }) {
         <h2 className="font-heading text-lg text-foreground">Photos & Videos</h2>
         <label className="flex items-center gap-1.5 text-xs font-medium bg-accent text-accent-foreground px-3 py-1.5 rounded-full cursor-pointer hover:opacity-90">
           <Upload className="w-3.5 h-3.5" /> Add
-          <input type="file" accept="image/*,video/*" className="hidden" onChange={upload} />
+          <input type="file" accept="image/*,image/heic,image/heif,.heic,.heif,video/*" className="hidden" onChange={upload} />
         </label>
       </div>
       {media.length === 0 ? (

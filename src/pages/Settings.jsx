@@ -144,7 +144,7 @@ export default function Settings() {
             <button onClick={() => fileRef.current.click()} disabled={uploadingPhoto} className="absolute -bottom-1 -right-1 w-5 h-5 bg-accent hover:bg-foreground text-accent-foreground rounded-full flex items-center justify-center transition-colors disabled:opacity-50">
               <Camera className="w-3 h-3" />
             </button>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
+            <input ref={fileRef} type="file" accept="image/*,image/heic,image/heif,.heic,.heif" className="hidden" onChange={handlePhoto} />
           </div>
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3 flex-wrap">

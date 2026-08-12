@@ -290,7 +290,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
                   title="Upload a photo"
                 >
                   <Upload className="w-3.5 h-3.5 text-white" />
-                  <input type="file" accept="image/*" className="hidden" onChange={uploadCoverPhoto} />
+                  <input type="file" accept="image/*,image/heic,image/heif,.heic,.heif" className="hidden" onChange={uploadCoverPhoto} />
                 </label>
               </div>
               {uploadingCover && <p className="text-xs text-stone-400 mt-1">Uploading...</p>}

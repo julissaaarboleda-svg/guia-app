@@ -21,17 +21,29 @@ const API_BASE = "/.netlify/functions";
 // image files client-side before upload; leave non-image files (attachments,
 // PDFs, etc.) untouched.
 function compressImageIfNeeded(file, maxDimension = 1600, quality = 0.82) {
-  if (!file.type || !file.type.startsWith("image/") || file.type === "image/gif") {
-    return Promise.resolve(file); // don't touch non-images or animated GIFs
+  const isHeic = /image\/hei[cf]/i.test(file.type) || /\.hei[cf]$/i.test(file.name || "");
+  if (!file.type || !file.type.startsWith("image/") || file.type === "image/gif" || isHeic) {
+    // HEIC (the default format for iPhone photos) is skipped deliberately —
+    // canvas-based re-encoding of HEIC is unreliable across browsers even when
+    // the browser CAN display it in an <img> tag, which was almost certainly
+    // why uploads were spinning forever on phone: the compression step never
+    // resolved. Upload these as-is instead of risking that hang.
+    return Promise.resolve(file);
   }
   return new Promise((resolve) => {
+    // Hard timeout — guarantees this can never hang indefinitely regardless of
+    // the reason (unsupported format, decode failure that doesn't fire onerror,
+    // slow device, etc.). Falls back to the original, uncompressed file.
+    const timeout = setTimeout(() => resolve(file), 8000);
+    const finish = (result) => { clearTimeout(timeout); resolve(result); };
+
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(url);
       let { width, height } = img;
       if (width <= maxDimension && height <= maxDimension && file.size < 1_500_000) {
-        resolve(file); // already small enough, skip re-encoding
+        finish(file); // already small enough, skip re-encoding
         return;
       }
       const scale = Math.min(1, maxDimension / Math.max(width, height));
@@ -43,14 +55,14 @@ function compressImageIfNeeded(file, maxDimension = 1600, quality = 0.82) {
       canvas.getContext("2d").drawImage(img, 0, 0, width, height);
       canvas.toBlob(
         (blob) => {
-          if (!blob) { resolve(file); return; } // fall back to original on any failure
-          resolve(new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" }));
+          if (!blob) { finish(file); return; } // fall back to original on any failure
+          finish(new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" }));
         },
         "image/jpeg",
         quality
       );
     };
-    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); }; // fall back on load failure
+    img.onerror = () => { URL.revokeObjectURL(url); finish(file); }; // fall back on load failure
     img.src = url;
   });
 }

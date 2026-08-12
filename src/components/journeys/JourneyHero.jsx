@@ -20,7 +20,7 @@ function CircleProgress({ pct }) {
   );
 }
 
-export default function JourneyHero({ trip, onOpen, onCustomize, generating }) {
+export default function JourneyHero({ trip, onOpen, onCustomize, onEditTrip, generating }) {
   const days = trip.start_date
     ? Math.ceil((parseISO(trip.start_date) - new Date()) / (1000 * 60 * 60 * 24))
     : null;

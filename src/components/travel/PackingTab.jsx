@@ -154,9 +154,9 @@ export default function PackingTab({ trip, onUpdate }) {
         loading={loadingWeather}
         forecastUrl={
           trip.cities?.[0]
-            ? `https://weather.com/search?q=${encodeURIComponent(trip.cities[0])}`
+            ? `https://www.google.com/search?q=${encodeURIComponent(trip.cities[0] + " weather")}`
             : trip.country
-              ? `https://weather.com/search?q=${encodeURIComponent(trip.country)}`
+              ? `https://www.google.com/search?q=${encodeURIComponent(trip.country + " weather")}`
               : null
         }
       />
