@@ -66,7 +66,10 @@ exports.handler = async (event, context) => {
       const data = JSON.parse(event.body || "{}");
       const newId = randomUUID();
       const now = new Date().toISOString();
-      const record = { ...data, id: newId, created_date: now, updated_date: now };
+      // created_by_id was never being set here — this is why isOwner checks
+      // (used for the "Add collaborator" / delete buttons in ProjectDetail.jsx)
+      // have been silently false for every project ever created.
+      const record = { ...data, id: newId, created_by_id: userId, created_date: now, updated_date: now };
       await store.setJSON(prefix + newId, record);
       return json(200, record);
     }

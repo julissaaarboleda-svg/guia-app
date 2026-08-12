@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { UserPlus, X, Check, Link2, Mail } from "lucide-react";
+import { X, Check, Link2, Mail } from "lucide-react";
 
-// Props confirmed from ProjectDetail.jsx, extended with projectId/projectTitle
-// so this can build a shareable link. Rebuilt as a real modal — the previous
-// version was a tiny dashed circle easy to miss entirely.
-export default function ProjectCollaborators({ collaborators, onAdd, onRemove, canManage, projectId, projectTitle }) {
-  const [open, setOpen] = useState(false);
+// Controlled component now — ProjectDetail.jsx owns the "open" state and
+// triggers this via its own top-right icon (matching the reference design,
+// which shows one dedicated person+ icon rather than avatars nested in the
+// hero). This modal is just the picker itself.
+export default function ProjectCollaborators({ open, onClose, collaborators, onAdd, onRemove, canManage, projectId, projectTitle }) {
   const [email, setEmail] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
 
@@ -31,38 +31,18 @@ export default function ProjectCollaborators({ collaborators, onAdd, onRemove, c
     }
   };
 
+  if (!open) return null;
+
   return (
-    <>
-      <div className="flex items-center gap-1.5">
-        {collaborators.map((c) => (
-          <div key={c} className="group relative w-8 h-8 rounded-full bg-stone-700 border-2 border-white/20 text-white text-[10px] font-semibold flex items-center justify-center" title={c}>
-            {c.slice(0, 2).toUpperCase()}
-            {canManage && (
-              <button onClick={() => onRemove(c)} className="absolute -top-1 -right-1 hidden group-hover:flex w-3.5 h-3.5 bg-rose-500 rounded-full items-center justify-center">
-                <X className="w-2 h-2 text-white" />
-              </button>
-            )}
-          </div>
-        ))}
+    <div className="fixed inset-0 z-[70] flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-card border border-border rounded-t-3xl md:rounded-2xl w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-heading text-base text-foreground">Collaborators on "{projectTitle}"</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
+        </div>
+
         {canManage && (
-          <button
-            onClick={() => setOpen(true)}
-            className="w-8 h-8 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-stone-100 transition-colors"
-            title="Add collaborator"
-          >
-            <UserPlus className="w-4 h-4" />
-          </button>
-        )}
-      </div>
-
-      {open && (
-        <div className="fixed inset-0 z-[70] flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setOpen(false)}>
-          <div className="bg-card border border-border rounded-t-3xl md:rounded-2xl w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-heading text-base text-foreground">Add to "{projectTitle}"</h2>
-              <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
-            </div>
-
+          <>
             <button
               onClick={copyLink}
               className="w-full flex items-center justify-center gap-2 border border-border rounded-lg py-2.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors mb-2"
@@ -87,20 +67,24 @@ export default function ProjectCollaborators({ collaborators, onAdd, onRemove, c
               />
               <button onClick={submit} className="px-4 bg-foreground text-background rounded-lg text-sm font-medium">Add</button>
             </div>
+          </>
+        )}
 
-            {collaborators.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-border space-y-1.5">
-                {collaborators.map((c) => (
-                  <div key={c} className="flex items-center justify-between text-sm">
-                    <span className="text-foreground truncate">{c}</span>
-                    <button onClick={() => onRemove(c)} className="text-muted-foreground hover:text-destructive text-xs">Remove</button>
-                  </div>
-                ))}
+        {collaborators.length > 0 ? (
+          <div className={canManage ? "mt-4 pt-4 border-t border-border space-y-1.5" : "space-y-1.5"}>
+            {collaborators.map((c) => (
+              <div key={c} className="flex items-center justify-between text-sm">
+                <span className="text-foreground truncate">{c}</span>
+                {canManage && (
+                  <button onClick={() => onRemove(c)} className="text-muted-foreground hover:text-destructive text-xs">Remove</button>
+                )}
               </div>
-            )}
+            ))}
           </div>
-        </div>
-      )}
-    </>
+        ) : (
+          !canManage && <p className="text-sm text-muted-foreground text-center py-4">No collaborators yet.</p>
+        )}
+      </div>
+    </div>
   );
 }

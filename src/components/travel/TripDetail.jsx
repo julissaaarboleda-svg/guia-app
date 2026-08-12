@@ -36,6 +36,7 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
   const [editing, setEditing] = useState(!!initialEditOpen);
   const [citySuggestions, setCitySuggestions] = useState([]);
   const [countrySuggestions, setCountrySuggestions] = useState([]);
+  const [countryInput, setCountryInput] = useState("");
   const [form, setForm] = useState({
     title: trip.title,
     description: trip.description || "",
@@ -50,6 +51,7 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
     hero_image_url: trip.hero_image_url || "",
   });
   const [uploading, setUploading] = useState(false);
+  const [deletingTrip, setDeletingTrip] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [photoUrl, setPhotoUrl] = useState(trip.hero_image_url || "");
   const [prefs, setPrefs] = useState(null);
@@ -103,8 +105,15 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
 
   const deleteTrip = async () => {
     if (!confirm("Delete this trip?")) return;
-    await base44.entities.Trip.delete(trip.id);
-    onBack();
+    setDeletingTrip(true);
+    try {
+      await base44.entities.Trip.delete(trip.id);
+      onBack();
+    } catch (err) {
+      console.error("Delete trip failed:", err);
+      alert("Couldn't delete this trip — please try again.");
+      setDeletingTrip(false);
+    }
   };
 
   const exportPdf = async () => {
@@ -158,6 +167,12 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
 
   return (
     <div className="fixed inset-0 z-[60] bg-background overflow-y-auto">
+      {deletingTrip && (
+        <div className="fixed inset-0 z-[95] flex flex-col items-center justify-center gap-3 bg-background/90 backdrop-blur-sm">
+          <div className="w-7 h-7 border-2 border-border border-t-foreground rounded-full animate-spin" />
+          <p className="text-sm text-muted-foreground">Deleting trip...</p>
+        </div>
+      )}
       <div className="max-w-4xl mx-auto px-4 md:px-8 pb-28 md:pb-10">
         {/* Unified journey header */}
         <div>
@@ -246,19 +261,44 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
                     className="w-full bg-background border border-input rounded-lg px-3 py-2.5 text-foreground text-sm outline-none focus:border-ring transition-colors font-heading text-lg" />
                 </div>
                 <div className="relative">
-                  <label className="text-xs text-muted-foreground mb-1.5 block">Country</label>
-                  <input value={form.country} onChange={e => { setForm(f => ({ ...f, country: e.target.value })); setCountrySuggestions(e.target.value.length >= 1 ? searchCountries(e.target.value) : []); }}
-                    onBlur={() => setTimeout(() => setCountrySuggestions([]), 200)}
-                    className="w-full bg-muted border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors"
-                    placeholder="e.g. Colombia" />
-                  {countrySuggestions.length > 0 && (
-                    <div className="absolute z-20 w-full bg-card border border-border rounded-lg shadow-lg mt-1 max-h-40 overflow-y-auto">
-                      {countrySuggestions.map((c, i) => (
-                        <button key={i} onMouseDown={() => { setForm(f => ({ ...f, country: c })); setCountrySuggestions([]); }}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-secondary border-b border-border last:border-0">{c}</button>
-                      ))}
-                    </div>
-                  )}
+                  <label className="text-xs text-muted-foreground mb-1.5 block">Country (add more than one for multi-destination trips)</label>
+                  {(() => {
+                    const existingCountries = form.country ? form.country.split(",").map(c => c.trim()).filter(Boolean) : [];
+                    const addCountry = (c) => {
+                      if (c && !existingCountries.includes(c)) setForm(f => ({ ...f, country: [...existingCountries, c].join(", ") }));
+                      setCountryInput("");
+                      setCountrySuggestions([]);
+                    };
+                    return (
+                      <>
+                        <input
+                          value={countryInput}
+                          onChange={e => { setCountryInput(e.target.value); if (e.target.value.length >= 1) searchCountries(e.target.value, setCountrySuggestions); else setCountrySuggestions([]); }}
+                          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCountry(countryInput.trim()); } }}
+                          onBlur={() => setTimeout(() => setCountrySuggestions([]), 200)}
+                          className="w-full bg-muted border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors"
+                          placeholder="e.g. Colombia — search, or type and press Enter" />
+                        {countrySuggestions.length > 0 && (
+                          <div className="absolute z-20 w-full bg-card border border-border rounded-lg shadow-lg mt-1 max-h-40 overflow-y-auto">
+                            {countrySuggestions.map((c, i) => (
+                              <button key={i} onMouseDown={() => addCountry(c)}
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-secondary border-b border-border last:border-0">{c}</button>
+                            ))}
+                          </div>
+                        )}
+                        {existingCountries.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {existingCountries.map((c) => (
+                              <span key={c} className="inline-flex items-center gap-1 bg-secondary text-foreground px-2.5 py-1 rounded-full text-xs">
+                                {c}
+                                <button onClick={() => setForm(f => ({ ...f, country: existingCountries.filter(x => x !== c).join(", ") }))} className="text-muted-foreground hover:text-foreground">×</button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
                 <div className="relative">
                   <label className="text-xs text-muted-foreground mb-1.5 block">Cities</label>
@@ -269,7 +309,7 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
                       <>
                         <input placeholder={selectedCountries.length === 0 ? "Select a country first" : "Search and add cities... (or type any city and press Enter)"}
                           disabled={selectedCountries.length === 0}
-                          onChange={e => { const q = e.target.value; setCitySuggestions(selectedCountries.length > 0 && q.length >= 1 ? searchCities(q, selectedCountries) : []); }}
+                          onChange={e => { const q = e.target.value; setCitySuggestions([]); if (selectedCountries.length > 0 && q.length >= 1) searchCities(q, selectedCountries, setCitySuggestions); }}
                           onKeyDown={e => {
                             if (e.key === "Enter") {
                               e.preventDefault();

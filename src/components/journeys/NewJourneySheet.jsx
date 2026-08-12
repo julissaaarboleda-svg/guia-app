@@ -55,19 +55,33 @@ export default function NewJourneySheet({ open, onClose, onCreate }) {
           </div>
 
           <div>
-            <label className="font-body text-[11px] text-muted-foreground mb-1.5 block">Destination</label>
+            <label className="font-body text-[11px] text-muted-foreground mb-1.5 block">Country (add more than one for multi-destination trips)</label>
             <input
               value={countryInput}
-              onChange={(e) => { setCountryInput(e.target.value); setCountrySugs(e.target.value.length >= 1 ? searchCountries(e.target.value) : []); }}
+              onChange={(e) => { setCountryInput(e.target.value); if (e.target.value.length >= 1) searchCountries(e.target.value, setCountrySugs); else setCountrySugs([]); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const typed = countryInput.trim();
+                  const existing = form.country ? form.country.split(",").map((c) => c.trim()).filter(Boolean) : [];
+                  if (typed && !existing.includes(typed)) setForm((f) => ({ ...f, country: [...existing, typed].join(", ") }));
+                  setCountryInput("");
+                  setCountrySugs([]);
+                }
+              }}
               onBlur={() => setTimeout(() => setCountrySugs([]), 200)}
-              placeholder="e.g. Brazil"
+              placeholder="e.g. Brazil — search, or type and press Enter"
               className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-[15px] text-foreground outline-none focus:border-ring transition-colors"
             />
             {countrySugs.length > 0 && (
               <div className="relative z-20">
                 <div className="absolute w-full bg-card border border-border rounded-xl shadow-lg mt-1 max-h-44 overflow-y-auto">
                   {countrySugs.map((s) => (
-                    <button key={s} onMouseDown={() => { setForm((f) => ({ ...f, country: s })); setCountryInput(""); setCountrySugs([]); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-secondary border-b border-border last:border-0">{s}</button>
+                    <button key={s} onMouseDown={() => {
+                      const existing = form.country ? form.country.split(",").map((c) => c.trim()).filter(Boolean) : [];
+                      if (!existing.includes(s)) setForm((f) => ({ ...f, country: [...existing, s].join(", ") }));
+                      setCountryInput(""); setCountrySugs([]);
+                    }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-secondary border-b border-border last:border-0">{s}</button>
                   ))}
                 </div>
               </div>
@@ -88,7 +102,7 @@ export default function NewJourneySheet({ open, onClose, onCreate }) {
             <input
               value={cityInput}
               disabled={selectedCountries.length === 0}
-              onChange={(e) => { const q = e.target.value; setCityInput(q); setCitySugs(selectedCountries.length > 0 && q.length >= 1 ? searchCities(q, selectedCountries) : []); }}
+              onChange={(e) => { const q = e.target.value; setCityInput(q); if (selectedCountries.length > 0 && q.length >= 1) searchCities(q, selectedCountries, setCitySugs); else setCitySugs([]); }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();

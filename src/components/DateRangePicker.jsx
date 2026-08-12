@@ -134,9 +134,9 @@ export default function DateRangePicker({ startDate, endDate, onChange, label, p
       </button>
 
       {open && (
-        <div className={`absolute z-50 bg-white border border-stone-200 rounded-2xl shadow-xl p-4 w-[320px] left-0 ${openUpward ? "bottom-full mb-1" : "top-full mt-1"}`}>
-          {/* Month nav */}
-          <div className="flex items-center justify-between mb-3">
+        <div className={`absolute z-50 bg-white border border-stone-200 rounded-2xl shadow-xl w-[320px] max-h-[70vh] overflow-y-auto left-0 ${openUpward ? "bottom-full mb-1" : "top-full mt-1"}`}>
+          {/* Month nav — sticky so it can't scroll out of view within the popup */}
+          <div className="sticky top-0 bg-white flex items-center justify-between px-4 pt-4 pb-3 z-10">
             <button type="button" onClick={() => setMonth(subMonths(month, 1))}
               className="p-2 rounded-lg hover:bg-stone-100 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center">
               <ChevronLeft className="w-4 h-4 text-stone-600" />
@@ -147,7 +147,7 @@ export default function DateRangePicker({ startDate, endDate, onChange, label, p
               <ChevronRight className="w-4 h-4 text-stone-600" />
             </button>
           </div>
-
+          <div className="px-4 pb-4">
           {/* Day headers */}
           <div className="grid grid-cols-7 mb-1">
             {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d => (
@@ -196,6 +196,7 @@ export default function DateRangePicker({ startDate, endDate, onChange, label, p
           <p className="text-xs text-stone-400 text-center mt-3">
             {selecting === "start" ? "Tap to set start date" : "Tap to set end date"}
           </p>
+          </div>
         </div>
       )}
     </div>

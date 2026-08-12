@@ -10,7 +10,7 @@ import {
   Calendar,
   ListTodo,
   Sparkles,
-  Palette,
+  UserPlus,
   Upload,
 } from "lucide-react";
 import ProjectCollaborators from "@/components/projects/ProjectCollaborators";
@@ -29,7 +29,7 @@ const statusColors = {
 export default function ProjectDetail({ project, onBack, onUpdate }) {
   const [editing, setEditing] = useState(false);
   const [accentColor, setAccentColor] = useState(project.accent_color || "#1c1917");
-  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showCollabModal, setShowCollabModal] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [coverImage, setCoverImage] = useState(project.cover_image_url || null);
   const [form, setForm] = useState({
@@ -49,7 +49,11 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
     base44.auth
       .me()
       .then((u) => {
-        setIsOwner(u.id === project.created_by_id);
+        // Fallback for projects created before created_by_id was correctly
+        // set (a real bug, now fixed in entities.js) — treat ownerless legacy
+        // projects as owned by whoever's viewing them, rather than permanently
+        // locking out editing/collaborator management on old data.
+        setIsOwner(!project.created_by_id || u.id === project.created_by_id);
         setCurrentUserEmail(u.email);
       })
       .catch(() => setIsOwner(false));
@@ -208,16 +212,16 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
             </div>
             <div className="flex gap-1.5">
               <button
-                onClick={() => setShowColorPicker((s) => !s)}
+                onClick={() => setShowCollabModal(true)}
                 className="w-8 h-8 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-stone-100 transition-colors"
-                title="Customize background"
+                title="Add collaborator"
               >
-                <Palette className="w-4 h-4" />
+                <UserPlus className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setEditing(!editing)}
                 className="w-8 h-8 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-stone-100 transition-colors"
-                title="Edit project"
+                title="Edit project (cover & details)"
               >
                 <Edit2 className="w-4 h-4" />
               </button>
@@ -232,43 +236,18 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
               )}
             </div>
           </div>
-
-          {showColorPicker && (
-            <div className="absolute top-14 right-5 bg-card border border-border rounded-xl p-2.5 shadow-lg z-30 flex items-center gap-2">
-              {["#1c1917", "#A7773F", "#7D8A53", "#A77C81", "#8A6530"].map((hex) => (
-                <button
-                  key={hex}
-                  onClick={() => updateAccentColor(hex)}
-                  className="w-7 h-7 rounded-full border-2 border-white shadow-sm ring-1 ring-border transition-transform hover:scale-110"
-                  style={{ background: hex }}
-                  aria-label={`Set background to ${hex}`}
-                />
-              ))}
-              <div className="w-px h-6 bg-border mx-0.5" />
-              <label
-                className="w-7 h-7 rounded-full flex items-center justify-center cursor-pointer border-2 border-white shadow-sm ring-1 ring-border transition-transform hover:scale-110"
-                style={{ background: "linear-gradient(135deg,#6E9AC4,#B87D4E)" }}
-                title="Upload a photo"
-              >
-                <Upload className="w-3 h-3 text-white" />
-                <input type="file" accept="image/*" className="hidden" onChange={uploadCoverPhoto} />
-              </label>
-            </div>
-          )}
-
-          {/* Collaborators */}
-          <div className="mt-4 pt-4 border-t border-white/15 flex items-center gap-3">
-            <span className="text-xs text-white/70 flex-shrink-0">Collaborators</span>
-            <ProjectCollaborators
-              collaborators={collaborators}
-              onAdd={addCollaborator}
-              onRemove={removeCollaborator}
-              canManage={isOwner}
-              projectId={project.id}
-              projectTitle={project.title}
-            />
-          </div>
         </div>
+
+        <ProjectCollaborators
+          open={showCollabModal}
+          onClose={() => setShowCollabModal(false)}
+          collaborators={collaborators}
+          onAdd={addCollaborator}
+          onRemove={removeCollaborator}
+          canManage={isOwner}
+          projectId={project.id}
+          projectTitle={project.title}
+        />
 
         {/* Progress */}
         <div className="bg-white border border-stone-200 rounded-2xl p-5 mb-6">
@@ -290,6 +269,29 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
         {/* Edit form */}
         {editing && (
           <div className="bg-white border border-stone-200 rounded-2xl p-5 mb-6 space-y-3">
+            <div>
+              <label className="text-xs text-stone-500 mb-1 block">Cover</label>
+              <div className="flex items-center gap-2">
+                {["#1c1917", "#A7773F", "#7D8A53", "#A77C81", "#8A6530"].map((hex) => (
+                  <button
+                    key={hex}
+                    onClick={() => updateAccentColor(hex)}
+                    className={`w-8 h-8 rounded-full border-2 shadow-sm transition-transform hover:scale-110 ${!coverImage && accentColor === hex ? "border-stone-800" : "border-white ring-1 ring-stone-200"}`}
+                    style={{ background: hex }}
+                    aria-label={`Set cover color to ${hex}`}
+                  />
+                ))}
+                <label
+                  className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer border-2 border-white shadow-sm ring-1 ring-stone-200 transition-transform hover:scale-110"
+                  style={{ background: "linear-gradient(135deg,#6E9AC4,#B87D4E)" }}
+                  title="Upload a photo"
+                >
+                  <Upload className="w-3.5 h-3.5 text-white" />
+                  <input type="file" accept="image/*" className="hidden" onChange={uploadCoverPhoto} />
+                </label>
+              </div>
+              {uploadingCover && <p className="text-xs text-stone-400 mt-1">Uploading...</p>}
+            </div>
             <div>
               <label className="text-xs text-stone-500 mb-1 block">Project name</label>
               <input
