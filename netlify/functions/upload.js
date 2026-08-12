@@ -43,6 +43,7 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({ file_url: `${siteUrl}/.netlify/functions/file?key=${encodeURIComponent(key)}` }),
     };
   } catch (err) {
+    console.error("upload.js error:", err);
     return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: err.message }) };
   }
 };

@@ -6,7 +6,7 @@
 // Your React app should call this via fetch() instead of the Base44 SDK. See
 // the bottom of this file for the exact client-side replacement code.
 
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { GoogleGenAI } = require("@google/genai");
 
 const CORS = {
   "Content-Type": "application/json",
@@ -62,6 +62,7 @@ exports.handler = async (event) => {
     ({ trip, city } = JSON.parse(event.body));
     if (!city) throw new Error("Missing 'city'");
   } catch (err) {
+    console.error("generate-top-picks.js bad request:", err);
     return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: `Bad request: ${err.message}` }) };
   }
 
@@ -85,18 +86,18 @@ Variety seed: ${seed}. Favor variety — mix iconic staples with genuine local f
 Respond with ONLY a JSON object in this exact shape, no markdown, no commentary:
 { "picks": [ /* exactly 9 objects, 1 per category, in the order listed above */ ] }`;
 
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.0-flash",
-    tools: [{ googleSearch: {} }],
-  });
+  const ai = new GoogleGenAI({ apiKey });
 
   // Mirror the original's retry-with-backoff behavior — grounded calls are flakier.
   let lastErr;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
+      const response = await ai.models.generateContent({
+        model: "gemini-3.6-flash",
+        contents: prompt,
+        config: { tools: [{ googleSearch: {} }] },
+      });
+      const text = response.text;
       const parsed = extractJson(text);
       if (!parsed.picks || !parsed.picks.length) throw new Error("Model returned empty picks");
       return {
@@ -106,10 +107,12 @@ Respond with ONLY a JSON object in this exact shape, no markdown, no commentary:
       };
     } catch (err) {
       lastErr = err;
+      console.error(`generate-top-picks.js attempt ${attempt + 1} failed:`, err);
       if (attempt < 2) await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
     }
   }
 
+  console.error("generate-top-picks.js all 3 attempts failed:", lastErr);
   return {
     statusCode: 502,
     headers: CORS,

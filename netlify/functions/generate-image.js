@@ -6,7 +6,7 @@
 // Uses Gemini's image generation model and stores the result in Netlify Blobs
 // (same pattern as upload.js) so it has a stable URL, matching Base44's { url } shape.
 
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { GoogleGenAI } = require("@google/genai");
 const { getStore, connectLambda } = require("@netlify/blobs");
 const { randomUUID } = require("node:crypto");
 
@@ -34,11 +34,13 @@ exports.handler = async (event, context) => {
     const { prompt } = JSON.parse(event.body);
     if (!prompt) throw new Error("Missing 'prompt'");
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp-image-generation" });
-    const result = await model.generateContent(prompt);
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+      model: "gemini-3.1-flash-image",
+      contents: prompt,
+    });
 
-    const parts = result.response.candidates?.[0]?.content?.parts || [];
+    const parts = response.candidates?.[0]?.content?.parts || [];
     const imagePart = parts.find((p) => p.inlineData);
     if (!imagePart) throw new Error("Model did not return an image");
 
@@ -56,6 +58,7 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({ url: `${siteUrl}/.netlify/functions/file?key=${encodeURIComponent(key)}` }),
     };
   } catch (err) {
+    console.error("generate-image.js error:", err);
     return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: err.message }) };
   }
 };

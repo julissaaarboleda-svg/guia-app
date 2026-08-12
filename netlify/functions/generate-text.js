@@ -9,7 +9,7 @@
 // use their own dedicated functions like generate-top-picks.js instead, since
 // those need specific structured-output handling — this one is for everything else.
 
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { GoogleGenAI } = require("@google/genai");
 
 const CORS = {
   "Content-Type": "application/json",
@@ -43,14 +43,13 @@ exports.handler = async (event, context) => {
     const { prompt, grounded, wantJson } = JSON.parse(event.body);
     if (!prompt) throw new Error("Missing 'prompt'");
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash",
-      ...(grounded ? { tools: [{ googleSearch: {} }] } : {}),
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+      model: "gemini-3.6-flash",
+      contents: prompt,
+      ...(grounded ? { config: { tools: [{ googleSearch: {} }] } } : {}),
     });
-
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
+    const text = response.text;
 
     if (wantJson) {
       const parsed = extractJson(text);
@@ -60,6 +59,7 @@ exports.handler = async (event, context) => {
 
     return { statusCode: 200, headers: CORS, body: JSON.stringify({ text }) };
   } catch (err) {
+    console.error("generate-text.js error:", err);
     return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: err.message }) };
   }
 };

@@ -90,6 +90,7 @@ exports.handler = async (event, context) => {
 
     return json(400, { error: `Unsupported ${event.httpMethod} on this path` });
   } catch (err) {
+    console.error("entities.js error:", err);
     return json(500, { error: err.message });
   }
 };

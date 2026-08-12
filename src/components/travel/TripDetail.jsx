@@ -37,6 +37,7 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
   const [citySuggestions, setCitySuggestions] = useState([]);
   const [countrySuggestions, setCountrySuggestions] = useState([]);
   const [countryInput, setCountryInput] = useState("");
+  const [cityInput, setCityInput] = useState("");
   const [form, setForm] = useState({
     title: trip.title,
     description: trip.description || "",
@@ -69,11 +70,21 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
   }, []);
 
   const save = async () => {
+    // Same fix as NewJourneySheet — capture typed-but-unconfirmed text in the
+    // country/city inputs so it isn't silently lost if Save is tapped before
+    // pressing Enter or clicking a suggestion.
+    const existingCountries = form.country ? form.country.split(",").map(c => c.trim()).filter(Boolean) : [];
+    const finalCountries = countryInput.trim() && !existingCountries.includes(countryInput.trim())
+      ? [...existingCountries, countryInput.trim()] : existingCountries;
+    const existingCitiesArr = form.cities ? form.cities.split(",").map(c => c.trim()).filter(Boolean) : [];
+    const finalCities = cityInput.trim() && !existingCitiesArr.includes(cityInput.trim())
+      ? [...existingCitiesArr, cityInput.trim()] : existingCitiesArr;
+
     const updateData = {
       ...form,
       description: form.description || "",
-      country: form.country || "",
-      cities: form.cities ? form.cities.split(",").map(c => c.trim()).filter(Boolean) : [],
+      country: finalCountries.join(", "),
+      cities: finalCities,
       budget_target: form.budget_target ? Number(form.budget_target) : null,
       hero_image_url: form.hero_image_url || "",
       notes: typeof form.notes === 'string'
@@ -309,16 +320,17 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
                       <>
                         <input placeholder={selectedCountries.length === 0 ? "Select a country first" : "Search and add cities... (or type any city and press Enter)"}
                           disabled={selectedCountries.length === 0}
-                          onChange={e => { const q = e.target.value; setCitySuggestions([]); if (selectedCountries.length > 0 && q.length >= 1) searchCities(q, selectedCountries, setCitySuggestions); }}
+                          value={cityInput}
+                          onChange={e => { const q = e.target.value; setCityInput(q); setCitySuggestions([]); if (selectedCountries.length > 0 && q.length >= 1) searchCities(q, selectedCountries, setCitySuggestions); }}
                           onKeyDown={e => {
                             if (e.key === "Enter") {
                               e.preventDefault();
-                              const typed = e.target.value.trim();
+                              const typed = cityInput.trim();
                               if (typed && !addedCities.includes(typed)) {
                                 const updated = [...addedCities, typed];
                                 setForm(f => ({ ...f, cities: updated.join(", ") }));
                               }
-                              e.target.value = "";
+                              setCityInput("");
                               setCitySuggestions([]);
                             }
                           }}
@@ -329,6 +341,7 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
                             {citySuggestions.map((city, i) => (
                               <button key={i} onMouseDown={() => {
                                 if (!addedCities.includes(city)) { const updated = [...addedCities, city]; setForm(f => ({ ...f, cities: updated.join(", ") })); }
+                                setCityInput("");
                                 setCitySuggestions([]);
                               }} className="w-full text-left px-3 py-2 text-sm hover:bg-secondary border-b border-border last:border-0">{city}</button>
                             ))}

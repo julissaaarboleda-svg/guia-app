@@ -16,6 +16,12 @@ const CORS = {
   "Access-Control-Allow-Methods": "GET, OPTIONS",
 };
 
+// Strips accents so "sao paulo" matches "São Paulo" — plain string matching
+// is accent-sensitive by default in JS, which is why this silently failed.
+function normalize(str) {
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
 let allCountries = null;
 function getCountries() {
   if (!allCountries) allCountries = Country.getAllCountries();
@@ -27,14 +33,14 @@ exports.handler = async (event) => {
 
   const params = event.queryStringParameters || {};
   const type = params.type;
-  const q = (params.q || "").toLowerCase().trim();
+  const q = normalize((params.q || "").trim());
 
   try {
     if (type === "countries") {
       if (!q) return { statusCode: 200, headers: CORS, body: JSON.stringify([]) };
       const matches = getCountries()
-        .filter((c) => c.name.toLowerCase().startsWith(q))
-        .concat(getCountries().filter((c) => !c.name.toLowerCase().startsWith(q) && c.name.toLowerCase().includes(q)))
+        .filter((c) => normalize(c.name).startsWith(q))
+        .concat(getCountries().filter((c) => !normalize(c.name).startsWith(q) && normalize(c.name).includes(q)))
         .slice(0, 8)
         .map((c) => c.name);
       return { statusCode: 200, headers: CORS, body: JSON.stringify(matches) };
@@ -51,8 +57,8 @@ exports.handler = async (event) => {
       for (const iso of isoCodes) {
         pool = pool.concat(City.getCitiesOfCountry(iso) || []);
       }
-      const startsWith = pool.filter((c) => c.name.toLowerCase().startsWith(q));
-      const contains = pool.filter((c) => !c.name.toLowerCase().startsWith(q) && c.name.toLowerCase().includes(q));
+      const startsWith = pool.filter((c) => normalize(c.name).startsWith(q));
+      const contains = pool.filter((c) => !normalize(c.name).startsWith(q) && normalize(c.name).includes(q));
       const names = [...new Set([...startsWith, ...contains].map((c) => c.name))].slice(0, 8);
       return { statusCode: 200, headers: CORS, body: JSON.stringify(names) };
     }

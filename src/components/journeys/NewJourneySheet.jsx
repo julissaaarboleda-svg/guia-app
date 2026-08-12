@@ -21,10 +21,22 @@ export default function NewJourneySheet({ open, onClose, onCreate }) {
 
   const submit = () => {
     if (!form.title.trim()) return;
+    // Capture any text still sitting in the inputs that was typed but never
+    // explicitly confirmed with Enter/a suggestion click — otherwise it's
+    // silently lost on submit, which is the actual "cities won't save" bug.
+    const existingCities = form.cities ? form.cities.split(",").map((c) => c.trim()).filter(Boolean) : [];
+    const finalCities = cityInput.trim() && !existingCities.includes(cityInput.trim())
+      ? [...existingCities, cityInput.trim()]
+      : existingCities;
+    const existingCountries = form.country ? form.country.split(",").map((c) => c.trim()).filter(Boolean) : [];
+    const finalCountries = countryInput.trim() && !existingCountries.includes(countryInput.trim())
+      ? [...existingCountries, countryInput.trim()]
+      : existingCountries;
+
     onCreate({
       title: form.title.trim(),
-      country: form.country || "",
-      cities: form.cities ? form.cities.split(",").map((c) => c.trim()).filter(Boolean) : [],
+      country: finalCountries.join(", "),
+      cities: finalCities,
       start_date: form.start_date || "",
       end_date: form.end_date || "",
       budget_target: form.budget_target ? Number(form.budget_target) : null,
