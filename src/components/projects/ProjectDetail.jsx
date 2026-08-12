@@ -31,6 +31,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
   const [accentColor, setAccentColor] = useState(project.accent_color || "#1c1917");
   const [showCollabModal, setShowCollabModal] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
   const [coverImage, setCoverImage] = useState(project.cover_image_url || null);
   const [form, setForm] = useState({
     title: project.title,
@@ -116,6 +117,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadingCover(true);
+    setUploadError(null);
     setShowColorPicker(false);
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
@@ -124,6 +126,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
       onUpdate(updated);
     } catch (err) {
       console.error("Cover photo upload failed:", err);
+      setUploadError(err.message || "Upload failed — please try again.");
     } finally {
       setUploadingCover(false);
     }
@@ -291,6 +294,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
                 </label>
               </div>
               {uploadingCover && <p className="text-xs text-stone-400 mt-1">Uploading...</p>}
+              {uploadError && <p className="text-xs text-rose-600 mt-1">{uploadError}</p>}
             </div>
             <div>
               <label className="text-xs text-stone-500 mb-1 block">Project name</label>

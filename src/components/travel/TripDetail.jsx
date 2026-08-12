@@ -282,13 +282,19 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
                     };
                     return (
                       <>
-                        <input
-                          value={countryInput}
-                          onChange={e => { setCountryInput(e.target.value); if (e.target.value.length >= 1) searchCountries(e.target.value, setCountrySuggestions); else setCountrySuggestions([]); }}
-                          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCountry(countryInput.trim()); } }}
-                          onBlur={() => setTimeout(() => setCountrySuggestions([]), 200)}
-                          className="w-full bg-muted border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors"
-                          placeholder="e.g. Colombia — search, or type and press Enter" />
+                        <div className="flex gap-2">
+                          <input
+                            value={countryInput}
+                            onChange={e => { setCountryInput(e.target.value); if (e.target.value.length >= 1) searchCountries(e.target.value, setCountrySuggestions); else setCountrySuggestions([]); }}
+                            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCountry(countryInput.trim()); } }}
+                            onBlur={() => setTimeout(() => setCountrySuggestions([]), 200)}
+                            className="flex-1 min-w-0 bg-muted border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors"
+                            placeholder="e.g. Colombia — search, or type and tap +" />
+                          <button type="button" onClick={() => addCountry(countryInput.trim())} disabled={!countryInput.trim()}
+                            className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-lg bg-foreground text-background disabled:opacity-30 disabled:cursor-not-allowed">
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
                         {countrySuggestions.length > 0 && (
                           <div className="absolute z-20 w-full bg-card border border-border rounded-lg shadow-lg mt-1 max-h-40 overflow-y-auto">
                             {countrySuggestions.map((c, i) => (
@@ -316,26 +322,34 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
                   {(() => {
                     const selectedCountries = form.country ? form.country.split(",").map(c => c.trim()).filter(Boolean) : [];
                     const addedCities = form.cities ? form.cities.split(",").map(c => c.trim()).filter(Boolean) : [];
+                    const addCity = (c) => {
+                      const typed = (c || "").trim();
+                      if (typed && !addedCities.includes(typed)) {
+                        setForm(f => ({ ...f, cities: [...addedCities, typed].join(", ") }));
+                      }
+                      setCityInput("");
+                      setCitySuggestions([]);
+                    };
                     return (
                       <>
-                        <input placeholder={selectedCountries.length === 0 ? "Select a country first" : "Search and add cities... (or type any city and press Enter)"}
+                        <div className="flex gap-2">
+                        <input placeholder={selectedCountries.length === 0 ? "Select a country first" : "Search and add cities... (or type and tap +)"}
                           disabled={selectedCountries.length === 0}
                           value={cityInput}
                           onChange={e => { const q = e.target.value; setCityInput(q); setCitySuggestions([]); if (selectedCountries.length > 0 && q.length >= 1) searchCities(q, selectedCountries, setCitySuggestions); }}
                           onKeyDown={e => {
                             if (e.key === "Enter") {
                               e.preventDefault();
-                              const typed = cityInput.trim();
-                              if (typed && !addedCities.includes(typed)) {
-                                const updated = [...addedCities, typed];
-                                setForm(f => ({ ...f, cities: updated.join(", ") }));
-                              }
-                              setCityInput("");
-                              setCitySuggestions([]);
+                              addCity(cityInput);
                             }
                           }}
                           onBlur={() => setTimeout(() => setCitySuggestions([]), 200)}
-                          className="w-full bg-muted border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors disabled:opacity-50 disabled:cursor-not-allowed" />
+                          className="flex-1 min-w-0 bg-muted border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors disabled:opacity-50 disabled:cursor-not-allowed" />
+                        <button type="button" onClick={() => addCity(cityInput)} disabled={!cityInput.trim() || selectedCountries.length === 0}
+                          className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-lg bg-foreground text-background disabled:opacity-30 disabled:cursor-not-allowed">
+                          <Plus className="w-4 h-4" />
+                        </button>
+                        </div>
                         {citySuggestions.length > 0 && (
                           <div className="absolute z-20 w-full bg-card border border-border rounded-lg shadow-lg mt-1 max-h-40 overflow-y-auto">
                             {citySuggestions.map((city, i) => (

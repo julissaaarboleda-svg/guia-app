@@ -68,23 +68,40 @@ export default function NewJourneySheet({ open, onClose, onCreate }) {
 
           <div>
             <label className="font-body text-[11px] text-muted-foreground mb-1.5 block">Country (add more than one for multi-destination trips)</label>
-            <input
-              value={countryInput}
-              onChange={(e) => { setCountryInput(e.target.value); if (e.target.value.length >= 1) searchCountries(e.target.value, setCountrySugs); else setCountrySugs([]); }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
+            <div className="flex gap-2">
+              <input
+                value={countryInput}
+                onChange={(e) => { setCountryInput(e.target.value); if (e.target.value.length >= 1) searchCountries(e.target.value, setCountrySugs); else setCountrySugs([]); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const typed = countryInput.trim();
+                    const existing = form.country ? form.country.split(",").map((c) => c.trim()).filter(Boolean) : [];
+                    if (typed && !existing.includes(typed)) setForm((f) => ({ ...f, country: [...existing, typed].join(", ") }));
+                    setCountryInput("");
+                    setCountrySugs([]);
+                  }
+                }}
+                onBlur={() => setTimeout(() => setCountrySugs([]), 200)}
+                placeholder="e.g. Brazil — search, or type and tap +"
+                className="flex-1 min-w-0 bg-background border border-border rounded-xl px-4 py-2.5 text-[15px] text-foreground outline-none focus:border-ring transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => {
                   const typed = countryInput.trim();
                   const existing = form.country ? form.country.split(",").map((c) => c.trim()).filter(Boolean) : [];
                   if (typed && !existing.includes(typed)) setForm((f) => ({ ...f, country: [...existing, typed].join(", ") }));
                   setCountryInput("");
                   setCountrySugs([]);
-                }
-              }}
-              onBlur={() => setTimeout(() => setCountrySugs([]), 200)}
-              placeholder="e.g. Brazil — search, or type and press Enter"
-              className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-[15px] text-foreground outline-none focus:border-ring transition-colors"
-            />
+                }}
+                disabled={!countryInput.trim()}
+                className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-xl bg-foreground text-background disabled:opacity-30 disabled:cursor-not-allowed"
+                aria-label="Add country"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
             {countrySugs.length > 0 && (
               <div className="relative z-20">
                 <div className="absolute w-full bg-card border border-border rounded-xl shadow-lg mt-1 max-h-44 overflow-y-auto">
@@ -111,24 +128,41 @@ export default function NewJourneySheet({ open, onClose, onCreate }) {
 
           <div>
             <label className="font-body text-[11px] text-muted-foreground mb-1.5 block">Cities</label>
-            <input
-              value={cityInput}
-              disabled={selectedCountries.length === 0}
-              onChange={(e) => { const q = e.target.value; setCityInput(q); if (selectedCountries.length > 0 && q.length >= 1) searchCities(q, selectedCountries, setCitySugs); else setCitySugs([]); }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
+            <div className="flex gap-2">
+              <input
+                value={cityInput}
+                disabled={selectedCountries.length === 0}
+                onChange={(e) => { const q = e.target.value; setCityInput(q); if (selectedCountries.length > 0 && q.length >= 1) searchCities(q, selectedCountries, setCitySugs); else setCitySugs([]); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const typed = cityInput.trim();
+                    const ex = form.cities ? form.cities.split(",").map((c) => c.trim()).filter(Boolean) : [];
+                    if (typed && !ex.includes(typed)) setForm((f) => ({ ...f, cities: [...ex, typed].join(", ") }));
+                    setCityInput("");
+                    setCitySugs([]);
+                  }
+                }}
+                onBlur={() => setTimeout(() => setCitySugs([]), 200)}
+                placeholder={selectedCountries.length === 0 ? "Add a destination first" : "Search cities, or type and tap +"}
+                className="flex-1 min-w-0 bg-background border border-border rounded-xl px-4 py-2.5 text-[15px] text-foreground outline-none focus:border-ring transition-colors disabled:opacity-50"
+              />
+              <button
+                type="button"
+                onClick={() => {
                   const typed = cityInput.trim();
                   const ex = form.cities ? form.cities.split(",").map((c) => c.trim()).filter(Boolean) : [];
                   if (typed && !ex.includes(typed)) setForm((f) => ({ ...f, cities: [...ex, typed].join(", ") }));
                   setCityInput("");
                   setCitySugs([]);
-                }
-              }}
-              onBlur={() => setTimeout(() => setCitySugs([]), 200)}
-              placeholder={selectedCountries.length === 0 ? "Add a destination first" : "Search cities, or type any city and press Enter"}
-              className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-[15px] text-foreground outline-none focus:border-ring transition-colors disabled:opacity-50"
-            />
+                }}
+                disabled={!cityInput.trim() || selectedCountries.length === 0}
+                className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-xl bg-foreground text-background disabled:opacity-30 disabled:cursor-not-allowed"
+                aria-label="Add city"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
             {citySugs.length > 0 && (
               <div className="relative z-20">
                 <div className="absolute w-full bg-card border border-border rounded-xl shadow-lg mt-1 max-h-44 overflow-y-auto">
@@ -136,6 +170,15 @@ export default function NewJourneySheet({ open, onClose, onCreate }) {
                     <button key={s} onMouseDown={() => { const ex = form.cities ? form.cities.split(",").map((c) => c.trim()).filter(Boolean) : []; if (!ex.includes(s)) setForm((f) => ({ ...f, cities: [...ex, s].join(", ") })); setCityInput(""); setCitySugs([]); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-secondary border-b border-border last:border-0">{s}</button>
                   ))}
                 </div>
+              </div>
+            )}
+            {form.cities && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {form.cities.split(",").map((c) => c.trim()).filter(Boolean).map((c) => (
+                  <span key={c} className="inline-flex items-center gap-1 bg-secondary text-foreground px-2.5 py-1 rounded-full text-xs">{c}
+                    <button onClick={() => setForm((f) => ({ ...f, cities: f.cities.split(",").map((x) => x.trim()).filter(Boolean).filter((x) => x !== c).join(", ") }))} className="text-muted-foreground hover:text-foreground">×</button>
+                  </span>
+                ))}
               </div>
             )}
           </div>

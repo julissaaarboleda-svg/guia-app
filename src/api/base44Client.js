@@ -15,6 +15,46 @@ netlifyIdentity.init();
 
 const API_BASE = "/.netlify/functions";
 
+// Phone camera photos are often 3-10MB, which base64-encodes to something even
+// bigger — comfortably over Netlify Functions' payload limits, which is why
+// uploads were silently hanging with no visible error. Downscale/recompress
+// image files client-side before upload; leave non-image files (attachments,
+// PDFs, etc.) untouched.
+function compressImageIfNeeded(file, maxDimension = 1600, quality = 0.82) {
+  if (!file.type || !file.type.startsWith("image/") || file.type === "image/gif") {
+    return Promise.resolve(file); // don't touch non-images or animated GIFs
+  }
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width <= maxDimension && height <= maxDimension && file.size < 1_500_000) {
+        resolve(file); // already small enough, skip re-encoding
+        return;
+      }
+      const scale = Math.min(1, maxDimension / Math.max(width, height));
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) { resolve(file); return; } // fall back to original on any failure
+          resolve(new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" }));
+        },
+        "image/jpeg",
+        quality
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); }; // fall back on load failure
+    img.src = url;
+  });
+}
+
 async function authHeaders() {
   const user = netlifyIdentity.currentUser();
   if (!user) throw new Error("Not authenticated");
@@ -128,18 +168,19 @@ async function GenerateImage({ prompt }) {
 }
 
 async function UploadFile({ file }) {
+  const uploadFile = await compressImageIfNeeded(file);
   const base64Data = await new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(r.result.split(",")[1]);
     r.onerror = reject;
-    r.readAsDataURL(file);
+    r.readAsDataURL(uploadFile);
   });
   const headers = await authHeaders();
   const res = await checkOk(
     await fetch(`${API_BASE}/upload`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ filename: file.name, contentType: file.type, base64Data }),
+      body: JSON.stringify({ filename: uploadFile.name, contentType: uploadFile.type, base64Data }),
     })
   );
   return res.json(); // { file_url }
