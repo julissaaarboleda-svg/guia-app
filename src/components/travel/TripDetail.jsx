@@ -14,6 +14,7 @@ import MemoriesTab from "./MemoriesTab";
 import BottomNav from "@/components/BottomNav";
 import FeedbackModal from "@/components/feedback/FeedbackModal";
 import "react-quill/dist/quill.snow.css";
+import DateInput from "@/components/DateInput";
 
 const TABS = [
   { id: "Itinerary", label: "Itinerary" },
@@ -266,9 +267,21 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab }) {
                     const addedCities = form.cities ? form.cities.split(",").map(c => c.trim()).filter(Boolean) : [];
                     return (
                       <>
-                        <input placeholder={selectedCountries.length === 0 ? "Select a country first" : "Search and add cities..."}
+                        <input placeholder={selectedCountries.length === 0 ? "Select a country first" : "Search and add cities... (or type any city and press Enter)"}
                           disabled={selectedCountries.length === 0}
                           onChange={e => { const q = e.target.value; setCitySuggestions(selectedCountries.length > 0 && q.length >= 1 ? searchCities(q, selectedCountries) : []); }}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              const typed = e.target.value.trim();
+                              if (typed && !addedCities.includes(typed)) {
+                                const updated = [...addedCities, typed];
+                                setForm(f => ({ ...f, cities: updated.join(", ") }));
+                              }
+                              e.target.value = "";
+                              setCitySuggestions([]);
+                            }
+                          }}
                           onBlur={() => setTimeout(() => setCitySuggestions([]), 200)}
                           className="w-full bg-muted border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors disabled:opacity-50 disabled:cursor-not-allowed" />
                         {citySuggestions.length > 0 && (
@@ -316,12 +329,12 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab }) {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs text-muted-foreground mb-1.5 block">Start date</label>
-                    <input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
+                    <DateInput value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
                       className="w-full bg-muted border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors" />
                   </div>
                   <div>
                     <label className="text-xs text-muted-foreground mb-1.5 block">End date</label>
-                    <input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
+                    <DateInput value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
                       className="w-full bg-muted border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors" />
                   </div>
                 </div>
@@ -588,10 +601,10 @@ export function DetailsTab({ trip, onUpdate }) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <input placeholder="Airline" value={flight.airline || ""} onChange={e => updateFlight(index, "airline", e.target.value)} className="bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring" />
                   <input placeholder="Flight #" value={flight.flight_number || ""} onChange={e => updateFlight(index, "flight_number", e.target.value)} className="bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring" />
-                  <div><label className="text-xs text-muted-foreground mb-1 block flex items-center gap-1"><Calendar className="w-3 h-3" /> Departure date</label><input type="date" value={flight.departure_date || ""} onChange={e => updateFlight(index, "departure_date", e.target.value)} className="w-full bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring" /></div>
-                  <div><label className="text-xs text-muted-foreground mb-1 block flex items-center gap-1"><Clock className="w-3 h-3" /> Departure time</label><input type="time" value={flight.departure_time || ""} onChange={e => updateFlight(index, "departure_time", e.target.value)} className="w-full bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring" /></div>
-                  <div><label className="text-xs text-muted-foreground mb-1 block flex items-center gap-1"><Calendar className="w-3 h-3" /> Arrival date</label><input type="date" value={flight.arrival_date || ""} onChange={e => updateFlight(index, "arrival_date", e.target.value)} className="w-full bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring" /></div>
-                  <div><label className="text-xs text-muted-foreground mb-1 block flex items-center gap-1"><Clock className="w-3 h-3" /> Arrival time</label><input type="time" value={flight.arrival_time || ""} onChange={e => updateFlight(index, "arrival_time", e.target.value)} className="w-full bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring" /></div>
+                  <div><label className="text-xs text-muted-foreground mb-1 block">Departure date</label><DateInput value={flight.departure_date || ""} onChange={e => updateFlight(index, "departure_date", e.target.value)} /></div>
+                  <div><label className="text-xs text-muted-foreground mb-1 block flex items-center gap-1"><Clock className="w-3 h-3" /> Departure time</label><input type="time" value={flight.departure_time || ""} onChange={e => updateFlight(index, "departure_time", e.target.value)} /></div>
+                  <div><label className="text-xs text-muted-foreground mb-1 block">Arrival date</label><DateInput value={flight.arrival_date || ""} onChange={e => updateFlight(index, "arrival_date", e.target.value)} /></div>
+                  <div><label className="text-xs text-muted-foreground mb-1 block flex items-center gap-1"><Clock className="w-3 h-3" /> Arrival time</label><input type="time" value={flight.arrival_time || ""} onChange={e => updateFlight(index, "arrival_time", e.target.value)} /></div>
                   <input placeholder="From (e.g. LAX)" value={flight.departure_airport || ""} onChange={e => updateFlight(index, "departure_airport", e.target.value)} className="bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring" />
                   <input placeholder="To (e.g. NRT)" value={flight.arrival_airport || ""} onChange={e => updateFlight(index, "arrival_airport", e.target.value)} className="bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring" />
                   <input placeholder="Seat" value={flight.seat || ""} onChange={e => updateFlight(index, "seat", e.target.value)} className="bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring" />
@@ -637,15 +650,15 @@ export function DetailsTab({ trip, onUpdate }) {
                 )}
                 <p className="text-xs text-muted-foreground mb-2">Stay #{index + 1}</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="col-span-2"><label className="text-xs text-muted-foreground mb-1 block">Property name</label><input placeholder="e.g. The Grand Hotel" value={stay.property_name || ""} onChange={e => updateStay(index, "property_name", e.target.value)} className="w-full bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring" /></div>
+                  <div className="col-span-2"><label className="text-xs text-muted-foreground mb-1 block">Property name</label><input placeholder="e.g. The Grand Hotel" value={stay.property_name || ""} onChange={e => updateStay(index, "property_name", e.target.value)} /></div>
                   <div className="col-span-2"><label className="text-xs text-muted-foreground mb-1 block">Property type</label><select value={stay.property_type || ""} onChange={e => updateStay(index, "property_type", e.target.value)} className="w-full bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring"><option value="">Select type...</option><option value="Hotel">Hotel</option><option value="Airbnb">Airbnb</option><option value="Vacation Rental">Vacation Rental</option><option value="Family & Friends">Family &amp; Friends</option><option value="Hostel">Hostel</option><option value="Resort">Resort</option><option value="Other">Other</option></select></div>
-                  <div className="col-span-2"><label className="text-xs text-muted-foreground mb-1 block">Address</label><input placeholder="Street address" value={stay.address || ""} onChange={e => updateStay(index, "address", e.target.value)} className="w-full bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring" /></div>
-                  <div><label className="text-xs text-muted-foreground mb-1 block flex items-center gap-1"><Calendar className="w-3 h-3" /> Check-in date</label><input type="date" value={stay.check_in_date || ""} onChange={e => updateStay(index, "check_in_date", e.target.value)} className="w-full bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring" /></div>
-                  <div><label className="text-xs text-muted-foreground mb-1 block flex items-center gap-1"><Clock className="w-3 h-3" /> Check-in time</label><input type="time" value={stay.check_in_time || ""} onChange={e => updateStay(index, "check_in_time", e.target.value)} className="w-full bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring" /></div>
-                  <div><label className="text-xs text-muted-foreground mb-1 block flex items-center gap-1"><Calendar className="w-3 h-3" /> Check-out date</label><input type="date" value={stay.check_out_date || ""} onChange={e => updateStay(index, "check_out_date", e.target.value)} className="w-full bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring" /></div>
-                  <div><label className="text-xs text-muted-foreground mb-1 block flex items-center gap-1"><Clock className="w-3 h-3" /> Check-out time</label><input type="time" value={stay.check_out_time || ""} onChange={e => updateStay(index, "check_out_time", e.target.value)} className="w-full bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring" /></div>
-                  <div className="col-span-2"><label className="text-xs text-muted-foreground mb-1 block">Confirmation #</label><input placeholder="e.g. ABC123456" value={stay.confirmation_number || ""} onChange={e => updateStay(index, "confirmation_number", e.target.value)} className="w-full bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring" /></div>
-                  <div className="col-span-2"><label className="text-xs text-muted-foreground mb-1 block">Contact phone</label><input placeholder="Phone number" value={stay.contact_phone || ""} onChange={e => updateStay(index, "contact_phone", e.target.value)} className="w-full bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring" /></div>
+                  <div className="col-span-2"><label className="text-xs text-muted-foreground mb-1 block">Address</label><input placeholder="Street address" value={stay.address || ""} onChange={e => updateStay(index, "address", e.target.value)} /></div>
+                  <div><label className="text-xs text-muted-foreground mb-1 block">Check-in date</label><DateInput value={stay.check_in_date || ""} onChange={e => updateStay(index, "check_in_date", e.target.value)} /></div>
+                  <div><label className="text-xs text-muted-foreground mb-1 block flex items-center gap-1"><Clock className="w-3 h-3" /> Check-in time</label><input type="time" value={stay.check_in_time || ""} onChange={e => updateStay(index, "check_in_time", e.target.value)} /></div>
+                  <div><label className="text-xs text-muted-foreground mb-1 block">Check-out date</label><DateInput value={stay.check_out_date || ""} onChange={e => updateStay(index, "check_out_date", e.target.value)} /></div>
+                  <div><label className="text-xs text-muted-foreground mb-1 block flex items-center gap-1"><Clock className="w-3 h-3" /> Check-out time</label><input type="time" value={stay.check_out_time || ""} onChange={e => updateStay(index, "check_out_time", e.target.value)} /></div>
+                  <div className="col-span-2"><label className="text-xs text-muted-foreground mb-1 block">Confirmation #</label><input placeholder="e.g. ABC123456" value={stay.confirmation_number || ""} onChange={e => updateStay(index, "confirmation_number", e.target.value)} /></div>
+                  <div className="col-span-2"><label className="text-xs text-muted-foreground mb-1 block">Contact phone</label><input placeholder="Phone number" value={stay.contact_phone || ""} onChange={e => updateStay(index, "contact_phone", e.target.value)} /></div>
                   <textarea placeholder="Notes" value={stay.notes || ""} onChange={e => updateStay(index, "notes", e.target.value)} rows={2} className="col-span-2 bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring resize-none" />
                 </div>
               </div>

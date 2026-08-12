@@ -8,6 +8,7 @@ import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import ActionCircle from "@/components/ActionCircle";
 import PageHeader from "@/components/PageHeader";
+import DateInput from "@/components/DateInput";
 
 const ENTRY_TYPES = [
   { id: "job", label: "Job / Position", icon: Briefcase, color: "text-foreground", description: "Track current and past roles" },
@@ -285,7 +286,7 @@ export default function Career() {
           ) : (
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Start date</label>
-              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+              <DateInput value={startDate} onChange={e => setStartDate(e.target.value)}
                 className="w-full bg-stone-50 border border-border rounded-lg px-3 py-2 text-stone-900 text-sm outline-none focus:border-ring transition-colors" />
             </div>
           )}

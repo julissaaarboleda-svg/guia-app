@@ -4,6 +4,7 @@ import ProjectDetail from "@/components/projects/ProjectDetail";
 import { Plus, ChevronRight, Briefcase, Trash2 } from "lucide-react";
 import ActionCircle from "@/components/ActionCircle";
 import PageHeader from "@/components/PageHeader";
+import DateInput from "@/components/DateInput";
 
 const statusColors = {
   planning:  "bg-muted text-foreground border-border",
@@ -210,7 +211,7 @@ export default function Projects() {
               </div>
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Target date</label>
-                <input type="date" value={form.target_date} onChange={e => setForm(f => ({ ...f, target_date: e.target.value }))}
+                <DateInput value={form.target_date} onChange={e => setForm(f => ({ ...f, target_date: e.target.value }))}
                   className="w-full bg-stone-50 border border-border rounded-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-ring transition-colors" />
               </div>
               <button onClick={addProject} className="w-full bg-foreground text-background py-2.5 rounded-xl text-sm font-medium hover:opacity-90 transition-colors flex items-center justify-center gap-2">

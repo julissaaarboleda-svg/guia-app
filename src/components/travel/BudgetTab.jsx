@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Plus, Trash2, DollarSign, Edit2, Check, X } from "lucide-react";
+import DateInput from "@/components/DateInput";
 
 const CATEGORIES = ["Flights", "Hotel", "Food", "Activities", "Transport", "Shopping", "Other"];
 
@@ -123,8 +124,7 @@ export default function BudgetTab({ trip, onUpdate }) {
         </div>
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">Date (optional)</label>
-          <input
-            type="date"
+          <DateInput
             value={form.date}
             onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
             className="w-full bg-muted border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring"

@@ -5,6 +5,7 @@ import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import ActionCircle from "@/components/ActionCircle";
 import PageHeader from "@/components/PageHeader";
+import DateInput from "@/components/DateInput";
 
 import BudgetTab from "@/components/finance/BudgetTab";
 import FinanceSummary from "@/components/finance/FinanceSummary";
@@ -354,7 +355,7 @@ export default function Finance() {
                   ) : (
                     <>
                       <label className="block text-xs font-medium text-foreground mb-1">Due date</label>
-                      <input type="date" value={form.due_date || ""} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
+                      <DateInput value={form.due_date || ""} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
                         className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors" />
                     </>
                   )}
@@ -427,7 +428,7 @@ export default function Finance() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-foreground mb-1">Next due date</label>
-                  <input type="date" value={form.due_date || ""} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
+                  <DateInput value={form.due_date || ""} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
                     className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors" />
                 </div>
               </div>
@@ -464,7 +465,7 @@ export default function Finance() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-foreground mb-1">Renewal date</label>
-                <input type="date" value={form.renewal_date || ""} onChange={e => setForm(f => ({ ...f, renewal_date: e.target.value }))}
+                <DateInput value={form.renewal_date || ""} onChange={e => setForm(f => ({ ...f, renewal_date: e.target.value }))}
                   className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors" />
               </div>
               <div>
@@ -602,7 +603,7 @@ export default function Finance() {
                         ) : (
                           <>
                             <label className="block text-xs font-medium text-foreground mb-1">Due date</label>
-                            <input type="date" value={editItemForm.due_date} onChange={e => setEditItemForm(f => ({ ...f, due_date: e.target.value }))}
+                            <DateInput value={editItemForm.due_date} onChange={e => setEditItemForm(f => ({ ...f, due_date: e.target.value }))}
                               className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
                           </>
                         )}
@@ -669,7 +670,7 @@ export default function Finance() {
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-foreground mb-1">Due date</label>
-                        <input type="date" value={editItemForm.due_date} onChange={e => setEditItemForm(f => ({ ...f, due_date: e.target.value }))}
+                        <DateInput value={editItemForm.due_date} onChange={e => setEditItemForm(f => ({ ...f, due_date: e.target.value }))}
                           className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
                       </div>
                     </div>
@@ -706,7 +707,7 @@ export default function Finance() {
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-foreground mb-1">Renewal date</label>
-                      <input type="date" value={editItemForm.renewal_date} onChange={e => setEditItemForm(f => ({ ...f, renewal_date: e.target.value }))}
+                      <DateInput value={editItemForm.renewal_date} onChange={e => setEditItemForm(f => ({ ...f, renewal_date: e.target.value }))}
                         className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
                     </div>
                   </>

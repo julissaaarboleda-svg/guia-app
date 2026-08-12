@@ -89,8 +89,18 @@ export default function NewJourneySheet({ open, onClose, onCreate }) {
               value={cityInput}
               disabled={selectedCountries.length === 0}
               onChange={(e) => { const q = e.target.value; setCityInput(q); setCitySugs(selectedCountries.length > 0 && q.length >= 1 ? searchCities(q, selectedCountries) : []); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const typed = cityInput.trim();
+                  const ex = form.cities ? form.cities.split(",").map((c) => c.trim()).filter(Boolean) : [];
+                  if (typed && !ex.includes(typed)) setForm((f) => ({ ...f, cities: [...ex, typed].join(", ") }));
+                  setCityInput("");
+                  setCitySugs([]);
+                }
+              }}
               onBlur={() => setTimeout(() => setCitySugs([]), 200)}
-              placeholder={selectedCountries.length === 0 ? "Add a destination first" : "Search cities…"}
+              placeholder={selectedCountries.length === 0 ? "Add a destination first" : "Search cities, or type any city and press Enter"}
               className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-[15px] text-foreground outline-none focus:border-ring transition-colors disabled:opacity-50"
             />
             {citySugs.length > 0 && (

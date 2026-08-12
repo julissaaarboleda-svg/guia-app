@@ -12,6 +12,7 @@ import AddItemSheet from "./itinerary/AddItemSheet";
 import { ADD_TYPE_BY_KEY, formatTime } from "./itinerary/activityTypes";
 import { toast } from "sonner";
 import { savePlaceToMemories, categoryFromActivity } from "@/lib/memoryUtils";
+import DateInput from "@/components/DateInput";
 
 function deriveAlerts(day) {
   const acts = day?.activities || [];
@@ -408,8 +409,7 @@ Only include real travel/booking items. Return as { activities: [...] }.`,
             <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-4">
               <div>
                 <label className="text-xs text-muted-foreground mb-1.5 block">Date</label>
-                <input
-                  type="date"
+                <DateInput
                   value={dayEdit.date}
                   onChange={(e) => setDayEdit((s) => ({ ...s, date: e.target.value }))}
                   className="w-full bg-muted border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring transition-colors"

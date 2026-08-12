@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import ActionCircle from "@/components/ActionCircle";
+import DateInput from "@/components/DateInput";
 
 const STATUS_STYLES = {
   not_started: "bg-muted text-muted-foreground",
@@ -232,8 +233,8 @@ export default function Goals() {
                   </Select>
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><Calendar className="w-3 h-3" /> Target date</label>
-                  <input type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)}
+                  <label className="text-xs text-muted-foreground mb-1 block">Target date</label>
+                  <DateInput value={targetDate} onChange={e => setTargetDate(e.target.value)}
                     className="w-full bg-card border border-border rounded-xl px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors" />
                 </div>
               </div>
@@ -253,8 +254,8 @@ export default function Goals() {
                     </Select>
                   </div>
                   <div>
-                    <label className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><Calendar className="w-3 h-3" /> Due date</label>
-                    <input type="date" value={taskDueDate} onChange={e => setTaskDueDate(e.target.value)}
+                    <label className="text-xs text-muted-foreground mb-1 block">Due date</label>
+                    <DateInput value={taskDueDate} onChange={e => setTaskDueDate(e.target.value)}
                       className="w-full bg-card border border-border rounded-xl px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors" />
                   </div>
                 </div>
@@ -392,7 +393,7 @@ export default function Goals() {
                 </Select>
                 <div className="flex items-center gap-1.5">
                   <Calendar className="w-3 h-3 text-muted-foreground" />
-                  <input type="date" value={td.due_date || ""} onChange={e => setEditTaskData({ ...td, due_date: e.target.value })}
+                  <DateInput value={td.due_date || ""} onChange={e => setEditTaskData({ ...td, due_date: e.target.value })}
                     className="text-xs text-muted-foreground bg-transparent outline-none" />
                 </div>
               </div>

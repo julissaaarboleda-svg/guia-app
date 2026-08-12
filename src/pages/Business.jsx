@@ -5,6 +5,7 @@ import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import ActionCircle from "@/components/ActionCircle";
 import PageHeader from "@/components/PageHeader";
+import DateInput from "@/components/DateInput";
 
 export default function Business() {
   const [entries, setEntries] = useState([]);
@@ -287,9 +288,9 @@ export default function Business() {
                       <GoalTypeInputs type={editGoalType} setType={setEditGoalType} form={goalForm} setForm={setGoalForm} />
                       <div>
                         <label className="flex items-center gap-1 text-xs font-medium text-foreground mb-1">
-                          <Calendar className="w-3 h-3" /> Target date (optional)
+                          Target date (optional)
                         </label>
-                        <input type="date" value={goalForm.target_date} onChange={e => setGoalForm(f => ({ ...f, target_date: e.target.value }))}
+                        <DateInput value={goalForm.target_date} onChange={e => setGoalForm(f => ({ ...f, target_date: e.target.value }))}
                           className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
                       </div>
                       <ReactQuill value={goalForm.notes} onChange={(value) => setGoalForm(f => ({ ...f, notes: value }))} placeholder="Notes" className="bg-secondary rounded-lg quill-business" theme="snow" />
@@ -368,7 +369,7 @@ export default function Business() {
               <div className="grid grid-cols-2 gap-2">
                 <input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="Location"
                   className="bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
-                <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+                <DateInput value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
                   className="bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
                 <input type="number" step="0.01" value={form.revenue} onChange={e => setForm(f => ({ ...f, revenue: e.target.value }))} placeholder="Revenue ($)"
                   className="bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
@@ -391,9 +392,9 @@ export default function Business() {
               <GoalTypeInputs type={goalType} setType={setGoalType} form={goalForm} setForm={setGoalForm} />
               <div>
                 <label className="flex items-center gap-1 text-xs font-medium text-foreground mb-1">
-                  <Calendar className="w-3 h-3" /> Target date {goalType !== "milestone" ? "(optional)" : ""}
+                  Target date {goalType !== "milestone" ? "(optional)" : ""}
                 </label>
-                <input type="date" value={goalForm.target_date} onChange={e => setGoalForm(f => ({ ...f, target_date: e.target.value }))}
+                <DateInput value={goalForm.target_date} onChange={e => setGoalForm(f => ({ ...f, target_date: e.target.value }))}
                   className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring"
                   placeholder="Select target date" />
               </div>
@@ -441,7 +442,7 @@ export default function Business() {
                     <div className="grid grid-cols-2 gap-2">
                       <input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="Location"
                         className="bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
-                      <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+                      <DateInput value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
                         className="bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
                       <input type="number" step="0.01" value={form.revenue} onChange={e => setForm(f => ({ ...f, revenue: e.target.value }))} placeholder="Revenue"
                         className="bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />

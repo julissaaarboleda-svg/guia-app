@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import DateInput from "@/components/DateInput";
 import {
   ArrowLeft,
   Edit2,
@@ -320,8 +321,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
               </div>
               <div>
                 <label className="text-xs text-stone-500 mb-1 block">Target date</label>
-                <input
-                  type="date"
+                <DateInput
                   value={form.target_date}
                   onChange={(e) => setForm((f) => ({ ...f, target_date: e.target.value }))}
                   className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-stone-900 text-sm outline-none focus:border-stone-400 transition-colors"
