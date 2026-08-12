@@ -1,5 +1,5 @@
 import { parseISO } from "date-fns";
-import { Edit2, Calendar, MapPin } from "lucide-react";
+import { Edit2, Calendar, MapPin, ImageIcon } from "lucide-react";
 
 function CircleProgress({ pct }) {
   const r = 16;
@@ -53,13 +53,24 @@ export default function JourneyHero({ trip, onOpen, onCustomize, generating }) {
         <span className="font-body text-[9px] uppercase tracking-[0.18em] text-foreground bg-secondary px-3 py-1 rounded-full">
           Planning
         </span>
-        <button
-          onClick={(e) => { e.stopPropagation(); onCustomize(); }}
-          className="p-1.5 text-white bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-colors"
-          aria-label="Customize cover"
-        >
-          <Edit2 className="w-3.5 h-3.5" strokeWidth={1.6} />
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={(e) => { e.stopPropagation(); onCustomize(); }}
+            className="p-1.5 text-stone-700 bg-white rounded-full shadow-sm hover:bg-stone-100 transition-colors"
+            aria-label="Customize cover photo"
+            title="Customize cover photo"
+          >
+            <ImageIcon className="w-3.5 h-3.5" strokeWidth={1.6} />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onEditTrip(); }}
+            className="p-1.5 text-stone-700 bg-white rounded-full shadow-sm hover:bg-stone-100 transition-colors"
+            aria-label="Edit trip details"
+            title="Edit trip details"
+          >
+            <Edit2 className="w-3.5 h-3.5" strokeWidth={1.6} />
+          </button>
+        </div>
       </div>
 
       {/* Bottom content */}

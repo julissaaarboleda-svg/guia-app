@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, SlidersHorizontal, User } from "lucide-react";
 import DateInput from "@/components/DateInput";
 
 // Avatar chip color — same small palette used elsewhere in the app (Notes'
@@ -38,6 +38,7 @@ export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd
   const [assignee, setAssignee] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [filter, setFilter] = useState("all");
+  const [showAssigneeFilter, setShowAssigneeFilter] = useState(false);
 
   const submit = () => {
     if (!name.trim()) return;
@@ -57,28 +58,44 @@ export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd
   return (
     <div>
       {/* Filter row */}
-      <div className="flex gap-1.5 mb-3 overflow-x-auto no-scrollbar">
-        <button
-          onClick={() => setFilter("all")}
-          className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors ${filter === "all" ? "bg-foreground text-background border-foreground" : "bg-card text-foreground border-border"}`}
-        >
-          All ({tasks.length})
-        </button>
-        <button
-          onClick={() => setFilter(currentEmail)}
-          className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors ${filter === currentEmail ? "bg-foreground text-background border-foreground" : "bg-card text-foreground border-border"}`}
-        >
-          My Tasks ({countFor(currentEmail)})
-        </button>
-        {collaborators.map((c) => (
+      <div className="flex items-center gap-1.5 mb-3">
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar flex-1">
           <button
-            key={c}
-            onClick={() => setFilter(c)}
-            className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors ${filter === c ? "bg-foreground text-background border-foreground" : "bg-card text-foreground border-border"}`}
+            onClick={() => setFilter("all")}
+            className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors ${filter === "all" ? "bg-foreground text-background border-foreground" : "bg-card text-foreground border-border"}`}
           >
-            {c.split("@")[0]}'s ({countFor(c)})
+            All ({tasks.length})
           </button>
-        ))}
+          <button
+            onClick={() => setFilter(currentEmail)}
+            className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors ${filter === currentEmail ? "bg-foreground text-background border-foreground" : "bg-card text-foreground border-border"}`}
+          >
+            My Tasks ({countFor(currentEmail)})
+          </button>
+        </div>
+        {collaborators.length > 0 && (
+          <div className="relative flex-shrink-0">
+            <button
+              onClick={() => setShowAssigneeFilter((s) => !s)}
+              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full border border-border bg-card text-foreground"
+            >
+              <SlidersHorizontal className="w-3 h-3" /> Filter
+            </button>
+            {showAssigneeFilter && (
+              <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-lg shadow-lg z-10 py-1 min-w-[140px]">
+                {collaborators.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => { setFilter(c); setShowAssigneeFilter(false); }}
+                    className={`w-full text-left px-3 py-1.5 text-xs hover:bg-secondary ${filter === c ? "font-semibold text-foreground" : "text-muted-foreground"}`}
+                  >
+                    {c.split("@")[0]}'s ({countFor(c)})
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Add task form */}
@@ -96,10 +113,13 @@ export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd
         </div>
         <div className="flex-1">
           <label className="text-[10px] text-muted-foreground mb-1 block">Assign to</label>
-          <select value={assignee} onChange={(e) => setAssignee(e.target.value)} className="w-full bg-muted border border-input rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-ring">
-            <option value={currentEmail}>Me</option>
-            {collaborators.map((c) => <option key={c} value={c}>{c.split("@")[0]}</option>)}
-          </select>
+          <div className="relative">
+            <User className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <select value={assignee} onChange={(e) => setAssignee(e.target.value)} className="w-full bg-muted border border-input rounded-lg pl-8 pr-2.5 py-1.5 text-sm outline-none focus:border-ring appearance-none">
+              <option value={currentEmail}>Me</option>
+              {collaborators.map((c) => <option key={c} value={c}>{c.split("@")[0]}</option>)}
+            </select>
+          </div>
         </div>
       </div>
       <button onClick={submit} className="w-full flex items-center justify-center gap-1.5 bg-foreground text-background py-2 rounded-lg text-sm font-medium hover:opacity-90 mb-3">
@@ -107,6 +127,10 @@ export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd
       </button>
 
       {/* Task list */}
+      <div className="flex items-center gap-2 mt-4 mb-1">
+        <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">{filtered.length} Task{filtered.length !== 1 ? "s" : ""}</span>
+        <div className="h-px bg-border flex-1" />
+      </div>
       <div className="space-y-1">
         {filtered.map((t) => {
           const due = dueDateInfo(t.due_date);

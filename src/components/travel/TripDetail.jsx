@@ -31,9 +31,9 @@ const statusColors = {
   completed: "bg-stone-100 text-stone-500 border-stone-200",
 };
 
-export default function TripDetail({ trip, onBack, onUpdate, initialTab }) {
+export default function TripDetail({ trip, onBack, onUpdate, initialTab, initialEditOpen }) {
   const [tab, setTab] = useState(initialTab && TABS.some(t => t.id === initialTab) ? initialTab : "Itinerary");
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(!!initialEditOpen);
   const [citySuggestions, setCitySuggestions] = useState([]);
   const [countrySuggestions, setCountrySuggestions] = useState([]);
   const [form, setForm] = useState({

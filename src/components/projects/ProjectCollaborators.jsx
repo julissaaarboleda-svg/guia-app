@@ -35,7 +35,7 @@ export default function ProjectCollaborators({ collaborators, onAdd, onRemove, c
     <>
       <div className="flex items-center gap-1.5">
         {collaborators.map((c) => (
-          <div key={c} className="group relative w-7 h-7 rounded-full bg-stone-700 text-white text-[10px] font-semibold flex items-center justify-center" title={c}>
+          <div key={c} className="group relative w-8 h-8 rounded-full bg-stone-700 border-2 border-white/20 text-white text-[10px] font-semibold flex items-center justify-center" title={c}>
             {c.slice(0, 2).toUpperCase()}
             {canManage && (
               <button onClick={() => onRemove(c)} className="absolute -top-1 -right-1 hidden group-hover:flex w-3.5 h-3.5 bg-rose-500 rounded-full items-center justify-center">
@@ -47,9 +47,10 @@ export default function ProjectCollaborators({ collaborators, onAdd, onRemove, c
         {canManage && (
           <button
             onClick={() => setOpen(true)}
-            className="flex items-center gap-1 h-7 pl-1.5 pr-2.5 rounded-full border border-stone-600 text-stone-300 hover:text-white hover:border-stone-400 transition-colors text-[11px] font-medium"
+            className="w-8 h-8 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-stone-100 transition-colors"
+            title="Add collaborator"
           >
-            <UserPlus className="w-3.5 h-3.5" /> Add
+            <UserPlus className="w-4 h-4" />
           </button>
         )}
       </div>

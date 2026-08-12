@@ -100,7 +100,14 @@ export default function Projects() {
                 <div key={project.id}
                   className="w-full bg-card border border-border rounded-2xl p-5 text-left hover:border-ring hover:shadow-sm transition-all group relative"
                 >
-                  <div className="flex items-start justify-between" onClick={() => setSelected(project)} style={{ cursor: 'pointer' }}>
+                  <div className="flex items-start gap-4" onClick={() => setSelected(project)} style={{ cursor: 'pointer' }}>
+                    <div
+                      className="w-16 h-16 rounded-xl flex-shrink-0 bg-cover bg-center"
+                      style={{
+                        backgroundImage: project.cover_image_url ? `url(${project.cover_image_url})` : undefined,
+                        background: project.cover_image_url ? undefined : (project.accent_color || "#1c1917"),
+                      }}
+                    />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <h3 className="font-semibold text-foreground truncate">{project.title}</h3>

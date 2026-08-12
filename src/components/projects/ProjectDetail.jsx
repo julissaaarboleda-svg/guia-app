@@ -206,24 +206,26 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
                 </p>
               )}
             </div>
-            <div className="flex gap-1">
+            <div className="flex gap-1.5">
               <button
                 onClick={() => setShowColorPicker((s) => !s)}
-                className="p-2 text-stone-400 hover:text-white hover:bg-stone-800 rounded-lg transition-colors"
+                className="w-8 h-8 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-stone-100 transition-colors"
                 title="Customize background"
               >
                 <Palette className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setEditing(!editing)}
-                className="p-2 text-stone-400 hover:text-white hover:bg-stone-800 rounded-lg transition-colors"
+                className="w-8 h-8 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-stone-100 transition-colors"
+                title="Edit project"
               >
                 <Edit2 className="w-4 h-4" />
               </button>
               {isOwner && (
                 <button
                   onClick={deleteProject}
-                  className="p-2 text-stone-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                  className="w-8 h-8 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-rose-500 hover:text-white transition-colors"
+                  title="Delete project"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -255,8 +257,8 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
           )}
 
           {/* Collaborators */}
-          <div className="mt-4 pt-4 border-t border-stone-800 flex items-center gap-3">
-            <span className="text-xs text-stone-500 flex-shrink-0">Collaborators</span>
+          <div className="mt-4 pt-4 border-t border-white/15 flex items-center gap-3">
+            <span className="text-xs text-white/70 flex-shrink-0">Collaborators</span>
             <ProjectCollaborators
               collaborators={collaborators}
               onAdd={addCollaborator}

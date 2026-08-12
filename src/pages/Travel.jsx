@@ -20,6 +20,7 @@ export default function Travel() {
   const [trips, setTrips] = useState([]);
   const [selected, setSelected] = useState(null);
   const [selectedTab, setSelectedTab] = useState("Overview");
+  const [autoEditTrip, setAutoEditTrip] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [showCover, setShowCover] = useState(null);
   const [generatingFor, setGeneratingFor] = useState(null);
@@ -96,6 +97,12 @@ export default function Travel() {
     setSelectedTab(tab);
   };
 
+  const editTrip = (trip) => {
+    setSelected(trip);
+    setSelectedTab("Itinerary");
+    setAutoEditTrip(true);
+  };
+
   // Fetch "Know Before You Go" for the current journey's first city.
   useEffect(() => {
     if (!trips.length) { setKnowData(null); return; }
@@ -137,8 +144,10 @@ export default function Travel() {
       <TripDetail
         trip={selected}
         initialTab={selectedTab}
+        initialEditOpen={autoEditTrip}
         onBack={() => {
           setSelected(null);
+          setAutoEditTrip(false);
           load();
         }}
         onUpdate={(updated) => setSelected(updated)}
@@ -250,6 +259,7 @@ export default function Travel() {
                     generating={generatingFor === current.id}
                     onOpen={() => openTrip(current, "Itinerary")}
                     onCustomize={() => setShowCover(current)}
+                    onEditTrip={() => editTrip(current)}
                   />
                   <TravelBrief trip={current} />
                   <JourneyProgress trip={current} onNavigate={(tab) => openTrip(current, tab)} />
