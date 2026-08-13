@@ -108,7 +108,6 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
   const updateAccentColor = async (hex) => {
     setAccentColor(hex);
     setCoverImage(null);
-    setShowColorPicker(false);
     const updated = await base44.entities.Project.update(project.id, { accent_color: hex, cover_image_url: null });
     onUpdate(updated);
   };
@@ -118,7 +117,6 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
     if (!file) return;
     setUploadingCover(true);
     setUploadError(null);
-    setShowColorPicker(false);
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       setCoverImage(file_url);
