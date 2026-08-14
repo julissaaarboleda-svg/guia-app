@@ -101,14 +101,20 @@ export default function Projects() {
                   className="w-full bg-card border border-border rounded-2xl p-5 text-left hover:border-ring hover:shadow-sm transition-all group relative"
                 >
                   <div className="flex items-start gap-4" onClick={() => setSelected(project)} style={{ cursor: 'pointer' }}>
-                    <div
-                      className="w-16 h-16 rounded-xl flex-shrink-0 bg-cover bg-center flex items-center justify-center"
-                      style={{
-                        backgroundImage: project.cover_image_url ? `url(${project.cover_image_url})` : undefined,
-                        background: project.cover_image_url ? undefined : (project.accent_color || "#A7773F"),
-                      }}
-                    >
-                      {!project.cover_image_url && <Briefcase className="w-6 h-6 text-white/80" strokeWidth={1.5} />}
+                    <div className="w-16 h-16 rounded-xl flex-shrink-0 overflow-hidden flex items-center justify-center" style={{ background: project.accent_color || "#A7773F" }}>
+                      {project.cover_image_url ? (
+                        <img
+                          src={project.cover_image_url}
+                          alt=""
+                          className="w-full h-full object-cover"
+                          onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.nextSibling.style.display = "flex"; }}
+                        />
+                      ) : null}
+                      <Briefcase
+                        className="w-6 h-6 text-white/80"
+                        strokeWidth={1.5}
+                        style={{ display: project.cover_image_url ? "none" : "flex" }}
+                      />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -116,7 +122,6 @@ export default function Projects() {
                         <span className={`text-xs px-2 py-0.5 rounded-full border flex-shrink-0 ${statusColors[project.status]}`}>{project.status.replace("_", " ")}</span>
                       </div>
                       {project.description && <p className="text-muted-foreground text-xs mt-1 line-clamp-1">{project.description}</p>}
-                      <p className="text-[9px] text-red-500 break-all mt-1">DEBUG cover_image_url: {String(project.cover_image_url)}</p>
                       {project.target_date && (
                         <p className="text-muted-foreground text-xs mt-1">
                           Due: {new Date(project.target_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
