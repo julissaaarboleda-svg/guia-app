@@ -116,6 +116,7 @@ export default function Projects() {
                         <span className={`text-xs px-2 py-0.5 rounded-full border flex-shrink-0 ${statusColors[project.status]}`}>{project.status.replace("_", " ")}</span>
                       </div>
                       {project.description && <p className="text-muted-foreground text-xs mt-1 line-clamp-1">{project.description}</p>}
+                      <p className="text-[9px] text-red-500 break-all mt-1">DEBUG cover_image_url: {String(project.cover_image_url)}</p>
                       {project.target_date && (
                         <p className="text-muted-foreground text-xs mt-1">
                           Due: {new Date(project.target_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
