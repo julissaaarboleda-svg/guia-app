@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import ProjectDetail from "@/components/projects/ProjectDetail";
-import { Plus, ChevronRight, Briefcase, Trash2 } from "lucide-react";
+import { Plus, ChevronRight, Briefcase, Trash2, Calendar } from "lucide-react";
 import ActionCircle from "@/components/ActionCircle";
 import PageHeader from "@/components/PageHeader";
 import DateInput from "@/components/DateInput";
@@ -98,10 +98,10 @@ export default function Projects() {
               const progress = calculateProgress(project.tasks);
               return (
                 <div key={project.id}
-                  className="w-full bg-card border border-border rounded-2xl p-5 text-left hover:border-ring hover:shadow-sm transition-all group relative"
+                  className="w-full bg-card border border-border rounded-2xl p-4 text-left hover:border-ring hover:shadow-sm transition-all group relative"
                 >
-                  <div className="flex items-start gap-4" onClick={() => setSelected(project)} style={{ cursor: 'pointer' }}>
-                    <div className="w-16 h-16 rounded-xl flex-shrink-0 overflow-hidden flex items-center justify-center" style={{ background: project.accent_color || "#A7773F" }}>
+                  <div className="flex items-center gap-3" onClick={() => setSelected(project)} style={{ cursor: 'pointer' }}>
+                    <div className="w-14 h-14 rounded-xl flex-shrink-0 overflow-hidden flex items-center justify-center" style={{ background: project.accent_color || "#A7773F" }}>
                       {project.cover_image_url ? (
                         <img
                           src={project.cover_image_url}
@@ -111,43 +111,46 @@ export default function Projects() {
                         />
                       ) : null}
                       <Briefcase
-                        className="w-6 h-6 text-white/80"
+                        className="w-5 h-5 text-white/80"
                         strokeWidth={1.5}
                         style={{ display: project.cover_image_url ? "none" : "flex" }}
                       />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <h3 className="font-semibold text-foreground truncate">{project.title}</h3>
-                        <span className={`text-xs px-2 py-0.5 rounded-full border flex-shrink-0 ${statusColors[project.status]}`}>{project.status.replace("_", " ")}</span>
+                    <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-semibold text-foreground truncate text-[15px]">{project.title}</h3>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full border flex-shrink-0 ${statusColors[project.status]}`}>{project.status.replace("_", " ")}</span>
                       </div>
-                      {project.description && <p className="text-muted-foreground text-xs mt-1 line-clamp-1">{project.description}</p>}
-                      {project.target_date && (
-                        <p className="text-muted-foreground text-xs mt-1">
-                          Due: {new Date(project.target_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                        </p>
-                      )}
-                      <div className="flex -space-x-1.5 mt-2">
-                        <div
-                          className="w-6 h-6 rounded-full border-2 border-card flex items-center justify-center text-white text-[9px] font-bold"
-                          style={{ background: colorForPerson(currentEmail || "me") }}
-                          title="Me"
-                        >
-                          {initialsFor(currentEmail || "me", currentEmail)}
-                        </div>
-                        {(project.collaborators || []).map((c) => (
+                      {project.description && <p className="text-muted-foreground text-xs line-clamp-1">{project.description}</p>}
+                      <div className="flex items-center gap-2.5">
+                        {project.target_date && (
+                          <span className="inline-flex items-center gap-1 text-muted-foreground text-[11.5px]">
+                            <Calendar className="w-3 h-3" strokeWidth={1.8} />
+                            {new Date(project.target_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                          </span>
+                        )}
+                        <div className="flex -space-x-1.5">
                           <div
-                            key={c}
-                            className="w-6 h-6 rounded-full border-2 border-card flex items-center justify-center text-white text-[9px] font-bold"
-                            style={{ background: colorForPerson(c) }}
-                            title={c}
+                            className="w-5 h-5 rounded-full border-2 border-card flex items-center justify-center text-white text-[8px] font-bold"
+                            style={{ background: colorForPerson(currentEmail || "me") }}
+                            title="Me"
                           >
-                            {initialsFor(c, currentEmail)}
+                            {initialsFor(currentEmail || "me", currentEmail)}
                           </div>
-                        ))}
+                          {(project.collaborators || []).map((c) => (
+                            <div
+                              key={c}
+                              className="w-5 h-5 rounded-full border-2 border-card flex items-center justify-center text-white text-[8px] font-bold"
+                              style={{ background: colorForPerson(c) }}
+                              title={c}
+                            >
+                              {initialsFor(c, currentEmail)}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                       {project.tasks && project.tasks.length > 0 && (
-                        <div className="mt-3">
+                        <div className="mt-2">
                           <div className="flex items-center justify-between text-xs mb-1">
                             <span className="text-muted-foreground">Progress</span>
                             <span className="font-medium text-foreground">{progress}%</span>
