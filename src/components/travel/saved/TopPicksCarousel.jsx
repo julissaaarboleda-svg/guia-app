@@ -1,26 +1,53 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Star, Heart, Plus, Sparkles, MapPin } from "lucide-react";
 import { generatePickImage } from "@/lib/savedAi";
 import { categoryMeta } from "./categoryMeta";
 
 export default function TopPicksCarousel({ trip, city, picks, loading, refreshing, failed, onRefresh, onWishlist, isSaved }) {
   const [images, setImages] = useState({});
+  const requestedRef = useRef(new Set()); // which picks we've already kicked off a generation for
 
+  // We no longer eagerly fire off 8 concurrent image generations here — that
+  // was the main source of the slow initial load, since every card competed
+  // for the same API at once. Only the first few cards likely visible on load
+  // get requested immediately; the rest are requested lazily as the person
+  // actually scrolls to them (see requestOnVisible / IntersectionObserver
+  // below). This keeps time-to-first-image low without losing any images.
   useEffect(() => {
-    if (!picks?.length) { setImages({}); return; }
-    let alive = true;
-    const init = {};
-    picks.forEach((p) => { init[p.name] = null; });
-    setImages(init);
-    // Generate AI images for the first 8 picks only (keeps credit cost / latency bounded);
-    // remaining picks fall back to the category gradient placeholder.
-    picks.slice(0, 8).forEach((p) => {
-      generatePickImage(trip.id, city, p.name, p.imagePrompt)
-        .then((url) => { if (alive) setImages((s) => ({ ...s, [p.name]: url })); })
-        .catch(() => {});
-    });
-    return () => { alive = false; };
+    setImages({});
+    requestedRef.current = new Set();
   }, [picks, city, trip.id]);
+
+  const requestImage = useCallback((p) => {
+    if (!p || requestedRef.current.has(p.name)) return;
+    requestedRef.current.add(p.name);
+    generatePickImage(trip.id, city, p.name, p.imagePrompt)
+      .then(({ url, attribution }) => setImages((s) => ({ ...s, [p.name]: { url, attribution } })))
+      .catch(() => {});
+  }, [trip.id, city]);
+
+  // Kick off the first 3 immediately (roughly what's visible without scrolling)
+  useEffect(() => {
+    if (!picks?.length) return;
+    picks.slice(0, 3).forEach(requestImage);
+  }, [picks, requestImage]);
+
+  // Lazily request the rest as their card scrolls into view
+  const requestOnVisible = useCallback((pick) => (el) => {
+    if (!el || !pick || requestedRef.current.has(pick.name)) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            requestImage(pick);
+            observer.disconnect();
+          }
+        });
+      },
+      { root: null, rootMargin: "200px", threshold: 0.1 }
+    );
+    observer.observe(el);
+  }, [requestImage]);
 
   return (
     <section>
@@ -38,10 +65,11 @@ export default function TopPicksCarousel({ trip, city, picks, loading, refreshin
         ) : (picks || []).length > 0 ? (
           picks.map((p, i) => {
             const meta = categoryMeta(p.category);
-            const img = images[p.name];
+            const imgData = images[p.name];
+            const img = imgData?.url;
             const saved = isSaved(p);
             return (
-              <div key={i} className="flex-shrink-0 w-[148px] rounded-xl border border-border bg-card overflow-hidden">
+              <div key={i} ref={requestOnVisible(p)} className="flex-shrink-0 w-[148px] rounded-xl border border-border bg-card overflow-hidden">
                 <div className="relative h-[92px] bg-muted">
                   {img ? (
                     <img src={img} alt={p.name} className="w-full h-full object-cover" />
@@ -54,6 +82,11 @@ export default function TopPicksCarousel({ trip, city, picks, loading, refreshin
                   {p.aiBadge && (
                     <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-0.5 font-body text-[8px] font-medium px-1.5 py-0.5 rounded-full bg-black/55 text-white">
                       <Sparkles className="w-2.5 h-2.5" /> {p.aiBadge}
+                    </span>
+                  )}
+                  {img && imgData?.attribution && (
+                    <span className="absolute bottom-1.5 right-1.5 font-body text-[7px] px-1 py-0.5 rounded bg-black/45 text-white/80">
+                      Photo: {imgData.attribution}
                     </span>
                   )}
                 </div>
