@@ -168,7 +168,41 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
   return (
     <div className="min-h-screen bg-stone-50">
       <div className="p-4 md:p-8 max-w-4xl mx-auto">
-        {/* Header */}
+        {/* Action row — above the photo, not overlaid */}
+        <div className="flex items-center justify-between mb-3">
+          <button
+            onClick={onBack}
+            className="w-9 h-9 flex items-center justify-center text-foreground rounded-full hover:bg-secondary transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" strokeWidth={1.8} />
+          </button>
+          <div className="flex gap-1">
+            <button
+              onClick={() => setShowCollabModal(true)}
+              className="w-9 h-9 flex items-center justify-center text-foreground rounded-full hover:bg-secondary transition-colors"
+              title="Add collaborator"
+            >
+              <UserPlus className="w-[18px] h-[18px]" strokeWidth={1.8} />
+            </button>
+            <button
+              onClick={() => setEditing(!editing)}
+              className="w-9 h-9 flex items-center justify-center text-foreground rounded-full hover:bg-secondary transition-colors"
+              title="Edit project (cover & details)"
+            >
+              <Edit2 className="w-[18px] h-[18px]" strokeWidth={1.8} />
+            </button>
+            {isOwner && (
+              <button
+                onClick={deleteProject}
+                className="w-9 h-9 flex items-center justify-center text-foreground rounded-full hover:bg-rose-500 hover:text-white transition-colors"
+                title="Delete project"
+              >
+                <Trash2 className="w-[18px] h-[18px]" strokeWidth={1.8} />
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="rounded-[24px] p-5 mb-6 relative overflow-hidden h-[26vh] min-h-[210px] max-h-[290px] flex flex-col" style={{ background: coverImage ? undefined : accentColor }}>
           {coverImage && (
             <>
@@ -181,61 +215,34 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
               <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             </div>
           )}
-          <div className="relative flex items-center justify-between">
-            <button
-              onClick={onBack}
-              className="w-8 h-8 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-stone-100 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-            <div className="flex gap-1.5">
-              <button
-                onClick={() => setShowCollabModal(true)}
-                className="w-8 h-8 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-stone-100 transition-colors"
-                title="Add collaborator"
-              >
-                <UserPlus className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setEditing(!editing)}
-                className="w-8 h-8 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-stone-100 transition-colors"
-                title="Edit project (cover & details)"
-              >
-                <Edit2 className="w-4 h-4" />
-              </button>
-              {isOwner && (
-                <button
-                  onClick={deleteProject}
-                  className="w-8 h-8 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-rose-500 hover:text-white transition-colors"
-                  title="Delete project"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          </div>
+
+          {/* Status badge, top-left of the photo */}
+          <span
+            className={`relative self-start font-body text-[9px] uppercase tracking-[0.14em] px-3 py-1 rounded-full border flex-shrink-0 ${
+              statusColors[project.status || "planning"]
+            }`}
+          >
+            {project.status?.replace("_", " ") || "planning"}
+          </span>
 
           <div className="relative mt-auto [text-shadow:0_1px_4px_rgba(0,0,0,0.5)]">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl font-heading font-bold text-white truncate">{project.title}</h1>
-              <span
-                className={`text-xs px-2 py-0.5 rounded-full border flex-shrink-0 ${
-                  statusColors[project.status || "planning"]
-                }`}
-              >
-                {project.status?.replace("_", " ") || "planning"}
-              </span>
-            </div>
+            <h1 className="text-2xl font-heading font-bold text-white truncate">{project.title}</h1>
             {project.target_date && (
-              <p className="text-stone-300 text-sm mt-0.5">
-                Due:{" "}
-                {new Date(project.target_date).toLocaleDateString("en-US", {
-                  weekday: "short",
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </p>
+              <>
+                <div className="h-px bg-white/25 w-full my-2" />
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-white/80 flex-shrink-0" strokeWidth={1.8} />
+                  <p className="text-white/85 text-sm">
+                    Due:{" "}
+                    {new Date(project.target_date).toLocaleDateString("en-US", {
+                      weekday: "short",
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </p>
+                </div>
+              </>
             )}
           </div>
         </div>
