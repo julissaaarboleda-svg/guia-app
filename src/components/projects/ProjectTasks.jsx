@@ -106,12 +106,12 @@ export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd
         placeholder="Task name"
         className="w-full bg-muted border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring mb-2"
       />
-      <div className="flex gap-2 mb-2">
-        <div className="flex-1 min-w-0">
+      <div className="grid grid-cols-2 gap-3 mb-2">
+        <div className="min-w-0">
           <label className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1">Due date</label>
           <DateInput value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0">
           <label className="text-[10px] text-muted-foreground mb-1 block">Assign to</label>
           <div className="relative">
             <User className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
