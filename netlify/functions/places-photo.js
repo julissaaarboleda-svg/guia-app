@@ -1,27 +1,22 @@
 // netlify/functions/places-photo.js
 //
-// Replaces generate-image.js for the "top picks" / wishlist photo use case.
-// Instead of asking Gemini to imagine what a place looks like, this fetches a
-// REAL photo of the REAL place from Google's Places database.
+// Fetches a REAL photo of a REAL place from Google's Places database — no AI
+// image generation involved.
 //
-// IMPORTANT: Google's Place Photo media endpoint returns a short-lived signed
-// URL (photoUri), not a permanent link. The first version of this function
-// returned that URL directly, and the client cached it indefinitely — which
-// worked initially, then broke (broken-image icons) once the signed URL
-// expired. Fix: download the actual image bytes here and store them in our
-// own Netlify Blobs, the same pattern as upload.js / generate-image.js, so we
-// return a stable URL that never expires.
-//
-// Two-step Places API (New) flow:
-//   1. Text Search — find the place, get back a photo resource name
-//   2. Place Photo media — resolve that resource name into actual image bytes
+// ARCHITECTURE NOTE (changed after repeated 404s in production):
+// Earlier versions of this function downloaded the photo and stored it in
+// Netlify Blobs, then returned a URL pointing at a separate file.js function
+// to serve it back out. That introduced two extra points of failure (the
+// storage write, and the second function's retrieval) that were hard to
+// diagnose without visibility into file.js. This version removes that
+// indirection entirely: it fetches the photo bytes here and returns them
+// directly as a base64 data URL in the same response. No separate storage,
+// no second function, nothing that can 404 after the fact. The client
+// (savedAi.js) already caches the resulting value in localStorage, so this
+// round trip to Google only happens once per place per browser anyway.
 //
 // Google's terms require attribution to be shown alongside any Places photo
-// (see authorAttributions in the response) — the client must display it,
-// even briefly (e.g. a small "Photo via Google" credit on the card).
-
-const { getStore, connectLambda } = require("@netlify/blobs");
-const { randomUUID } = require("node:crypto");
+// — the client displays the small credit returned here.
 
 const CORS = {
   "Content-Type": "application/json",
@@ -31,7 +26,6 @@ const CORS = {
 };
 
 exports.handler = async (event, context) => {
-  connectLambda(event); // required for getStore() to auto-detect credentials
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: CORS, body: "" };
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: "Method not allowed" }) };
@@ -67,37 +61,32 @@ exports.handler = async (event, context) => {
       return { statusCode: 200, headers: CORS, body: JSON.stringify({ url: null, attribution: null }) };
     }
 
-    // Step 2a: resolve the photo resource into Google's short-lived signed URL.
+    // Step 2: resolve the photo resource into Google's short-lived signed URL...
     const photoRes = await fetch(
-      `https://places.googleapis.com/v1/${photoRef.name}/media?maxWidthPx=600&skipHttpRedirect=true&key=${apiKey}`
+      `https://places.googleapis.com/v1/${photoRef.name}/media?maxWidthPx=500&skipHttpRedirect=true&key=${apiKey}`
     );
     if (!photoRes.ok) throw new Error(`Places photo fetch failed: ${photoRes.status}`);
     const photoData = await photoRes.json();
     if (!photoData.photoUri) throw new Error("No photoUri returned");
 
-    // Step 2b: immediately download the actual bytes from that signed URL —
-    // this is what makes the result permanent instead of expiring.
+    // ...and immediately download the bytes ourselves, server-side, so the
+    // browser never has to touch Google's URL (which expires) or our own
+    // storage (which was the source of the 404s).
     const imgRes = await fetch(photoData.photoUri);
     if (!imgRes.ok) throw new Error(`Failed to download photo bytes: ${imgRes.status}`);
     const contentType = imgRes.headers.get("content-type") || "image/jpeg";
-    const buffer = Buffer.from(await imgRes.arrayBuffer());
-
-    const store = getStore("guia-files");
-    const fileId = randomUUID();
-    const key = `${user.sub}/places/${fileId}.jpg`;
-    await store.set(key, buffer, { metadata: { contentType } });
+    const base64 = Buffer.from(await imgRes.arrayBuffer()).toString("base64");
 
     const attribution = (photoRef.authorAttributions || [])
       .map((a) => a.displayName)
       .filter(Boolean)
       .join(", ") || "Google";
 
-    const siteUrl = process.env.URL || `https://${event.headers.host}`;
     return {
       statusCode: 200,
       headers: CORS,
       body: JSON.stringify({
-        url: `${siteUrl}/.netlify/functions/file?key=${encodeURIComponent(key)}`,
+        url: `data:${contentType};base64,${base64}`,
         attribution,
       }),
     };
