@@ -5,7 +5,7 @@ function RingStat({ value, pct, label, sublabel, onClick }) {
   return (
     <button onClick={onClick} className="flex flex-col items-center text-center gap-1.5 flex-1 min-w-0">
       <svg width="68" height="68" viewBox="0 0 68 68" className="flex-shrink-0">
-        <circle cx="34" cy="34" r={r} fill="none" stroke="var(--border)" strokeWidth="4" />
+        <circle cx="34" cy="34" r={r} fill="none" stroke="#A7773F26" strokeWidth="4" />
         <circle
           cx="34" cy="34" r={r} fill="none" stroke="#A7773F" strokeWidth="4"
           strokeLinecap="round"

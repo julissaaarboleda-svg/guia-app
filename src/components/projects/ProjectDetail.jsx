@@ -181,36 +181,13 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
               <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             </div>
           )}
-          <div className="relative flex items-center gap-3">
+          <div className="relative flex items-center justify-between">
             <button
               onClick={onBack}
-              className="text-stone-400 hover:text-white transition-colors"
+              className="w-8 h-8 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-stone-100 transition-colors"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-4 h-4" />
             </button>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-xl font-heading font-bold text-white truncate">{project.title}</h1>
-                <span
-                  className={`text-xs px-2 py-0.5 rounded-full border flex-shrink-0 ${
-                    statusColors[project.status || "planning"]
-                  }`}
-                >
-                  {project.status?.replace("_", " ") || "planning"}
-                </span>
-              </div>
-              {project.target_date && (
-                <p className="text-stone-300 text-sm mt-0.5">
-                  Due:{" "}
-                  {new Date(project.target_date).toLocaleDateString("en-US", {
-                    weekday: "short",
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </p>
-              )}
-            </div>
             <div className="flex gap-1.5">
               <button
                 onClick={() => setShowCollabModal(true)}
@@ -236,6 +213,30 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
                 </button>
               )}
             </div>
+          </div>
+
+          <div className="relative mt-auto [text-shadow:0_1px_4px_rgba(0,0,0,0.5)]">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl font-heading font-bold text-white truncate">{project.title}</h1>
+              <span
+                className={`text-xs px-2 py-0.5 rounded-full border flex-shrink-0 ${
+                  statusColors[project.status || "planning"]
+                }`}
+              >
+                {project.status?.replace("_", " ") || "planning"}
+              </span>
+            </div>
+            {project.target_date && (
+              <p className="text-stone-300 text-sm mt-0.5">
+                Due:{" "}
+                {new Date(project.target_date).toLocaleDateString("en-US", {
+                  weekday: "short",
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </p>
+            )}
           </div>
         </div>
 

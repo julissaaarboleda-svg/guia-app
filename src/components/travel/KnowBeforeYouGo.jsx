@@ -51,7 +51,7 @@ export default function KnowBeforeYouGo({ trip, know, loading }) {
             <button
               key={c.id}
               onClick={() => setOpen(c.id)}
-              className="flex-1 min-w-0 bg-card border border-border rounded-[10px] p-2 text-left hover:border-foreground/20 transition-colors"
+              className="flex-1 min-w-0 bg-card border border-border rounded-[10px] p-2 flex flex-col items-center text-center hover:border-foreground/20 transition-colors"
             >
               <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center mb-1.5">
                 <c.Icon className="w-3 h-3 text-accent" strokeWidth={1.8} />
