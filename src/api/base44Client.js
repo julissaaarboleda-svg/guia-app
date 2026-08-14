@@ -179,6 +179,14 @@ async function GenerateImage({ prompt }) {
   return res.json(); // { url }
 }
 
+async function GetPlacePhoto({ name, city }) {
+  const headers = await authHeaders();
+  const res = await checkOk(
+    await fetch(`${API_BASE}/places-photo`, { method: "POST", headers, body: JSON.stringify({ name, city }) })
+  );
+  return res.json(); // { url, attribution }
+}
+
 async function UploadFile({ file }) {
   const uploadFile = await compressImageIfNeeded(file);
   const base64Data = await new Promise((resolve, reject) => {
@@ -216,7 +224,7 @@ export const base44 = {
   },
   entities,
   integrations: {
-    Core: { InvokeLLM, GenerateImage, UploadFile },
+    Core: { InvokeLLM, GenerateImage, GetPlacePhoto, UploadFile },
   },
   functions: {
     // KNOWN GAP: base44.functions.invoke("exportTripPdf", ...) (used in TripDetail.jsx)

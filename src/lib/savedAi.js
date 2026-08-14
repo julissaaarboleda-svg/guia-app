@@ -35,17 +35,20 @@ export function setCachedTopPicks(tripId, city, data) {
 export function getCachedPickImage(tripId, city, name) {
   const key = `${tripId}|${city}|${name}`;
   const mem = imgCache.get(key);
-  if (mem?.url) return mem.url;
+  if (mem?.url !== undefined) return { url: mem.url, attribution: mem.attribution };
   const ls = readLs();
   const entry = ls[key];
-  if (entry?.url) { imgCache.set(key, { url: entry.url }); return entry.url; }
+  if (entry?.url !== undefined) {
+    imgCache.set(key, { url: entry.url, attribution: entry.attribution });
+    return { url: entry.url, attribution: entry.attribution };
+  }
   return null;
 }
-export function setCachedPickImage(tripId, city, name, url) {
+export function setCachedPickImage(tripId, city, name, url, attribution) {
   const key = `${tripId}|${city}|${name}`;
-  imgCache.set(key, { url });
+  imgCache.set(key, { url, attribution });
   const ls = readLs();
-  ls[key] = { url, ts: Date.now() };
+  ls[key] = { url, attribution, ts: Date.now() };
   writeLs(ls);
 }
 
@@ -108,16 +111,20 @@ Return JSON: { picks: [ exactly 9 objects, 1 per category ] }.`;
 
 export async function generatePickImage(tripId, city, name, imagePrompt) {
   const key = `${tripId}|${city}|${name}`;
-  const lsUrl = getCachedPickImage(tripId, city, name);
-  if (lsUrl) return lsUrl;
+  const lsCached = getCachedPickImage(tripId, city, name);
+  if (lsCached) return lsCached; // { url, attribution } — url may legitimately be null (no photo on file)
   const cached = imgCache.get(key);
-  if (cached?.url) return cached.url;
-  if (cached?.promise) return cached.promise; // reuse in-flight request — no duplicate GenerateImage on remount
-  const promise = base44.integrations.Core.GenerateImage({
-    prompt: imagePrompt || `Editorial travel photograph of ${name} in ${city}, warm golden light, premium editorial composition, no text, no people, no watermark.`,
-  })
-    .then(({ url }) => { setCachedPickImage(tripId, city, name, url); return url; })
-    .catch((err) => { imgCache.delete(key); throw err; });
+  if (cached?.promise) return cached.promise; // reuse in-flight request
+
+  const promise = base44.integrations.Core.GetPlacePhoto({ name, city })
+    .then(({ url, attribution }) => {
+      setCachedPickImage(tripId, city, name, url, attribution);
+      return { url, attribution };
+    })
+    .catch((err) => {
+      imgCache.delete(key);
+      throw err;
+    });
   imgCache.set(key, { promise });
   return promise;
 }
