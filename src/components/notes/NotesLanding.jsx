@@ -44,7 +44,7 @@ export default function NotesLanding({
   }, [notes, query, sortNewest]);
 
   return (
-    <div className="px-6 md:px-10 lg:px-14 pt-4 pb-8 max-w-[900px] mx-auto w-full space-y-3">
+    <div className="px-6 md:px-10 lg:px-14 pb-8 max-w-[900px] mx-auto w-full space-y-3" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1rem)" }}>
       {/* Header */}
       <header className="flex items-start justify-between">
         <div className="min-w-0 flex-1 pr-3">

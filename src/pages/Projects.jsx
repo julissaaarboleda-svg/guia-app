@@ -102,12 +102,14 @@ export default function Projects() {
                 >
                   <div className="flex items-start gap-4" onClick={() => setSelected(project)} style={{ cursor: 'pointer' }}>
                     <div
-                      className="w-16 h-16 rounded-xl flex-shrink-0 bg-cover bg-center"
+                      className="w-16 h-16 rounded-xl flex-shrink-0 bg-cover bg-center flex items-center justify-center"
                       style={{
                         backgroundImage: project.cover_image_url ? `url(${project.cover_image_url})` : undefined,
-                        background: project.cover_image_url ? undefined : (project.accent_color || "#1c1917"),
+                        background: project.cover_image_url ? undefined : (project.accent_color || "#A7773F"),
                       }}
-                    />
+                    >
+                      {!project.cover_image_url && <Briefcase className="w-6 h-6 text-white/80" strokeWidth={1.5} />}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <h3 className="font-semibold text-foreground truncate">{project.title}</h3>

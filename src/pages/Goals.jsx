@@ -6,6 +6,7 @@ import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import ActionCircle from "@/components/ActionCircle";
 import DateInput from "@/components/DateInput";
+import PageHeader from "@/components/PageHeader";
 
 const STATUS_STYLES = {
   not_started: "bg-muted text-muted-foreground",
@@ -132,9 +133,7 @@ export default function Goals() {
       <div className="flex flex-1 min-h-0 h-full">
       {/* Sidebar */}
       <div className={`w-full md:w-64 lg:w-72 flex-shrink-0 bg-background border-r border-border flex-col ${showingDetail ? "hidden" : "flex"}`}>
-        <div className="p-4 border-b border-border flex items-center justify-between">
-          <h1 className="font-heading text-base text-foreground">Goals & Tasks</h1>
-        </div>
+        <PageHeader title="Goals & Tasks" />
 
         {/* Tabs */}
         <div className="flex gap-1 p-2 border-b border-border">
