@@ -7,7 +7,6 @@ import JourneyCard from "@/components/journeys/JourneyCard";
 import JourneyProgress from "@/components/journeys/JourneyProgress";
 import UpcomingEvent from "@/components/journeys/UpcomingEvent";
 import PastJourneyCard from "@/components/journeys/PastJourneyCard";
-import TravelBrief from "@/components/journeys/TravelBrief";
 import NewJourneySheet from "@/components/journeys/NewJourneySheet";
 import CoverCustomizer from "@/components/journeys/CoverCustomizer";
 import KnowBeforeYouGo from "@/components/travel/KnowBeforeYouGo";
@@ -180,7 +179,7 @@ export default function Travel() {
   return (
     <div className="max-w-[900px] mx-auto w-full">
       {/* Page header */}
-      <div className="px-6 md:px-10 lg:px-14 pt-4 pb-2">
+      <div className="px-6 md:px-10 lg:px-14 pb-2" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1rem)" }}>
         <div className="flex items-start justify-between">
           <h1 className="font-heading text-[2rem] sm:text-[2.4rem] leading-[2.1rem] text-foreground font-semibold">Journeys</h1>
           <div className="flex items-center gap-1 pt-1.5">
@@ -261,10 +260,9 @@ export default function Travel() {
                     onCustomize={() => setShowCover(current)}
                     onEditTrip={() => editTrip(current)}
                   />
-                  <TravelBrief trip={current} />
                   <JourneyProgress trip={current} onNavigate={(tab) => openTrip(current, tab)} />
-                  <KnowBeforeYouGo trip={current} know={knowData} loading={knowLoading} />
                   <UpcomingEvent trip={current} onNavigate={(tab) => openTrip(current, tab)} />
+                  <KnowBeforeYouGo trip={current} know={knowData} loading={knowLoading} />
                 </>
               ) : (
                 <div className="text-center py-16">

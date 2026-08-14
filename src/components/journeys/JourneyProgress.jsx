@@ -1,67 +1,85 @@
-import { CalendarRange, MapPin, Backpack, Wallet, ChevronRight } from "lucide-react";
-import { parseISO } from "date-fns";
+function RingStat({ value, pct, label, sublabel, onClick }) {
+  const r = 26;
+  const c = 2 * Math.PI * r;
+  const offset = c - (Math.min(100, Math.max(0, pct)) / 100) * c;
+  return (
+    <button onClick={onClick} className="flex flex-col items-center text-center gap-1.5 flex-1 min-w-0">
+      <svg width="68" height="68" viewBox="0 0 68 68" className="flex-shrink-0">
+        <circle cx="34" cy="34" r={r} fill="none" stroke="var(--border)" strokeWidth="4" />
+        <circle
+          cx="34" cy="34" r={r} fill="none" stroke="#A7773F" strokeWidth="4"
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={offset}
+          transform="rotate(-90 34 34)"
+        />
+        <text x="34" y="34" textAnchor="middle" dominantBaseline="central" className="fill-foreground font-heading" fontSize="15" fontWeight="600">
+          {value}
+        </text>
+      </svg>
+      <div className="min-w-0">
+        <p className="font-body text-[12px] text-foreground font-medium leading-tight truncate">{label}</p>
+        <p className="font-body text-[10px] text-muted-foreground leading-snug mt-0.5 truncate">{sublabel}</p>
+      </div>
+    </button>
+  );
+}
 
 export default function JourneyProgress({ trip, onNavigate }) {
   const itinerary = trip.itinerary || [];
-  const daysNeedingActivities = itinerary.filter(
-    (d) => !d.activities || d.activities.length === 0
-  ).length;
+  const totalDays = itinerary.length;
+  const daysWithActivities = itinerary.filter((d) => d.activities && d.activities.length > 0).length;
+  const itineraryPct = totalDays ? Math.round((daysWithActivities / totalDays) * 100) : 0;
 
   const savedPlaces = (trip.about_info?.hot_spots || []).length;
 
-  const packing = (trip.packing_items || []);
-  const packingRemaining = packing.filter((p) => !p.packed).length;
+  const packing = trip.packing_items || [];
+  const packedCount = packing.filter((p) => p.packed).length;
+  const packingPct = packing.length ? Math.round((packedCount / packing.length) * 100) : 0;
 
   const totalSpent = (trip.expense_items || []).reduce((s, e) => s + (e.amount || 0), 0);
   const budgetPct = trip.budget_target ? Math.min(100, Math.round((totalSpent / trip.budget_target) * 100)) : 0;
 
-  const cards = [
-    {
-      icon: CalendarRange,
-      title: "Resume Itinerary",
-      status: daysNeedingActivities > 0 ? `${daysNeedingActivities} day${daysNeedingActivities > 1 ? "s" : ""} still need activities` : "Itinerary is complete",
-      tab: "Itinerary",
-    },
-    {
-      icon: MapPin,
-      title: "Saved Places",
-      status: savedPlaces > 0 ? `${savedPlaces} place${savedPlaces > 1 ? "s" : ""} waiting to be scheduled` : "No saved places yet",
-      tab: "About",
-    },
-    {
-      icon: Backpack,
-      title: "Continue Packing",
-      status: packing.length > 0 ? `${packingRemaining} item${packingRemaining !== 1 ? "s" : ""} remaining` : "Start your packing list",
-      tab: "Packing",
-    },
-    {
-      icon: Wallet,
-      title: "Review Budget",
-      status: trip.budget_target ? `${budgetPct}% used on this trip` : "Set a budget target",
-      tab: "Budget",
-    },
-  ];
-
   return (
     <section>
-      <h2 className="font-heading text-lg text-foreground font-semibold leading-tight mb-2">Journey Progress</h2>
-      <div className="grid grid-cols-4 gap-1.5">
-        {cards.map((c) => {
-          const Icon = c.icon;
-          return (
-            <button
-              key={c.title}
-              onClick={() => onNavigate(c.tab)}
-              className="bg-card border border-border/70 rounded-xl p-2 text-left flex flex-col gap-1 hover:border-foreground/30 transition-colors"
-            >
-              <span className="w-6 h-6 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                <Icon className="w-3.5 h-3.5 text-foreground" strokeWidth={1.6} />
-              </span>
-              <p className="font-body text-[11px] text-foreground font-semibold leading-tight">{c.title}</p>
-              <p className="font-body text-[9px] text-muted-foreground leading-snug">{c.status}</p>
-            </button>
-          );
-        })}
+      <div className="flex items-end justify-between mb-3">
+        <h2 className="font-heading text-lg text-foreground font-semibold leading-tight">Journey Progress</h2>
+        <button
+          onClick={() => onNavigate("Itinerary")}
+          className="font-body text-[11px] text-accent hover:text-accent/80 transition-colors"
+        >
+          See all progress →
+        </button>
+      </div>
+      <div className="flex items-start justify-between gap-1">
+        <RingStat
+          value={`${itineraryPct}%`}
+          pct={itineraryPct}
+          label="Itinerary"
+          sublabel={totalDays ? `${daysWithActivities} of ${totalDays} days` : "Not started"}
+          onClick={() => onNavigate("Itinerary")}
+        />
+        <RingStat
+          value={savedPlaces}
+          pct={0}
+          label="Saved"
+          sublabel="places"
+          onClick={() => onNavigate("About")}
+        />
+        <RingStat
+          value={`${packingPct}%`}
+          pct={packingPct}
+          label="Packing"
+          sublabel={packing.length ? `${packedCount} of ${packing.length} items` : "Not started"}
+          onClick={() => onNavigate("Packing")}
+        />
+        <RingStat
+          value={`${budgetPct}%`}
+          pct={budgetPct}
+          label="Budget"
+          sublabel={trip.budget_target ? `$${totalSpent.toLocaleString()} / $${trip.budget_target.toLocaleString()}` : "Not set"}
+          onClick={() => onNavigate("Budget")}
+        />
       </div>
     </section>
   );

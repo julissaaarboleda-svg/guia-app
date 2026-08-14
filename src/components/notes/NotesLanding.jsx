@@ -48,8 +48,8 @@ export default function NotesLanding({
       {/* Header */}
       <header className="flex items-start justify-between">
         <div className="min-w-0 flex-1 pr-3">
-          <h1 className="font-heading text-[2rem] leading-[2.1rem] font-semibold text-[#232323]">Notes</h1>
-          <p className="font-body text-[13px] text-[#7C7A76] mt-0.5 truncate">
+          <h1 className="font-heading text-xl md:text-2xl font-bold text-foreground truncate">Notes</h1>
+          <p className="font-body text-xs text-muted-foreground mt-0.5 truncate">
             Capture ideas and inspiration.
           </p>
         </div>

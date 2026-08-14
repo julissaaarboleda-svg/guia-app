@@ -28,7 +28,7 @@ const statusColors = {
 
 export default function ProjectDetail({ project, onBack, onUpdate }) {
   const [editing, setEditing] = useState(false);
-  const [accentColor, setAccentColor] = useState(project.accent_color || "#1c1917");
+  const [accentColor, setAccentColor] = useState(project.accent_color || "#A7773F");
   const [showCollabModal, setShowCollabModal] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadError, setUploadError] = useState(null);
@@ -169,7 +169,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
     <div className="min-h-screen bg-stone-50">
       <div className="p-4 md:p-8 max-w-4xl mx-auto">
         {/* Header */}
-        <div className="rounded-2xl p-5 mb-6 relative overflow-hidden" style={{ background: coverImage ? undefined : accentColor }}>
+        <div className="rounded-[24px] p-5 mb-6 relative overflow-hidden h-[26vh] min-h-[210px] max-h-[290px] flex flex-col" style={{ background: coverImage ? undefined : accentColor }}>
           {coverImage && (
             <>
               <img src={coverImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
