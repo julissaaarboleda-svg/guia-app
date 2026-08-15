@@ -164,13 +164,26 @@ export default function Goals() {
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {activeTab === "goals" && (
             <>
-              {[...activeGoals, ...doneGoals].map(g => (
-                <button key={g.id} onClick={() => { setSelected({ type: "goal", id: g.id }); setEditGoalData({ ...g }); setAdding(false); }}
-                  className={`w-full text-left p-3 rounded-lg transition-colors ${selected?.id === g.id ? "bg-card border border-border text-foreground shadow-sm" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
-                  <p className="text-sm font-medium truncate">{g.title}</p>
-                  <p className="text-xs text-muted-foreground capitalize mt-0.5">{g.category} · {STATUS_LABELS[g.status]}</p>
-                </button>
-              ))}
+              {[...activeGoals, ...doneGoals].map(g => {
+                const sub = g.sub_tasks || [];
+                const doneCount = sub.filter(t => t.completed).length;
+                const pct = sub.length > 0 ? Math.round((doneCount / sub.length) * 100) : 0;
+                return (
+                  <button key={g.id} onClick={() => { setSelected({ type: "goal", id: g.id }); setEditGoalData({ ...g }); setAdding(false); }}
+                    className={`w-full text-left p-3 rounded-lg transition-colors ${selected?.id === g.id ? "bg-card border border-border text-foreground shadow-sm" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
+                    <p className="text-sm font-medium truncate">{g.title}</p>
+                    <p className="text-xs text-muted-foreground capitalize mt-0.5">{g.category} · {STATUS_LABELS[g.status]}</p>
+                    {sub.length > 0 && (
+                      <div className="flex items-center gap-2 mt-2">
+                        <div className="flex-1 h-[5px] rounded-full overflow-hidden" style={{ background: "#A7773F26" }}>
+                          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: "#A7773F" }} />
+                        </div>
+                        <span className="text-[10.5px] text-muted-foreground flex-shrink-0">{doneCount}/{sub.length}</span>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
               {goals.length === 0 && !adding && <p className="text-muted-foreground text-xs p-3">No goals yet</p>}
             </>
           )}
@@ -226,7 +239,7 @@ export default function Goals() {
         {/* Add form */}
         {adding && (
           <div className="w-full max-w-3xl mx-auto">
-            <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm px-6 py-4 border-b border-border flex items-center gap-2">
+            <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm px-6 pb-4 border-b border-border flex items-center gap-2" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1rem)" }}>
               <button onClick={() => setAdding(false)} className="text-muted-foreground hover:text-foreground">
                 <ArrowLeft className="w-4 h-4" />
               </button>
@@ -295,7 +308,7 @@ export default function Goals() {
           const pct = sub.length > 0 ? Math.round((doneCount / sub.length) * 100) : 0;
           return (
             <div className="w-full max-w-3xl mx-auto">
-              <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm px-6 py-4 border-b border-border flex items-center justify-between">
+              <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm px-6 pb-4 border-b border-border flex items-center justify-between" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1rem)" }}>
                 <button onClick={() => setSelected(null)} className="text-muted-foreground hover:text-foreground mr-2 flex-shrink-0">
                   <ArrowLeft className="w-4 h-4" />
                 </button>
@@ -377,7 +390,7 @@ export default function Goals() {
           const td = editTaskData?.id === selectedTask.id ? editTaskData : selectedTask;
           return (
             <div className="w-full max-w-3xl mx-auto">
-              <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm px-6 py-4 border-b border-border flex items-center justify-between">
+              <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm px-6 pb-4 border-b border-border flex items-center justify-between" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1rem)" }}>
                 <button onClick={() => setSelected(null)} className="text-muted-foreground hover:text-foreground mr-2 flex-shrink-0">
                   <ArrowLeft className="w-4 h-4" />
                 </button>

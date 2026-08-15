@@ -9,7 +9,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const onInit = (u) => { setUser(u || null); setIsLoadingAuth(false); };
-    const onLogin = (u) => setUser(u);
+    const onLogin = (u) => { setUser(u); netlifyIdentity.close(); };
     const onLogout = () => setUser(null);
 
     netlifyIdentity.on("init", onInit);
