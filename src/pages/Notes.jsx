@@ -108,6 +108,7 @@ export default function Notes() {
   const save = async () => {
     if (!selected) return;
     await persistNote(selected, true);
+    backToList();
   };
 
   // Auto-save: fires ~900ms after the person stops typing in title/content,
@@ -235,10 +236,31 @@ export default function Notes() {
   const totalCount = (selected?.list_items || []).length;
   const showingDetail = selected || adding;
 
-  const backToList = () => {
+  const backToList = async () => {
+    // If the person opened a note and left without typing anything at all,
+    // silently discard the empty draft instead of leaving clutter behind —
+    // same behavior as Apple Notes.
+    if (selected) {
+      const isBlank = !selected.title?.trim() && !selected.content?.trim() &&
+        (!selected.list_items || selected.list_items.length === 0) &&
+        (!selected.attachments || selected.attachments.length === 0);
+      if (isBlank) {
+        setNotes(prev => prev.filter(n => n.id !== selected.id));
+        base44.entities.Note.delete(selected.id).catch(() => {});
+      }
+    }
     setSelected(null);
     setAdding(false);
     setTitle(""); setContent(""); setNewType("text");
+  };
+
+  // Skips the type-picker screen entirely for the common case (a plain
+  // note): creates a real blank note immediately and drops straight into
+  // the rich editor, where auto-save takes over from the first keystroke.
+  const startNewNote = async (folderId) => {
+    const n = await base44.entities.Note.create({ title: "", content: "", note_type: "text", folder_id: folderId || null });
+    setNotes(prev => [n, ...prev]);
+    setSelected(n);
   };
 
   const collectionNotes = openCollection
@@ -410,12 +432,17 @@ export default function Notes() {
           </button>
         </div>
         <div className="px-6 md:px-10 lg:px-14 pt-5 space-y-5">
-        <button onClick={() => { setAdding(true); }} className="w-full h-[60px] flex items-center gap-3 bg-card border border-border rounded-2xl pl-4 pr-5 text-left transition-all hover:shadow-[0_8px_24px_-14px_rgba(0,0,0,0.14)] hover:-translate-y-0.5 active:translate-y-0">
-          <span className="w-8 h-8 rounded-full bg-[#B49399] flex items-center justify-center flex-shrink-0">
-            <Plus className="w-3.5 h-3.5 text-white" strokeWidth={1.8} />
-          </span>
-          <span className="font-body text-[14px] text-muted-foreground">Add a note to {openCollection.name}…</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => startNewNote(openCollection.id)} className="flex-1 h-[60px] flex items-center gap-3 bg-card border border-border rounded-2xl pl-4 pr-5 text-left transition-all hover:shadow-[0_8px_24px_-14px_rgba(0,0,0,0.14)] hover:-translate-y-0.5 active:translate-y-0">
+            <span className="w-8 h-8 rounded-full bg-[#B49399] flex items-center justify-center flex-shrink-0">
+              <Plus className="w-3.5 h-3.5 text-white" strokeWidth={1.8} />
+            </span>
+            <span className="font-body text-[14px] text-muted-foreground">Add a note to {openCollection.name}…</span>
+          </button>
+          <button onClick={() => { setNewType("list"); setAdding(true); }} className="w-[60px] h-[60px] flex-shrink-0 flex items-center justify-center bg-card border border-border rounded-2xl transition-all hover:shadow-[0_8px_24px_-14px_rgba(0,0,0,0.14)] hover:-translate-y-0.5 active:translate-y-0" title="New list">
+            <List className="w-4 h-4 text-muted-foreground" strokeWidth={1.8} />
+          </button>
+        </div>
 
         {collectionNotes.length === 0 ? (
           <div className="bg-card border border-border rounded-2xl py-10 text-center">
@@ -462,7 +489,8 @@ export default function Notes() {
         notes={notes}
         folders={folders}
         loading={loading}
-        onQuickCapture={() => { setAdding(true); setSelected(null); }}
+        onQuickCapture={() => startNewNote(null)}
+        onQuickList={() => { setNewType("list"); setAdding(true); setSelected(null); }}
         onOpenCollection={(f) => setOpenCollection(f)}
         onOpenNote={(n) => setSelected(n)}
         onNewCollection={() => setShowNewCollection(true)}
