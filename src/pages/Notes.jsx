@@ -254,15 +254,6 @@ export default function Notes() {
     setTitle(""); setContent(""); setNewType("text");
   };
 
-  // Skips the type-picker screen entirely for the common case (a plain
-  // note): creates a real blank note immediately and drops straight into
-  // the rich editor, where auto-save takes over from the first keystroke.
-  const startNewNote = async (folderId) => {
-    const n = await base44.entities.Note.create({ title: "", content: "", note_type: "text", folder_id: folderId || null });
-    setNotes(prev => [n, ...prev]);
-    setSelected(n);
-  };
-
   const collectionNotes = openCollection
     ? notes.filter((n) => n.folder_id === openCollection.id)
     : [];
@@ -324,7 +315,13 @@ export default function Notes() {
             </div>
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={newType === "list" ? "List name (e.g. Grocery)" : "Title"} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground text-[17px] font-normal outline-none focus:border-ring transition-colors" autoFocus onKeyDown={(e) => e.key === "Enter" && add()} />
             {newType === "text" && (
-              <textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Start writing…" className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground text-[16px] outline-none focus:border-ring transition-colors min-h-[240px] resize-none leading-relaxed" />
+              <ReactQuill
+                theme="snow"
+                value={content}
+                onChange={(val) => setContent(val)}
+                modules={{ toolbar: [[{ size: ["small", false, "large", "huge"] }], ["bold", "italic", "underline", "strike"], [{ list: "ordered" }, { list: "bullet" }], ["link", "blockquote", "clean"]] }}
+                style={{ minHeight: "240px" }}
+              />
             )}
             {newType === "list" && <p className="text-[13px] text-muted-foreground leading-relaxed">You can add items after creating the list.</p>}
             <div className="flex gap-2">
@@ -432,17 +429,12 @@ export default function Notes() {
           </button>
         </div>
         <div className="px-6 md:px-10 lg:px-14 pt-5 space-y-5">
-        <div className="flex items-center gap-2">
-          <button onClick={() => startNewNote(openCollection.id)} className="flex-1 h-[60px] flex items-center gap-3 bg-card border border-border rounded-2xl pl-4 pr-5 text-left transition-all hover:shadow-[0_8px_24px_-14px_rgba(0,0,0,0.14)] hover:-translate-y-0.5 active:translate-y-0">
-            <span className="w-8 h-8 rounded-full bg-[#B49399] flex items-center justify-center flex-shrink-0">
-              <Plus className="w-3.5 h-3.5 text-white" strokeWidth={1.8} />
-            </span>
-            <span className="font-body text-[14px] text-muted-foreground">Add a note to {openCollection.name}…</span>
-          </button>
-          <button onClick={() => { setNewType("list"); setAdding(true); }} className="w-[60px] h-[60px] flex-shrink-0 flex items-center justify-center bg-card border border-border rounded-2xl transition-all hover:shadow-[0_8px_24px_-14px_rgba(0,0,0,0.14)] hover:-translate-y-0.5 active:translate-y-0" title="New list">
-            <List className="w-4 h-4 text-muted-foreground" strokeWidth={1.8} />
-          </button>
-        </div>
+        <button onClick={() => { setAdding(true); }} className="w-full h-[60px] flex items-center gap-3 bg-card border border-border rounded-2xl pl-4 pr-5 text-left transition-all hover:shadow-[0_8px_24px_-14px_rgba(0,0,0,0.14)] hover:-translate-y-0.5 active:translate-y-0">
+          <span className="w-8 h-8 rounded-full bg-[#B49399] flex items-center justify-center flex-shrink-0">
+            <Plus className="w-3.5 h-3.5 text-white" strokeWidth={1.8} />
+          </span>
+          <span className="font-body text-[14px] text-muted-foreground">Add a note to {openCollection.name}…</span>
+        </button>
 
         {collectionNotes.length === 0 ? (
           <div className="bg-card border border-border rounded-2xl py-10 text-center">
@@ -489,8 +481,7 @@ export default function Notes() {
         notes={notes}
         folders={folders}
         loading={loading}
-        onQuickCapture={() => startNewNote(null)}
-        onQuickList={() => { setNewType("list"); setAdding(true); setSelected(null); }}
+        onQuickCapture={() => { setAdding(true); setSelected(null); }}
         onOpenCollection={(f) => setOpenCollection(f)}
         onOpenNote={(n) => setSelected(n)}
         onNewCollection={() => setShowNewCollection(true)}
