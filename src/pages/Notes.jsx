@@ -83,16 +83,20 @@ export default function Notes() {
     await load();
   };
 
-  const add = async () => {
-    if (!title.trim()) return;
-    const data = { title: title.trim(), note_type: newType };
-    if (openCollection) data.folder_id = openCollection.id;
-    if (newType === "text") data.content = content;
-    else data.list_items = [];
-    const n = await base44.entities.Note.create(data);
-    setTitle(""); setContent(""); setAdding(false); setNewType("text");
+  const startNewNote = async (folderId) => {
+    const n = await base44.entities.Note.create({ title: "", content: "", note_type: "text", folder_id: folderId || null });
     setNotes(prev => [n, ...prev]);
     setSelected(n);
+  };
+
+  // Switching type is only offered while a note is still completely blank
+  // (see isBlank below), so this never has to migrate real content.
+  const switchNoteType = async (type) => {
+    if (!selected || type === selected.note_type) return;
+    const patch = type === "list" ? { note_type: "list", list_items: [], content: "" } : { note_type: "text", content: "", list_items: [] };
+    setSelected({ ...selected, ...patch });
+    setNotes(prev => prev.map(n => n.id === selected.id ? { ...n, ...patch } : n));
+    await base44.entities.Note.update(selected.id, patch);
   };
 
   // Silent persist used by both the debounced auto-save and manual Save button.
@@ -232,9 +236,12 @@ export default function Notes() {
   };
 
   const isList = selected?.note_type === "list";
+  const isBlank = !!selected && !selected.title?.trim() && !selected.content?.trim() &&
+    (!selected.list_items || selected.list_items.length === 0) &&
+    (!selected.attachments || selected.attachments.length === 0);
   const checkedCount = (selected?.list_items || []).filter((i) => i.checked).length;
   const totalCount = (selected?.list_items || []).length;
-  const showingDetail = selected || adding;
+  const showingDetail = !!selected;
 
   const backToList = async () => {
     // If the person opened a note and left without typing anything at all,
@@ -303,37 +310,21 @@ export default function Notes() {
 
         <div className="px-6 md:px-10 lg:px-14 pt-5">
 
-        {adding ? (
-          <div className="space-y-4">
-            <div className="flex gap-2">
-              <button onClick={() => setNewType("text")} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm border transition-all ${newType === "text" ? "bg-foreground text-background border-foreground" : "bg-card text-muted-foreground border-border hover:border-muted-foreground/30"}`}>
-                <FileText className="w-4 h-4" /> Note
-              </button>
-              <button onClick={() => setNewType("list")} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm border transition-all ${newType === "list" ? "bg-foreground text-background border-foreground" : "bg-card text-muted-foreground border-border hover:border-muted-foreground/30"}`}>
-                <List className="w-4 h-4" /> List
-              </button>
-            </div>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={newType === "list" ? "List name (e.g. Grocery)" : "Title"} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground text-[17px] font-normal outline-none focus:border-ring transition-colors" autoFocus onKeyDown={(e) => e.key === "Enter" && add()} />
-            {newType === "text" && (
-              <ReactQuill
-                theme="snow"
-                value={content}
-                onChange={(val) => setContent(val)}
-                modules={{ toolbar: [[{ size: ["small", false, "large", "huge"] }], ["bold", "italic", "underline", "strike"], [{ list: "ordered" }, { list: "bullet" }], ["link", "blockquote", "clean"]] }}
-                style={{ minHeight: "240px" }}
-              />
-            )}
-            {newType === "list" && <p className="text-[13px] text-muted-foreground leading-relaxed">You can add items after creating the list.</p>}
-            <div className="flex gap-2">
-              <button onClick={add} className="bg-foreground text-background px-5 py-2.5 rounded-xl text-sm font-medium hover:opacity-90 transition-colors">Create</button>
-              <button onClick={backToList} className="px-4 py-2.5 text-muted-foreground text-sm hover:text-foreground transition-colors">Cancel</button>
-            </div>
-          </div>
-        ) : selected ? (
+        {selected && (
           <div className="flex flex-col gap-4">
+            {isBlank && (
+              <div className="flex gap-2">
+                <button onClick={() => switchNoteType("text")} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm border transition-all ${!isList ? "bg-foreground text-background border-foreground" : "bg-card text-muted-foreground border-border hover:border-muted-foreground/30"}`}>
+                  <FileText className="w-4 h-4" /> Note
+                </button>
+                <button onClick={() => switchNoteType("list")} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm border transition-all ${isList ? "bg-foreground text-background border-foreground" : "bg-card text-muted-foreground border-border hover:border-muted-foreground/30"}`}>
+                  <List className="w-4 h-4" /> List
+                </button>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               {isList ? <List className="w-4 h-4 text-[#B49399] flex-shrink-0" /> : <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
-              <input value={selected.title} onChange={(e) => setSelected({ ...selected, title: e.target.value })} className="flex-1 bg-transparent border-0 border-b border-border rounded-none text-foreground text-[17px] font-semibold px-0 py-1 outline-none focus:border-ring transition-colors" />
+              <input value={selected.title} onChange={(e) => setSelected({ ...selected, title: e.target.value })} placeholder={isList ? "List name (e.g. Grocery)" : "Title"} className="flex-1 bg-transparent border-0 border-b border-border rounded-none text-foreground text-[17px] font-semibold px-0 py-1 outline-none focus:border-ring transition-colors" autoFocus />
             </div>
 
             <div className="flex items-center gap-2">
@@ -400,7 +391,7 @@ export default function Notes() {
               </>
             )}
           </div>
-        ) : null}
+        )}
         </div>
 
         <AttachmentSheet open={showAttachmentSheet} onClose={() => setShowAttachmentSheet(false)} onUpload={handleUpload} />
@@ -429,7 +420,7 @@ export default function Notes() {
           </button>
         </div>
         <div className="px-6 md:px-10 lg:px-14 pt-5 space-y-5">
-        <button onClick={() => { setAdding(true); }} className="w-full h-[60px] flex items-center gap-3 bg-card border border-border rounded-2xl pl-4 pr-5 text-left transition-all hover:shadow-[0_8px_24px_-14px_rgba(0,0,0,0.14)] hover:-translate-y-0.5 active:translate-y-0">
+        <button onClick={() => startNewNote(openCollection.id)} className="w-full h-[60px] flex items-center gap-3 bg-card border border-border rounded-2xl pl-4 pr-5 text-left transition-all hover:shadow-[0_8px_24px_-14px_rgba(0,0,0,0.14)] hover:-translate-y-0.5 active:translate-y-0">
           <span className="w-8 h-8 rounded-full bg-[#B49399] flex items-center justify-center flex-shrink-0">
             <Plus className="w-3.5 h-3.5 text-white" strokeWidth={1.8} />
           </span>
@@ -481,7 +472,7 @@ export default function Notes() {
         notes={notes}
         folders={folders}
         loading={loading}
-        onQuickCapture={() => { setAdding(true); setSelected(null); }}
+        onQuickCapture={() => startNewNote(null)}
         onOpenCollection={(f) => setOpenCollection(f)}
         onOpenNote={(n) => setSelected(n)}
         onNewCollection={() => setShowNewCollection(true)}
