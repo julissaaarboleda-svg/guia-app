@@ -18,6 +18,7 @@ import AttachmentViewer from "@/components/notes/AttachmentViewer";
 import NotesLanding from "@/components/notes/NotesLanding";
 import CollectionSheet from "@/components/notes/CollectionSheet";
 import NewCollectionSheet from "@/components/notes/NewCollectionSheet";
+import { accentHex } from "@/components/notes/collectionAccents";
 
 export default function Notes() {
   const [notes, setNotes] = useState([]);
@@ -245,16 +246,35 @@ export default function Notes() {
     : [];
 
   /* ---------------- Editor ---------------- */
+  const noteFolder = adding
+    ? openCollection
+    : selected?.folder_id
+      ? folders.find((f) => f.id === selected.folder_id)
+      : null;
+
   if (showingDetail) {
     return (
       <div className="max-w-[900px] mx-auto w-full pb-12">
         {/* top bar */}
-        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm px-6 md:px-10 lg:px-14 pb-4 border-b border-border flex items-center justify-between" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1.25rem)" }}>
-          <button onClick={backToList} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground text-[14px] font-body transition-colors">
-            <ArrowLeft className="w-4 h-4" /> {openCollection ? openCollection.name : "Notes"}
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm px-6 md:px-10 lg:px-14 pb-4 border-b border-border flex items-center gap-2.5" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1.25rem)" }}>
+          <button onClick={backToList} className="w-9 h-9 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors flex-shrink-0" title="Back">
+            <ArrowLeft className="w-4 h-4" />
           </button>
+          {noteFolder ? (
+            <>
+              <span
+                className="w-5 h-5 rounded-[6px] flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: `${accentHex(noteFolder.accent_color)}1F` }}
+              >
+                <FolderIcon className="w-3 h-3" style={{ color: accentHex(noteFolder.accent_color) }} strokeWidth={1.8} />
+              </span>
+              <span className="font-body text-[13px] text-muted-foreground truncate flex-1 min-w-0">{noteFolder.name}</span>
+            </>
+          ) : (
+            <span className="font-body text-[13px] text-muted-foreground flex-1 min-w-0">Notes</span>
+          )}
           {selected && (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-shrink-0">
               <button onClick={() => shareNote(selected)} disabled={sharing} className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary rounded-full transition-colors disabled:opacity-50" title="Share">
                 <Share2 className="w-4 h-4" />
               </button>
@@ -373,16 +393,23 @@ export default function Notes() {
   /* ---------------- Collection View ---------------- */
   if (openCollection) {
     return (
-      <div className="px-6 md:px-10 lg:px-14 pt-5 pb-8 max-w-[900px] mx-auto w-full space-y-5">
-        <div className="flex items-start justify-between gap-3">
-          <button onClick={() => setOpenCollection(null)} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground text-[13px] font-body transition-colors pt-1">
-            <ArrowLeft className="w-4 h-4" /> Collections
+      <div className="max-w-[900px] mx-auto w-full pb-8">
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm px-6 md:px-10 lg:px-14 pb-4 border-b border-border flex items-center gap-2.5" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1.25rem)" }}>
+          <button onClick={() => setOpenCollection(null)} className="w-9 h-9 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors flex-shrink-0" title="Back to collections">
+            <ArrowLeft className="w-4 h-4" />
           </button>
+          <span
+            className="w-6 h-6 rounded-[7px] flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: `${accentHex(openCollection.accent_color)}1F` }}
+          >
+            <FolderIcon className="w-3.5 h-3.5" style={{ color: accentHex(openCollection.accent_color) }} strokeWidth={1.8} />
+          </span>
+          <h1 className="font-heading text-[17px] text-foreground flex-1 min-w-0 truncate">{openCollection.name}</h1>
           <button onClick={() => setLongPressFolder(openCollection)} className="w-9 h-9 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors flex-shrink-0" title="Edit collection">
             <Pencil className="w-4 h-4" />
           </button>
         </div>
-        <h1 className="font-heading text-[30px] leading-tight text-foreground">{openCollection.name}</h1>
+        <div className="px-6 md:px-10 lg:px-14 pt-5 space-y-5">
         <button onClick={() => { setAdding(true); }} className="w-full h-[60px] flex items-center gap-3 bg-card border border-border rounded-2xl pl-4 pr-5 text-left transition-all hover:shadow-[0_8px_24px_-14px_rgba(0,0,0,0.14)] hover:-translate-y-0.5 active:translate-y-0">
           <span className="w-8 h-8 rounded-full bg-[#B49399] flex items-center justify-center flex-shrink-0">
             <Plus className="w-3.5 h-3.5 text-white" strokeWidth={1.8} />
@@ -409,6 +436,7 @@ export default function Notes() {
             ))}
           </div>
         )}
+        </div>
 
         <CollectionSheet
           folder={longPressFolder}

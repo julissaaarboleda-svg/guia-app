@@ -101,7 +101,7 @@ export default function NotesLanding({
         {loading ? (
           <div className="grid grid-cols-3 gap-2.5">
             {[0, 1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-[80px] rounded-2xl bg-card border border-border/50 animate-pulse" />
+              <div key={i} className="h-[96px] rounded-2xl bg-card border border-border/50 animate-pulse" />
             ))}
           </div>
         ) : (
@@ -117,12 +117,12 @@ export default function NotesLanding({
             ))}
             <button
               onClick={onNewCollection}
-              className="h-[80px] flex flex-col items-center justify-center bg-transparent border border-dashed border-border/60 rounded-2xl transition-all hover:border-[#B49399]/60 hover:bg-card/40"
+              className="h-[96px] flex flex-col items-center justify-center bg-transparent border border-dashed border-border/60 rounded-2xl transition-all hover:border-[#B49399]/60 hover:bg-card/40"
             >
-              <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center mb-1">
-                <Plus className="w-3 h-3 text-[#B49399]" strokeWidth={1.6} />
+              <div className="w-11 h-11 rounded-[11px] bg-secondary flex items-center justify-center mb-2">
+                <Plus className="w-[22px] h-[22px] text-[#B49399]" strokeWidth={1.6} />
               </div>
-              <p className="font-body text-[11px] font-medium text-muted-foreground">New</p>
+              <p className="font-body text-[13px] font-medium text-muted-foreground">New</p>
             </button>
           </div>
         )}
