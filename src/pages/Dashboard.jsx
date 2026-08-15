@@ -162,7 +162,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="px-6 md:px-10 lg:px-14 py-5 md:py-7 max-w-[900px] mx-auto w-full space-y-5">
+    <div className="px-6 md:px-10 lg:px-14 pb-5 md:pb-7 max-w-[900px] mx-auto w-full space-y-5" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1.25rem)" }}>
       <EditorialHero
         image={dailyImage}
         quote={dailyQuote}
@@ -204,7 +204,7 @@ export default function Dashboard() {
       )}
 
       <Reveal delay={0.1}>
-        <div className="grid grid-cols-[1fr_1.5fr] gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <TodaysInsight insight={ai.insight} />
           <UpNext items={upNext} />
         </div>

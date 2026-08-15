@@ -125,6 +125,7 @@ export function buildUpNext({ trips = [], bizEntries = [], finItems = [], projec
       id: `trip-${t.id}`, title: t.title, module: "travel",
       dateLabel: tripRange(t), countdown: daysLabel(days) || `${days} days`,
       status: cap(t.status), path: "/travel", _days: days,
+      image: t.hero_image_url || null,
     });
   });
   projects.forEach((p) => {
@@ -135,6 +136,7 @@ export function buildUpNext({ trips = [], bizEntries = [], finItems = [], projec
       id: `proj-${p.id}`, title: p.title, module: "projects",
       dateLabel: `Due ${format(parseISO(p.target_date), "MMM d")}`, countdown: daysLabel(days) || `${days} days`,
       status: cap(p.status), path: "/projects", _days: days,
+      image: p.cover_image_url || null, accentColor: p.accent_color || "#A7773F",
     });
   });
   finItems.forEach((f) => {

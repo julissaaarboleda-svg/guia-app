@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Check } from "lucide-react";
 import { getModule } from "@/lib/homeModules";
@@ -10,6 +11,21 @@ const PRIORITY_CHIP = {
 };
 
 export default function TodaysFocus({ items, total = 0, onComplete }) {
+  // Completing an item removes it from `items` immediately (parent state
+  // update), which — if done with no transition — instantly shifts the next
+  // row up into the exact spot the finger/cursor was just on, making it look
+  // like the WRONG item got checked. We track "completing" ids locally so
+  // the tapped row visibly checks off and fades in place first; the actual
+  // removal (onComplete) fires after that beat, so nothing jumps underneath
+  // a still-active pointer.
+  const [completingIds, setCompletingIds] = useState(new Set());
+
+  const handleComplete = (it) => {
+    if (completingIds.has(it.id)) return;
+    setCompletingIds((prev) => new Set(prev).add(it.id));
+    setTimeout(() => onComplete(it), 320);
+  };
+
   return (
     <section>
       <div className="flex items-end justify-between mb-2.5">
@@ -26,17 +42,21 @@ export default function TodaysFocus({ items, total = 0, onComplete }) {
           {items.map((it, i) => {
             const mod = getModule(it.module);
             const Icon = mod.Icon;
+            const isCompleting = completingIds.has(it.id);
             return (
               <div
                 key={it.id}
-                className={`flex items-center gap-3 px-3.5 py-2 ${i !== 0 ? "border-t border-border/40" : ""}`}
+                className={`flex items-center gap-3 px-3.5 py-2 transition-opacity duration-300 ${i !== 0 ? "border-t border-border/40" : ""} ${isCompleting ? "opacity-40" : ""}`}
               >
                 <button
-                  onClick={() => onComplete(it)}
+                  onClick={() => handleComplete(it)}
                   aria-label="Mark complete"
-                  className="w-4 h-4 rounded-full border border-muted-foreground/30 flex items-center justify-center flex-shrink-0 hover:border-forest hover:bg-forest/10 transition-colors group"
+                  disabled={isCompleting}
+                  className={`w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors group ${
+                    isCompleting ? "border-forest bg-forest/10" : "border-muted-foreground/30 hover:border-forest hover:bg-forest/10"
+                  }`}
                 >
-                  <Check className="w-2.5 h-2.5 text-forest opacity-0 group-hover:opacity-60 transition-opacity" />
+                  <Check className={`w-2.5 h-2.5 text-forest transition-opacity ${isCompleting ? "opacity-100" : "opacity-0 group-hover:opacity-60"}`} />
                 </button>
                 <div className="flex-1 min-w-0">
                   <p className="font-body text-[13.5px] text-foreground truncate leading-snug">{it.title}</p>

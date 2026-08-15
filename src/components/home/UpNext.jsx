@@ -36,12 +36,18 @@ export default function UpNext({ items }) {
                 className="snap-start flex-shrink-0 w-[82%] flex flex-col gap-1.5 rounded-xl border border-border/40 bg-background/40 p-3 hover:border-olive/40 transition-colors min-w-0"
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <span
-                    className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: `${mod.color}14`, color: mod.color }}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                  </span>
+                  {it.image ? (
+                    <span className="w-7 h-7 rounded-lg flex-shrink-0 overflow-hidden">
+                      <img src={it.image} alt="" className="w-full h-full object-cover" />
+                    </span>
+                  ) : (
+                    <span
+                      className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: it.accentColor ? `${it.accentColor}22` : `${mod.color}14`, color: it.accentColor || mod.color }}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                    </span>
+                  )}
                   <p className="font-body text-[12px] text-foreground leading-tight line-clamp-1 flex-1 min-w-0">{it.title}</p>
                 </div>
                 <p className="font-body text-[10px] text-muted-foreground">{it.dateLabel}</p>
