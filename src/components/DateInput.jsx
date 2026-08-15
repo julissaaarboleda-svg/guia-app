@@ -10,7 +10,7 @@ export default function DateInput({ className = "", ...props }) {
       <input
         type="date"
         className={`w-full min-w-0 bg-muted border border-input rounded-lg pl-8 pr-2.5 py-1.5 text-sm outline-none focus:border-ring ${className}`}
-        style={{ minWidth: 0 }}
+        style={{ minWidth: 0, width: "100%", maxWidth: "100%", boxSizing: "border-box", WebkitAppearance: "none", appearance: "none" }}
         {...props}
       />
     </div>
