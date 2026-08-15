@@ -39,6 +39,7 @@ export default function Notes() {
   const [viewerAttachment, setViewerAttachment] = useState(null);
   const [showNewCollection, setShowNewCollection] = useState(false);
   const newItemRef = useRef(null);
+  const autoSaveTimer = useRef(null);
   const { toast } = useToast();
 
   const load = async () => {
@@ -89,27 +90,39 @@ export default function Notes() {
     else data.list_items = [];
     const n = await base44.entities.Note.create(data);
     setTitle(""); setContent(""); setAdding(false); setNewType("text");
-    await load();
+    setNotes(prev => [n, ...prev]);
     setSelected(n);
+  };
+
+  // Silent persist used by both the debounced auto-save and manual Save button.
+  // Updates local state first (list view + editor both reflect it instantly),
+  // then writes to the backend in the background — no full reload needed.
+  const persistNote = async (note, showToast = false) => {
+    const patch = { title: note.title, content: note.content, list_items: note.list_items, attachments: note.attachments || [] };
+    setNotes(prev => prev.map(n => n.id === note.id ? { ...n, ...patch } : n));
+    await base44.entities.Note.update(note.id, patch);
+    if (showToast) toast({ title: "Note saved" });
   };
 
   const save = async () => {
     if (!selected) return;
-    await base44.entities.Note.update(selected.id, {
-      title: selected.title,
-      content: selected.content,
-      list_items: selected.list_items,
-      attachments: selected.attachments || [],
-    });
-    load();
-    toast({ title: "Note saved" });
+    await persistNote(selected, true);
   };
 
+  // Auto-save: fires ~900ms after the person stops typing in title/content,
+  // so nothing is lost if they navigate away without hitting Save.
+  useEffect(() => {
+    if (!selected || adding) return;
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => { persistNote(selected, false); }, 900);
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
+  }, [selected?.title, selected?.content]);
+
   const remove = async (id) => {
-    await base44.entities.Note.delete(id);
+    setNotes(prev => prev.filter(n => n.id !== id));
     if (selected?.id === id) setSelected(null);
     if (noteMenu?.id === id) setNoteMenu(null);
-    load();
+    await base44.entities.Note.delete(id);
   };
 
   const addListItem = async () => {
@@ -117,6 +130,7 @@ export default function Notes() {
     const items = [...(selected.list_items || []), { text: newItemText.trim(), checked: false }];
     const updated = { ...selected, list_items: items };
     setSelected(updated);
+    setNotes(prev => prev.map(n => n.id === selected.id ? { ...n, list_items: items } : n));
     setNewItemText("");
     await base44.entities.Note.update(selected.id, { list_items: items });
     newItemRef.current?.focus();
@@ -127,12 +141,14 @@ export default function Notes() {
       i === idx ? { ...it, checked: !it.checked } : it
     );
     setSelected({ ...selected, list_items: items });
+    setNotes(prev => prev.map(n => n.id === selected.id ? { ...n, list_items: items } : n));
     await base44.entities.Note.update(selected.id, { list_items: items });
   };
 
   const removeItem = async (idx) => {
     const items = (selected.list_items || []).filter((_, i) => i !== idx);
     setSelected({ ...selected, list_items: items });
+    setNotes(prev => prev.map(n => n.id === selected.id ? { ...n, list_items: items } : n));
     await base44.entities.Note.update(selected.id, { list_items: items });
   };
 
@@ -140,6 +156,7 @@ export default function Notes() {
     if (!selected) return;
     const updated = [...(selected.attachments || []), ...newAttachments];
     setSelected({ ...selected, attachments: updated });
+    setNotes(prev => prev.map(n => n.id === selected.id ? { ...n, attachments: updated } : n));
     await base44.entities.Note.update(selected.id, { attachments: updated });
     toast({ title: "Attachment saved", description: `${newAttachments.length} file${newAttachments.length > 1 ? "s" : ""} uploaded.` });
   };
@@ -147,24 +164,24 @@ export default function Notes() {
   const removeAttachment = async (idx) => {
     const updated = (selected.attachments || []).filter((_, i) => i !== idx);
     setSelected({ ...selected, attachments: updated });
+    setNotes(prev => prev.map(n => n.id === selected.id ? { ...n, attachments: updated } : n));
     await base44.entities.Note.update(selected.id, { attachments: updated });
   };
 
   const changeFolder = async (folderId) => {
     if (!selected) return;
     setSelected({ ...selected, folder_id: folderId || null });
+    setNotes(prev => prev.map(n => n.id === selected.id ? { ...n, folder_id: folderId || null } : n));
     await base44.entities.Note.update(selected.id, { folder_id: folderId || null });
     setMoveNote(null);
     toast({ title: folderId ? "Moved to collection" : "Removed from collection" });
-    load();
   };
 
   const moveNoteToFolder = async (noteId, folderId) => {
+    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, folder_id: folderId || null } : n));
     await base44.entities.Note.update(noteId, { folder_id: folderId || null });
     setNoteMenu(null);
-    setMoveNote(null);
     toast({ title: folderId ? "Moved to collection" : "Removed from collection" });
-    load();
   };
 
   const getNoteText = (note) => {
@@ -230,9 +247,9 @@ export default function Notes() {
   /* ---------------- Editor ---------------- */
   if (showingDetail) {
     return (
-      <div className="px-6 md:px-10 lg:px-14 pt-5 pb-12 max-w-[900px] mx-auto w-full">
+      <div className="max-w-[900px] mx-auto w-full pb-12">
         {/* top bar */}
-        <div className="flex items-center justify-between mb-5">
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm px-6 md:px-10 lg:px-14 pb-4 border-b border-border flex items-center justify-between" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1.25rem)" }}>
           <button onClick={backToList} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground text-[14px] font-body transition-colors">
             <ArrowLeft className="w-4 h-4" /> {openCollection ? openCollection.name : "Notes"}
           </button>
@@ -250,6 +267,8 @@ export default function Notes() {
             </div>
           )}
         </div>
+
+        <div className="px-6 md:px-10 lg:px-14 pt-5">
 
         {adding ? (
           <div className="space-y-4">
@@ -325,7 +344,7 @@ export default function Notes() {
                 </div>
                 <NoteAttachments attachments={selected.attachments} onRemove={removeAttachment} onPreview={setViewerAttachment} />
                 <div className="flex items-center gap-2 mt-2">
-                  <button onClick={save} className="bg-foreground text-background px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">Save title</button>
+                  <button onClick={save} className="bg-foreground text-background px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">Save</button>
                   <button onClick={() => setShowAttachmentSheet(true)} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground px-3 py-2 rounded-lg text-sm transition-colors"><Paperclip className="w-4 h-4" /> Attach</button>
                 </div>
               </div>
@@ -343,6 +362,7 @@ export default function Notes() {
             )}
           </div>
         ) : null}
+        </div>
 
         <AttachmentSheet open={showAttachmentSheet} onClose={() => setShowAttachmentSheet(false)} onUpload={handleUpload} />
         <AttachmentViewer attachment={viewerAttachment} onClose={() => setViewerAttachment(null)} />
