@@ -12,12 +12,14 @@ import {
   Sparkles,
   UserPlus,
   Upload,
+  FileDown,
 } from "lucide-react";
 import ProjectCollaborators from "@/components/projects/ProjectCollaborators";
 import ProjectResources from "@/components/projects/ProjectResources";
 import ProjectTasks from "@/components/projects/ProjectTasks";
 import ProjectNotes from "@/components/projects/ProjectNotes";
 import { StickyNote } from "lucide-react";
+import { exportProjectPdf } from "@/lib/projectPdfExport";
 
 const statusColors = {
   planning: "bg-amber-50 text-amber-700 border-amber-100",
@@ -84,6 +86,19 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
     if (!confirm("Delete this project?")) return;
     await base44.entities.Project.delete(project.id);
     onBack();
+  };
+
+  const [exporting, setExporting] = useState(false);
+  const handleExportPdf = async () => {
+    setExporting(true);
+    try {
+      await exportProjectPdf(project);
+    } catch (err) {
+      console.error("PDF export failed:", err);
+      alert("Something went wrong creating the PDF. Please try again.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const addTask = async (taskInput) => {
@@ -177,6 +192,18 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
             <ArrowLeft className="w-5 h-5" strokeWidth={1.8} />
           </button>
           <div className="flex gap-1">
+            <button
+              onClick={handleExportPdf}
+              disabled={exporting}
+              className="w-9 h-9 flex items-center justify-center text-foreground rounded-full hover:bg-secondary transition-colors disabled:opacity-50"
+              title="Export as PDF"
+            >
+              {exporting ? (
+                <div className="w-4 h-4 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin" />
+              ) : (
+                <FileDown className="w-[18px] h-[18px]" strokeWidth={1.8} />
+              )}
+            </button>
             <button
               onClick={() => setShowCollabModal(true)}
               className="w-9 h-9 flex items-center justify-center text-foreground rounded-full hover:bg-secondary transition-colors"
