@@ -9,7 +9,7 @@ export default function DateInput({ className = "", ...props }) {
       <Calendar className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
       <input
         type="date"
-        className={`w-full min-w-0 bg-muted border border-input rounded-lg pl-8 pr-2.5 py-1.5 text-sm outline-none focus:border-ring ${className}`}
+        className={`w-full min-w-0 h-10 bg-muted border border-input rounded-lg pl-8 pr-2.5 text-sm outline-none focus:border-ring ${className}`}
         style={{ minWidth: 0, width: "100%", maxWidth: "100%", boxSizing: "border-box", WebkitAppearance: "none", appearance: "none" }}
         {...props}
       />

@@ -115,7 +115,7 @@ export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd
           <label className="text-[10px] text-muted-foreground mb-1 block">Assign to</label>
           <div className="relative">
             <User className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <select value={assignee} onChange={(e) => setAssignee(e.target.value)} className="w-full bg-muted border border-input rounded-lg pl-8 pr-2.5 py-1.5 text-sm outline-none focus:border-ring appearance-none">
+            <select value={assignee} onChange={(e) => setAssignee(e.target.value)} className="w-full h-10 bg-muted border border-input rounded-lg pl-8 pr-2.5 text-sm outline-none focus:border-ring appearance-none">
               <option value={currentEmail}>Me</option>
               {collaborators.map((c) => <option key={c} value={c}>{c.split("@")[0]}</option>)}
             </select>
