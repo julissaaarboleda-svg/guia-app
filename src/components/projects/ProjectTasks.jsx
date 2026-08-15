@@ -39,6 +39,7 @@ export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd
   const [dueDate, setDueDate] = useState("");
   const [filter, setFilter] = useState("all");
   const [showAssigneeFilter, setShowAssigneeFilter] = useState(false);
+  const [showForm, setShowForm] = useState(false);
 
   const submit = () => {
     if (!name.trim()) return;
@@ -46,6 +47,7 @@ export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd
     setName("");
     setAssignee("");
     setDueDate("");
+    setShowForm(false);
   };
 
   const filtered = useMemo(() => {
@@ -62,13 +64,15 @@ export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd
         <div className="flex gap-1.5 overflow-x-auto no-scrollbar flex-1">
           <button
             onClick={() => setFilter("all")}
-            className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors ${filter === "all" ? "bg-foreground text-background border-foreground" : "bg-card text-foreground border-border"}`}
+            className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors ${filter === "all" ? "text-white border-transparent" : "bg-card text-foreground border-border"}`}
+            style={filter === "all" ? { backgroundColor: "#A7773F" } : undefined}
           >
             All ({tasks.length})
           </button>
           <button
             onClick={() => setFilter(currentEmail)}
-            className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors ${filter === currentEmail ? "bg-foreground text-background border-foreground" : "bg-card text-foreground border-border"}`}
+            className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors ${filter === currentEmail ? "text-white border-transparent" : "bg-card text-foreground border-border"}`}
+            style={filter === currentEmail ? { backgroundColor: "#A7773F" } : undefined}
           >
             My Tasks ({countFor(currentEmail)})
           </button>
@@ -98,33 +102,51 @@ export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd
         )}
       </div>
 
-      {/* Add task form */}
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && submit()}
-        placeholder="Task name"
-        className="w-full bg-muted border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring mb-2"
-      />
-      <div className="grid grid-cols-2 gap-3 mb-2">
-        <div className="min-w-0">
-          <label className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1">Due date</label>
-          <DateInput value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-        </div>
-        <div className="min-w-0">
-          <label className="text-[10px] text-muted-foreground mb-1 block">Assign to</label>
-          <div className="relative">
-            <User className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <select value={assignee} onChange={(e) => setAssignee(e.target.value)} className="w-full h-10 bg-muted border border-input rounded-lg pl-8 pr-2.5 text-sm outline-none focus:border-ring appearance-none">
-              <option value={currentEmail}>Me</option>
-              {collaborators.map((c) => <option key={c} value={c}>{c.split("@")[0]}</option>)}
-            </select>
+      {/* Add task — collapsed behind a button until tapped */}
+      {!showForm ? (
+        <button
+          onClick={() => setShowForm(true)}
+          className="w-full flex items-center justify-center gap-1.5 border border-dashed rounded-lg py-2.5 text-sm font-medium mb-3 transition-colors"
+          style={{ borderColor: "#A7773F", color: "#A7773F" }}
+        >
+          <Plus className="w-4 h-4" /> Add task
+        </button>
+      ) : (
+        <div className="mb-3">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && submit()}
+            placeholder="Task name"
+            autoFocus
+            className="w-full bg-muted border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring mb-2"
+          />
+          <div className="grid grid-cols-2 gap-3 mb-2">
+            <div className="min-w-0">
+              <label className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1">Due date</label>
+              <DateInput value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            </div>
+            <div className="min-w-0">
+              <label className="text-[10px] text-muted-foreground mb-1 block">Assign to</label>
+              <div className="relative">
+                <User className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <select value={assignee} onChange={(e) => setAssignee(e.target.value)} className="w-full h-10 bg-muted border border-input rounded-lg pl-8 pr-2.5 text-sm outline-none focus:border-ring appearance-none">
+                  <option value={currentEmail}>Me</option>
+                  {collaborators.map((c) => <option key={c} value={c}>{c.split("@")[0]}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={submit} className="flex-1 flex items-center justify-center gap-1.5 text-white py-2 rounded-lg text-sm font-medium hover:opacity-90" style={{ backgroundColor: "#A7773F" }}>
+              <Plus className="w-4 h-4" /> Add Task
+            </button>
+            <button onClick={() => { setShowForm(false); setName(""); setAssignee(""); setDueDate(""); }} className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors">
+              Cancel
+            </button>
           </div>
         </div>
-      </div>
-      <button onClick={submit} className="w-full flex items-center justify-center gap-1.5 bg-foreground text-background py-2 rounded-lg text-sm font-medium hover:opacity-90 mb-3">
-        <Plus className="w-4 h-4" /> Add Task
-      </button>
+      )}
 
       {/* Task list */}
       <div className="flex items-center gap-2 mt-4 mb-1">

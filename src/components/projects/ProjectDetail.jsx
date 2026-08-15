@@ -372,7 +372,8 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
             <div className="flex gap-2">
               <button
                 onClick={save}
-                className="flex items-center gap-1.5 bg-stone-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-stone-800 transition-colors"
+                className="flex items-center gap-1.5 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:opacity-90"
+                style={{ backgroundColor: "#A7773F" }}
               >
                 <Check className="w-3 h-3" /> Save
               </button>
@@ -392,30 +393,27 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
           <button
             onClick={() => setTab("tasks")}
             className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors ${
-              tab === "tasks"
-                ? "bg-stone-900 text-white"
-                : "text-stone-500 hover:text-stone-900"
+              tab === "tasks" ? "text-white" : "text-stone-500 hover:text-stone-900"
             }`}
+            style={tab === "tasks" ? { backgroundColor: "#A7773F" } : undefined}
           >
             <ListTodo className="w-4 h-4" /> Tasks
           </button>
           <button
             onClick={() => setTab("resources")}
             className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors ${
-              tab === "resources"
-                ? "bg-stone-900 text-white"
-                : "text-stone-500 hover:text-stone-900"
+              tab === "resources" ? "text-white" : "text-stone-500 hover:text-stone-900"
             }`}
+            style={tab === "resources" ? { backgroundColor: "#A7773F" } : undefined}
           >
             <Sparkles className="w-4 h-4" /> Resources
           </button>
           <button
             onClick={() => setTab("notes")}
             className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors ${
-              tab === "notes"
-                ? "bg-stone-900 text-white"
-                : "text-stone-500 hover:text-stone-900"
+              tab === "notes" ? "text-white" : "text-stone-500 hover:text-stone-900"
             }`}
+            style={tab === "notes" ? { backgroundColor: "#A7773F" } : undefined}
           >
             <StickyNote className="w-4 h-4" /> Notes
           </button>
