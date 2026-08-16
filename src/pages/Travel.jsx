@@ -5,6 +5,7 @@ import TripDetail from "@/components/travel/TripDetail";
 import JourneyHero from "@/components/journeys/JourneyHero";
 import JourneyCard from "@/components/journeys/JourneyCard";
 import JourneyProgress from "@/components/journeys/JourneyProgress";
+import TravelAssistant from "@/components/journeys/TravelAssistant";
 import UpcomingEvent from "@/components/journeys/UpcomingEvent";
 import PastJourneyCard from "@/components/journeys/PastJourneyCard";
 import NewJourneySheet from "@/components/journeys/NewJourneySheet";
@@ -178,11 +179,11 @@ export default function Travel() {
 
   return (
     <div className="max-w-[900px] mx-auto w-full">
-      {/* Page header */}
-      <div className="px-6 md:px-10 lg:px-14 pb-2" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1rem)" }}>
-        <div className="flex items-start justify-between">
-          <h1 className="font-heading text-[2rem] sm:text-[2.4rem] leading-[2.1rem] text-foreground font-semibold">Journeys</h1>
-          <div className="flex items-center gap-1 pt-1.5">
+      {/* Page header — sticky, sized to match every other page's header */}
+      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm px-6 md:px-10 lg:px-14 pb-3 border-b border-border" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1rem)" }}>
+        <div className="flex items-center justify-between">
+          <h1 className="font-heading text-xl md:text-2xl text-foreground font-bold truncate">Journeys</h1>
+          <div className="flex items-center gap-1">
             <button
               onClick={() => setShowSearch((s) => !s)}
               className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors ${showSearch ? "bg-secondary text-foreground" : "text-foreground hover:bg-secondary"}`}
@@ -261,6 +262,7 @@ export default function Travel() {
                     onEditTrip={() => editTrip(current)}
                   />
                   <JourneyProgress trip={current} onNavigate={(tab) => openTrip(current, tab)} />
+                  <TravelAssistant trip={current} onNavigate={(tab) => openTrip(current, tab)} />
                   <UpcomingEvent trip={current} onNavigate={(tab) => openTrip(current, tab)} />
                   <KnowBeforeYouGo trip={current} know={knowData} loading={knowLoading} />
                 </>
