@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Target, FileText, Briefcase, Building2, CreditCard, Plane, FolderOpen, HelpCircle, Settings, MessageCircle, MoreHorizontal, X, Sparkles } from "lucide-react";
+import { Home, Target, FileText, Briefcase, Building2, CreditCard, Plane, FolderOpen, Settings, MessageCircle, MoreHorizontal, X, Sparkles, LogOut } from "lucide-react";
 
 const SECTION_META = {
   goals:    { label: "Goals",    Icon: Target,     path: "/goals" },
@@ -110,14 +110,6 @@ export default function BottomNav({ prefs, onFeedback }) {
               })}
               <div className="border-t border-border my-2" />
               <Link
-                to="/help"
-                onClick={() => setShowMore(false)}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-              >
-                <HelpCircle className="w-4 h-4" />
-                <span className="font-body">Help</span>
-              </Link>
-              <Link
                 to="/settings"
                 onClick={() => setShowMore(false)}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
@@ -131,6 +123,13 @@ export default function BottomNav({ prefs, onFeedback }) {
               >
                 <MessageCircle className="w-4 h-4" />
                 <span className="font-body">Feedback</span>
+              </button>
+              <button
+                onClick={() => window.netlifyIdentity?.logout()}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-destructive hover:bg-secondary transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="font-body">Log out</span>
               </button>
             </nav>
           </div>

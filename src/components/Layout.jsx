@@ -100,14 +100,6 @@ export default function Layout() {
       {/* Bottom */}
       <div className="px-2 pb-3 border-t border-sidebar-border space-y-0.5 pt-2">
         <Link
-          to="/help"
-         
-          className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
-        >
-          <HelpCircle className="w-3.5 h-3.5" />
-          <span>Help</span>
-        </Link>
-        <Link
           to="/settings"
          
           className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
@@ -121,6 +113,13 @@ export default function Layout() {
         >
           <MessageCircle className="w-3.5 h-3.5" />
           <span>Feedback</span>
+        </button>
+        <button
+          onClick={() => window.netlifyIdentity?.logout()}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-sidebar-foreground/60 hover:text-destructive hover:bg-sidebar-accent transition-colors"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+          <span>Log out</span>
         </button>
       </div>
     </div>

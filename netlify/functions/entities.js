@@ -24,6 +24,10 @@ const CORS = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
+// Only these emails can read Feedback across all users (see the GET-list
+// branch below). ⚠️ REPLACE THIS with your real login email before deploying.
+const ADMIN_EMAILS = ["contact@julissaa.com"];
+
 function json(statusCode, body) {
   return { statusCode, headers: CORS, body: JSON.stringify(body) };
 }
@@ -48,6 +52,18 @@ exports.handler = async (event, context) => {
 
   try {
     if (event.httpMethod === "GET" && !id) {
+      // Admin feedback inbox: only for the hardcoded admin email(s), read
+      // every user's Feedback submissions — otherwise each person's
+      // feedback would only ever be visible inside their own account,
+      // which is useless for actually reading what beta testers send.
+      if (entityName === "Feedback" && ADMIN_EMAILS.includes(user.email)) {
+        const { blobs: allBlobs } = await store.list({ prefix: "" });
+        const relevant = allBlobs.filter((b) => b.key.includes(`/Feedback/`));
+        const items = (await Promise.all(relevant.map((b) => store.get(b.key, { type: "json" })))).filter(Boolean);
+        items.sort((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0));
+        return json(200, items);
+      }
+
       // list() / filter() — client-side filtering happens in the base44Client shim;
       // this always returns the full set for that entity, sorted by created_date desc.
       const { blobs } = await store.list({ prefix });

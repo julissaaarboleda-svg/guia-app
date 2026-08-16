@@ -87,6 +87,29 @@ export default function ItineraryTab({ trip, onUpdate, cityOrder }) {
     return saved;
   };
 
+  // Auto-generate one day per date in the trip's range the first time this
+  // tab is opened on a fresh trip. Previously nothing ever populated the
+  // itinerary automatically — you had to add every day by hand, one at a
+  // time, which is what made it look like "not all the dates" showed up.
+  useEffect(() => {
+    if (itinerary.length > 0 || !trip.start_date || !trip.end_date) return;
+    const start = parseISO(trip.start_date);
+    const end = parseISO(trip.end_date);
+    if (end < start) return;
+    const days = [];
+    let cursor = start;
+    let dayNum = 1;
+    while (cursor <= end && dayNum <= 60) {
+      days.push({ day: dayNum, date: format(cursor, "yyyy-MM-dd"), title: "", description: "", activities: [] });
+      cursor = addDays(cursor, 1);
+      dayNum++;
+    }
+    if (days.length > 0) {
+      setItinerary(days);
+      persist(days);
+    }
+  }, [trip.id, trip.start_date, trip.end_date]);
+
   const addDay = () => {
     let defaultDate = "";
     const dated = (itinerary || []).map((d) => d.date).filter(Boolean).sort();
@@ -116,16 +139,30 @@ export default function ItineraryTab({ trip, onUpdate, cityOrder }) {
         if (b.date) return 1;
         return (a.day || 0) - (b.day || 0);
       });
-      const newIdx = next.findIndex((d) => d === newDay);
+      next.forEach((d, i) => { d.day = i + 1; });
+      const newIdx = next.indexOf(newDay);
       setItinerary(next);
       setActiveIdx(newIdx >= 0 ? newIdx : next.length - 1);
       setDayEdit({ open: false, index: null, title: "", description: "", date: "" });
       persist(next);
       return;
     }
+    // Editing an existing day's date needs to re-sort the whole array
+    // afterward too — previously it just updated in place at the same
+    // array position, so changing a day's date to something earlier or
+    // later than its neighbors left the list visibly out of order.
     const next = [...itinerary];
-    next[dayEdit.index] = { ...next[dayEdit.index], title: dayEdit.title, description: dayEdit.description, date: dayEdit.date || next[dayEdit.index].date };
+    const editedDay = { ...next[dayEdit.index], title: dayEdit.title, description: dayEdit.description, date: dayEdit.date || next[dayEdit.index].date };
+    next[dayEdit.index] = editedDay;
+    next.sort((a, b) => {
+      if (a.date && b.date) return a.date.localeCompare(b.date);
+      if (a.date) return -1;
+      if (b.date) return 1;
+      return (a.day || 0) - (b.day || 0);
+    });
+    next.forEach((d, i) => { d.day = i + 1; });
     setItinerary(next);
+    setActiveIdx(next.indexOf(editedDay));
     setDayEdit({ open: false, index: null, title: "", description: "", date: "" });
     persist(next);
   };
@@ -265,10 +302,34 @@ Only include real travel/booking items. Return as { activities: [...] }.`,
             a.date = next[targetIdx].date; // normalize to the trip's year
           }
         }
-        if (targetIdx === null) targetIdx = activeIdx;
+        if (targetIdx === null && a.date) {
+          // No day exists yet for this date (e.g. itinerary was empty, or
+          // the import found dates outside the trip's original range) —
+          // create one instead of guessing where it goes, which is what
+          // used to crash the whole import.
+          const newDay = { day: next.length + 1, date: a.date, title: "", description: "", activities: [] };
+          next.push(newDay);
+          dateIndex.set(a.date, next.length - 1);
+          targetIdx = next.length - 1;
+        }
+        if (targetIdx === null && next.length === 0) {
+          // Truly nothing to attach an undated item to — create a fallback day.
+          next.push({ day: 1, date: "", title: "", description: "", activities: [] });
+          targetIdx = 0;
+        }
+        if (targetIdx === null) targetIdx = Math.min(activeIdx, next.length - 1);
         next[targetIdx].activities.push(a);
       }
-      // Re-sort each affected day by time
+      // Re-sort chronologically (new days may have been inserted out of
+      // order above) and renumber so "Day 1, 2, 3…" stays correct.
+      next.sort((a, b) => {
+        if (a.date && b.date) return a.date.localeCompare(b.date);
+        if (a.date) return -1;
+        if (b.date) return 1;
+        return (a.day || 0) - (b.day || 0);
+      });
+      next.forEach((d, i) => { d.day = i + 1; });
+      // Re-sort each affected day's activities by time
       next.forEach((d) => { d.activities = [...d.activities].sort((x, y) => (x.time || "99").localeCompare(y.time || "99")); });
       setItinerary(next);
       setAddItemOpen(false);

@@ -21,8 +21,8 @@ import Finance from './pages/Finance';
 import AIAssistant from './pages/AIAssistant';
 import OnboardingDemo from './pages/OnboardingDemo';
 import Projects from './pages/Projects';
+import AdminFeedback from './pages/AdminFeedback';
 
-import Help from './pages/Help';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -89,8 +89,8 @@ const AuthenticatedApp = () => {
         <Route path="/ai" element={<AIAssistant />} />
         <Route path="/travel" element={<Travel />} />
         <Route path="/projects" element={<Projects />} />
+        <Route path="/admin/feedback" element={<AdminFeedback />} />
 
-        <Route path="/help" element={<Help />} />
         <Route path="/onboarding" element={<Navigate to="/" replace />} />
         <Route path="*" element={<PageNotFound />} />
       </Route>
