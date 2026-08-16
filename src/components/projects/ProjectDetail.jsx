@@ -182,50 +182,50 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
 
   return (
     <div className="min-h-screen bg-stone-50">
-      <div className="p-4 md:p-8 max-w-4xl mx-auto">
+      <div className="p-4 md:p-8 max-w-4xl mx-auto" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1.25rem)" }}>
         <div className="rounded-[24px] p-5 mb-6 relative overflow-hidden h-[26vh] min-h-[210px] max-h-[290px] flex flex-col" style={{ background: coverImage ? undefined : accentColor }}>
           {/* Action row — overlaid on the photo */}
           <div className="relative z-10 flex items-center justify-between mb-2">
             <button
               onClick={onBack}
-              className="w-9 h-9 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-stone-100 transition-colors"
+              className="w-7 h-7 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-stone-100 transition-colors"
             >
-              <ArrowLeft className="w-4 h-4" strokeWidth={1.8} />
+              <ArrowLeft className="w-3.5 h-3.5" strokeWidth={1.8} />
             </button>
-            <div className="flex gap-1.5">
+            <div className="flex gap-1">
               <button
                 onClick={handleExportPdf}
                 disabled={exporting}
-                className="w-9 h-9 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-stone-100 transition-colors disabled:opacity-50"
+                className="w-7 h-7 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-stone-100 transition-colors disabled:opacity-50"
                 title="Export as PDF"
               >
                 {exporting ? (
-                  <div className="w-4 h-4 border-2 border-stone-300 border-t-stone-700 rounded-full animate-spin" />
+                  <div className="w-3.5 h-3.5 border-2 border-stone-300 border-t-stone-700 rounded-full animate-spin" />
                 ) : (
-                  <FileDown className="w-4 h-4" strokeWidth={1.8} />
+                  <FileDown className="w-3.5 h-3.5" strokeWidth={1.8} />
                 )}
               </button>
               <button
                 onClick={() => setShowCollabModal(true)}
-                className="w-9 h-9 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-stone-100 transition-colors"
+                className="w-7 h-7 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-stone-100 transition-colors"
                 title="Add collaborator"
               >
-                <UserPlus className="w-4 h-4" strokeWidth={1.8} />
+                <UserPlus className="w-3.5 h-3.5" strokeWidth={1.8} />
               </button>
               <button
                 onClick={() => setEditing(!editing)}
-                className="w-9 h-9 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-stone-100 transition-colors"
+                className="w-7 h-7 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-stone-100 transition-colors"
                 title="Edit project (cover & details)"
               >
-                <Edit2 className="w-4 h-4" strokeWidth={1.8} />
+                <Edit2 className="w-3.5 h-3.5" strokeWidth={1.8} />
               </button>
               {isOwner && (
                 <button
                   onClick={deleteProject}
-                  className="w-9 h-9 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-rose-500 hover:text-white transition-colors"
+                  className="w-7 h-7 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-rose-500 hover:text-white transition-colors"
                   title="Delete project"
                 >
-                  <Trash2 className="w-4 h-4" strokeWidth={1.8} />
+                  <Trash2 className="w-3.5 h-3.5" strokeWidth={1.8} />
                 </button>
               )}
             </div>
