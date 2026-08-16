@@ -51,13 +51,42 @@ exports.handler = async (event, context) => {
       // list() / filter() — client-side filtering happens in the base44Client shim;
       // this always returns the full set for that entity, sorted by created_date desc.
       const { blobs } = await store.list({ prefix });
-      const items = await Promise.all(blobs.map((b) => store.get(b.key, { type: "json" })));
+      const ownItems = await Promise.all(blobs.map((b) => store.get(b.key, { type: "json" })));
+
+      // Collaboration support: also surface items OTHER users created where this
+      // user's email is listed as a collaborator. Netlify Blobs has no cross-user
+      // query, so for shareable entity types we scan the whole store for that
+      // entity type and filter here — fine at this app's current scale.
+      let sharedItems = [];
+      if (entityName === "Project") {
+        const { blobs: allBlobs } = await store.list({ prefix: "" });
+        const others = allBlobs.filter((b) => b.key.includes(`/${entityName}/`) && !b.key.startsWith(prefix));
+        const otherItems = await Promise.all(others.map((b) => store.get(b.key, { type: "json" })));
+        sharedItems = otherItems.filter(
+          (item) => item && Array.isArray(item.collaborators) && item.collaborators.includes(user.email)
+        );
+      }
+
+      const items = [...ownItems, ...sharedItems];
       items.sort((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0));
       return json(200, items);
     }
 
     if (event.httpMethod === "GET" && id) {
-      const item = await store.get(prefix + id, { type: "json" });
+      let item = await store.get(prefix + id, { type: "json" });
+      if (!item && entityName === "Project") {
+        // Not owned by this user — check whether it's a project they're a
+        // collaborator on before giving up (covers opening a shared project
+        // by direct link, and re-fetching after realtime update events).
+        const { blobs: allBlobs } = await store.list({ prefix: "" });
+        const match = allBlobs.find((b) => b.key.endsWith(`/${entityName}/${id}`));
+        if (match) {
+          const candidate = await store.get(match.key, { type: "json" });
+          if (candidate && Array.isArray(candidate.collaborators) && candidate.collaborators.includes(user.email)) {
+            item = candidate;
+          }
+        }
+      }
       if (!item) return json(404, { error: "Not found" });
       return json(200, item);
     }
@@ -76,10 +105,26 @@ exports.handler = async (event, context) => {
 
     if (event.httpMethod === "PUT" && id) {
       const patch = JSON.parse(event.body || "{}");
-      const existing = await store.get(prefix + id, { type: "json" });
+      let existing = await store.get(prefix + id, { type: "json" });
+      let realKey = prefix + id;
+
+      if (!existing && entityName === "Project") {
+        // Same cross-user lookup as GET single — a collaborator editing a
+        // project they don't own (e.g. checking off a task) needs this too.
+        const { blobs: allBlobs } = await store.list({ prefix: "" });
+        const match = allBlobs.find((b) => b.key.endsWith(`/${entityName}/${id}`));
+        if (match) {
+          const candidate = await store.get(match.key, { type: "json" });
+          if (candidate && Array.isArray(candidate.collaborators) && candidate.collaborators.includes(user.email)) {
+            existing = candidate;
+            realKey = match.key;
+          }
+        }
+      }
+
       if (!existing) return json(404, { error: "Not found" });
       const updated = { ...existing, ...patch, id, updated_date: new Date().toISOString() };
-      await store.setJSON(prefix + id, updated);
+      await store.setJSON(realKey, updated);
       return json(200, updated);
     }
 
