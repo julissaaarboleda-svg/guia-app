@@ -13,11 +13,13 @@ import {
   UserPlus,
   Upload,
   FileDown,
+  DollarSign,
 } from "lucide-react";
 import ProjectCollaborators from "@/components/projects/ProjectCollaborators";
 import ProjectResources from "@/components/projects/ProjectResources";
 import ProjectTasks from "@/components/projects/ProjectTasks";
 import ProjectNotes from "@/components/projects/ProjectNotes";
+import ProjectBudget from "@/components/projects/ProjectBudget";
 import { StickyNote } from "lucide-react";
 import { exportProjectPdf } from "@/lib/projectPdfExport";
 
@@ -175,6 +177,27 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
     onUpdate(updated);
   };
 
+  const expenses = project.expenses || [];
+  const budgetTarget = project.budget_target || 0;
+  const totalSpent = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+
+  const setBudgetTarget = async (target) => {
+    const updated = await base44.entities.Project.update(project.id, { budget_target: target });
+    onUpdate(updated);
+  };
+
+  const addExpense = async (expense) => {
+    const updatedExpenses = [...expenses, expense];
+    const updated = await base44.entities.Project.update(project.id, { expenses: updatedExpenses });
+    onUpdate(updated);
+  };
+
+  const removeExpense = async (idx) => {
+    const updatedExpenses = expenses.filter((_, i) => i !== idx);
+    const updated = await base44.entities.Project.update(project.id, { expenses: updatedExpenses });
+    onUpdate(updated);
+  };
+
   const progress =
     tasks.length === 0
       ? 0
@@ -302,6 +325,34 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
           </p>
         </div>
 
+        {/* Budget summary — tap to open the full Budget tab */}
+        <button
+          onClick={() => setTab("budget")}
+          className="w-full text-left bg-white border border-stone-200 rounded-2xl p-5 mb-6 hover:border-stone-300 transition-colors"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium font-heading text-stone-500">Budget</h3>
+            <span className="text-xs font-medium" style={{ color: "#A7773F" }}>View details →</span>
+          </div>
+          <div className="flex items-baseline gap-1.5 mb-2">
+            <span className="text-xl font-bold text-stone-900">${totalSpent.toLocaleString()}</span>
+            <span className="text-xs text-stone-400">
+              {budgetTarget > 0 ? `of $${budgetTarget.toLocaleString()}` : "spent so far"}
+            </span>
+          </div>
+          {budgetTarget > 0 && (
+            <div className="h-2 rounded-full overflow-hidden" style={{ background: "#A7773F26" }}>
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${Math.min(100, Math.round((totalSpent / budgetTarget) * 100))}%`,
+                  background: totalSpent > budgetTarget ? "#DC2626" : "#A7773F",
+                }}
+              />
+            </div>
+          )}
+        </button>
+
         {/* Edit form */}
         {editing && (
           <div className="bg-white border border-stone-200 rounded-2xl p-5 mb-6 space-y-3">
@@ -417,6 +468,15 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
           >
             <StickyNote className="w-4 h-4" /> Notes
           </button>
+          <button
+            onClick={() => setTab("budget")}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors ${
+              tab === "budget" ? "text-white" : "text-stone-500 hover:text-stone-900"
+            }`}
+            style={tab === "budget" ? { backgroundColor: "#A7773F" } : undefined}
+          >
+            <DollarSign className="w-4 h-4" /> Budget
+          </button>
         </div>
 
         {/* Tab content */}
@@ -437,8 +497,16 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
               onAttachmentsChange={setAttachments}
               onLinksChange={setLinks}
             />
-          ) : (
+          ) : tab === "notes" ? (
             <ProjectNotes notes={project.notes} onSave={setNotes} />
+          ) : (
+            <ProjectBudget
+              target={budgetTarget}
+              expenses={expenses}
+              onSetTarget={setBudgetTarget}
+              onAddExpense={addExpense}
+              onRemoveExpense={removeExpense}
+            />
           )}
         </div>
       </div>
