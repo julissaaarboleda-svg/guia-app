@@ -116,6 +116,13 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
     onUpdate(result);
   };
 
+  const reassignTask = async (index, email) => {
+    const updated = [...tasks];
+    updated[index] = { ...updated[index], assignee: email };
+    const result = await base44.entities.Project.update(project.id, { tasks: updated });
+    onUpdate(result);
+  };
+
   const removeTask = async (index) => {
     const updated = tasks.filter((_, i) => i !== index);
     const result = await base44.entities.Project.update(project.id, { tasks: updated });
@@ -194,6 +201,13 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
 
   const removeExpense = async (idx) => {
     const updatedExpenses = expenses.filter((_, i) => i !== idx);
+    const updated = await base44.entities.Project.update(project.id, { expenses: updatedExpenses });
+    onUpdate(updated);
+  };
+
+  const reassignExpense = async (idx, email) => {
+    const updatedExpenses = [...expenses];
+    updatedExpenses[idx] = { ...updatedExpenses[idx], paid_by: email };
     const updated = await base44.entities.Project.update(project.id, { expenses: updatedExpenses });
     onUpdate(updated);
   };
@@ -489,6 +503,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
               onAdd={addTask}
               onToggle={toggleTask}
               onRemove={removeTask}
+              onReassign={reassignTask}
             />
           ) : tab === "resources" ? (
             <ProjectResources
@@ -503,9 +518,12 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
             <ProjectBudget
               target={budgetTarget}
               expenses={expenses}
+              collaborators={collaborators}
+              currentEmail={currentUserEmail}
               onSetTarget={setBudgetTarget}
               onAddExpense={addExpense}
               onRemoveExpense={removeExpense}
+              onReassignExpense={reassignExpense}
             />
           )}
         </div>

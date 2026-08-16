@@ -33,13 +33,14 @@ function dueDateInfo(dueDate) {
 // Props confirmed from ProjectDetail.jsx. Matches the real UI seen in the original
 // screenshots: task name input + assignee dropdown + Add Task button, then rows —
 // now with a real due-date field, avatar-chip assignees, and a My Tasks filter.
-export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd, onToggle, onRemove }) {
+export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd, onToggle, onRemove, onReassign }) {
   const [name, setName] = useState("");
   const [assignee, setAssignee] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [filter, setFilter] = useState("all");
   const [showAssigneeFilter, setShowAssigneeFilter] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [reassigningIdx, setReassigningIdx] = useState(null);
 
   const submit = () => {
     if (!name.trim()) return;
@@ -132,7 +133,7 @@ export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd
                 <User className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <select value={assignee} onChange={(e) => setAssignee(e.target.value)} className="w-full h-10 bg-muted border border-input rounded-lg pl-8 pr-2.5 text-sm outline-none focus:border-ring appearance-none">
                   <option value={currentEmail}>Me</option>
-                  {collaborators.map((c) => <option key={c} value={c}>{c.split("@")[0]}</option>)}
+                  {collaborators.filter((c) => c !== currentEmail).map((c) => <option key={c} value={c}>{c.split("@")[0]}</option>)}
                 </select>
               </div>
             </div>
@@ -170,12 +171,34 @@ export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd
                   </span>
                 )}
               </div>
-              <div
-                className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0"
-                style={{ background: colorForPerson(email) }}
-                title={email === currentEmail ? "Me" : email}
-              >
-                {initialsFor(email, currentEmail)}
+              <div className="relative flex-shrink-0">
+                <button
+                  onClick={() => setReassigningIdx(reassigningIdx === t._idx ? null : t._idx)}
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[9px] font-bold hover:ring-2 hover:ring-offset-1 transition-all"
+                  style={{ background: colorForPerson(email), "--tw-ring-color": colorForPerson(email) }}
+                  title={email === currentEmail ? "Me — tap to reassign" : `${email} — tap to reassign`}
+                >
+                  {initialsFor(email, currentEmail)}
+                </button>
+                {reassigningIdx === t._idx && (
+                  <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-lg shadow-lg z-10 py-1 min-w-[130px]">
+                    <button
+                      onClick={() => { onReassign(t._idx, currentEmail); setReassigningIdx(null); }}
+                      className={`w-full text-left px-3 py-1.5 text-xs hover:bg-secondary ${email === currentEmail ? "font-semibold text-foreground" : "text-muted-foreground"}`}
+                    >
+                      Me
+                    </button>
+                    {collaborators.filter((c) => c !== currentEmail).map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => { onReassign(t._idx, c); setReassigningIdx(null); }}
+                        className={`w-full text-left px-3 py-1.5 text-xs hover:bg-secondary truncate ${email === c ? "font-semibold text-foreground" : "text-muted-foreground"}`}
+                      >
+                        {c.split("@")[0]}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <button onClick={() => onRemove(t._idx)} className="text-muted-foreground/50 hover:text-destructive flex-shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
             </div>

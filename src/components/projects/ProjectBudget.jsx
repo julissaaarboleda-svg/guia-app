@@ -1,12 +1,27 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 
-export default function ProjectBudget({ target, expenses, onSetTarget, onAddExpense, onRemoveExpense }) {
+// Same small palette/helpers used in ProjectTasks.jsx, so a person's color
+// stays consistent across every part of a shared project.
+const CHIP_COLORS = ["#A7773F", "#7D8A53", "#A77C81", "#6B655D", "#8A6530"];
+function colorForPerson(email) {
+  let hash = 0;
+  for (let i = 0; i < email.length; i++) hash = email.charCodeAt(i) + ((hash << 5) - hash);
+  return CHIP_COLORS[Math.abs(hash) % CHIP_COLORS.length];
+}
+function initialsFor(email, currentEmail) {
+  if (email === currentEmail) return "Me".slice(0, 2).toUpperCase();
+  return email.split("@")[0].slice(0, 2).toUpperCase();
+}
+
+export default function ProjectBudget({ target, expenses, collaborators = [], currentEmail, onSetTarget, onAddExpense, onRemoveExpense, onReassignExpense }) {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
+  const [paidBy, setPaidBy] = useState(currentEmail || "");
   const [showForm, setShowForm] = useState(false);
   const [editingTarget, setEditingTarget] = useState(false);
   const [targetInput, setTargetInput] = useState(target || "");
+  const [reassigningIdx, setReassigningIdx] = useState(null);
 
   const total = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const pct = target > 0 ? Math.min(100, Math.round((total / target) * 100)) : 0;
@@ -15,9 +30,10 @@ export default function ProjectBudget({ target, expenses, onSetTarget, onAddExpe
   const submit = () => {
     const amt = parseFloat(amount);
     if (!name.trim() || !amt || amt <= 0) return;
-    onAddExpense({ name: name.trim(), amount: amt });
+    onAddExpense({ name: name.trim(), amount: amt, paid_by: paidBy || null });
     setName("");
     setAmount("");
+    setPaidBy(currentEmail || "");
     setShowForm(false);
   };
 
@@ -94,11 +110,26 @@ export default function ProjectBudget({ target, expenses, onSetTarget, onAddExpe
               className="w-full bg-muted border border-input rounded-lg pl-6 pr-3 py-2 text-sm outline-none focus:border-ring"
             />
           </div>
+          {collaborators.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground flex-shrink-0">Paid by</span>
+              <select
+                value={paidBy}
+                onChange={(e) => setPaidBy(e.target.value)}
+                className="flex-1 bg-muted border border-input rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-ring"
+              >
+                <option value={currentEmail}>Me</option>
+                {collaborators.filter((c) => c !== currentEmail).map((c) => (
+                  <option key={c} value={c}>{c.split("@")[0]}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="flex gap-2">
             <button onClick={submit} className="flex-1 flex items-center justify-center gap-1.5 text-white py-2 rounded-lg text-sm font-medium hover:opacity-90" style={{ backgroundColor: "#A7773F" }}>
               <Plus className="w-4 h-4" /> Add
             </button>
-            <button onClick={() => { setShowForm(false); setName(""); setAmount(""); }} className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors">
+            <button onClick={() => { setShowForm(false); setName(""); setAmount(""); setPaidBy(currentEmail || ""); }} className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors">
               Cancel
             </button>
           </div>
@@ -116,6 +147,39 @@ export default function ProjectBudget({ target, expenses, onSetTarget, onAddExpe
                 <p className="text-sm text-foreground truncate">{e.name}</p>
               </div>
               <span className="text-sm font-medium text-foreground flex-shrink-0">${Number(e.amount).toLocaleString()}</span>
+              {collaborators.length > 0 && (
+                <div className="relative flex-shrink-0">
+                  <button
+                    onClick={() => setReassigningIdx(reassigningIdx === i ? null : i)}
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[9px] font-bold hover:ring-2 hover:ring-offset-1 transition-all"
+                    style={e.paid_by
+                      ? { background: colorForPerson(e.paid_by), "--tw-ring-color": colorForPerson(e.paid_by) }
+                      : { background: "#C4BEB2" }}
+                    title={e.paid_by ? (e.paid_by === currentEmail ? "Me — tap to change" : `${e.paid_by} — tap to change`) : "Tap to set who paid"}
+                  >
+                    {e.paid_by ? initialsFor(e.paid_by, currentEmail) : "?"}
+                  </button>
+                  {reassigningIdx === i && (
+                    <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-lg shadow-lg z-10 py-1 min-w-[130px]">
+                      <button
+                        onClick={() => { onReassignExpense(i, currentEmail); setReassigningIdx(null); }}
+                        className={`w-full text-left px-3 py-1.5 text-xs hover:bg-secondary ${e.paid_by === currentEmail ? "font-semibold text-foreground" : "text-muted-foreground"}`}
+                      >
+                        Me
+                      </button>
+                      {collaborators.filter((c) => c !== currentEmail).map((c) => (
+                        <button
+                          key={c}
+                          onClick={() => { onReassignExpense(i, c); setReassigningIdx(null); }}
+                          className={`w-full text-left px-3 py-1.5 text-xs hover:bg-secondary truncate ${e.paid_by === c ? "font-semibold text-foreground" : "text-muted-foreground"}`}
+                        >
+                          {c.split("@")[0]}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               <button onClick={() => onRemoveExpense(i)} className="text-muted-foreground/50 hover:text-destructive flex-shrink-0">
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
