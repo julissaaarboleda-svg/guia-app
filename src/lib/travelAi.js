@@ -60,26 +60,41 @@ export async function generateTravelInsights(trip, { force = false } = {}) {
     !p.packed && /visa|passport/i.test(p.name || "")
   );
 
-  const prompt = `You're a sharp, concise travel planning assistant reviewing someone's trip. Look ACROSS the data below — don't just restate a single number, find genuine connections between categories (e.g. weather vs. what's packed, how many days are unplanned, whether budget tracking matches how close the trip is).
+  // Compact plain-text summaries instead of raw JSON dumps — this was
+  // previously sending up to 30 full packing item objects, full weather
+  // JSON, and up to 20 days of itinerary verbatim, which made the prompt
+  // large enough that Gemini's response sometimes didn't finish before
+  // Netlify's function timeout (504 Gateway Timeout). Same information,
+  // far fewer tokens.
+  const unpackedNames = packing.filter((p) => !p.packed).map((p) => p.name).slice(0, 20);
+  const packingSummary = packing.length
+    ? `${packedCount}/${packing.length} packed (${packingPct}%). Not yet packed: ${unpackedNames.join(", ") || "nothing — all packed"}`
+    : "No packing list yet.";
 
-Trip: "${trip.title}", ${trip.start_date || "no start date"} to ${trip.end_date || "no end date"} (${daysUntil !== null ? `${daysUntil} days from today` : "days until trip unknown"}), cities: ${(trip.cities || []).join(", ") || "none listed"}.
+  const weatherSummary = weather && weather.length
+    ? weather.map((w) => `${w.city}: ${w.low ?? "?"}-${w.high ?? "?"}°, ${w.condition || "unknown"}`).join("; ")
+    : "not available";
 
-${criticalDocItems.length > 0 ? `⚠️ CRITICAL: These travel documents are still NOT packed/checked off: ${criticalDocItems.map((d) => d.name).join(", ")}. ${daysUntil !== null && daysUntil <= 30 ? `The trip is only ${daysUntil} days away — this is genuinely urgent and MUST be one of the insights you return, regardless of anything else. A missing visa or passport can block the trip entirely, unlike a forgotten t-shirt.` : "Flag this as worth getting ahead of, even if the trip isn't imminent yet — visas in particular can take weeks to process."}\n` : ""}
-Weather forecast data: ${weather ? JSON.stringify(weather) : "not available"}
+  const itinerarySummary = itinerary.length
+    ? `${itinerary.length} days planned, ${itineraryPct}% have at least one activity. Empty days: ${emptyDays.map((d) => d.date).filter(Boolean).slice(0, 10).join(", ") || "none"}`
+    : "No itinerary days yet.";
 
-Packing list (${packing.length} items, ${packedCount} packed, ${packingPct ?? "?"}% done): ${JSON.stringify(packing.slice(0, 30))}
+  const prompt = `You're a concise travel assistant reviewing one trip. Find 2-4 short insights that connect categories together (weather vs. packed items, empty itinerary days, budget vs. how close the trip is) — not just single-stat restatements.
 
-Itinerary (${itinerary.length} days planned, ${emptyDays.length} of them have no activities yet — empty day dates: ${emptyDays.map((d) => d.date).filter(Boolean).join(", ") || "none"}): ${itineraryPct !== null ? itineraryPct + "% of days have at least one activity" : "no days yet"}
+Trip: "${trip.title}", ${trip.start_date || "?"} to ${trip.end_date || "?"} (${daysUntil !== null ? `${daysUntil} days away` : "date unknown"}), cities: ${(trip.cities || []).join(", ") || "none"}.
+${criticalDocItems.length > 0 ? `\n⚠️ CRITICAL: Not packed yet: ${criticalDocItems.map((d) => d.name).join(", ")}. ${daysUntil !== null && daysUntil <= 30 ? "Trip is close — this MUST be one of your insights." : "Flag as worth handling early (visas can take weeks)."}\n` : ""}
+Weather: ${weatherSummary}
+Packing: ${packingSummary}
+Itinerary: ${itinerarySummary}
+Budget: $${totalSpent} of $${trip.budget_target || 0} target${budgetPct !== null ? ` (${budgetPct}%)` : " (no target set)"}.
 
-Budget: $${totalSpent} logged of a $${trip.budget_target || 0} target (${budgetPct ?? "no target set"}%).
+Each insight under 20 words, plain tone. Skip budget/weather mentions if no target/data exists. Return fewer insights rather than inventing filler — except the critical document warning above, which must always be included if present.
 
-Write 2-4 short, genuinely useful insights (each under 20 words, plain conversational tone, no fluff). Prioritize things that connect two different categories over single-stat observations. Only mention budget if a target is actually set. Only mention weather if forecast data is available. If everything looks genuinely fine with nothing to flag, return fewer insights rather than inventing filler ones — EXCEPT any critical document warning above, which must always be included if present.
+For each: pick an icon ("rain","calendar","budget","target","sparkle"), an optional action_label (3-5 words) and action_tab ("packing","itinerary","budget", or null).
 
-For each insight, also decide: does it have an icon (choose one of: "rain", "calendar", "budget", "target", "sparkle"), a short action_label (3-5 words, only if there's a clear next step, e.g. "Add rain gear"), and which tab it relates to (one of: "packing", "itinerary", "budget", or null if none).
+Return JSON: { "insights": [ { "icon": string, "message": string, "action_label": string|null, "action_tab": string|null } ] }`;
 
-Return as JSON: { "insights": [ { "icon": string, "message": string, "action_label": string|null, "action_tab": string|null } ] }`;
-
-  const res = await base44.integrations.Core.InvokeLLM({ prompt, wantJson: true });
+  const res = await base44.integrations.Core.InvokeLLM({ prompt, wantJson: true, model: "gemini_3_flash" });
   const insights = Array.isArray(res?.insights) ? res.insights : [];
   if (insights.length > 0) writeCache(trip.id, insights);
   return insights;
