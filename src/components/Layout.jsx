@@ -20,7 +20,7 @@ const SECTION_META = {
 };
 
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
   const location = useLocation();
   const [prefs, setPrefs] = useState(() => {
     try { const raw = localStorage.getItem("guia:nav-prefs"); return raw ? JSON.parse(raw) : null; } catch { return null; }
