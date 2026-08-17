@@ -6,7 +6,6 @@ import { Plus, Trash2, CheckCircle2, Circle, X, Calendar, ArrowLeft, Target } fr
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
-import ActionCircle from "@/components/ActionCircle";
 import DateInput from "@/components/DateInput";
 import PageHeader from "@/components/PageHeader";
 
@@ -149,7 +148,19 @@ export default function Goals() {
       <div className="flex flex-1 min-h-0 h-full">
       {/* Sidebar */}
       <div className={`w-full md:w-64 lg:w-72 flex-shrink-0 bg-background border-r border-border flex-col ${showingDetail ? "hidden" : "flex"}`}>
-        <PageHeader title="Goals & Tasks" />
+        <PageHeader
+          title="Goals & Tasks"
+          actions={
+            <button
+              onClick={openAdd}
+              className="w-9 h-9 flex items-center justify-center rounded-full bg-foreground text-background hover:opacity-90 transition-opacity"
+              aria-label={`New ${activeTab === "goals" ? "goal" : "task"}`}
+              title={`New ${activeTab === "goals" ? "goal" : "task"}`}
+            >
+              <Plus className="w-[18px] h-[18px]" strokeWidth={1.8} />
+            </button>
+          }
+        />
 
         {/* Tabs */}
         <div className="flex gap-1 p-2 border-b border-border">
@@ -452,8 +463,7 @@ export default function Goals() {
         )}
       </div>
     </div>
-      <ActionCircle onClick={openAdd} label={`New ${activeTab === "goals" ? "goal" : "task"}`} />
-      <AskAssistantFab stacked />
+      <AskAssistantFab />
     </>
   );
 }

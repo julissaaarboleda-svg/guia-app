@@ -3,7 +3,6 @@ import { base44 } from "@/api/base44Client";
 import { parseISO } from "date-fns";
 import ProjectDetail from "@/components/projects/ProjectDetail";
 import { Plus, ChevronRight, Briefcase, Trash2, Calendar } from "lucide-react";
-import ActionCircle from "@/components/ActionCircle";
 import AskAssistantFab from "@/components/AskAssistantFab";
 import PageHeader from "@/components/PageHeader";
 import DateInput from "@/components/DateInput";
@@ -81,7 +80,20 @@ export default function Projects() {
   return (
     <>
       <div className="max-w-[1200px] mx-auto w-full">
-      <PageHeader title="Projects" subtitle="Track personal projects and milestones" />
+      <PageHeader
+        title="Projects"
+        subtitle="Track personal projects and milestones"
+        actions={
+          <button
+            onClick={() => setShowAdd(true)}
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-foreground text-background hover:opacity-90 transition-opacity"
+            aria-label="Add project"
+            title="Add project"
+          >
+            <Plus className="w-[18px] h-[18px]" strokeWidth={1.8} />
+          </button>
+        }
+      />
       <div className="p-4 md:p-8">
 
       {projects.length === 0 && (
@@ -243,8 +255,7 @@ export default function Projects() {
       )}
     </div>
     </div>
-      <ActionCircle onClick={() => setShowAdd(true)} label="Add project" />
-      <AskAssistantFab stacked />
+      <AskAssistantFab />
     </>
   );
 }

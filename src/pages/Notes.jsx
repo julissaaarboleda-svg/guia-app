@@ -19,6 +19,7 @@ import NotesLanding from "@/components/notes/NotesLanding";
 import CollectionSheet from "@/components/notes/CollectionSheet";
 import NewCollectionSheet from "@/components/notes/NewCollectionSheet";
 import { accentHex } from "@/components/notes/collectionAccents";
+import AskAssistantFab from "@/components/AskAssistantFab";
 
 export default function Notes() {
   const [notes, setNotes] = useState([]);
@@ -396,6 +397,7 @@ export default function Notes() {
 
         <AttachmentSheet open={showAttachmentSheet} onClose={() => setShowAttachmentSheet(false)} onUpload={handleUpload} />
         <AttachmentViewer attachment={viewerAttachment} onClose={() => setViewerAttachment(null)} />
+        <AskAssistantFab />
       </div>
     );
   }
@@ -461,6 +463,7 @@ export default function Notes() {
           onDelete={remove}
           onMove={moveNoteToFolder}
         />
+        <AskAssistantFab />
       </div>
     );
   }
@@ -497,6 +500,7 @@ export default function Notes() {
         onDelete={remove}
         onMove={moveNoteToFolder}
       />
+      <AskAssistantFab />
     </>
   );
 }

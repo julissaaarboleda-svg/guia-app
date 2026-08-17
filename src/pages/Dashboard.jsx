@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import WelcomeModal from "@/components/WelcomeModal";
+import AskAssistantFab from "@/components/AskAssistantFab";
 import EditorialHero from "@/components/home/EditorialHero";
 import Greeting from "@/components/home/Greeting";
 import TodaysFocus from "@/components/home/TodaysFocus";
@@ -215,6 +216,7 @@ export default function Dashboard() {
       </Reveal>
 
       {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
+      <AskAssistantFab />
     </div>
   );
 }

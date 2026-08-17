@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import DateRangePicker from "@/components/DateRangePicker";
-import { Trash2, Pencil, Briefcase, Star, Award, BookOpen, BadgeCheck, TrendingUp, FileText, Settings } from "lucide-react";
+import { Trash2, Pencil, Briefcase, Star, Award, BookOpen, BadgeCheck, TrendingUp, FileText, Settings, Plus } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import CalibrationManager from "../components/career/CalibrationManager";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
-import ActionCircle from "@/components/ActionCircle";
+import AskAssistantFab from "@/components/AskAssistantFab";
 import PageHeader from "@/components/PageHeader";
 import DateInput from "@/components/DateInput";
 
@@ -176,7 +176,20 @@ export default function Career() {
   return (
     <>
       <div className="max-w-[1200px] mx-auto w-full">
-      <PageHeader title="Career" subtitle={`${entries.length} ${entries.length === 1 ? "entry" : "entries"}`} />
+      <PageHeader
+        title="Career"
+        subtitle={`${entries.length} ${entries.length === 1 ? "entry" : "entries"}`}
+        actions={
+          <button
+            onClick={() => setAdding(true)}
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-foreground text-background hover:opacity-90 transition-opacity"
+            aria-label="Add entry"
+            title="Add entry"
+          >
+            <Plus className="w-[18px] h-[18px]" strokeWidth={1.8} />
+          </button>
+        }
+      />
       <div className="p-4 md:p-6 lg:p-8">
       {/* Current Role Card */}
       {currentJob && (
@@ -455,7 +468,7 @@ export default function Career() {
       </div>
     </div>
     </div>
-      <ActionCircle onClick={() => setAdding(true)} label="Add entry" />
+      <AskAssistantFab />
     </>
   );
 }

@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Trash2, Edit2, X, Check, MapPin, Calendar, Target } from "lucide-react";
+import { Trash2, Edit2, X, Check, MapPin, Calendar, Target, Plus } from "lucide-react";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
-import ActionCircle from "@/components/ActionCircle";
+import AskAssistantFab from "@/components/AskAssistantFab";
 import PageHeader from "@/components/PageHeader";
 import DateInput from "@/components/DateInput";
 
@@ -234,7 +234,20 @@ export default function Business() {
   return (
     <>
       <div className="max-w-[1200px] mx-auto w-full">
-      <PageHeader title="Business" subtitle="Track any business activity" />
+      <PageHeader
+        title="Business"
+        subtitle="Track any business activity"
+        actions={
+          <button
+            onClick={() => setAdding(true)}
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-foreground text-background hover:opacity-90 transition-opacity"
+            aria-label="Add entry"
+            title="Add entry"
+          >
+            <Plus className="w-[18px] h-[18px]" strokeWidth={1.8} />
+          </button>
+        }
+      />
       <div className="p-6 md:p-8">
 
       {/* Stats */}
@@ -502,7 +515,7 @@ export default function Business() {
       </div>
     </div>
     </div>
-      <ActionCircle onClick={() => setAdding(true)} label="Add entry" />
+      <AskAssistantFab />
     </>
   );
 }
