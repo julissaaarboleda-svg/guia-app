@@ -68,6 +68,6 @@ Return as JSON: { "insights": [ { "icon": string, "message": string, "action_lab
 
   const res = await base44.integrations.Core.InvokeLLM({ prompt, wantJson: true });
   const insights = Array.isArray(res?.insights) ? res.insights : [];
-  writeCache(trip.id, insights);
+  if (insights.length > 0) writeCache(trip.id, insights);
   return insights;
 }

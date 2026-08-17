@@ -20,7 +20,10 @@ export default function TravelAssistant({ trip, onNavigate }) {
     setLoading(true);
     generateTravelInsights(trip)
       .then((res) => { if (alive) { setInsights(res); setLoading(false); } })
-      .catch(() => { if (alive) { setInsights([]); setLoading(false); } });
+      .catch((err) => {
+        console.error("TravelAssistant failed to generate insights:", err);
+        if (alive) { setInsights([]); setLoading(false); }
+      });
     return () => { alive = false; };
   }, [trip.id]);
 
@@ -33,7 +36,14 @@ export default function TravelAssistant({ trip, onNavigate }) {
     );
   }
 
-  if (!insights || insights.length === 0) return null;
+  if (!insights || insights.length === 0) {
+    return (
+      <div className="bg-card border border-border rounded-2xl px-4 py-3.5 flex items-center gap-2.5">
+        <Sparkles className="w-4 h-4" style={{ color: "#A7773F" }} />
+        <span className="font-body text-[13px] text-muted-foreground">Nothing urgent to flag right now.</span>
+      </div>
+    );
+  }
 
   if (!expanded) {
     return (
