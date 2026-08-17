@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Settings, LogOut, Home, Target, Briefcase, Building2, CreditCard, Plane, FolderOpen, FileText, HelpCircle, MessageCircle, Sparkles } from "lucide-react";
 import FeedbackModal from "@/components/feedback/FeedbackModal";
 import BottomNav from "@/components/BottomNav";
+import { useAuth } from "@/lib/AuthContext";
 
 const DEFAULT_SECTION_ORDER = ["goals", "notes", "career", "business", "finance", "travel", "projects", "ai"];
 
@@ -19,6 +20,7 @@ const SECTION_META = {
 };
 
 export default function Layout() {
+  const { user, logout } = useAuth();
   const location = useLocation();
   const [prefs, setPrefs] = useState(() => {
     try { const raw = localStorage.getItem("guia:nav-prefs"); return raw ? JSON.parse(raw) : null; } catch { return null; }
@@ -99,6 +101,11 @@ export default function Layout() {
 
       {/* Bottom */}
       <div className="px-2 pb-3 border-t border-sidebar-border space-y-0.5 pt-2">
+        {user?.email && (
+          <p className="px-3 pb-1 text-[11px] text-sidebar-foreground/40 truncate" title={user.email}>
+            {user.email}
+          </p>
+        )}
         <Link
           to="/settings"
          
@@ -115,7 +122,7 @@ export default function Layout() {
           <span>Feedback</span>
         </button>
         <button
-          onClick={() => window.netlifyIdentity?.logout()}
+          onClick={logout}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-sidebar-foreground/60 hover:text-destructive hover:bg-sidebar-accent transition-colors"
         >
           <LogOut className="w-3.5 h-3.5" />

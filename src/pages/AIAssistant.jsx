@@ -8,7 +8,7 @@ function monthKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function buildContext(items, buckets, income) {
+function buildFinanceSection(items, buckets, income) {
   const mk = monthKey(new Date());
   const monthBuckets = buckets.filter(b => b.month === mk);
   const monthIncome = income.find(i => i.month === mk);
@@ -16,14 +16,10 @@ function buildContext(items, buckets, income) {
   const allocated = monthBuckets.reduce((s, b) => s + (b.allocated_amount || 0), 0);
   const spent = monthBuckets.reduce((s, b) => s + (b.spent_amount || 0), 0);
 
-  let ctx = `You are a helpful financial assistant for an app called Guía. Here is the user's current financial data:\n\n`;
-  ctx += `Monthly Income: $${incomeAmt.toLocaleString()}\n`;
-  ctx += `Budget Allocated: $${allocated.toLocaleString()}\n`;
-  ctx += `Budget Spent: $${spent.toLocaleString()}\n`;
-  ctx += `Budget Remaining (income - allocated): $${(incomeAmt - allocated).toLocaleString()}\n`;
+  let ctx = `\n## Finance\nMonthly Income: $${incomeAmt.toLocaleString()}\nBudget Allocated: $${allocated.toLocaleString()}\nBudget Spent: $${spent.toLocaleString()}\nBudget Remaining: $${(incomeAmt - allocated).toLocaleString()}\n`;
 
   if (monthBuckets.length > 0) {
-    ctx += `\nBudget Buckets:\n`;
+    ctx += `Budget Buckets:\n`;
     monthBuckets.forEach(b => {
       ctx += `- ${b.name}: $${(b.spent_amount || 0).toLocaleString()} spent of $${(b.allocated_amount || 0).toLocaleString()} allocated${b.is_fixed ? " (fixed)" : ""}\n`;
     });
@@ -36,15 +32,15 @@ function buildContext(items, buckets, income) {
   const credit = items.filter(i => i.type === "credit_score");
 
   if (bills.length) {
-    ctx += `\nBills:\n`;
+    ctx += `Bills:\n`;
     bills.forEach(b => ctx += `- ${b.name}: $${(b.amount || 0).toLocaleString()} ${b.paid ? "(paid)" : "(unpaid)"}${b.due_date ? ` due ${b.due_date}` : ""}\n`);
   }
   if (savings.length) {
-    ctx += `\nSavings Goals:\n`;
+    ctx += `Savings Goals:\n`;
     savings.forEach(s => ctx += `- ${s.name}: $${(s.current_amount || 0).toLocaleString()} of $${(s.target_amount || 0).toLocaleString()}\n`);
   }
   if (loans.length) {
-    ctx += `\nLoans:\n`;
+    ctx += `Loans:\n`;
     loans.forEach(l => ctx += `- ${l.name}: $${(l.amount_paid || 0).toLocaleString()} of $${(l.total_amount || 0).toLocaleString()} paid off, monthly payment $${(l.monthly_payment || 0).toLocaleString()}\n`);
   }
   if (subs.length) {
@@ -55,16 +51,121 @@ function buildContext(items, buckets, income) {
       if (sub.billing_cycle === "weekly") return s + amt * 4.33;
       return s + amt;
     }, 0);
-    ctx += `\nSubscriptions (monthly equivalent: $${monthlyEquiv.toFixed(2)}):\n`;
+    ctx += `Subscriptions (monthly equivalent: $${monthlyEquiv.toFixed(2)}):\n`;
     subs.forEach(s => ctx += `- ${s.name}: $${(s.amount || 0).toLocaleString()}/${s.billing_cycle || "monthly"}${s.renewal_date ? ` renews ${s.renewal_date}` : ""}\n`);
   }
   if (credit.length) {
-    ctx += `\nCredit Scores:\n`;
+    ctx += `Credit Scores:\n`;
     credit.forEach(c => ctx += `- ${c.bureau || c.name}: ${c.score || "N/A"}${c.target_score ? ` (target: ${c.target_score})` : ""}\n`);
   }
-
-  ctx += `\nAnswer the user's questions about their finances concisely and helpfully. Use the data above. If the user asks about something not in the data, let them know.`;
   return ctx;
+}
+
+function buildGoalsSection(goals, tasks) {
+  if (goals.length === 0 && tasks.length === 0) return "";
+  let ctx = `\n## Goals & Tasks\n`;
+  goals.slice(0, 15).forEach(g => {
+    const sub = g.sub_tasks || [];
+    const done = sub.filter(t => t.completed).length;
+    ctx += `- Goal: ${g.title} (${g.category || "personal"}, ${g.status || "in progress"}${sub.length ? `, ${done}/${sub.length} sub-tasks done` : ""})\n`;
+  });
+  tasks.filter(t => !t.completed).slice(0, 15).forEach(t => {
+    ctx += `- Task: ${t.title}${t.due_date ? ` (due ${t.due_date})` : ""}${t.priority ? ` [${t.priority}]` : ""}\n`;
+  });
+  return ctx;
+}
+
+function buildNotesSection(notes) {
+  if (notes.length === 0) return "";
+  let ctx = `\n## Notes\n`;
+  notes.slice(0, 15).forEach(n => {
+    const preview = n.note_type === "list"
+      ? (n.list_items || []).map(i => i.text).slice(0, 5).join(", ")
+      : (n.content || "").replace(/<[^>]+>/g, "").slice(0, 100);
+    ctx += `- ${n.title}${preview ? `: ${preview}` : ""}\n`;
+  });
+  return ctx;
+}
+
+function buildTripsSection(trips) {
+  if (trips.length === 0) return "";
+  let ctx = `\n## Journeys (trips)\n`;
+  trips.slice(0, 5).forEach(t => {
+    ctx += `- ${t.title}: ${(t.cities || []).join(" → ") || t.country || ""}, ${t.start_date || "?"} to ${t.end_date || "?"}, status: ${t.status || "planning"}\n`;
+    const days = (t.itinerary || []).filter(d => d.activities && d.activities.length > 0);
+    if (days.length > 0) {
+      ctx += `  Planned activities:\n`;
+      days.slice(0, 20).forEach(d => {
+        (d.activities || []).forEach(a => {
+          ctx += `  - ${d.date || ""}: ${a.name || a.activity || ""}${a.location ? ` (${a.location})` : ""}\n`;
+        });
+      });
+    }
+  });
+  return ctx;
+}
+
+function buildProjectsSection(projects) {
+  if (projects.length === 0) return "";
+  let ctx = `\n## Projects\n`;
+  projects.slice(0, 10).forEach(p => {
+    const tasks = p.tasks || [];
+    const done = tasks.filter(t => t.completed).length;
+    ctx += `- ${p.title} (${p.status || "planning"}${tasks.length ? `, ${done}/${tasks.length} tasks done` : ""}${p.target_date ? `, due ${p.target_date}` : ""})\n`;
+  });
+  return ctx;
+}
+
+function buildCareerSection(entries) {
+  if (entries.length === 0) return "";
+  let ctx = `\n## Career\n`;
+  entries.slice(0, 20).forEach(e => {
+    if (e.entry_type === "job") {
+      ctx += `- Job: ${e.title}${e.company ? ` at ${e.company}` : ""}${e.current ? " (current)" : ""}${e.start_date ? `, since ${e.start_date}` : ""}${e.salary ? `, $${e.salary.toLocaleString()}` : ""}\n`;
+    } else if (e.entry_type === "review") {
+      ctx += `- Performance review: ${e.title}${e.rating ? ` — rated ${e.rating}/${e.rating_scale || 10}` : ""}${e.start_date ? ` (${e.start_date})` : ""}\n`;
+    } else if (["milestone", "skill", "certification"].includes(e.entry_type)) {
+      ctx += `- ${e.entry_type === "milestone" ? "Achievement" : e.entry_type === "skill" ? "Skill" : "Certification"}: ${e.title}${e.start_date ? ` (${e.start_date})` : ""}\n`;
+    } else if (e.entry_type === "education") {
+      ctx += `- Education: ${e.title}${e.company ? ` at ${e.company}` : ""}\n`;
+    } else {
+      ctx += `- ${e.title}\n`;
+    }
+    if (e.skills_gained?.length) ctx += `  Skills: ${e.skills_gained.join(", ")}\n`;
+  });
+  return ctx;
+}
+
+function buildBusinessSection(entries, goals) {
+  if (entries.length === 0 && goals.length === 0) return "";
+  let ctx = `\n## Business\n`;
+  if (goals.length > 0) {
+    ctx += `Business goals:\n`;
+    goals.slice(0, 10).forEach(g => {
+      ctx += `- ${g.title}${g.target_value ? `: ${g.current_value || 0}${g.unit === "$" ? "" : " " + g.unit} of ${g.target_value}${g.unit === "$" ? " $" : ""} target` : ""}${g.target_date ? ` (by ${g.target_date})` : ""}\n`;
+    });
+  }
+  if (entries.length > 0) {
+    const totalRevenue = entries.reduce((s, e) => s + (e.revenue || 0), 0);
+    const totalExpense = entries.reduce((s, e) => s + (e.expense || 0), 0);
+    ctx += `Business log (${entries.length} entries, $${totalRevenue.toLocaleString()} revenue / $${totalExpense.toLocaleString()} expenses logged total):\n`;
+    entries.slice(0, 15).forEach(e => {
+      ctx += `- ${e.category ? `[${e.category}] ` : ""}${e.name}${e.date ? ` (${e.date})` : ""}${e.location ? `, ${e.location}` : ""}${e.revenue ? `, +$${e.revenue.toLocaleString()}` : ""}${e.expense ? `, -$${e.expense.toLocaleString()}` : ""}\n`;
+    });
+  }
+  return ctx;
+}
+
+function buildSystemPrompt(sections) {
+  return `You are Guía's personal AI assistant — a genuinely capable, general-purpose assistant, not a narrow bot limited to one topic.
+
+You have access to the user's personal data below (goals, tasks, notes, trips, projects, and finances). Use it naturally to give specific, personalized answers whenever a question relates to it — e.g. if they ask what to do somewhere they're traveling, check their trip's itinerary and cities first.
+
+But you are NOT limited to this data. Answer any question the user asks — general knowledge, definitions, explanations, advice, brainstorming, anything — exactly as a knowledgeable, helpful assistant would, the same way you'd answer if there were no app data at all. Only mention their personal data when it's actually relevant to what they asked; don't force a connection to their finances or any other single category if the question doesn't call for it.
+
+${sections.filter(Boolean).join("\n") || "(No personal data found yet — the user hasn't added much to the app.)"}
+
+Answer naturally and concisely.`;
 }
 
 export default function AIAssistant() {
@@ -76,12 +177,34 @@ export default function AIAssistant() {
 
   useEffect(() => {
     const loadData = async () => {
-      const [items, buckets, income] = await Promise.all([
+      const results = await Promise.allSettled([
         base44.entities.FinanceItem.list("-created_date"),
         base44.entities.BudgetBucket.list("-created_date"),
         base44.entities.MonthlyIncome.list("-created_date"),
+        base44.entities.Goal.list("-created_date"),
+        base44.entities.Task.list("-created_date"),
+        base44.entities.Note.list("-created_date"),
+        base44.entities.Trip.list("-created_date"),
+        base44.entities.Project.list("-created_date"),
+        base44.entities.CareerEntry.list("-start_date"),
+        base44.entities.BusinessEntry.list("-date"),
+        base44.entities.BusinessGoal.list("-created_date"),
       ]);
-      setContext(buildContext(items, buckets, income));
+      // If any single entity type fails to load, don't let it break the
+      // whole assistant — just proceed without that section.
+      const [items, buckets, income, goals, tasks, notes, trips, projects, careerEntries, businessEntries, businessGoals] = results.map(
+        (r) => (r.status === "fulfilled" ? r.value : [])
+      );
+      const sections = [
+        buildFinanceSection(items, buckets, income),
+        buildGoalsSection(goals, tasks),
+        buildNotesSection(notes),
+        buildTripsSection(trips),
+        buildProjectsSection(projects),
+        buildCareerSection(careerEntries),
+        buildBusinessSection(businessEntries, businessGoals),
+      ];
+      setContext(buildSystemPrompt(sections));
     };
     loadData();
   }, []);
@@ -117,12 +240,12 @@ export default function AIAssistant() {
 
   return (
     <div className="flex flex-col h-full max-w-[800px] mx-auto w-full">
-      <PageHeader title="AI Assistant" subtitle="Ask about your finances" />
+      <PageHeader title="AI Assistant" subtitle="Ask me anything" />
       <div className="flex-1 overflow-y-auto px-6 md:px-8 pb-4 space-y-4" ref={scrollRef}>
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center text-center py-16 text-muted-foreground">
             <Sparkles className="w-10 h-10 mb-3 text-muted-foreground/40" />
-            <p className="text-sm">Ask me about your budget, bills, savings, or subscriptions.</p>
+            <p className="text-sm">Ask about anything in Guía — your goals, trips, projects, career, business, finances — or just ask anything else.</p>
           </div>
         )}
         {messages.map((msg, i) => (
@@ -160,7 +283,7 @@ export default function AIAssistant() {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === "Enter" && send()}
-            placeholder="Ask about your finances..."
+            placeholder="Ask anything..."
             className="flex-1 bg-transparent text-sm text-foreground outline-none"
           />
           <button

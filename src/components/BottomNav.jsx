@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Home, Target, FileText, Briefcase, Building2, CreditCard, Plane, FolderOpen, Settings, MessageCircle, MoreHorizontal, X, Sparkles, LogOut } from "lucide-react";
+import { useAuth } from "@/lib/AuthContext";
 
 const SECTION_META = {
   goals:    { label: "Goals",    Icon: Target,     path: "/goals" },
@@ -16,6 +17,7 @@ const SECTION_META = {
 const DEFAULT_SECTION_ORDER = ["goals", "notes", "career", "business", "finance", "travel", "projects", "ai"];
 
 export default function BottomNav({ prefs, onFeedback }) {
+  const { user, logout } = useAuth();
   const location = useLocation();
   const [showMore, setShowMore] = useState(false);
 
@@ -109,6 +111,11 @@ export default function BottomNav({ prefs, onFeedback }) {
                 );
               })}
               <div className="border-t border-border my-2" />
+              {user?.email && (
+                <p className="px-3 pb-1 text-[11px] text-muted-foreground/60 truncate" title={user.email}>
+                  {user.email}
+                </p>
+              )}
               <Link
                 to="/settings"
                 onClick={() => setShowMore(false)}
@@ -125,7 +132,7 @@ export default function BottomNav({ prefs, onFeedback }) {
                 <span className="font-body">Feedback</span>
               </button>
               <button
-                onClick={() => window.netlifyIdentity?.logout()}
+                onClick={logout}
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-destructive hover:bg-secondary transition-colors"
               >
                 <LogOut className="w-4 h-4" />
