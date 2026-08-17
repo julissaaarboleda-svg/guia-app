@@ -1,4 +1,5 @@
 import jsPDF from "jspdf";
+import { parseISO } from "date-fns";
 
 // Colors matching Guía's brand palette
 const CHARCOAL = "#2E2A27";
@@ -87,7 +88,7 @@ export async function exportProjectPdf(project) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9.5);
     doc.setTextColor("#E8DFD2");
-    const dateStr = new Date(project.target_date).toLocaleDateString("en-US", {
+    const dateStr = parseISO(project.target_date).toLocaleDateString("en-US", {
       weekday: "long", month: "long", day: "numeric", year: "numeric",
     });
     doc.text(dateStr, 0.6, coverH - 0.28);

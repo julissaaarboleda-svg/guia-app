@@ -3,7 +3,7 @@ import { getTripWeather } from "@/lib/packingAi";
 
 // Lightweight cache so this doesn't re-run the AI call every time someone
 // revisits the Journeys page — same spirit as savedAi.js's image cache.
-const CACHE_KEY_PREFIX = "guia:travel-insights:";
+const CACHE_KEY_PREFIX = "guia:travel-insights:v2:";
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 function readCache(tripId) {
@@ -48,10 +48,23 @@ export async function generateTravelInsights(trip, { force = false } = {}) {
   const itineraryPct = itinerary.length ? Math.round(((itinerary.length - emptyDays.length) / itinerary.length) * 100) : null;
   const budgetPct = trip.budget_target ? Math.round((totalSpent / trip.budget_target) * 100) : null;
 
+  const daysUntil = trip.start_date
+    ? Math.ceil((new Date(trip.start_date + "T00:00:00") - new Date()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  // Critical travel documents (visa, passport, etc.) deserve a special call-out
+  // regardless of the "only mention if genuinely urgent" rule below — an
+  // unpacked t-shirt is a minor gap, an unfiled visa can block the trip
+  // entirely. Compute this directly instead of leaving it to chance.
+  const criticalDocItems = packing.filter((p) =>
+    !p.packed && /visa|passport/i.test(p.name || "")
+  );
+
   const prompt = `You're a sharp, concise travel planning assistant reviewing someone's trip. Look ACROSS the data below — don't just restate a single number, find genuine connections between categories (e.g. weather vs. what's packed, how many days are unplanned, whether budget tracking matches how close the trip is).
 
-Trip: "${trip.title}", ${trip.start_date || "no start date"} to ${trip.end_date || "no end date"}, cities: ${(trip.cities || []).join(", ") || "none listed"}.
+Trip: "${trip.title}", ${trip.start_date || "no start date"} to ${trip.end_date || "no end date"} (${daysUntil !== null ? `${daysUntil} days from today` : "days until trip unknown"}), cities: ${(trip.cities || []).join(", ") || "none listed"}.
 
+${criticalDocItems.length > 0 ? `⚠️ CRITICAL: These travel documents are still NOT packed/checked off: ${criticalDocItems.map((d) => d.name).join(", ")}. ${daysUntil !== null && daysUntil <= 30 ? `The trip is only ${daysUntil} days away — this is genuinely urgent and MUST be one of the insights you return, regardless of anything else. A missing visa or passport can block the trip entirely, unlike a forgotten t-shirt.` : "Flag this as worth getting ahead of, even if the trip isn't imminent yet — visas in particular can take weeks to process."}\n` : ""}
 Weather forecast data: ${weather ? JSON.stringify(weather) : "not available"}
 
 Packing list (${packing.length} items, ${packedCount} packed, ${packingPct ?? "?"}% done): ${JSON.stringify(packing.slice(0, 30))}
@@ -60,7 +73,7 @@ Itinerary (${itinerary.length} days planned, ${emptyDays.length} of them have no
 
 Budget: $${totalSpent} logged of a $${trip.budget_target || 0} target (${budgetPct ?? "no target set"}%).
 
-Write 2-4 short, genuinely useful insights (each under 20 words, plain conversational tone, no fluff). Prioritize things that connect two different categories over single-stat observations. Only mention budget if a target is actually set. Only mention weather if forecast data is available. If everything looks genuinely fine with nothing to flag, return fewer insights rather than inventing filler ones.
+Write 2-4 short, genuinely useful insights (each under 20 words, plain conversational tone, no fluff). Prioritize things that connect two different categories over single-stat observations. Only mention budget if a target is actually set. Only mention weather if forecast data is available. If everything looks genuinely fine with nothing to flag, return fewer insights rather than inventing filler ones — EXCEPT any critical document warning above, which must always be included if present.
 
 For each insight, also decide: does it have an icon (choose one of: "rain", "calendar", "budget", "target", "sparkle"), a short action_label (3-5 words, only if there's a clear next step, e.g. "Add rain gear"), and which tab it relates to (one of: "packing", "itinerary", "budget", or null if none).
 

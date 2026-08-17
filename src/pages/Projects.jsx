@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { parseISO } from "date-fns";
 import ProjectDetail from "@/components/projects/ProjectDetail";
 import { Plus, ChevronRight, Briefcase, Trash2, Calendar } from "lucide-react";
 import ActionCircle from "@/components/ActionCircle";
@@ -126,7 +127,7 @@ export default function Projects() {
                         {project.target_date && (
                           <span className="inline-flex items-center gap-1 text-muted-foreground text-[11.5px]">
                             <Calendar className="w-3 h-3" strokeWidth={1.8} />
-                            {new Date(project.target_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                            {parseISO(project.target_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                           </span>
                         )}
                         <div className="flex -space-x-1.5">
@@ -137,7 +138,7 @@ export default function Projects() {
                           >
                             {initialsFor(currentEmail || "me", currentEmail)}
                           </div>
-                          {(project.collaborators || []).map((c) => (
+                          {(project.collaborators || []).filter((c) => c !== currentEmail).map((c) => (
                             <div
                               key={c}
                               className="w-5 h-5 rounded-full border-2 border-card flex items-center justify-center text-white text-[8px] font-bold"
@@ -191,7 +192,7 @@ export default function Projects() {
               >
                 <div className="flex-1 min-w-0">
                   <span className="text-foreground block truncate">{project.title}</span>
-                  {project.target_date && <span className="text-muted-foreground text-xs">{new Date(project.target_date).getFullYear()}</span>}
+                  {project.target_date && <span className="text-muted-foreground text-xs">{parseISO(project.target_date).getFullYear()}</span>}
                 </div>
                 <ChevronRight className="w-4 h-4 text-muted-foreground/60 group-hover:text-muted-foreground" />
               </button>

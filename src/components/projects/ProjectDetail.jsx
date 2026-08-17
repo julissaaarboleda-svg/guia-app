@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { parseISO } from "date-fns";
 import DateInput from "@/components/DateInput";
 import {
   ArrowLeft,
@@ -298,7 +299,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
                   <Calendar className="w-3.5 h-3.5 text-white/80 flex-shrink-0" strokeWidth={1.8} />
                   <p className="text-white/85 text-sm">
                     Due:{" "}
-                    {new Date(project.target_date).toLocaleDateString("en-US", {
+                    {parseISO(project.target_date).toLocaleDateString("en-US", {
                       weekday: "short",
                       month: "long",
                       day: "numeric",

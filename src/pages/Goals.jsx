@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { parseISO } from "date-fns";
 import { Plus, Trash2, CheckCircle2, Circle, X, Calendar, ArrowLeft, Target } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ReactQuill from "react-quill";
@@ -215,7 +216,7 @@ export default function Goals() {
                   <button className="flex-1 text-left min-w-0" onClick={() => { setSelected({ type: "task", id: t.id }); setEditTaskData({ ...t }); setAdding(false); }}>
                     <p className={`text-sm font-medium truncate ${t.completed ? "line-through text-muted-foreground" : ""}`}>{t.title}</p>
                     <p className={`text-xs mt-0.5 capitalize ${PRIORITY_COLORS[t.priority || "normal"]}`}>
-                      {t.priority || "normal"}{t.due_date ? ` · Due ${new Date(t.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}
+                      {t.priority || "normal"}{t.due_date ? ` · Due ${parseISO(t.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}
                     </p>
                   </button>
                   {/* Individual delete */}
