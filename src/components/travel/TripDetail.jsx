@@ -177,7 +177,7 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
   })();
 
   return (
-    <div className="fixed inset-0 z-[60] bg-background overflow-y-auto">
+    <div className="fixed inset-0 z-20 bg-background overflow-y-auto">
       {deletingTrip && (
         <div className="fixed inset-0 z-[95] flex flex-col items-center justify-center gap-3 bg-background/90 backdrop-blur-sm">
           <div className="w-7 h-7 border-2 border-border border-t-foreground rounded-full animate-spin" />
