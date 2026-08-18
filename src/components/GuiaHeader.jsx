@@ -9,7 +9,7 @@ export default function GuiaHeader() {
       className="sticky top-0 z-30 flex items-center justify-between bg-background/95 backdrop-blur-sm border-b border-border px-4 md:px-6 flex-shrink-0"
       style={{ paddingTop: "calc(env(safe-area-inset-top) + 10px)", paddingBottom: "10px" }}
     >
-      <img src="/guia-logo.png" alt="Guía" className="h-5 md:h-6 w-auto" />
+      <img src="/guia-logo.svg" alt="Guía" className="h-5 md:h-6 w-auto" />
       <Link
         to="/ai"
         className="flex items-center gap-1.5 bg-charcoal text-[#F5F1EB] text-[11.5px] md:text-[12.5px] font-body font-medium pl-2.5 pr-3 py-1.5 rounded-full hover:opacity-90 transition-opacity"
