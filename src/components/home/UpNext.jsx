@@ -21,44 +21,44 @@ export default function UpNext({ items }) {
             const Icon = mod.Icon;
             const days = it._days;
             const countdownEl = days == null ? (
-              <span className="font-heading text-base text-foreground">{it.countdown}</span>
+              <span className="font-heading text-sm text-foreground">{it.countdown}</span>
             ) : days === 0 ? (
-              <span className="font-heading text-base text-foreground">Today</span>
+              <span className="font-heading text-sm text-foreground">Today</span>
             ) : days === 1 ? (
-              <span className="font-heading text-base text-foreground">1 <span className="text-[10px] font-body text-muted-foreground">day</span></span>
+              <span className="font-heading text-sm text-foreground">1 <span className="text-[10px] font-body text-muted-foreground">day</span></span>
             ) : (
-              <span className="font-heading text-xl text-foreground">{days} <span className="text-[10px] font-body text-muted-foreground">days</span></span>
+              <span className="font-heading text-base text-foreground">{days} <span className="text-[10px] font-body text-muted-foreground">days</span></span>
             );
             return (
               <Link
                 key={it.id}
                 to={it.path}
-                className="snap-start flex-shrink-0 w-[82%] flex flex-col gap-1.5 rounded-xl border border-border/40 bg-background/40 p-3 hover:border-olive/40 transition-colors min-w-0"
+                className="snap-start flex-shrink-0 w-[170px] flex flex-col rounded-xl border border-border/40 bg-background/40 overflow-hidden hover:border-olive/40 transition-colors"
               >
-                <div className="flex items-center gap-2 min-w-0">
-                  {it.image ? (
-                    <span className="w-7 h-7 rounded-lg flex-shrink-0 overflow-hidden">
-                      <img src={it.image} alt="" className="w-full h-full object-cover" />
-                    </span>
-                  ) : (
-                    <span
-                      className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: it.accentColor ? `${it.accentColor}22` : `${mod.color}14`, color: it.accentColor || mod.color }}
-                    >
-                      <Icon className="w-3.5 h-3.5" />
-                    </span>
-                  )}
-                  <p className="font-body text-[12px] text-foreground leading-tight line-clamp-1 flex-1 min-w-0">{it.title}</p>
-                </div>
-                <p className="font-body text-[10px] text-muted-foreground">{it.dateLabel}</p>
-                <div className="flex items-end justify-between mt-auto pt-0.5">
-                  {countdownEl}
-                  {it.status && (
-                    <span className="text-[9px] font-body font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground capitalize flex-shrink-0">{it.status}</span>
-                  )}
-                  {it.amount != null && (
-                    <span className="text-[10px] font-body text-muted-foreground flex-shrink-0">${Number(it.amount).toLocaleString()}</span>
-                  )}
+                {it.image ? (
+                  <div className="w-full h-[90px] flex-shrink-0">
+                    <img src={it.image} alt="" className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <div
+                    className="w-full h-[90px] flex-shrink-0 flex items-center justify-center"
+                    style={{ backgroundColor: it.accentColor ? `${it.accentColor}1F` : `${mod.color}14` }}
+                  >
+                    <Icon className="w-11 h-11" style={{ color: it.accentColor || mod.color }} strokeWidth={1.5} />
+                  </div>
+                )}
+                <div className="flex flex-col gap-1.5 p-2.5">
+                  <p className="font-body text-[12.5px] text-foreground leading-tight line-clamp-1">{it.title}</p>
+                  <p className="font-body text-[10px] text-muted-foreground">{it.dateLabel}</p>
+                  <div className="flex items-end justify-between pt-0.5">
+                    {countdownEl}
+                    {it.status && (
+                      <span className="text-[9px] font-body font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground capitalize flex-shrink-0">{it.status}</span>
+                    )}
+                    {it.amount != null && (
+                      <span className="text-[10px] font-body text-muted-foreground flex-shrink-0">${Number(it.amount).toLocaleString()}</span>
+                    )}
+                  </div>
                 </div>
               </Link>
             );

@@ -75,6 +75,7 @@ export default function ItineraryTab({ trip, onUpdate, cityOrder }) {
   const [addItemOpen, setAddItemOpen] = useState(false);
   const [dayEdit, setDayEdit] = useState({ open: false, index: null, title: "", description: "", date: "" });
   const [importing, setImporting] = useState(false);
+  const [confirmCities, setConfirmCities] = useState(null); // { cities: [...], checked: Set }
 
   const tripLocations = [...(trip.cities || []), trip.country].filter(Boolean);
 
@@ -234,7 +235,10 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
         .filter((a) => a && (a.activity || a.location || a.notes || a.name))
         .map((a) => ({ date: a.date || "", time: a.time || "", activity: a.activity || "", name: a.name || "", location: a.location || "", address: a.address || "", link: a.link || "", notes: a.notes || "", arrival_date: a.arrival_date || "", arrival_time: a.arrival_time || "", arrival_city: a.arrival_city || "", layover_city: a.layover_city || "", layover_date: a.layover_date || "", layover_duration: a.layover_duration || "", layover_arrival_time: a.layover_arrival_time || "", layover_departure_time: a.layover_departure_time || "" }));
       if (acts.length === 0) { toast.error("No itinerary items found in that file"); return; }
-      // Auto-add only the final destination of a flight to the trip's city list — skip transit/layover cities
+      // Detected new destination cities aren't added silently anymore — the
+      // AI's guess at "final arrival city" can occasionally be wrong (as it
+      // was with a layover once), so this gets a quick confirm step instead
+      // of directly editing the trip's official city list.
       const existingCities = (trip.cities || []).map((c) => (c || "").toLowerCase());
       const newCities = [];
       for (const a of acts) {
@@ -246,10 +250,7 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
         }
       }
       if (newCities.length > 0) {
-        try {
-          const updatedTrip = await base44.entities.Trip.update(trip.id, { cities: [...(trip.cities || []), ...newCities] });
-          onUpdate(updatedTrip);
-        } catch {}
+        setConfirmCities({ cities: newCities, checked: new Set(newCities) });
       }
       // For multi-day flights, add an arrival activity on the arrival date so that day isn't empty
       const expanded = [];
@@ -503,6 +504,54 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
 
       {/* Add item type sheet */}
       <AddItemSheet open={addItemOpen} onClose={() => setAddItemOpen(false)} onPick={pickAddType} onImport={handleImport} importing={importing} />
+
+      {confirmCities && (
+        <div className="fixed inset-0 z-[80] flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setConfirmCities(null)}>
+          <div className="bg-card border border-border rounded-t-3xl md:rounded-2xl w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
+            <h2 className="font-heading text-base text-foreground mb-1">Add to your trip?</h2>
+            <p className="font-body text-[13px] text-muted-foreground mb-4">
+              The import found {confirmCities.cities.length === 1 ? "a new city" : "new cities"} not yet on your trip. Uncheck any that were just a layover, not a real stop.
+            </p>
+            <div className="space-y-2 mb-4">
+              {confirmCities.cities.map((city) => (
+                <label key={city} className="flex items-center gap-2.5 py-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={confirmCities.checked.has(city)}
+                    onChange={(e) => {
+                      const next = new Set(confirmCities.checked);
+                      if (e.target.checked) next.add(city); else next.delete(city);
+                      setConfirmCities({ ...confirmCities, checked: next });
+                    }}
+                    className="w-4 h-4 accent-foreground"
+                  />
+                  <span className="font-body text-sm text-foreground">{city}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  const toAdd = confirmCities.cities.filter((c) => confirmCities.checked.has(c));
+                  if (toAdd.length > 0) {
+                    try {
+                      const updatedTrip = await base44.entities.Trip.update(trip.id, { cities: [...(trip.cities || []), ...toAdd] });
+                      onUpdate(updatedTrip);
+                    } catch {}
+                  }
+                  setConfirmCities(null);
+                }}
+                className="flex-1 bg-foreground text-background px-4 py-2.5 rounded-lg text-sm font-medium hover:opacity-90 transition-colors"
+              >
+                Confirm
+              </button>
+              <button onClick={() => setConfirmCities(null)} className="px-4 py-2.5 text-muted-foreground text-sm hover:text-foreground transition-colors">
+                Skip
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Activity add/edit modal */}
       <ActivityModal

@@ -5,15 +5,25 @@ export default function TimelineCard({ activity, onEdit, onDelete, onAddToMemori
   const { Icon, color, key } = getActivityType(activity);
   const time = activity.time ? formatTime(activity.time) : null;
   const isFlight = key === "flight";
+
+  // When this item was added from a Saved/Top Picks place, it should carry
+  // a real photo — show that instead of the generic type icon, matching the
+  // same "real photos, never fake ones" rule used everywhere else in Guía.
+  const savedImage = activity.image_url || activity.photo_url || activity.image || null;
+
   return (
     <div className="relative flex gap-3">
       {/* Icon + connector line */}
       <div className="flex flex-col items-center flex-shrink-0">
         <div
-          className="w-9 h-9 rounded-full flex items-center justify-center"
-          style={{ backgroundColor: `${color}1A` }}
+          className="w-9 h-9 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0"
+          style={{ backgroundColor: savedImage ? undefined : `${color}1A` }}
         >
-          <Icon className="w-4 h-4" strokeWidth={1.8} style={{ color }} />
+          {savedImage ? (
+            <img src={savedImage} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <Icon className="w-4 h-4" strokeWidth={1.8} style={{ color }} />
+          )}
         </div>
         {!isLast && <div className="w-px flex-1 bg-border my-1" />}
       </div>
