@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { Check, X, Clock, MapPin, Link2, ExternalLink, Plane, Building2 } from "lucide-react";
 import DropdownInput from "./DropdownInput";
 import AddressInput from "./AddressInput";
+import DateInput from "@/components/DateInput";
 
 function minToHHMM(m) { const h = Math.floor(m / 60), mm = m % 60; return `${String(h).padStart(2, "0")}:${String(mm).padStart(2, "0")}`; }
 function fmt12(t) { if (!t) return ""; let [h, m] = t.split(":").map(Number); const ap = h < 12 ? "AM" : "PM"; let hp = h % 12; if (hp === 0) hp = 12; return `${hp}:${String(m || 0).padStart(2, "0")} ${ap}`; }
@@ -53,19 +54,15 @@ function DateTimeField({ label, date, time, onDateChange, onTimeChange }) {
         </button>
       ) : (
         <div className="grid grid-cols-2 gap-2">
-          <input
-            type="date"
-            value={date}
-            onChange={e => onDateChange(e.target.value)}
-            onBlur={() => { if (date && time) setExpanded(false); }}
-            className="w-full bg-muted border border-border rounded-lg px-2.5 h-10 text-sm outline-none focus:border-ring transition-colors"
-          />
+          <div className="min-w-0">
+            <DateInput value={date} onChange={e => onDateChange(e.target.value)} />
+          </div>
           <input
             type="time"
             value={time}
             onChange={e => onTimeChange(e.target.value)}
             onBlur={() => { if (date && time) setExpanded(false); }}
-            className="w-full bg-muted border border-border rounded-lg px-2.5 h-10 text-sm outline-none focus:border-ring transition-colors"
+            className="w-full min-w-0 bg-muted border border-border rounded-lg px-2.5 h-10 text-sm outline-none focus:border-ring transition-colors"
           />
         </div>
       )}
@@ -287,7 +284,8 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
                 <DateTimeField label="Date & time" date={depDate} time={depTime} onDateChange={setDepDate} onTimeChange={setDepTime} />
                 <div>
                   <label className="text-xs text-muted-foreground mb-2 block">City / Airport</label>
-                  <DropdownInput value={depCity} onChange={setDepCity} options={tripLocations} placeholder="Departure city…" icon={MapPin} />
+                  <input value={depCity} onChange={e => setDepCity(e.target.value)} placeholder="Departure city…"
+                    className="w-full bg-muted border border-border rounded-lg px-3 h-10 text-sm outline-none focus:border-ring transition-colors" />
                 </div>
               </div>
               <div className="space-y-3 pt-2 border-t border-border">
