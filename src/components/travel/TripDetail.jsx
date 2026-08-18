@@ -155,26 +155,14 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
     : null;
 
   // Order cities by their first chronological mention in the itinerary
-  const orderedCities = (() => {
-    const cities = trip.cities || [];
-    if (cities.length <= 1) return cities;
-    const it = (trip.itinerary || [])
-      .slice()
-      .sort((a, b) => (a.day || 0) - (b.day || 0) || String(a.date || "").localeCompare(String(b.date || "")));
-    const firstSeen = {};
-    cities.forEach((c) => (firstSeen[c] = Infinity));
-    it.forEach((d, idx) => {
-      const hay = `${d.title || ""} ${d.description || ""} ${(d.activities || [])
-        .map((a) => `${a.activity || ""} ${a.location || ""} ${a.notes || ""}`)
-        .join(" ")}`.toLowerCase();
-      cities.forEach((c) => {
-        if (firstSeen[c] === Infinity && hay.includes(c.toLowerCase())) firstSeen[c] = idx;
-      });
-    });
-    const found = cities.filter((c) => firstSeen[c] !== Infinity).sort((a, b) => firstSeen[a] - firstSeen[b]);
-    const rest = cities.filter((c) => firstSeen[c] === Infinity);
-    return [...found, ...rest];
-  })();
+  // Cities are shown in exactly the order set on the trip — no automatic
+  // reordering. An earlier version tried to re-sort by whichever city was
+  // "first mentioned" in the itinerary's actual text content, but that's
+  // fragile: a city that simply hasn't been typed anywhere yet (very common
+  // right after auto-generating blank days) would lose its place to
+  // whichever city happened to get a stray mention first, silently
+  // overriding the order the person deliberately chose.
+  const orderedCities = trip.cities || [];
 
   return (
     <div className="min-h-screen bg-background">

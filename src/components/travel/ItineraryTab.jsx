@@ -170,17 +170,28 @@ export default function ItineraryTab({ trip, onUpdate, cityOrder }) {
 
   const saveActivity = async (activity) => {
     const { dayIndex, actIndex } = activityModal;
+    const { _newStopCity, ...cleanActivity } = activity;
     const next = [...itinerary];
     if (actIndex !== null) {
-      next[dayIndex].activities[actIndex] = activity;
+      next[dayIndex].activities[actIndex] = cleanActivity;
     } else {
-      next[dayIndex].activities = [...(next[dayIndex].activities || []), activity];
+      next[dayIndex].activities = [...(next[dayIndex].activities || []), cleanActivity];
     }
     // keep timed order for a clean timeline
     next[dayIndex].activities = [...next[dayIndex].activities].sort((a, b) => (a.time || "99").localeCompare(b.time || "99"));
     setItinerary(next);
     setActivityModal({ open: false, dayIndex: null, actIndex: null, activity: null });
     persist(next);
+
+    // The modal already asked "add this as a stop?" for a new flight/hotel
+    // city — only touch trip.cities if that toggle was left checked.
+    if (_newStopCity) {
+      const existingCities = (trip.cities || []).map((c) => (c || "").toLowerCase());
+      if (!existingCities.includes(_newStopCity.toLowerCase())) {
+        const updatedTrip = await base44.entities.Trip.update(trip.id, { cities: [...(trip.cities || []), _newStopCity] });
+        onUpdate(updatedTrip);
+      }
+    }
   };
 
   const removeActivity = async (dayIndex, actIndex) => {
@@ -558,6 +569,7 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
         open={activityModal.open}
         initialActivity={activityModal.activity}
         tripLocations={tripLocations}
+        trip={trip}
         dayLabel={activityModal.dayIndex !== null ? (day?.date ? format(parseISO(day.date), "EEE, MMM d") : `Day ${day?.day}`) : null}
         onSave={saveActivity}
         onClose={() => setActivityModal({ open: false, dayIndex: null, actIndex: null, activity: null })}

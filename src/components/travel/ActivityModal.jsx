@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Check, X, Clock, MapPin, Link2, ExternalLink } from "lucide-react";
+import { Check, X, Clock, MapPin, Link2, ExternalLink, Plane, Building2 } from "lucide-react";
 import DropdownInput from "./DropdownInput";
 import AddressInput from "./AddressInput";
+import DateInput from "@/components/DateInput";
+import CitySearchInput from "./CitySearchInput";
 
 function minToHHMM(m) { const h = Math.floor(m / 60), mm = m % 60; return `${String(h).padStart(2, "0")}:${String(mm).padStart(2, "0")}`; }
 function fmt12(t) { if (!t) return ""; let [h, m] = t.split(":").map(Number); const ap = h < 12 ? "AM" : "PM"; let hp = h % 12; if (hp === 0) hp = 12; return `${hp}:${String(m || 0).padStart(2, "0")} ${ap}`; }
@@ -18,31 +20,68 @@ function suggestWindow(activities) {
   return null;
 }
 
-export const ACTIVITY_PRESETS = [
-  "Breakfast",
-  "Lunch",
-  "Dinner",
-  "Coffee",
-  "Check-in",
-  "Check-out",
-  "Flight",
-  "Airport arrival",
-  "Train",
-  "Transfer",
-  "Sightseeing",
-  "Museum",
-  "Beach",
-  "Hiking",
-  "Shopping",
-  "Spa",
-  "Tour",
-  "Event",
-  "Nightlife",
-  "Free time",
-  "Rest",
+// Restaurant and Activity get their own trimmed preset lists instead of one
+// long shared list — picking "Restaurant" shouldn't show Museum/Hiking/etc.
+export const RESTAURANT_PRESETS = ["Breakfast", "Lunch", "Dinner", "Coffee"];
+export const ACTIVITY_PRESETS = ["Sightseeing", "Museum", "Beach", "Hiking", "Shopping", "Spa", "Tour", "Event", "Nightlife", "Free time", "Rest"];
+
+const CATEGORY_TABS = [
+  { key: "flight", label: "Flight", Icon: Plane },
+  { key: "hotel", label: "Stay", Icon: Building2 },
+  { key: "restaurant", label: "Restaurant", Icon: null },
+  { key: "activity", label: "Activity", Icon: MapPin },
 ];
 
-export default function ActivityModal({ open, initialActivity, tripLocations, dayLabel, dayOptions, initialDayDate, itinerary, onSave, onClose }) {
+// Shared "combined date+time" field: shows one formatted chip
+// ("Fri, Sep 3 · 5:18 PM") and expands into real date/time inputs on tap,
+// rather than two separate plain boxes.
+function DateTimeField({ label, date, time, onDateChange, onTimeChange }) {
+  return (
+    <div>
+      <label className="text-xs text-muted-foreground mb-2 block">{label}</label>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="min-w-0">
+          <DateInput value={date} onChange={e => onDateChange(e.target.value)} />
+        </div>
+        <input
+          type="time"
+          value={time}
+          onChange={e => onTimeChange(e.target.value)}
+          className="w-full min-w-0 bg-muted border border-border rounded-lg px-2.5 h-10 text-sm outline-none focus:border-ring transition-colors"
+          style={{ minWidth: 0, width: "100%", maxWidth: "100%", boxSizing: "border-box", WebkitAppearance: "none", appearance: "none" }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// "Count as a stop" toggle for Flight (arrival city) and Stay (hotel city) —
+// pre-checked, but always overridable, so a layover never silently becomes
+// an official trip city the way Punta Cana did during import.
+function StopToggle({ city, checked, onChange }) {
+  if (!city) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className="w-full flex items-center justify-between gap-3 bg-muted border border-border rounded-lg px-3 py-2.5 text-left"
+    >
+      <span className="text-[12.5px] text-foreground">
+        Add <span className="font-medium">{city}</span> as a stop on this trip?
+      </span>
+      <span
+        className={`relative w-9 h-5 rounded-full flex-shrink-0 transition-colors ${checked ? "bg-accent" : "bg-border"}`}
+      >
+        <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-[18px]" : "translate-x-0.5"}`} />
+      </span>
+    </button>
+  );
+}
+
+export default function ActivityModal({ open, initialActivity, tripLocations, dayLabel, dayOptions, initialDayDate, itinerary, trip, onSave, onClose }) {
+  const [category, setCategory] = useState("activity");
+
+  // Shared/simple fields (Restaurant + Activity)
   const [time, setTime] = useState("");
   const [activity, setActivity] = useState("");
   const [name, setName] = useState("");
@@ -52,8 +91,30 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
   const [link, setLink] = useState("");
   const [dayDate, setDayDate] = useState("");
   const [addrLoading, setAddrLoading] = useState(false);
+
+  // Flight-specific fields
+  const [depDate, setDepDate] = useState("");
+  const [depTime, setDepTime] = useState("");
+  const [depCity, setDepCity] = useState("");
+  const [arrDate, setArrDate] = useState("");
+  const [arrTime, setArrTime] = useState("");
+  const [arrCity, setArrCity] = useState("");
+  const [airline, setAirline] = useState("");
+  const [flightNum, setFlightNum] = useState("");
+  const [countArrivalAsStop, setCountArrivalAsStop] = useState(true);
+
+  // Stay-specific fields
+  const [checkInDate, setCheckInDate] = useState("");
+  const [checkInTime, setCheckInTime] = useState("");
+  const [checkOutDate, setCheckOutDate] = useState("");
+  const [checkOutTime, setCheckOutTime] = useState("");
+  const [hotelName, setHotelName] = useState("");
+  const [countHotelAsStop, setCountHotelAsStop] = useState(true);
+
   const initRef = useRef(null);
   initRef.current = initialActivity;
+
+  const existingCities = useMemo(() => (trip?.cities || []).map(c => (c || "").toLowerCase()), [trip]);
 
   const dayActivities = useMemo(() => {
     if (!itinerary || !dayDate) return [];
@@ -63,31 +124,36 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
   const suggested = useMemo(() => suggestWindow(dayActivities), [dayActivities]);
 
   useEffect(() => {
-    if (open && initialActivity) {
-      setTime(initialActivity.time || "");
-      setActivity(initialActivity.activity || "");
-      setName(initialActivity.name || "");
-      setLocation(initialActivity.location || "");
-      setAddress(initialActivity.address || "");
-      setLink(initialActivity.link || "");
-      setNotes(initialActivity.notes || "");
-    } else if (open) {
-      setTime("");
-      setActivity("");
-      setName("");
-      setLocation("");
-      setAddress("");
-      setLink("");
-      setNotes("");
+    if (!open) return;
+    const init = initialActivity;
+    // Detect category from an existing item so editing opens the right tab
+    const detectedCategory = init?.category || (init ? guessCategoryFromLegacy(init) : "activity");
+    setCategory(detectedCategory);
+
+    if (init) {
+      setTime(init.time || ""); setActivity(init.activity || ""); setName(init.name || "");
+      setLocation(init.location || ""); setAddress(init.address || ""); setLink(init.link || ""); setNotes(init.notes || "");
+      setDepDate(init.departure?.date || ""); setDepTime(init.departure?.time || ""); setDepCity(init.departure?.city || "");
+      setArrDate(init.arrival?.date || ""); setArrTime(init.arrival?.time || ""); setArrCity(init.arrival?.city || "");
+      setAirline(init.airline || ""); setFlightNum(init.flightNumber || "");
+      setCheckInDate(init.checkIn?.date || ""); setCheckInTime(init.checkIn?.time || "");
+      setCheckOutDate(init.checkOut?.date || ""); setCheckOutTime(init.checkOut?.time || "");
+      setHotelName(init.name || "");
+    } else {
+      setTime(""); setActivity(""); setName(""); setLocation(""); setAddress(""); setLink(""); setNotes("");
+      setDepDate(""); setDepTime(""); setDepCity(""); setArrDate(""); setArrTime(""); setArrCity("");
+      setAirline(""); setFlightNum("");
+      setCheckInDate(""); setCheckInTime(""); setCheckOutDate(""); setCheckOutTime(""); setHotelName("");
+      setCountArrivalAsStop(true); setCountHotelAsStop(true);
     }
-    if (open && dayOptions && dayOptions.length) {
-      setDayDate(initialDayDate || initialActivity?.dayDate || dayOptions[0].date || "");
+    if (dayOptions && dayOptions.length) {
+      setDayDate(initialDayDate || init?.dayDate || dayOptions[0].date || "");
     }
   }, [open, initialActivity, dayOptions, initialDayDate]);
 
   // Auto-populate address for saved items via the same geocoder used elsewhere
   useEffect(() => {
-    if (!open || !dayOptions || address) return;
+    if (!open || !dayOptions || address || category === "flight") return;
     const init = initRef.current;
     if (!init || !init.name) return;
     let alive = true;
@@ -99,11 +165,50 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
       .catch(() => {})
       .finally(() => { if (alive) setAddrLoading(false); });
     return () => { alive = false; };
-  }, [open, dayOptions, address]);
+  }, [open, dayOptions, address, category]);
 
   if (!open) return null;
-
   const isEdit = !!initialActivity;
+  const presets = category === "restaurant" ? RESTAURANT_PRESETS : ACTIVITY_PRESETS;
+
+  // Whether the current toggle-relevant city is genuinely new (not already
+  // an official trip city) — used to decide whether to even show the toggle.
+  const arrIsNewCity = arrCity && !existingCities.includes(arrCity.toLowerCase());
+  const hotelCityIsNew = location && !existingCities.includes(location.toLowerCase());
+
+  const handleSave = () => {
+    let payload;
+    if (category === "flight") {
+      payload = {
+        category: "flight",
+        activity: activity || "Flight",
+        time: depTime,
+        departure: { date: depDate, time: depTime, city: depCity },
+        arrival: { date: arrDate, time: arrTime, city: arrCity },
+        airline, flightNumber: flightNum,
+        location: arrCity, name: [airline, flightNum].filter(Boolean).join(" · "), notes,
+        ...(dayOptions ? { dayDate } : {}),
+        _newStopCity: arrIsNewCity && countArrivalAsStop ? arrCity : null,
+      };
+    } else if (category === "hotel") {
+      payload = {
+        category: "hotel",
+        activity: activity || "Hotel stay",
+        time: checkInTime,
+        checkIn: { date: checkInDate, time: checkInTime },
+        checkOut: { date: checkOutDate, time: checkOutTime },
+        name: hotelName, address, link, location, notes,
+        ...(dayOptions ? { dayDate } : {}),
+        _newStopCity: hotelCityIsNew && countHotelAsStop ? location : null,
+      };
+    } else {
+      payload = {
+        category, time, activity, name, location, address, link, notes,
+        ...(dayOptions ? { dayDate } : {}),
+      };
+    }
+    onSave(payload);
+  };
 
   return (
     <div
@@ -123,6 +228,23 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Category tabs */}
+        <div className="flex gap-1 px-5 pb-3">
+          {CATEGORY_TABS.map(t => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setCategory(t.key)}
+              className={`flex-1 py-1.5 rounded-lg text-[12px] font-medium transition-colors ${
+                category === t.key ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
         <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-5">
           {dayOptions && dayOptions.length > 0 && (
             <div>
@@ -138,94 +260,157 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
               </select>
             </div>
           )}
-          <div>
-            <label className="text-xs text-muted-foreground mb-2 block">Time</label>
-            <div className="relative flex items-center bg-muted border border-border rounded-lg" style={{ height: '40px' }}>
-              <Clock className="absolute left-3 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
-              <input
-                type="time"
-                value={time}
-                onChange={e => setTime(e.target.value)}
-                className="w-full bg-transparent border-none pl-9 pr-3 text-sm outline-none focus:border-ring [&::-webkit-calendar-picker-indicator]:hidden"
-                style={{ height: '40px', lineHeight: '40px' }}
-              />
-            </div>
-            {dayOptions && suggested && (
-              <div className="flex items-center gap-2 mt-2">
-                <span className="font-body text-[11px] text-muted-foreground">Suggested window: <span className="text-foreground">{fmt12(suggested.start)} – {fmt12(suggested.end)}</span></span>
-                <button type="button" onClick={() => setTime(suggested.start)} className="ml-auto text-[11px] text-accent hover:underline">Use start</button>
+
+          {/* ---------------- FLIGHT ---------------- */}
+          {category === "flight" && (
+            <>
+              <div className="space-y-3">
+                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Departure</p>
+                <DateTimeField label="Date & time" date={depDate} time={depTime} onDateChange={setDepDate} onTimeChange={setDepTime} />
+                <div>
+                  <label className="text-xs text-muted-foreground mb-2 block">City / Airport</label>
+                  <CitySearchInput value={depCity} onChange={setDepCity} placeholder="Departure city…" />
+                </div>
               </div>
-            )}
-            {dayOptions && dayActivities.length > 0 && (
-              <p className="font-body text-[10px] text-muted-foreground mt-1">Already scheduled: {dayActivities.map(a => fmt12(a.time)).join(", ")}</p>
-            )}
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-2 block">Activity</label>
-            <DropdownInput
-              value={activity}
-              onChange={setActivity}
-              options={ACTIVITY_PRESETS}
-              placeholder="Select or type activity…"
-            />
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs text-muted-foreground block">Name</label>
-              {link && (
-                <a href={link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-accent hover:underline">
-                  <ExternalLink className="w-3 h-3" /> Visit website
-                </a>
+              <div className="space-y-3 pt-2 border-t border-border">
+                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide pt-2">Arrival</p>
+                <DateTimeField label="Date & time" date={arrDate} time={arrTime} onDateChange={setArrDate} onTimeChange={setArrTime} />
+                <div>
+                  <label className="text-xs text-muted-foreground mb-2 block">City / Airport</label>
+                  <CitySearchInput value={arrCity} onChange={setArrCity} placeholder="Arrival city…" />
+                </div>
+                {arrIsNewCity && (
+                  <StopToggle city={arrCity} checked={countArrivalAsStop} onChange={setCountArrivalAsStop} />
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-2 block">Airline</label>
+                  <input value={airline} onChange={e => setAirline(e.target.value)} placeholder="e.g. LATAM"
+                    className="w-full bg-muted border border-border rounded-lg px-3 h-10 text-sm outline-none focus:border-ring transition-colors" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-2 block">Flight #</label>
+                  <input value={flightNum} onChange={e => setFlightNum(e.target.value)} placeholder="e.g. LA3142"
+                    className="w-full bg-muted border border-border rounded-lg px-3 h-10 text-sm outline-none focus:border-ring transition-colors" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 block">Notes</label>
+                <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Confirmation number, seat, etc."
+                  className="w-full min-h-[40px] bg-muted border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-ring resize-none" />
+              </div>
+            </>
+          )}
+
+          {/* ---------------- STAY ---------------- */}
+          {category === "hotel" && (
+            <>
+              <DateTimeField label="Check-in" date={checkInDate} time={checkInTime} onDateChange={setCheckInDate} onTimeChange={setCheckInTime} />
+              <DateTimeField label="Check-out" date={checkOutDate} time={checkOutTime} onDateChange={setCheckOutDate} onTimeChange={setCheckOutTime} />
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 block">Hotel name</label>
+                <input value={hotelName} onChange={e => setHotelName(e.target.value)} placeholder="Hotel name…"
+                  className="w-full bg-muted border border-border rounded-lg px-3 h-10 text-sm outline-none focus:border-ring transition-colors" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 block">City</label>
+                <CitySearchInput value={location} onChange={setLocation} placeholder="Search any city…" />
+              </div>
+              {hotelCityIsNew && (
+                <StopToggle city={location} checked={countHotelAsStop} onChange={setCountHotelAsStop} />
               )}
-            </div>
-            <input
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="Venue, hotel, or restaurant name…"
-              className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-ring transition-colors"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-2 block">Location</label>
-            <DropdownInput
-              value={location}
-              onChange={setLocation}
-              options={tripLocations}
-              placeholder="Select or type location…"
-              icon={MapPin}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-2 block">Address {addrLoading && <span className="text-muted-foreground/60">· auto-filling…</span>}</label>
-            <AddressInput value={address} onChange={setAddress} placeholder="Search or type address…" />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-2 block">Website</label>
-            <div className="relative flex items-center bg-muted border border-border rounded-lg" style={{ height: '40px' }}>
-              <Link2 className="absolute left-3 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
-              <input
-                value={link}
-                onChange={e => setLink(e.target.value)}
-                placeholder="https://…"
-                className="w-full bg-transparent border-none pl-9 pr-3 text-sm outline-none focus:border-ring"
-                style={{ height: '40px', lineHeight: '40px' }}
-              />
-            </div>
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-2 block">Notes</label>
-            <textarea
-              placeholder="Add notes…"
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              rows={2}
-              className="w-full min-h-[40px] bg-muted border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-ring resize-none"
-            />
-          </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 block">Address {addrLoading && <span className="text-muted-foreground/60">· auto-filling…</span>}</label>
+                <AddressInput value={address} onChange={setAddress} placeholder="Search or type address…" />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs text-muted-foreground block">Website</label>
+                  {link && (
+                    <a href={link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-accent hover:underline">
+                      <ExternalLink className="w-3 h-3" /> Visit website
+                    </a>
+                  )}
+                </div>
+                <div className="relative flex items-center bg-muted border border-border rounded-lg h-10">
+                  <Link2 className="absolute left-3 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
+                  <input value={link} onChange={e => setLink(e.target.value)} placeholder="https://…"
+                    className="w-full bg-transparent border-none pl-9 pr-3 text-sm outline-none focus:border-ring h-10" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 block">Notes</label>
+                <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Confirmation number, room preferences, etc."
+                  className="w-full min-h-[40px] bg-muted border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-ring resize-none" />
+              </div>
+            </>
+          )}
+
+          {/* ---------------- RESTAURANT / ACTIVITY (shared shape) ---------------- */}
+          {(category === "restaurant" || category === "activity") && (
+            <>
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 block">Time</label>
+                <div className="relative flex items-center bg-muted border border-border rounded-lg h-10">
+                  <Clock className="absolute left-3 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
+                  <input type="time" value={time} onChange={e => setTime(e.target.value)}
+                    className="w-full bg-transparent border-none pl-9 pr-3 text-sm outline-none focus:border-ring h-10 [&::-webkit-calendar-picker-indicator]:hidden" />
+                </div>
+                {dayOptions && suggested && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="font-body text-[11px] text-muted-foreground">Suggested window: <span className="text-foreground">{fmt12(suggested.start)} – {fmt12(suggested.end)}</span></span>
+                    <button type="button" onClick={() => setTime(suggested.start)} className="ml-auto text-[11px] text-accent hover:underline">Use start</button>
+                  </div>
+                )}
+                {dayOptions && dayActivities.length > 0 && (
+                  <p className="font-body text-[10px] text-muted-foreground mt-1">Already scheduled: {dayActivities.map(a => fmt12(a.time)).join(", ")}</p>
+                )}
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 block">{category === "restaurant" ? "Meal" : "Activity"}</label>
+                <DropdownInput value={activity} onChange={setActivity} options={presets} placeholder={category === "restaurant" ? "Select or type meal…" : "Select or type activity…"} />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs text-muted-foreground block">Name</label>
+                  {link && (
+                    <a href={link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-accent hover:underline">
+                      <ExternalLink className="w-3 h-3" /> Visit website
+                    </a>
+                  )}
+                </div>
+                <input value={name} onChange={e => setName(e.target.value)} placeholder={category === "restaurant" ? "Restaurant name…" : "Venue name…"}
+                  className="w-full bg-muted border border-border rounded-lg px-3 h-10 text-sm outline-none focus:border-ring transition-colors" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 block">Location</label>
+                <CitySearchInput value={location} onChange={setLocation} placeholder="Search any city…" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 block">Address {addrLoading && <span className="text-muted-foreground/60">· auto-filling…</span>}</label>
+                <AddressInput value={address} onChange={setAddress} placeholder="Search or type address…" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 block">Website</label>
+                <div className="relative flex items-center bg-muted border border-border rounded-lg h-10">
+                  <Link2 className="absolute left-3 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
+                  <input value={link} onChange={e => setLink(e.target.value)} placeholder="https://…"
+                    className="w-full bg-transparent border-none pl-9 pr-3 text-sm outline-none focus:border-ring h-10" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 block">Notes</label>
+                <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Add notes…"
+                  className="w-full min-h-[40px] bg-muted border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-ring resize-none" />
+              </div>
+            </>
+          )}
         </div>
+
         <div className="flex gap-2 p-5 pt-3 border-t border-border">
           <button
-            onClick={() => onSave(dayOptions ? { time, activity, name, location, address, link, notes, dayDate } : { time, activity, name, location, address, link, notes })}
+            onClick={handleSave}
             className="flex-1 flex items-center justify-center gap-1.5 bg-accent text-accent-foreground px-4 py-2.5 rounded-lg text-sm font-medium hover:opacity-90 transition-colors"
           >
             <Check className="w-4 h-4" /> {isEdit ? "Save" : "Add activity"}
@@ -237,4 +422,15 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
       </div>
     </div>
   );
+}
+
+// Old items created before category tabs existed don't have a `category`
+// field — guess a reasonable one from their content so editing an old item
+// opens on a sensible tab, without needing to migrate any stored data.
+function guessCategoryFromLegacy(item) {
+  const text = `${item.activity || ""} ${item.name || ""}`.toLowerCase();
+  if (/flight|airline|airport/.test(text)) return "flight";
+  if (/hotel|check-in|check-out|stay/.test(text)) return "hotel";
+  if (/dinner|lunch|breakfast|restaurant|reservation|coffee/.test(text)) return "restaurant";
+  return "activity";
 }
