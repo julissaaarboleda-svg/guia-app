@@ -2,10 +2,12 @@ import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Trash2, Edit2, X, Check, MapPin, Calendar, Target, Plus } from "lucide-react";
 
-// "Event" is special — entries in this category also surface in Home's
-// "Up Next" section (see homeData.js's buildUpNext). Everything else is
-// purely for organizing your own business log.
-const BUSINESS_CATEGORIES = ["Event", "Market Show", "Product Launch", "Client Meeting", "Sale", "Expense", "Other"];
+// "Event" is a broad bucket — market shows, product launches, pop-ups,
+// vendor fairs, etc. all go here as the category, with the specific type
+// typed into the Name field below. This also also surfaces in Home's
+// "Up Next" section (see homeData.js's buildUpNext). Everything else here
+// is purely for organizing your own business log.
+const BUSINESS_CATEGORIES = ["Event", "Client Meeting", "Sale", "Expense", "Other"];
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import PageHeader from "@/components/PageHeader";
@@ -384,7 +386,7 @@ export default function Business() {
                 <option value="" disabled>Select a category</option>
                 {BUSINESS_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
-              <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={form.category === "Event" ? "What's the event? (e.g. Vendor Fair)" : "Name / Title"}
+              <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={form.category === "Event" ? "What's the event? (e.g. Market Show, Product Launch)" : "Name / Title"}
                 className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
               <div className="grid grid-cols-2 gap-2">
                 <input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="Location"
