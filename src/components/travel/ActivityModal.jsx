@@ -3,6 +3,7 @@ import { Check, X, Clock, MapPin, Link2, ExternalLink, Plane, Building2 } from "
 import DropdownInput from "./DropdownInput";
 import AddressInput from "./AddressInput";
 import DateInput from "@/components/DateInput";
+import CitySearchInput from "./CitySearchInput";
 
 function minToHHMM(m) { const h = Math.floor(m / 60), mm = m % 60; return `${String(h).padStart(2, "0")}:${String(mm).padStart(2, "0")}`; }
 function fmt12(t) { if (!t) return ""; let [h, m] = t.split(":").map(Number); const ap = h < 12 ? "AM" : "PM"; let hp = h % 12; if (hp === 0) hp = 12; return `${hp}:${String(m || 0).padStart(2, "0")} ${ap}`; }
@@ -35,37 +36,21 @@ const CATEGORY_TABS = [
 // ("Fri, Sep 3 · 5:18 PM") and expands into real date/time inputs on tap,
 // rather than two separate plain boxes.
 function DateTimeField({ label, date, time, onDateChange, onTimeChange }) {
-  const [expanded, setExpanded] = useState(!date && !time);
-  const display = date || time
-    ? `${date ? new Date(date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "No date"}${time ? ` · ${fmt12(time)}` : ""}`
-    : "Set date & time";
-
   return (
     <div>
       <label className="text-xs text-muted-foreground mb-2 block">{label}</label>
-      {!expanded ? (
-        <button
-          type="button"
-          onClick={() => setExpanded(true)}
-          className="w-full flex items-center gap-2 bg-muted border border-border rounded-lg px-3 h-10 text-sm text-foreground text-left hover:border-ring transition-colors"
-        >
-          <Clock className="w-3.5 h-3.5 text-muted-foreground/50 flex-shrink-0" />
-          {display}
-        </button>
-      ) : (
-        <div className="grid grid-cols-2 gap-2">
-          <div className="min-w-0">
-            <DateInput value={date} onChange={e => onDateChange(e.target.value)} />
-          </div>
-          <input
-            type="time"
-            value={time}
-            onChange={e => onTimeChange(e.target.value)}
-            onBlur={() => { if (date && time) setExpanded(false); }}
-            className="w-full min-w-0 bg-muted border border-border rounded-lg px-2.5 h-10 text-sm outline-none focus:border-ring transition-colors"
-          />
+      <div className="grid grid-cols-2 gap-2">
+        <div className="min-w-0">
+          <DateInput value={date} onChange={e => onDateChange(e.target.value)} />
         </div>
-      )}
+        <input
+          type="time"
+          value={time}
+          onChange={e => onTimeChange(e.target.value)}
+          className="w-full min-w-0 bg-muted border border-border rounded-lg px-2.5 h-10 text-sm outline-none focus:border-ring transition-colors"
+          style={{ minWidth: 0, width: "100%", maxWidth: "100%", boxSizing: "border-box", WebkitAppearance: "none", appearance: "none" }}
+        />
+      </div>
     </div>
   );
 }
@@ -284,8 +269,7 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
                 <DateTimeField label="Date & time" date={depDate} time={depTime} onDateChange={setDepDate} onTimeChange={setDepTime} />
                 <div>
                   <label className="text-xs text-muted-foreground mb-2 block">City / Airport</label>
-                  <input value={depCity} onChange={e => setDepCity(e.target.value)} placeholder="Departure city…"
-                    className="w-full bg-muted border border-border rounded-lg px-3 h-10 text-sm outline-none focus:border-ring transition-colors" />
+                  <CitySearchInput value={depCity} onChange={setDepCity} placeholder="Departure city…" />
                 </div>
               </div>
               <div className="space-y-3 pt-2 border-t border-border">
@@ -293,7 +277,7 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
                 <DateTimeField label="Date & time" date={arrDate} time={arrTime} onDateChange={setArrDate} onTimeChange={setArrTime} />
                 <div>
                   <label className="text-xs text-muted-foreground mb-2 block">City / Airport</label>
-                  <DropdownInput value={arrCity} onChange={setArrCity} options={tripLocations} placeholder="Arrival city…" icon={MapPin} />
+                  <CitySearchInput value={arrCity} onChange={setArrCity} placeholder="Arrival city…" />
                 </div>
                 {arrIsNewCity && (
                   <StopToggle city={arrCity} checked={countArrivalAsStop} onChange={setCountArrivalAsStop} />
@@ -331,7 +315,7 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
               </div>
               <div>
                 <label className="text-xs text-muted-foreground mb-2 block">City</label>
-                <DropdownInput value={location} onChange={setLocation} options={tripLocations} placeholder="Select or type city…" icon={MapPin} />
+                <CitySearchInput value={location} onChange={setLocation} placeholder="Search any city…" />
               </div>
               {hotelCityIsNew && (
                 <StopToggle city={location} checked={countHotelAsStop} onChange={setCountHotelAsStop} />
@@ -401,7 +385,7 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
               </div>
               <div>
                 <label className="text-xs text-muted-foreground mb-2 block">Location</label>
-                <DropdownInput value={location} onChange={setLocation} options={tripLocations} placeholder="Select or type location…" icon={MapPin} />
+                <CitySearchInput value={location} onChange={setLocation} placeholder="Search any city…" />
               </div>
               <div>
                 <label className="text-xs text-muted-foreground mb-2 block">Address {addrLoading && <span className="text-muted-foreground/60">· auto-filling…</span>}</label>
