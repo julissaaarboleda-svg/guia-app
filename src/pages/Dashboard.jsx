@@ -77,7 +77,15 @@ export default function Dashboard() {
       const u = await base44.auth.me();
       setUser(u);
       const p = await base44.entities.UserPreferences.filter({ user_email: u.email });
-      if (p.length > 0) setPrefs(p[0]);
+      if (p.length > 0) {
+        setPrefs(p[0]);
+        // Hero photo/mode are account settings, not just browser state — sync
+        // from the real saved data once it loads, so they survive logging
+        // out and back in (or switching devices), instead of only ever
+        // living in this browser's localStorage.
+        if (p[0].hero_mode) setHeroMode(p[0].hero_mode);
+        if (Array.isArray(p[0].hero_images) && p[0].hero_images.length > 0) setUserHeroImages(p[0].hero_images);
+      }
       const [g, n, tr, biz, fin, tsk, proj, bg, career] = await Promise.all([
         base44.entities.Goal.list("-created_date", 20),
         base44.entities.Note.list("-updated_date", 5),
@@ -121,13 +129,18 @@ export default function Dashboard() {
   const greeting = now.getHours() < 12 ? "Good morning" : now.getHours() < 17 ? "Good afternoon" : "Good evening";
   const firstName = prefs?.display_name?.split(" ")[0] || user?.full_name?.split(" ")[0] || "there";
 
-  const persistMode = (m) => { setHeroMode(m); localStorage.setItem("guia-hero-mode", m); };
+  const persistMode = async (m) => {
+    setHeroMode(m);
+    localStorage.setItem("guia-hero-mode", m);
+    if (prefs?.id) await base44.entities.UserPreferences.update(prefs.id, { hero_mode: m });
+  };
 
   const onHeroUpload = async (file) => {
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
     const next = [...userHeroImages, file_url];
     setUserHeroImages(next);
     localStorage.setItem("guia-hero-images", JSON.stringify(next));
+    if (prefs?.id) await base44.entities.UserPreferences.update(prefs.id, { hero_images: next });
   };
 
   const completeFocus = async (item) => {
