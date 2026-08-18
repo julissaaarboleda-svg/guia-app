@@ -276,7 +276,7 @@ export default function Notes() {
     return (
       <div className="max-w-[900px] mx-auto w-full pb-12">
         {/* top bar */}
-        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm px-6 md:px-10 lg:px-14 pb-4 border-b border-border flex items-center gap-2.5" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1.25rem)" }}>
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm px-6 md:px-10 lg:px-14 pb-4 border-b border-border flex items-center gap-2.5" style={{ paddingTop: "1.25rem" }}>
           <button onClick={backToList} className="w-9 h-9 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors flex-shrink-0" title="Back">
             <ArrowLeft className="w-4 h-4" />
           </button>
@@ -404,7 +404,7 @@ export default function Notes() {
   if (openCollection) {
     return (
       <div className="max-w-[900px] mx-auto w-full pb-8">
-        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm px-6 md:px-10 lg:px-14 pb-4 border-b border-border flex items-center gap-2.5" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1.25rem)" }}>
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm px-6 md:px-10 lg:px-14 pb-4 border-b border-border flex items-center gap-2.5" style={{ paddingTop: "1.25rem" }}>
           <button onClick={() => setOpenCollection(null)} className="w-9 h-9 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors flex-shrink-0" title="Back to collections">
             <ArrowLeft className="w-4 h-4" />
           </button>

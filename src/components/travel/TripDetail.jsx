@@ -188,7 +188,7 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
         {/* Unified journey header */}
         <div>
           {/* Back + actions */}
-          <div className="flex items-center justify-between" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}>
+          <div className="flex items-center justify-between" style={{ paddingTop: '8px' }}>
             <button onClick={onBack} className="p-2 -ml-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors">
               <ArrowLeft className="w-5 h-5" />
             </button>
@@ -215,42 +215,60 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
             </DropdownMenu>
           </div>
 
-          {/* Title + status + route + metadata */}
-          <div className="pt-2">
-            <h1 className="font-heading text-[26px] leading-tight text-foreground font-semibold flex items-center gap-2 flex-wrap">
-              {trip.flag_emoji && <span className="text-xl leading-none">{trip.flag_emoji}</span>}
-              {trip.title}
-            </h1>
-            <div className="flex items-center gap-2 flex-wrap mt-1.5">
-              <span className={`inline-flex font-body text-[11px] px-2.5 py-0.5 rounded-full border ${statusColors[trip.status || "planning"]}`}>
-                {trip.status || "planning"}
-              </span>
+          {/* Cover photo + title + status + route */}
+          <div className="flex gap-4 items-start pt-2">
+            <button
+              onClick={() => { setPhotoUrl(trip.hero_image_url || ""); setShowPhotoModal(true); }}
+              className="w-[72px] h-[72px] rounded-2xl overflow-hidden flex-shrink-0 bg-secondary flex items-center justify-center"
+            >
+              {trip.hero_image_url ? (
+                <img src={trip.hero_image_url} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <ImageIcon className="w-6 h-6 text-muted-foreground" strokeWidth={1.6} />
+              )}
+            </button>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="font-heading text-[26px] leading-tight text-foreground font-semibold truncate">
+                  {trip.flag_emoji && <span className="text-xl leading-none mr-1">{trip.flag_emoji}</span>}
+                  {trip.title}
+                </h1>
+                <button
+                  onClick={() => setEditing(true)}
+                  className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-foreground rounded-full hover:bg-secondary transition-colors flex-shrink-0"
+                >
+                  <Pencil className="w-3.5 h-3.5" strokeWidth={1.8} />
+                </button>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap mt-1.5">
+                <span className={`inline-flex font-body text-[11px] px-2.5 py-0.5 rounded-full border ${statusColors[trip.status || "planning"]}`}>
+                  {trip.status || "planning"}
+                </span>
+              </div>
               {(orderedCities.length > 0 || trip.country) && (
-                <div className="flex items-center gap-1 font-body text-[13px] text-muted-foreground min-w-0">
+                <div className="flex items-center gap-1 font-body text-[13px] text-muted-foreground min-w-0 mt-1.5">
                   <MapPin className="w-3 h-3 flex-shrink-0" strokeWidth={1.8} />
                   <span className="truncate">{(orderedCities.length > 0 ? orderedCities : [trip.country]).filter(Boolean).join(" → ")}</span>
                   <MapPin className="w-3 h-3 flex-shrink-0" strokeWidth={1.8} />
                 </div>
               )}
             </div>
+          </div>
 
-            {/* Trip metadata — inline */}
-            <div className="flex items-center gap-1.5 flex-wrap mt-2 font-body text-[12px] text-muted-foreground">
-              <span className="inline-flex items-center gap-1">
-                <Calendar className="w-3 h-3 flex-shrink-0" strokeWidth={1.8} />
-                {daysUntil !== null && daysUntil > 0 ? `${daysUntil} days away` : "—"}
-              </span>
-              <span className="text-muted-foreground/40">·</span>
-              <span className="inline-flex items-center gap-1">
-                <Clock className="w-3 h-3 flex-shrink-0" strokeWidth={1.8} />
-                {tripDays ? `${tripDays} days long` : "—"}
-              </span>
-              <span className="text-muted-foreground/40">·</span>
-              <span className="inline-flex items-center gap-1">
-                <MapPin className="w-3 h-3 flex-shrink-0" strokeWidth={1.8} />
-                {trip.cities?.length || 0} cities
-              </span>
-            </div>
+          {/* Trip metadata — pill badges */}
+          <div className="flex items-center gap-2 flex-wrap mt-3">
+            <span className="inline-flex items-center gap-1.5 font-body text-[12px] text-foreground bg-secondary px-3 py-1.5 rounded-full">
+              <Calendar className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.8} />
+              {daysUntil !== null && daysUntil > 0 ? `${daysUntil} days away` : "—"}
+            </span>
+            <span className="inline-flex items-center gap-1.5 font-body text-[12px] text-foreground bg-secondary px-3 py-1.5 rounded-full">
+              <Clock className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.8} />
+              {tripDays ? `${tripDays} days long` : "—"}
+            </span>
+            <span className="inline-flex items-center gap-1.5 font-body text-[12px] text-foreground bg-secondary px-3 py-1.5 rounded-full">
+              <MapPin className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.8} />
+              {trip.cities?.length || 0} cities
+            </span>
           </div>
         </div>
 

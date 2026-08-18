@@ -175,7 +175,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="px-6 md:px-10 lg:px-14 pb-5 md:pb-7 max-w-[900px] mx-auto w-full space-y-5" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1.25rem)" }}>
+    <div className="px-6 md:px-10 lg:px-14 pb-5 md:pb-7 max-w-[900px] mx-auto w-full space-y-5" style={{ paddingTop: "1.25rem" }}>
       <EditorialHero
         image={dailyImage}
         quote={dailyQuote}

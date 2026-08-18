@@ -220,7 +220,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
 
   return (
     <div className="min-h-screen bg-stone-50">
-      <div className="p-4 md:p-8 max-w-4xl mx-auto" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1.25rem)" }}>
+      <div className="p-4 md:p-8 max-w-4xl mx-auto" style={{ paddingTop: "1.25rem" }}>
         <div className="rounded-[24px] p-5 mb-6 relative overflow-hidden h-[26vh] min-h-[210px] max-h-[290px] flex flex-col" style={{ background: coverImage ? undefined : accentColor }}>
           {/* Action row — overlaid on the photo */}
           <div className="relative z-10 flex items-center justify-between mb-2">

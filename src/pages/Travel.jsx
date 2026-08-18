@@ -180,7 +180,7 @@ export default function Travel() {
   return (
     <div className="max-w-[900px] mx-auto w-full">
       {/* Page header — sticky, sized to match every other page's header */}
-      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm px-6 md:px-10 lg:px-14 pb-3 border-b border-border" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1rem)" }}>
+      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm px-6 md:px-10 lg:px-14 pb-3 border-b border-border" style={{ paddingTop: "1rem" }}>
         <div className="flex items-center justify-between">
           <h1 className="font-heading text-xl md:text-2xl text-foreground font-bold truncate">Journeys</h1>
           <div className="flex items-center gap-1">

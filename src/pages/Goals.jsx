@@ -251,7 +251,7 @@ export default function Goals() {
         {/* Add form */}
         {adding && (
           <div className="w-full max-w-3xl mx-auto">
-            <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm px-6 pb-4 border-b border-border flex items-center gap-2" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1rem)" }}>
+            <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm px-6 pb-4 border-b border-border flex items-center gap-2" style={{ paddingTop: "1rem" }}>
               <button onClick={() => setAdding(false)} className="text-muted-foreground hover:text-foreground">
                 <ArrowLeft className="w-4 h-4" />
               </button>
@@ -320,7 +320,7 @@ export default function Goals() {
           const pct = sub.length > 0 ? Math.round((doneCount / sub.length) * 100) : 0;
           return (
             <div className="w-full max-w-3xl mx-auto">
-              <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm px-6 pb-4 border-b border-border flex items-center justify-between" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1rem)" }}>
+              <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm px-6 pb-4 border-b border-border flex items-center justify-between" style={{ paddingTop: "1rem" }}>
                 <button onClick={() => setSelected(null)} className="text-muted-foreground hover:text-foreground mr-2 flex-shrink-0">
                   <ArrowLeft className="w-4 h-4" />
                 </button>
@@ -402,7 +402,7 @@ export default function Goals() {
           const td = editTaskData?.id === selectedTask.id ? editTaskData : selectedTask;
           return (
             <div className="w-full max-w-3xl mx-auto">
-              <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm px-6 pb-4 border-b border-border flex items-center justify-between" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1rem)" }}>
+              <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm px-6 pb-4 border-b border-border flex items-center justify-between" style={{ paddingTop: "1rem" }}>
                 <button onClick={() => setSelected(null)} className="text-muted-foreground hover:text-foreground mr-2 flex-shrink-0">
                   <ArrowLeft className="w-4 h-4" />
                 </button>
