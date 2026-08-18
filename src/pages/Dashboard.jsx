@@ -107,7 +107,7 @@ export default function Dashboard() {
     () => buildFocusItems({ tasks, goals, projects, finItems, trips, businessGoals, careerEntries }),
     [tasks, goals, projects, finItems, trips, businessGoals, careerEntries]
   );
-  const upNext = useMemo(() => buildUpNext({ trips, bizEntries, finItems, projects, tasks }), [trips, bizEntries, finItems, projects, tasks]);
+  const upNext = useMemo(() => buildUpNext({ trips, projects, bizEntries }), [trips, projects, bizEntries]);
   const progress = useMemo(() => buildProgress({ goals, businessGoals, trips, projects }), [goals, businessGoals, trips, projects]);
   const activity = useMemo(
     () => buildActivity({ notes, finItems, goals, trips, bizEntries, projects, careerEntries }),

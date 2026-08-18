@@ -114,7 +114,7 @@ function tripRange(t) {
   return `${format(s, "MMM d")} – ${format(e, "MMM d")}`;
 }
 
-export function buildUpNext({ trips = [], bizEntries = [], finItems = [], projects = [], tasks = [] }) {
+export function buildUpNext({ trips = [], projects = [], bizEntries = [] }) {
   const now = new Date();
   const items = [];
   trips.forEach((t) => {
@@ -139,34 +139,17 @@ export function buildUpNext({ trips = [], bizEntries = [], finItems = [], projec
       image: p.cover_image_url || null, accentColor: p.accent_color || "#A7773F",
     });
   });
-  finItems.forEach((f) => {
-    if (f.type !== "bill" || f.paid || !f.due_date) return;
-    const days = differenceInCalendarDays(parseISO(f.due_date), now);
-    if (days < -1) return;
-    items.push({
-      id: `bill-${f.id}`, title: f.name, module: "finance",
-      dateLabel: daysLabel(days) || format(parseISO(f.due_date), "MMM d"),
-      amount: f.amount, path: "/finance", _days: days,
-    });
-  });
+  // Only "Event" category business entries surface here — everything else
+  // in the business log is for record-keeping, not a date you'd want to
+  // be reminded is coming up.
   bizEntries.forEach((b) => {
-    if (!b.date) return;
+    if (b.category !== "Event" || !b.date) return;
     const days = differenceInCalendarDays(parseISO(b.date), now);
     if (days < 0) return;
     items.push({
       id: `biz-${b.id}`, title: b.name, module: "business",
       dateLabel: format(parseISO(b.date), "MMM d"), countdown: daysLabel(days) || `${days} days`,
       path: "/business", _days: days,
-    });
-  });
-  tasks.forEach((t) => {
-    if (t.completed || !t.due_date) return;
-    const days = differenceInCalendarDays(parseISO(t.due_date), now);
-    if (days < 0) return;
-    items.push({
-      id: `task-${t.id}`, title: t.title, module: categoryToModule(t.category),
-      dateLabel: daysLabel(days) || format(parseISO(t.due_date), "MMM d"), countdown: daysLabel(days) || `${days} days`,
-      path: "/goals", _days: days,
     });
   });
   items.sort((a, b) => (a._days - b._days));
