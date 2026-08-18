@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { parseISO } from "date-fns";
-import AskAssistantFab from "@/components/AskAssistantFab";
 import { Plus, Trash2, CheckCircle2, Circle, X, Calendar, ArrowLeft, Target } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ReactQuill from "react-quill";
@@ -463,7 +462,6 @@ export default function Goals() {
         )}
       </div>
     </div>
-      <AskAssistantFab />
     </>
   );
 }

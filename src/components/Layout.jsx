@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Settings, LogOut, Home, Target, Briefcase, Building2, CreditCard, Plane, FolderOpen, FileText, HelpCircle, MessageCircle, Sparkles } from "lucide-react";
 import FeedbackModal from "@/components/feedback/FeedbackModal";
 import BottomNav from "@/components/BottomNav";
+import GuiaHeader from "@/components/GuiaHeader";
 import { useAuth } from "@/lib/AuthContext";
 
 const DEFAULT_SECTION_ORDER = ["goals", "notes", "career", "business", "finance", "travel", "projects", "ai"];
@@ -144,6 +145,7 @@ export default function Layout() {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-h-0 min-w-0">
+        <GuiaHeader />
 
         <main className="flex-1 overflow-y-auto flex flex-col min-w-0">
           <div className="flex flex-col shrink-0 min-h-full min-w-0 pb-36 md:pb-0">

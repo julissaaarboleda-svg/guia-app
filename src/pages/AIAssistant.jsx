@@ -91,7 +91,10 @@ function buildTripsSection(trips) {
   if (trips.length === 0) return "";
   let ctx = `\n## Journeys (trips)\n`;
   trips.slice(0, 5).forEach(t => {
-    ctx += `- ${t.title}: ${(t.cities || []).join(" → ") || t.country || ""}, ${t.start_date || "?"} to ${t.end_date || "?"}, status: ${t.status || "planning"}\n`;
+    const daysUntil = t.start_date
+      ? Math.ceil((new Date(t.start_date + "T00:00:00") - new Date()) / (1000 * 60 * 60 * 24))
+      : null;
+    ctx += `- ${t.title}: ${(t.cities || []).join(" → ") || t.country || ""}, ${t.start_date || "?"} to ${t.end_date || "?"}${daysUntil !== null ? ` (${daysUntil} days from today)` : ""}, status: ${t.status || "planning"}\n`;
     const days = (t.itinerary || []).filter(d => d.activities && d.activities.length > 0);
     if (days.length > 0) {
       ctx += `  Planned activities:\n`;
@@ -100,6 +103,11 @@ function buildTripsSection(trips) {
           ctx += `  - ${d.date || ""}: ${a.name || a.activity || ""}${a.location ? ` (${a.location})` : ""}\n`;
         });
       });
+    }
+    const packing = t.packing_items || [];
+    if (packing.length > 0) {
+      const unpacked = packing.filter(p => !p.packed);
+      ctx += `  Packing list (${packing.filter(p => p.packed).length}/${packing.length} packed). Not yet packed: ${unpacked.map(p => p.name).join(", ") || "everything is packed"}\n`;
     }
   });
   return ctx;
@@ -168,8 +176,19 @@ ${sections.filter(Boolean).join("\n") || "(No personal data found yet — the us
 Answer naturally and concisely.`;
 }
 
+const CHAT_STORAGE_KEY = "guia:ai-chat-history";
+
+function loadStoredMessages() {
+  try {
+    const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function AIAssistant() {
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState(loadStoredMessages);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [context, setContext] = useState("");
@@ -215,6 +234,21 @@ export default function AIAssistant() {
     }
   }, [messages, loading]);
 
+  // Persist every change so leaving this page and coming back — or even a
+  // full page refresh — doesn't wipe the conversation, matching how
+  // Chapter I keeps chat history visible.
+  useEffect(() => {
+    try {
+      localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages));
+    } catch {}
+  }, [messages]);
+
+  const clearHistory = () => {
+    if (!confirm("Clear this conversation? This can't be undone.")) return;
+    setMessages([]);
+    try { localStorage.removeItem(CHAT_STORAGE_KEY); } catch {}
+  };
+
   const send = async () => {
     if (!input.trim() || loading) return;
     const userMsg = input.trim();
@@ -240,7 +274,20 @@ export default function AIAssistant() {
 
   return (
     <div className="flex flex-col h-full max-w-[800px] mx-auto w-full">
-      <PageHeader title="AI Assistant" subtitle="Ask me anything" />
+      <PageHeader
+        title="AI Assistant"
+        subtitle="Ask me anything"
+        actions={
+          messages.length > 0 && (
+            <button
+              onClick={clearHistory}
+              className="text-[12px] font-body text-muted-foreground hover:text-destructive transition-colors"
+            >
+              Clear
+            </button>
+          )
+        }
+      />
       <div className="flex-1 overflow-y-auto px-6 md:px-8 pb-4 space-y-4" ref={scrollRef}>
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center text-center py-16 text-muted-foreground">

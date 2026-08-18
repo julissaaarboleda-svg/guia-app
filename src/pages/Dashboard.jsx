@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import WelcomeModal from "@/components/WelcomeModal";
-import AskAssistantFab from "@/components/AskAssistantFab";
 import EditorialHero from "@/components/home/EditorialHero";
 import Greeting from "@/components/home/Greeting";
 import TodaysFocus from "@/components/home/TodaysFocus";
@@ -174,6 +173,10 @@ export default function Dashboard() {
 
       <Greeting dateStr={dateStr} greeting={greeting} firstName={firstName} status={dailyStatus} />
 
+      <Reveal delay={0.05}>
+        <TodaysInsight insight={ai.insight} />
+      </Reveal>
+
       <Reveal delay={0.06}>
         {loaded ? (
           <TodaysFocus items={focus.items} total={focus.total} onComplete={completeFocus} />
@@ -205,10 +208,7 @@ export default function Dashboard() {
       )}
 
       <Reveal delay={0.1}>
-        <div className="grid grid-cols-2 gap-3">
-          <TodaysInsight insight={ai.insight} />
-          <UpNext items={upNext} />
-        </div>
+        <UpNext items={upNext} />
       </Reveal>
 
       <Reveal delay={0.12}>
@@ -216,7 +216,6 @@ export default function Dashboard() {
       </Reveal>
 
       {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
-      <AskAssistantFab />
     </div>
   );
 }

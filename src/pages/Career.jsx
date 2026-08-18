@@ -6,7 +6,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import CalibrationManager from "../components/career/CalibrationManager";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
-import AskAssistantFab from "@/components/AskAssistantFab";
 import PageHeader from "@/components/PageHeader";
 import DateInput from "@/components/DateInput";
 
@@ -468,7 +467,6 @@ export default function Career() {
       </div>
     </div>
     </div>
-      <AskAssistantFab />
     </>
   );
 }

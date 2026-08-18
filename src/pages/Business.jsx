@@ -3,7 +3,6 @@ import { base44 } from "@/api/base44Client";
 import { Trash2, Edit2, X, Check, MapPin, Calendar, Target, Plus } from "lucide-react";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
-import AskAssistantFab from "@/components/AskAssistantFab";
 import PageHeader from "@/components/PageHeader";
 import DateInput from "@/components/DateInput";
 
@@ -515,7 +514,6 @@ export default function Business() {
       </div>
     </div>
     </div>
-      <AskAssistantFab />
     </>
   );
 }

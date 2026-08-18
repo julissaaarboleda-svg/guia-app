@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import TripDetail from "@/components/travel/TripDetail";
-import AskAssistantFab from "@/components/AskAssistantFab";
 import JourneyHero from "@/components/journeys/JourneyHero";
 import JourneyCard from "@/components/journeys/JourneyCard";
 import JourneyProgress from "@/components/journeys/JourneyProgress";
@@ -325,7 +324,6 @@ export default function Travel() {
         }}
         onRegenerating={(isOn) => setGeneratingFor(isOn && showCover ? showCover.id : null)}
       />
-      <AskAssistantFab />
     </div>
   );
 }

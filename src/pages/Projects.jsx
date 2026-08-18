@@ -3,7 +3,6 @@ import { base44 } from "@/api/base44Client";
 import { parseISO } from "date-fns";
 import ProjectDetail from "@/components/projects/ProjectDetail";
 import { Plus, ChevronRight, Briefcase, Trash2, Calendar } from "lucide-react";
-import AskAssistantFab from "@/components/AskAssistantFab";
 import PageHeader from "@/components/PageHeader";
 import DateInput from "@/components/DateInput";
 
@@ -255,7 +254,6 @@ export default function Projects() {
       )}
     </div>
     </div>
-      <AskAssistantFab />
     </>
   );
 }
