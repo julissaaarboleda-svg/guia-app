@@ -171,7 +171,28 @@ export default function ItineraryTab({ trip, onUpdate, cityOrder }) {
   const saveActivity = async (activity) => {
     const { dayIndex, actIndex } = activityModal;
     const { _newStopCity, ...cleanActivity } = activity;
-    const next = [...itinerary];
+    let next = [...itinerary];
+
+    // A flight has a stable pairing key so we can find and clean up its
+    // arrival-day companion entry on edit (in case dates changed) before
+    // re-adding it in the right place.
+    const isMultiDayFlight = cleanActivity.category === "flight"
+      && cleanActivity.departure?.date && cleanActivity.arrival?.date
+      && cleanActivity.departure.date !== cleanActivity.arrival.date;
+    const flightKey = cleanActivity.category === "flight"
+      ? `${cleanActivity.flightNumber || ""}-${cleanActivity.departure?.date || ""}-${cleanActivity.departure?.time || ""}`
+      : null;
+
+    if (flightKey) {
+      // Remove any previous companion entry for this same flight from every
+      // day, so editing a flight's dates doesn't leave a stale duplicate
+      // behind on whatever day it used to arrive on.
+      next = next.map((d) => ({
+        ...d,
+        activities: (d.activities || []).filter((a) => a._companionKey !== flightKey),
+      }));
+    }
+
     if (actIndex !== null) {
       next[dayIndex].activities[actIndex] = cleanActivity;
     } else {
@@ -179,6 +200,27 @@ export default function ItineraryTab({ trip, onUpdate, cityOrder }) {
     }
     // keep timed order for a clean timeline
     next[dayIndex].activities = [...next[dayIndex].activities].sort((a, b) => (a.time || "99").localeCompare(b.time || "99"));
+
+    // Overnight/multi-day flight — also place it on the arrival day, so it
+    // doesn't only show up on the day you departed.
+    if (isMultiDayFlight) {
+      const arrDayIdx = next.findIndex((d) => d.date === cleanActivity.arrival.date);
+      if (arrDayIdx !== -1) {
+        const companion = {
+          ...cleanActivity,
+          time: cleanActivity.arrival.time,
+          location: cleanActivity.arrival.city,
+          activity: `${cleanActivity.activity || "Flight"} (arrival)`,
+          _companionKey: flightKey,
+        };
+        next[arrDayIdx].activities = [...(next[arrDayIdx].activities || []), companion]
+          .sort((a, b) => (a.time || "99").localeCompare(b.time || "99"));
+      }
+      // If the arrival day genuinely isn't in the itinerary yet (outside
+      // the trip's current date range), there's nowhere to place it — the
+      // flight still saves correctly on its departure day either way.
+    }
+
     setItinerary(next);
     setActivityModal({ open: false, dayIndex: null, actIndex: null, activity: null });
     persist(next);
@@ -195,8 +237,24 @@ export default function ItineraryTab({ trip, onUpdate, cityOrder }) {
   };
 
   const removeActivity = async (dayIndex, actIndex) => {
-    const next = [...itinerary];
+    const deleted = itinerary[dayIndex]?.activities?.[actIndex];
+    let next = [...itinerary];
     next[dayIndex].activities = next[dayIndex].activities.filter((_, i) => i !== actIndex);
+
+    // If this was a multi-day flight (or its arrival-day companion), clean
+    // up the matching entry on the other day too — otherwise deleting one
+    // half leaves an orphaned card behind.
+    const key = deleted?._companionKey || (
+      deleted?.category === "flight"
+        ? `${deleted.flightNumber || ""}-${deleted.departure?.date || ""}-${deleted.departure?.time || ""}`
+        : null
+    );
+    if (key) {
+      next = next.map((d, i) => (
+        i === dayIndex ? d : { ...d, activities: (d.activities || []).filter((a) => a._companionKey !== key) }
+      ));
+    }
+
     setItinerary(next);
     persist(next);
   };
