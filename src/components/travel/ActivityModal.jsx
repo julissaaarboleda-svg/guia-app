@@ -114,7 +114,13 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
   const initRef = useRef(null);
   initRef.current = initialActivity;
 
-  const existingCities = useMemo(() => (trip?.cities || []).map(c => (c || "").toLowerCase()), [trip]);
+  // Accent-stripping normalize, matching geo-search.js's backend — without
+  // this, "São Paulo" (as typed originally) and a fresh search result could
+  // fail to match on accents alone. Also only compares the city-name part
+  // (before the first comma), since search results come back formatted as
+  // "City, State, Country" while trip.cities stores just the bare name.
+  const normalizeCity = (s) => (s || "").split(",")[0].normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+  const existingCities = useMemo(() => (trip?.cities || []).map(normalizeCity), [trip]);
 
   const dayActivities = useMemo(() => {
     if (!itinerary || !dayDate) return [];
@@ -173,8 +179,8 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
 
   // Whether the current toggle-relevant city is genuinely new (not already
   // an official trip city) — used to decide whether to even show the toggle.
-  const arrIsNewCity = arrCity && !existingCities.includes(arrCity.toLowerCase());
-  const hotelCityIsNew = location && !existingCities.includes(location.toLowerCase());
+  const arrIsNewCity = arrCity && !existingCities.includes(normalizeCity(arrCity));
+  const hotelCityIsNew = location && !existingCities.includes(normalizeCity(location));
 
   const handleSave = () => {
     let payload;
@@ -188,7 +194,7 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
         airline, flightNumber: flightNum,
         location: arrCity, name: [airline, flightNum].filter(Boolean).join(" · "), notes,
         ...(dayOptions ? { dayDate } : {}),
-        _newStopCity: arrIsNewCity && countArrivalAsStop ? arrCity : null,
+        _newStopCity: arrIsNewCity && countArrivalAsStop ? arrCity.split(",")[0].trim() : null,
       };
     } else if (category === "hotel") {
       payload = {
@@ -199,7 +205,7 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
         checkOut: { date: checkOutDate, time: checkOutTime },
         name: hotelName, address, link, location, notes,
         ...(dayOptions ? { dayDate } : {}),
-        _newStopCity: hotelCityIsNew && countHotelAsStop ? location : null,
+        _newStopCity: hotelCityIsNew && countHotelAsStop ? location.split(",")[0].trim() : null,
       };
     } else {
       payload = {
