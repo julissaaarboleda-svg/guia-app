@@ -10,7 +10,20 @@ import TodaysInsight from "@/components/home/TodaysInsight";
 import RecentActivity from "@/components/home/RecentActivity";
 import Reveal from "@/components/home/Reveal";
 import { buildFocusItems, buildUpNext, buildProgress, buildActivity, buildDigest, buildDailyStatus } from "@/lib/homeData";
-import { getHomeAi } from "@/lib/homeAi";
+// Rotating, always-instant invitation instead of an AI call — cycles
+// through in order by day, so it's not the same message every visit, but
+// never requires waiting on anything.
+const HOME_INVITATIONS = [
+  "Need help organizing your day? Ask away.",
+  "Feeling stuck on where to start? I'm here — just ask.",
+  "Want a few quick wins for today? Let's find them together.",
+  "Not sure what to prioritize? Ask and I'll help sort it out.",
+  "Have a question about your goals or tasks? I'm always listening.",
+];
+function getHomeInvitation() {
+  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+  return HOME_INVITATIONS[dayOfYear % HOME_INVITATIONS.length];
+}
 
 const HERO_IMAGES = [
   "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
@@ -108,7 +121,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!loaded) return;
     const digest = buildDigest({ goals, projects, trips, finItems, tasks, businessGoals });
-    getHomeAi(digest).then(setAi);
+    setAi({ summary: null, insight: getHomeInvitation() });
   }, [loaded, goals, projects, trips, finItems, tasks, businessGoals]);
 
   const focus = useMemo(
