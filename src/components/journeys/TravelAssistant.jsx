@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Sparkles, ArrowRight } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 // Rotating, always-instant invitation instead of an AI call — cycles
 // through in order by day. The "check your Saved places" prompt is skipped
@@ -28,13 +28,13 @@ export default function TravelAssistant({ trip, onNavigate }) {
   return (
     <Link
       to="/ai"
-      className="bg-card border border-border rounded-2xl p-3.5 flex items-center gap-3 hover:border-ring/40 transition-colors"
+      className="rounded-2xl bg-charcoal p-3.5 flex items-center gap-3 hover:opacity-90 transition-opacity"
     >
-      <span className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "#A7773F1F" }}>
-        <Sparkles className="w-4 h-4" style={{ color: "#A7773F" }} />
+      <span className="w-6 h-6 rounded-full bg-[#5A5F45] flex items-center justify-center flex-shrink-0">
+        <Sparkles className="w-3 h-3 text-white" />
       </span>
-      <p className="font-body text-[13px] text-foreground leading-snug flex-1 min-w-0">{message}</p>
-      <ArrowRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+      <p className="font-body text-[11px] leading-snug text-[#F5F1EB] flex-1 min-w-0">{message}</p>
+      <span className="flex-shrink-0 text-[#F5F1EB]/50 text-[11px] font-body">→</span>
     </Link>
   );
 }
