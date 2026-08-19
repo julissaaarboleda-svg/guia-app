@@ -32,49 +32,39 @@ const CATEGORY_TABS = [
   { key: "activity", label: "Activity", Icon: MapPin },
 ];
 
-// Shared "combined date+time" field: shows one formatted chip
-// ("Fri, Sep 3 · 5:18 PM") and expands into real date/time inputs on tap,
-// rather than two separate plain boxes.
-function DateTimeField({ label, date, time, onDateChange, onTimeChange }) {
-  return (
-    <div>
-      <label className="text-xs text-muted-foreground mb-2 block">{label}</label>
-      <div className="grid grid-cols-2 gap-2">
-        <div className="min-w-0">
-          <DateInput value={date} onChange={e => onDateChange(e.target.value)} />
-        </div>
-        <input
-          type="time"
-          value={time}
-          onChange={e => onTimeChange(e.target.value)}
-          className="w-full min-w-0 bg-muted border border-border rounded-lg px-2.5 h-10 text-sm outline-none focus:border-ring transition-colors"
-          style={{ minWidth: 0, width: "100%", maxWidth: "100%", boxSizing: "border-box", WebkitAppearance: "none", appearance: "none" }}
-        />
-      </div>
-    </div>
-  );
-}
-
-// "Count as a stop" toggle for Flight (arrival city) and Stay (hotel city) —
-// pre-checked, but always overridable, so a layover never silently becomes
-// an official trip city the way Punta Cana did during import.
-function StopToggle({ city, checked, onChange }) {
-  if (!city) return null;
+// A simple on/off switch for "does this spill into the next day" — this is
+// what actually drives the multi-day population feature now, replacing the
+// old approach of always asking for two full dates up front.
+function DaySpilloverToggle({ label, checked, onChange }) {
   return (
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className="w-full flex items-center justify-between gap-3 bg-muted border border-border rounded-lg px-3 py-2.5 text-left"
+      className="w-full flex items-center justify-between gap-3 py-2"
     >
-      <span className="text-[12.5px] text-foreground">
-        Add <span className="font-medium">{city}</span> as a stop on this trip?
-      </span>
-      <span
-        className={`relative w-9 h-5 rounded-full flex-shrink-0 transition-colors ${checked ? "bg-accent" : "bg-border"}`}
-      >
+      <span className="text-[12.5px] text-foreground">{label}</span>
+      <span className={`relative w-9 h-5 rounded-full flex-shrink-0 transition-colors ${checked ? "bg-accent" : "bg-border"}`}>
         <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-[18px]" : "translate-x-0.5"}`} />
       </span>
     </button>
+  );
+}
+
+function TimeField({ label, value, onChange }) {
+  return (
+    <div>
+      <label className="text-xs text-muted-foreground mb-2 block">{label}</label>
+      <div className="relative flex items-center bg-muted border border-border rounded-lg h-10">
+        <Clock className="absolute left-3 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
+        <input
+          type="time"
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          className="w-full min-w-0 bg-transparent border-none pl-9 pr-3 text-sm outline-none focus:border-ring h-10"
+          style={{ minWidth: 0, width: "100%", maxWidth: "100%", boxSizing: "border-box", WebkitAppearance: "none", appearance: "none" }}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -92,35 +82,26 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
   const [dayDate, setDayDate] = useState("");
   const [addrLoading, setAddrLoading] = useState(false);
 
-  // Flight-specific fields
-  const [depDate, setDepDate] = useState("");
+  // Flight-specific fields — no departure date at all (you're already on
+  // that day); arrival date only appears if "arrives next day" is on.
   const [depTime, setDepTime] = useState("");
   const [depCity, setDepCity] = useState("");
-  const [arrDate, setArrDate] = useState("");
   const [arrTime, setArrTime] = useState("");
   const [arrCity, setArrCity] = useState("");
+  const [arrivesNextDay, setArrivesNextDay] = useState(false);
+  const [arrDate, setArrDate] = useState("");
   const [airline, setAirline] = useState("");
   const [flightNum, setFlightNum] = useState("");
-  const [countArrivalAsStop, setCountArrivalAsStop] = useState(true);
 
-  // Stay-specific fields
-  const [checkInDate, setCheckInDate] = useState("");
+  // Stay-specific fields — same idea for check-in/check-out.
   const [checkInTime, setCheckInTime] = useState("");
+  const [checkOutDifferentDay, setCheckOutDifferentDay] = useState(false);
   const [checkOutDate, setCheckOutDate] = useState("");
   const [checkOutTime, setCheckOutTime] = useState("");
   const [hotelName, setHotelName] = useState("");
-  const [countHotelAsStop, setCountHotelAsStop] = useState(true);
 
   const initRef = useRef(null);
   initRef.current = initialActivity;
-
-  // Accent-stripping normalize, matching geo-search.js's backend — without
-  // this, "São Paulo" (as typed originally) and a fresh search result could
-  // fail to match on accents alone. Also only compares the city-name part
-  // (before the first comma), since search results come back formatted as
-  // "City, State, Country" while trip.cities stores just the bare name.
-  const normalizeCity = (s) => (s || "").split(",")[0].normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
-  const existingCities = useMemo(() => (trip?.cities || []).map(normalizeCity), [trip]);
 
   const dayActivities = useMemo(() => {
     if (!itinerary || !dayDate) return [];
@@ -132,25 +113,26 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
   useEffect(() => {
     if (!open) return;
     const init = initialActivity;
-    // Detect category from an existing item so editing opens the right tab
     const detectedCategory = init?.category || (init ? guessCategoryFromLegacy(init) : "activity");
     setCategory(detectedCategory);
 
     if (init) {
       setTime(init.time || ""); setActivity(init.activity || ""); setName(init.name || "");
       setLocation(init.location || ""); setAddress(init.address || ""); setLink(init.link || ""); setNotes(init.notes || "");
-      setDepDate(init.departure?.date || ""); setDepTime(init.departure?.time || ""); setDepCity(init.departure?.city || "");
-      setArrDate(init.arrival?.date || ""); setArrTime(init.arrival?.time || ""); setArrCity(init.arrival?.city || "");
+      setDepTime(init.departure?.time || init.time || ""); setDepCity(init.departure?.city || "");
+      setArrTime(init.arrival?.time || ""); setArrCity(init.arrival?.city || "");
+      setArrivesNextDay(!!init.arrival?.date); setArrDate(init.arrival?.date || "");
       setAirline(init.airline || ""); setFlightNum(init.flightNumber || "");
-      setCheckInDate(init.checkIn?.date || ""); setCheckInTime(init.checkIn?.time || "");
-      setCheckOutDate(init.checkOut?.date || ""); setCheckOutTime(init.checkOut?.time || "");
+      setCheckInTime(init.checkIn?.time || init.time || "");
+      setCheckOutDifferentDay(!!init.checkOut?.date); setCheckOutDate(init.checkOut?.date || "");
+      setCheckOutTime(init.checkOut?.time || "");
       setHotelName(init.name || "");
     } else {
       setTime(""); setActivity(""); setName(""); setLocation(""); setAddress(""); setLink(""); setNotes("");
-      setDepDate(""); setDepTime(""); setDepCity(""); setArrDate(""); setArrTime(""); setArrCity("");
+      setDepTime(""); setDepCity(""); setArrTime(""); setArrCity("");
+      setArrivesNextDay(false); setArrDate("");
       setAirline(""); setFlightNum("");
-      setCheckInDate(""); setCheckInTime(""); setCheckOutDate(""); setCheckOutTime(""); setHotelName("");
-      setCountArrivalAsStop(true); setCountHotelAsStop(true);
+      setCheckInTime(""); setCheckOutDifferentDay(false); setCheckOutDate(""); setCheckOutTime(""); setHotelName("");
     }
     if (dayOptions && dayOptions.length) {
       setDayDate(initialDayDate || init?.dayDate || dayOptions[0].date || "");
@@ -177,11 +159,6 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
   const isEdit = !!initialActivity;
   const presets = category === "restaurant" ? RESTAURANT_PRESETS : ACTIVITY_PRESETS;
 
-  // Whether the current toggle-relevant city is genuinely new (not already
-  // an official trip city) — used to decide whether to even show the toggle.
-  const arrIsNewCity = arrCity && !existingCities.includes(normalizeCity(arrCity));
-  const hotelCityIsNew = location && !existingCities.includes(normalizeCity(location));
-
   const handleSave = () => {
     let payload;
     if (category === "flight") {
@@ -189,23 +166,21 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
         category: "flight",
         activity: activity || "Flight",
         time: depTime,
-        departure: { date: depDate, time: depTime, city: depCity },
-        arrival: { date: arrDate, time: arrTime, city: arrCity },
+        departure: { time: depTime, city: depCity },
+        arrival: { time: arrTime, city: arrCity, date: arrivesNextDay ? arrDate : null },
         airline, flightNumber: flightNum,
         location: arrCity, name: [airline, flightNum].filter(Boolean).join(" · "), notes,
         ...(dayOptions ? { dayDate } : {}),
-        _newStopCity: arrIsNewCity && countArrivalAsStop ? arrCity.split(",")[0].trim() : null,
       };
     } else if (category === "hotel") {
       payload = {
         category: "hotel",
         activity: activity || "Hotel stay",
         time: checkInTime,
-        checkIn: { date: checkInDate, time: checkInTime },
-        checkOut: { date: checkOutDate, time: checkOutTime },
+        checkIn: { time: checkInTime },
+        checkOut: { time: checkOutTime, date: checkOutDifferentDay ? checkOutDate : null },
         name: hotelName, address, link, location, notes,
         ...(dayOptions ? { dayDate } : {}),
-        _newStopCity: hotelCityIsNew && countHotelAsStop ? location.split(",")[0].trim() : null,
       };
     } else {
       payload = {
@@ -272,22 +247,28 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
             <>
               <div className="space-y-3">
                 <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Departure</p>
-                <DateTimeField label="Date & time" date={depDate} time={depTime} onDateChange={setDepDate} onTimeChange={setDepTime} />
+                <TimeField label="Time" value={depTime} onChange={setDepTime} />
                 <div>
                   <label className="text-xs text-muted-foreground mb-2 block">City / Airport</label>
                   <CitySearchInput value={depCity} onChange={setDepCity} placeholder="Departure city…" />
                 </div>
               </div>
-              <div className="space-y-3 pt-2 border-t border-border">
-                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide pt-2">Arrival</p>
-                <DateTimeField label="Date & time" date={arrDate} time={arrTime} onDateChange={setArrDate} onTimeChange={setArrTime} />
+              <div className="space-y-1 pt-2 border-t border-border">
+                <DaySpilloverToggle label="Arrives the next day?" checked={arrivesNextDay} onChange={setArrivesNextDay} />
+              </div>
+              <div className="space-y-3">
+                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Arrival</p>
+                {arrivesNextDay && (
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-2 block">Arrival date</label>
+                    <DateInput value={arrDate} onChange={e => setArrDate(e.target.value)} />
+                  </div>
+                )}
+                <TimeField label="Time" value={arrTime} onChange={setArrTime} />
                 <div>
                   <label className="text-xs text-muted-foreground mb-2 block">City / Airport</label>
                   <CitySearchInput value={arrCity} onChange={setArrCity} placeholder="Arrival city…" />
                 </div>
-                {arrIsNewCity && (
-                  <StopToggle city={arrCity} checked={countArrivalAsStop} onChange={setCountArrivalAsStop} />
-                )}
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -312,8 +293,15 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
           {/* ---------------- STAY ---------------- */}
           {category === "hotel" && (
             <>
-              <DateTimeField label="Check-in" date={checkInDate} time={checkInTime} onDateChange={setCheckInDate} onTimeChange={setCheckInTime} />
-              <DateTimeField label="Check-out" date={checkOutDate} time={checkOutTime} onDateChange={setCheckOutDate} onTimeChange={setCheckOutTime} />
+              <TimeField label="Check-in time" value={checkInTime} onChange={setCheckInTime} />
+              <DaySpilloverToggle label="Check-out on a different day?" checked={checkOutDifferentDay} onChange={setCheckOutDifferentDay} />
+              {checkOutDifferentDay && (
+                <div>
+                  <label className="text-xs text-muted-foreground mb-2 block">Check-out date</label>
+                  <DateInput value={checkOutDate} onChange={e => setCheckOutDate(e.target.value)} />
+                </div>
+              )}
+              <TimeField label="Check-out time" value={checkOutTime} onChange={setCheckOutTime} />
               <div>
                 <label className="text-xs text-muted-foreground mb-2 block">Hotel name</label>
                 <input value={hotelName} onChange={e => setHotelName(e.target.value)} placeholder="Hotel name…"
@@ -323,9 +311,6 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
                 <label className="text-xs text-muted-foreground mb-2 block">City</label>
                 <CitySearchInput value={location} onChange={setLocation} placeholder="Search any city…" />
               </div>
-              {hotelCityIsNew && (
-                <StopToggle city={location} checked={countHotelAsStop} onChange={setCountHotelAsStop} />
-              )}
               <div>
                 <label className="text-xs text-muted-foreground mb-2 block">Address {addrLoading && <span className="text-muted-foreground/60">· auto-filling…</span>}</label>
                 <AddressInput value={address} onChange={setAddress} placeholder="Search or type address…" />
@@ -353,26 +338,16 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
             </>
           )}
 
-          {/* ---------------- RESTAURANT / ACTIVITY (shared shape) ---------------- */}
+          {/* ---------------- RESTAURANT / ACTIVITY (shared shape, single-day only) ---------------- */}
           {(category === "restaurant" || category === "activity") && (
             <>
-              <div>
-                <label className="text-xs text-muted-foreground mb-2 block">Time</label>
-                <div className="relative flex items-center bg-muted border border-border rounded-lg h-10">
-                  <Clock className="absolute left-3 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
-                  <input type="time" value={time} onChange={e => setTime(e.target.value)}
-                    className="w-full bg-transparent border-none pl-9 pr-3 text-sm outline-none focus:border-ring h-10 [&::-webkit-calendar-picker-indicator]:hidden" />
+              <TimeField label="Time" value={time} onChange={setTime} />
+              {dayOptions && suggested && (
+                <div className="flex items-center gap-2 -mt-3">
+                  <span className="font-body text-[11px] text-muted-foreground">Suggested window: <span className="text-foreground">{fmt12(suggested.start)} – {fmt12(suggested.end)}</span></span>
+                  <button type="button" onClick={() => setTime(suggested.start)} className="ml-auto text-[11px] text-accent hover:underline">Use start</button>
                 </div>
-                {dayOptions && suggested && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="font-body text-[11px] text-muted-foreground">Suggested window: <span className="text-foreground">{fmt12(suggested.start)} – {fmt12(suggested.end)}</span></span>
-                    <button type="button" onClick={() => setTime(suggested.start)} className="ml-auto text-[11px] text-accent hover:underline">Use start</button>
-                  </div>
-                )}
-                {dayOptions && dayActivities.length > 0 && (
-                  <p className="font-body text-[10px] text-muted-foreground mt-1">Already scheduled: {dayActivities.map(a => fmt12(a.time)).join(", ")}</p>
-                )}
-              </div>
+              )}
               <div>
                 <label className="text-xs text-muted-foreground mb-2 block">{category === "restaurant" ? "Meal" : "Activity"}</label>
                 <DropdownInput value={activity} onChange={setActivity} options={presets} placeholder={category === "restaurant" ? "Select or type meal…" : "Select or type activity…"} />
