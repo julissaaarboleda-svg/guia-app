@@ -60,7 +60,7 @@ export default function Dashboard() {
   const [projects, setProjects] = useState([]);
   const [businessGoals, setBusinessGoals] = useState([]);
   const [careerEntries, setCareerEntries] = useState([]);
-  const [ai, setAi] = useState({ summary: null, insight: null });
+  const [ai, setAi] = useState({ summary: null, insight: getHomeInvitation() });
   const [loaded, setLoaded] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
 
