@@ -86,8 +86,10 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
   // that day); arrival date only appears if "arrives next day" is on.
   const [depTime, setDepTime] = useState("");
   const [depCity, setDepCity] = useState("");
+  const [depAirportCode, setDepAirportCode] = useState("");
   const [arrTime, setArrTime] = useState("");
   const [arrCity, setArrCity] = useState("");
+  const [arrAirportCode, setArrAirportCode] = useState("");
   const [arrivesNextDay, setArrivesNextDay] = useState(false);
   const [arrDate, setArrDate] = useState("");
   const [airline, setAirline] = useState("");
@@ -120,7 +122,9 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
       setTime(init.time || ""); setActivity(init.activity || ""); setName(init.name || "");
       setLocation(init.location || ""); setAddress(init.address || ""); setLink(init.link || ""); setNotes(init.notes || "");
       setDepTime(init.departure?.time || init.time || ""); setDepCity(init.departure?.city || "");
+      setDepAirportCode(init.departure?.airportCode || "");
       setArrTime(init.arrival?.time || ""); setArrCity(init.arrival?.city || "");
+      setArrAirportCode(init.arrival?.airportCode || "");
       setArrivesNextDay(!!init.arrival?.date); setArrDate(init.arrival?.date || "");
       setAirline(init.airline || ""); setFlightNum(init.flightNumber || "");
       setCheckInTime(init.checkIn?.time || init.time || "");
@@ -129,7 +133,7 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
       setHotelName(init.name || "");
     } else {
       setTime(""); setActivity(""); setName(""); setLocation(""); setAddress(""); setLink(""); setNotes("");
-      setDepTime(""); setDepCity(""); setArrTime(""); setArrCity("");
+      setDepTime(""); setDepCity(""); setDepAirportCode(""); setArrTime(""); setArrCity(""); setArrAirportCode("");
       setArrivesNextDay(false); setArrDate("");
       setAirline(""); setFlightNum("");
       setCheckInTime(""); setCheckOutDifferentDay(false); setCheckOutDate(""); setCheckOutTime(""); setHotelName("");
@@ -166,8 +170,8 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
         category: "flight",
         activity: activity || "Flight",
         time: depTime,
-        departure: { time: depTime, city: depCity },
-        arrival: { time: arrTime, city: arrCity, date: arrivesNextDay ? arrDate : null },
+        departure: { time: depTime, city: depCity, airportCode: depAirportCode },
+        arrival: { time: arrTime, city: arrCity, airportCode: arrAirportCode, date: arrivesNextDay ? arrDate : null },
         airline, flightNumber: flightNum,
         location: arrCity, name: [airline, flightNum].filter(Boolean).join(" · "), notes,
         ...(dayOptions ? { dayDate } : {}),
@@ -248,9 +252,16 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
               <div className="space-y-3">
                 <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Departure</p>
                 <TimeField label="Time" value={depTime} onChange={setDepTime} />
-                <div>
-                  <label className="text-xs text-muted-foreground mb-2 block">City / Airport</label>
-                  <CitySearchInput value={depCity} onChange={setDepCity} placeholder="Departure city…" />
+                <div className="grid grid-cols-[1fr_84px] gap-2">
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-2 block">City</label>
+                    <CitySearchInput value={depCity} onChange={setDepCity} placeholder="Departure city…" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-2 block">Code</label>
+                    <input value={depAirportCode} onChange={e => setDepAirportCode(e.target.value.toUpperCase())} placeholder="ATL" maxLength={4}
+                      className="w-full bg-muted border border-border rounded-lg px-2 h-10 text-sm text-center uppercase outline-none focus:border-ring transition-colors" />
+                  </div>
                 </div>
               </div>
               <div className="space-y-1 pt-2 border-t border-border">
@@ -265,9 +276,16 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
                   </div>
                 )}
                 <TimeField label="Time" value={arrTime} onChange={setArrTime} />
-                <div>
-                  <label className="text-xs text-muted-foreground mb-2 block">City / Airport</label>
-                  <CitySearchInput value={arrCity} onChange={setArrCity} placeholder="Arrival city…" />
+                <div className="grid grid-cols-[1fr_84px] gap-2">
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-2 block">City</label>
+                    <CitySearchInput value={arrCity} onChange={setArrCity} placeholder="Arrival city…" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-2 block">Code</label>
+                    <input value={arrAirportCode} onChange={e => setArrAirportCode(e.target.value.toUpperCase())} placeholder="MIA" maxLength={4}
+                      className="w-full bg-muted border border-border rounded-lg px-2 h-10 text-sm text-center uppercase outline-none focus:border-ring transition-colors" />
+                  </div>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
