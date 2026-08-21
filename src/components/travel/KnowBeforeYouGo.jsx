@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Sun, DollarSign, Train, IdCard as Passport, ShieldCheck, X } from "lucide-react";
+import { Sun, DollarSign, Train, IdCard as Passport, ShieldCheck, X, ExternalLink } from "lucide-react";
 import { getTripWeather } from "@/lib/packingAi";
 
 const CARDS = [
@@ -105,6 +105,16 @@ export default function KnowBeforeYouGo({ trip, know, loading, error }) {
               <>
                 <p className="font-body text-sm text-foreground font-medium mb-1">{data?.summary || "—"}</p>
                 <p className="font-body text-sm text-muted-foreground leading-relaxed">{data?.detail || ""}</p>
+                {data?.searchUrl && (
+                  <a
+                    href={data.searchUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 mt-3 font-body text-sm font-medium text-accent hover:underline"
+                  >
+                    Check current official guidance <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                )}
               </>
             )}
           </div>
