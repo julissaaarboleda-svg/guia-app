@@ -1,40 +1,72 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Sparkles } from "lucide-react";
+import { Sparkles, ArrowRight } from "lucide-react";
+import { base44 } from "@/api/base44Client";
+import { computeSignature } from "@/lib/packingAi";
+import { generateTravelTip } from "@/lib/travelTip";
 
-// Rotating, always-instant invitation instead of an AI call — cycles
-// through in order by day. The "check your Saved places" prompt is skipped
-// entirely if the trip already has saved places, so it's not suggesting
-// something that's already been done.
-const BASE_INVITATIONS = [
-  "Need recommendations for new places? Check the Saved tab, or just ask me.",
-  "Not sure what to pack? Ask me for a hand.",
-  "Want ideas for a free afternoon? I can help you plan it.",
-  "Curious what's nearby? Ask me, or explore your Saved spots.",
-  "Need help budgeting for this trip? I'm here for that too.",
-];
+// Static fallback shown only if generation genuinely fails (e.g. Gemini is
+// temporarily overloaded) — never shown by default anymore, unlike the old
+// always-static version of this card.
+const FALLBACK_TIP = "Want ideas for a free afternoon? I can help you plan it.";
 
-function getTravelInvitation(trip) {
-  const hasSavedPlaces = (trip?.about_info?.hot_spots || []).length > 0;
-  const pool = hasSavedPlaces
-    ? BASE_INVITATIONS.filter((m) => !m.toLowerCase().includes("saved"))
-    : BASE_INVITATIONS;
-  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
-  return pool[dayOfYear % pool.length];
-}
+export default function TravelAssistant({ trip }) {
+  const [tip, setTip] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-export default function TravelAssistant({ trip, onNavigate }) {
-  const message = getTravelInvitation(trip);
+  useEffect(() => {
+    if (!trip) return;
+    let alive = true;
+
+    const signature = computeSignature(trip);
+    const saved = trip.travel_tip;
+
+    // Cached on the trip itself — instant load, works across devices, and
+    // only regenerates when something meaningful about the trip changes.
+    if (saved && saved.signature === signature && saved.tip) {
+      setTip(saved.tip);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    generateTravelTip(trip)
+      .then((result) => {
+        if (!alive) return;
+        if (result.tip) {
+          setTip(result.tip);
+          setLoading(false);
+          base44.entities.Trip.update(trip.id, { travel_tip: result }).catch((err) =>
+            console.error("Failed to save travel_tip to trip:", err)
+          );
+        } else {
+          setTip(FALLBACK_TIP);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.error("generateTravelTip failed:", err);
+        if (alive) {
+          setTip(FALLBACK_TIP);
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [trip?.id]);
 
   return (
     <Link
       to="/ai"
-      className="rounded-2xl bg-charcoal p-3.5 flex items-center gap-3 hover:opacity-90 transition-opacity"
+      className="w-full bg-foreground text-background rounded-2xl px-4 py-3.5 flex items-center gap-2.5 hover:opacity-90 transition-opacity"
     >
-      <span className="w-6 h-6 rounded-full bg-[#5A5F45] flex items-center justify-center flex-shrink-0">
-        <Sparkles className="w-3 h-3 text-white" />
+      <Sparkles className="w-4 h-4 flex-shrink-0" style={{ color: "#A7773F" }} />
+      <span className="font-body text-[13px] flex-1 min-w-0 leading-snug">
+        {loading ? "Thinking about your trip…" : tip}
       </span>
-      <p className="font-body text-[11px] leading-snug text-[#F5F1EB] flex-1 min-w-0">{message}</p>
-      <span className="flex-shrink-0 text-[#F5F1EB]/50 text-[11px] font-body">→</span>
+      <ArrowRight className="w-4 h-4 flex-shrink-0 opacity-70" />
     </Link>
   );
 }
