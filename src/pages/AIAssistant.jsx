@@ -208,15 +208,18 @@ export default function AIAssistant() {
   // pages when changed to accommodate this one. Finding the nearest <main>
   // gives the true scrollable viewport regardless of how Layout is styled.
   useEffect(() => {
-    const updateHeight = () => {
-      const mainEl = containerRef.current?.closest("main");
-      if (mainEl) setContainerHeight(mainEl.clientHeight);
-    };
+    const mainEl = containerRef.current?.closest("main");
+    if (!mainEl) return;
+    const updateHeight = () => setContainerHeight(mainEl.clientHeight);
     updateHeight();
-    window.addEventListener("resize", updateHeight);
+    // ResizeObserver catches ANY change to main's actual rendered size —
+    // not just window resizes — including the header settling to its final
+    // height after user data loads, which a plain resize listener misses.
+    const ro = new ResizeObserver(updateHeight);
+    ro.observe(mainEl);
     window.visualViewport?.addEventListener("resize", updateHeight);
     return () => {
-      window.removeEventListener("resize", updateHeight);
+      ro.disconnect();
       window.visualViewport?.removeEventListener("resize", updateHeight);
     };
   }, []);
