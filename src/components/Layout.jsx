@@ -148,7 +148,7 @@ export default function Layout() {
         <GuiaHeader />
 
         <main className="flex-1 overflow-y-auto flex flex-col min-w-0">
-          <div className="flex flex-col shrink-0 min-h-full min-w-0 pb-36 md:pb-0">
+          <div className="flex flex-col shrink-0 h-full min-w-0 pb-36 md:pb-0">
             <Outlet />
           </div>
         </main>
