@@ -51,7 +51,7 @@ export default function TimelineCard({ activity, onEdit, onDelete, onAddToMemori
             <Icon className="w-[13px] h-[13px]" strokeWidth={1.8} style={{ color, lineHeight: 1 }} />
           )}
         </div>
-        {!isLast && <div className="w-px h-3 bg-border/70 mt-1" />}
+        {!isLast && <div className="w-px flex-1 mt-1.5 border-l border-dotted border-accent/50" />}
       </div>
 
       {/* Card */}
