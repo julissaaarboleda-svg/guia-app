@@ -124,9 +124,33 @@ export default function Travel() {
     if (!city) { setKnowData(null); return; }
     const cached = getCachedExplore(cur.id, city);
     if (cached?.know) { setKnowData(cached.know); setKnowLoading(false); setKnowError(false); return; }
+    // Second-level cache: saved on the trip itself, so once any device
+    // successfully generates this, every device (and every future reload)
+    // loads it instantly with no AI call at all.
+    const saved = cur.explore_know;
+    if (saved && saved.city === city && saved.know) {
+      setKnowData(saved.know);
+      setKnowLoading(false);
+      setKnowError(false);
+      setCachedExplore(cur.id, city, { know: saved.know });
+      return;
+    }
     setKnowLoading(true); setKnowData(null); setKnowError(false);
     generateHappeningAndKnow(cur, city)
-      .then((r) => { if (!alive) return; setKnowData(r?.know || null); setKnowLoading(false); if (r?.know) setCachedExplore(cur.id, city, { know: r.know }); })
+      .then((r) => {
+        if (!alive) return;
+        setKnowData(r?.know || null);
+        setKnowLoading(false);
+        if (r?.know) {
+          setCachedExplore(cur.id, city, { know: r.know });
+          const payload = { city, know: r.know, generatedAt: Date.now() };
+          base44.entities.Trip.update(cur.id, { explore_know: payload })
+            .then((updated) => {
+              setTrips((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+            })
+            .catch((err) => console.error("Failed to save explore_know to trip:", err));
+        }
+      })
       .catch((err) => { console.error("generateHappeningAndKnow failed:", err); if (alive) { setKnowLoading(false); setKnowError(true); } });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
