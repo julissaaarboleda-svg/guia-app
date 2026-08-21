@@ -178,6 +178,12 @@ Answer naturally and concisely.`;
 
 const CHAT_STORAGE_KEY = "guia:ai-chat-history";
 
+// How many prior messages (user + assistant combined) get sent to Gemini as
+// context on each new question. The full conversation still lives in state
+// and localStorage for display — this only limits what's re-sent as input,
+// so token cost (and $) stays flat instead of growing with every message.
+const MAX_CONTEXT_MESSAGES = 8;
+
 function loadStoredMessages() {
   try {
     const raw = localStorage.getItem(CHAT_STORAGE_KEY);
@@ -258,7 +264,8 @@ export default function AIAssistant() {
     setLoading(true);
 
     try {
-      const conversation = newMessages
+      const recentMessages = newMessages.slice(-MAX_CONTEXT_MESSAGES);
+      const conversation = recentMessages
         .map(m => m.role === "user" ? `User: ${m.content}` : `Assistant: ${m.content}`)
         .join("\n\n");
 
