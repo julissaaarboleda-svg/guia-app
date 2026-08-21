@@ -13,7 +13,7 @@ import CoverCustomizer from "@/components/journeys/CoverCustomizer";
 import KnowBeforeYouGo from "@/components/travel/KnowBeforeYouGo";
 import { Plus, Search, Plane } from "lucide-react";
 import { parseISO } from "date-fns";
-import { computePlanningProgress, generateCover } from "@/lib/journeyAi";
+import { computePlanningProgress } from "@/lib/journeyAi";
 import { generateHappeningAndKnow, getCachedExplore, setCachedExplore } from "@/lib/exploreAi";
 
 export default function Travel() {
