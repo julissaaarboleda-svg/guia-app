@@ -1,19 +1,6 @@
 import { parseISO } from "date-fns";
 import { base44 } from "@/api/base44Client";
 
-export const COVER_STYLES = [
-  { id: "editorial", label: "Editorial", modifier: "editorial magazine photography, refined composition, natural light, aspirational" },
-  { id: "luxury", label: "Luxury", modifier: "ultra-luxury hotel magazine aesthetic, opulent interiors, warm golden-hour lighting" },
-  { id: "minimal", label: "Minimal", modifier: "minimalist fine-art photography, quiet negative space, muted palette, serene" },
-  { id: "vintage", label: "Vintage Film", modifier: "analog film grain, faded warm tones, 1970s travel-poster mood" },
-  { id: "cinematic", label: "Cinematic", modifier: "cinematic wide-frame, dramatic depth, soft cinematic color grading" },
-  { id: "mediterranean", label: "Mediterranean", modifier: "Mediterranean summer light, terracotta and cream, breezy coastal calm" },
-  { id: "tropical", label: "Tropical", modifier: "tropical paradise, lush foliage, sun-drenched warm tropical palette" },
-  { id: "scandinavian", label: "Scandinavian", modifier: "Scandinavian simplicity, wooden architecture, soft Nordic daylight" },
-];
-
-export const getStyle = (id) => COVER_STYLES.find((s) => s.id === id) || COVER_STYLES[0];
-
 export function getSeason(dateStr) {
   if (!dateStr) return null;
   const m = parseISO(dateStr).getMonth();
@@ -21,19 +8,6 @@ export function getSeason(dateStr) {
   if (m >= 5 && m <= 7) return "summer";
   if (m >= 8 && m <= 10) return "autumn";
   return "winter";
-}
-
-export function buildCoverPrompt(trip, styleId) {
-  const dest = [trip.country, ...(trip.cities || [])].filter(Boolean).join(", ") || trip.title;
-  const season = getSeason(trip.start_date);
-  const style = getStyle(styleId);
-  return `Luxury editorial magazine cover photograph of ${dest}. ${season ? season + " season" : ""}. ${style.modifier}. Golden-hour lighting, warm cinematic color grading, rich shadows, premium editorial composition, luxury travel photography, minimal visual clutter, subtle atmospheric haze, magazine-quality framing. Favor open foreground or open sky with natural breathing room. Avoid bright midday lighting, stock photography, tourist snapshots, busy skylines, landmarks competing with text, overexposed beaches, overly saturated colors. No text, no watermark, no people. Landscape orientation, high-resolution editorial quality.`;
-}
-
-export async function generateCover(trip, styleId) {
-  const prompt = buildCoverPrompt(trip, styleId);
-  const { url } = await base44.integrations.Core.GenerateImage({ prompt });
-  return url;
 }
 
 export function computePlanningProgress(trip) {
