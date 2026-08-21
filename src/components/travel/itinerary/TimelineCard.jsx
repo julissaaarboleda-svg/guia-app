@@ -23,9 +23,6 @@ function shortLocation(str) {
 export default function TimelineCard({ activity, onEdit, onDelete, onAddToMemories, isLast }) {
   const { Icon, color, key } = getActivityType(activity);
   const typeLabel = { flight: "Flight", hotel: "Stay", restaurant: "Restaurant", activity: "Activity", note: "Note" }[key] || "Activity";
-  // Shows the real photo when this item is linked to a saved place with an
-  // image, instead of the generic type icon — falls back gracefully if
-  // none of these fields are present.
   const savedImage = activity.image_url || activity.photo_url || activity.image || null;
 
   const depTime = activity.departure?.time ? formatTime(activity.departure.time) : null;
@@ -42,7 +39,7 @@ export default function TimelineCard({ activity, onEdit, onDelete, onAddToMemori
 
   return (
     <div className="relative flex gap-2.5">
-      {/* Icon + connector line */}
+      {/* Icon + short connector line (only between this icon and the next, not a full-height rail) */}
       <div className="flex flex-col items-center flex-shrink-0">
         <div
           className="w-7 h-7 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 mt-0.5"
@@ -54,7 +51,7 @@ export default function TimelineCard({ activity, onEdit, onDelete, onAddToMemori
             <Icon className="w-[13px] h-[13px]" strokeWidth={1.8} style={{ color, lineHeight: 1 }} />
           )}
         </div>
-        {!isLast && <div className="w-px flex-1 bg-border my-1" />}
+        {!isLast && <div className="w-px h-3 bg-border/70 mt-1" />}
       </div>
 
       {/* Card */}
