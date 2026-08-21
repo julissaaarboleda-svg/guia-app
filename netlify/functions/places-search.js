@@ -31,12 +31,14 @@ const CATEGORY_QUERIES = {
 };
 
 function priceLevelToSymbol(level) {
-  if (level === 0) return "";
-  if (level === 1) return "$";
-  if (level === 2) return "$$";
-  if (level === 3) return "$$$";
-  if (level === 4) return "$$$$";
-  return "";
+  const map = {
+    PRICE_LEVEL_FREE: "",
+    PRICE_LEVEL_INEXPENSIVE: "$",
+    PRICE_LEVEL_MODERATE: "$$",
+    PRICE_LEVEL_EXPENSIVE: "$$$",
+    PRICE_LEVEL_VERY_EXPENSIVE: "$$$$",
+  };
+  return map[level] || "";
 }
 
 function guessNeighborhood(address) {
@@ -56,26 +58,33 @@ function badgeFor(rating, reviewCount) {
 
 async function searchCategory(apiKey, city, country, category, count) {
   const phrase = CATEGORY_QUERIES[category] || `${category} in`;
-  const query = `${phrase} ${city}${country ? ", " + country : ""}`;
-  const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${apiKey}`;
+  const textQuery = `${phrase} ${city}${country ? ", " + country : ""}`;
 
-  const res = await fetch(url);
+  const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": apiKey,
+      "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.priceLevel,places.websiteUri",
+    },
+    body: JSON.stringify({ textQuery, maxResultCount: Math.min(count, 20) }),
+  });
   const data = await res.json();
-  if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
-    throw new Error(`Places API error for "${category}": ${data.status} ${data.error_message || ""}`);
+  if (!res.ok) {
+    throw new Error(`Places API error for "${category}": ${data?.error?.message || res.status}`);
   }
 
-  return (data.results || []).slice(0, count).map((place) => ({
-    name: place.name,
+  return (data.places || []).slice(0, count).map((place) => ({
+    name: place.displayName?.text || "",
     category,
-    aiBadge: badgeFor(place.rating || 0, place.user_ratings_total || 0),
-    description: place.formatted_address || "",
-    neighborhood: guessNeighborhood(place.formatted_address),
+    aiBadge: badgeFor(place.rating || 0, place.userRatingCount || 0),
+    description: place.formattedAddress || "",
+    neighborhood: guessNeighborhood(place.formattedAddress),
     rating: place.rating || null,
-    reviewCount: place.user_ratings_total || 0,
-    price: priceLevelToSymbol(place.price_level),
-    website: "", // Text Search doesn't include website — would need a separate Place Details call
-    place_id: place.place_id,
+    reviewCount: place.userRatingCount || 0,
+    price: priceLevelToSymbol(place.priceLevel),
+    website: place.websiteUri || "",
+    place_id: place.id,
   }));
 }
 
