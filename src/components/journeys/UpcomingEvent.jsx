@@ -19,6 +19,15 @@ function shortLocation(str) {
   return str;
 }
 
+function formatTime12(t) {
+  if (!t) return null;
+  const [h, m] = t.split(":").map(Number);
+  if (isNaN(h)) return t;
+  const period = h >= 12 ? "PM" : "AM";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:${String(m || 0).padStart(2, "0")} ${period}`;
+}
+
 export default function UpcomingEvent({ trip, onNavigate }) {
   const [expanded, setExpanded] = useState(false);
   const now = new Date();
@@ -34,11 +43,26 @@ export default function UpcomingEvent({ trip, onNavigate }) {
     const acts = [...(day.activities || [])].sort((a, b) => (a.time || "99").localeCompare(b.time || "99"));
     if (acts.length > 0) {
       acts.forEach((act) => {
-        events.push({
-          date: day._d,
-          title: act.name || act.activity || day.title || trip.title,
-          subtitle: shortLocation(act.location) || (trip.cities || [])[0] || trip.country,
-        });
+        // Flights carry departure/arrival objects (same shape TimelineCard
+        // uses) — when present, show the real route + times instead of a
+        // generic single-location subtitle.
+        const isFlight = act.departure?.city || act.arrival?.city;
+        if (isFlight) {
+          events.push({
+            date: day._d,
+            isFlight: true,
+            title: [act.airline, act.flightNumber].filter(Boolean).join(" · ") || "Flight",
+            route: [shortLocation(act.departure?.city), shortLocation(act.arrival?.city)].filter(Boolean).join(" → "),
+            depTime: formatTime12(act.departure?.time),
+            arrTime: formatTime12(act.arrival?.time),
+          });
+        } else {
+          events.push({
+            date: day._d,
+            title: act.name || act.activity || day.title || trip.title,
+            subtitle: shortLocation(act.location) || (trip.cities || [])[0] || trip.country,
+          });
+        }
       });
     } else if (day.title) {
       events.push({ date: day._d, title: day.title, subtitle: (trip.cities || [])[0] || trip.country });
@@ -71,22 +95,37 @@ export default function UpcomingEvent({ trip, onNavigate }) {
       <div className="bg-card border border-border/50 rounded-[18px] overflow-hidden">
         {shown.map((ev, i) => {
           const daysUntil = Math.ceil((ev.date - now) / (1000 * 60 * 60 * 24));
-          const Icon = iconForEvent(ev.title);
+          const Icon = ev.isFlight ? Plane : iconForEvent(ev.title);
+          const isLast = i === shown.length - 1;
           return (
             <div
               key={i}
               className={`flex items-center gap-4 p-4 ${i > 0 ? "border-t border-border/40" : ""}`}
             >
-              <div className="flex flex-col items-center justify-center w-14 h-14 rounded-[12px] bg-[#F4EFE7] flex-shrink-0">
-                <span className="font-body text-[9px] uppercase tracking-wider text-muted-foreground leading-none">{format(ev.date, "MMM")}</span>
-                <span className="font-heading text-[20px] text-foreground font-semibold leading-none mt-1">{format(ev.date, "d")}</span>
+              <div className="flex flex-col items-center flex-shrink-0 self-stretch">
+                <div className="flex flex-col items-center justify-center w-14 h-14 rounded-[12px] bg-[#F4EFE7] flex-shrink-0">
+                  <span className="font-body text-[9px] uppercase tracking-wider text-muted-foreground leading-none">{format(ev.date, "MMM")}</span>
+                  <span className="font-heading text-[20px] text-foreground font-semibold leading-none mt-1">{format(ev.date, "d")}</span>
+                </div>
+                {!isLast && <div className="w-px flex-1 mt-1.5 border-l border-dotted border-accent/50" />}
               </div>
               <span className="w-9 h-9 rounded-full bg-[#F4EFE7] flex items-center justify-center flex-shrink-0">
                 <Icon className="w-4 h-4 text-foreground" strokeWidth={1.6} />
               </span>
               <div className="flex-1 min-w-0">
                 <p className="font-body text-[14px] text-foreground font-medium leading-tight truncate">{ev.title}</p>
-                {ev.subtitle && <p className="font-body text-[12px] text-muted-foreground mt-0.5 truncate">{ev.subtitle}</p>}
+                {ev.isFlight ? (
+                  <>
+                    {ev.route && <p className="font-body text-[12px] text-muted-foreground mt-0.5 truncate">{ev.route}</p>}
+                    {(ev.depTime || ev.arrTime) && (
+                      <p className="font-body text-[11.5px] text-accent mt-0.5 truncate">
+                        {ev.depTime && `Departs ${ev.depTime}`}{ev.depTime && ev.arrTime && " · "}{ev.arrTime && `Arrives ${ev.arrTime}`}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  ev.subtitle && <p className="font-body text-[12px] text-muted-foreground mt-0.5 truncate">{ev.subtitle}</p>
+                )}
                 <span className="inline-block mt-1.5 font-body text-[10px] text-olive bg-[#EFE9DF] px-2 py-0.5 rounded-full">
                   {daysUntil > 0 ? `In ${daysUntil} Day${daysUntil > 1 ? "s" : ""}` : "Today"}
                 </span>
