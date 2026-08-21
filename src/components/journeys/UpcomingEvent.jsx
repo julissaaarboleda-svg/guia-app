@@ -9,6 +9,16 @@ function iconForEvent(text) {
   return CalendarClock;
 }
 
+// Locations are often stored as the full "City, State, Country" string from
+// the search picker — too long for this card's single-line subtitle, so
+// trim to "City, State" (or just "City") the same way TimelineCard does.
+function shortLocation(str) {
+  if (!str) return str;
+  const parts = str.split(",").map((s) => s.trim()).filter(Boolean);
+  if (parts.length >= 3) return `${parts[0]}, ${parts[1]}`;
+  return str;
+}
+
 export default function UpcomingEvent({ trip, onNavigate }) {
   const [expanded, setExpanded] = useState(false);
   const now = new Date();
@@ -27,7 +37,7 @@ export default function UpcomingEvent({ trip, onNavigate }) {
         events.push({
           date: day._d,
           title: act.name || act.activity || day.title || trip.title,
-          subtitle: act.location || (trip.cities || [])[0] || trip.country,
+          subtitle: shortLocation(act.location) || (trip.cities || [])[0] || trip.country,
         });
       });
     } else if (day.title) {
