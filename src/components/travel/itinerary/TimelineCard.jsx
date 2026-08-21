@@ -8,6 +8,18 @@ function fmtDate(d) {
   return dt.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+// Flight departure/arrival cities are often stored as the full
+// "City, State, Country" string from the search picker. That's too long to
+// sit on one row next to an arrow icon, so trim it down to "City, State"
+// (or just "City" if that's all there is) for display purposes only — the
+// full value stays untouched in the data.
+function shortLocation(str) {
+  if (!str) return str;
+  const parts = str.split(",").map((s) => s.trim()).filter(Boolean);
+  if (parts.length >= 3) return `${parts[0]}, ${parts[1]}`;
+  return str;
+}
+
 export default function TimelineCard({ activity, onEdit, onDelete, onAddToMemories, isLast }) {
   const { Icon, color, key } = getActivityType(activity);
   const typeLabel = { flight: "Flight", hotel: "Stay", restaurant: "Restaurant", activity: "Activity", note: "Note" }[key] || "Activity";
@@ -63,7 +75,7 @@ export default function TimelineCard({ activity, onEdit, onDelete, onAddToMemori
               <div className="flex items-center gap-1.5 flex-wrap">
                 {activity.departure?.city && (
                   <span className="font-body text-[13px] font-semibold" style={{ color }}>
-                    {activity.departure.city}{depCode && <span className="font-body text-[11px] text-muted-foreground font-normal ml-1">{depCode}</span>}
+                    {shortLocation(activity.departure.city)}{depCode && <span className="font-body text-[11px] text-muted-foreground font-normal ml-1">{depCode}</span>}
                   </span>
                 )}
                 {activity.departure?.city && activity.arrival?.city && (
@@ -71,7 +83,7 @@ export default function TimelineCard({ activity, onEdit, onDelete, onAddToMemori
                 )}
                 {activity.arrival?.city && (
                   <span className="font-body text-[13px] font-semibold" style={{ color }}>
-                    {activity.arrival.city}{arrCode && <span className="font-body text-[11px] text-muted-foreground font-normal ml-1">{arrCode}</span>}
+                    {shortLocation(activity.arrival.city)}{arrCode && <span className="font-body text-[11px] text-muted-foreground font-normal ml-1">{arrCode}</span>}
                   </span>
                 )}
               </div>
