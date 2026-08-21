@@ -15,7 +15,7 @@ const CARDS = [
 // same trip's weather, sometimes with different numbers. Now this card reuses
 // Packing's shared, cached forecast (getTripWeather) instead of generating its
 // own. generateHappeningAndKnow() no longer asks the model for weather at all.
-export default function KnowBeforeYouGo({ trip, know, loading }) {
+export default function KnowBeforeYouGo({ trip, know, loading, error }) {
   const [open, setOpen] = useState(null);
   const [weather, setWeather] = useState(null);
   const [weatherLoading, setWeatherLoading] = useState(true);
@@ -47,6 +47,7 @@ export default function KnowBeforeYouGo({ trip, know, loading }) {
           const d = isWeather ? null : (know ? know[c.id] : null);
           const isLoading = isWeather ? weatherLoading : loading;
           const summary = isWeather ? weatherSummary : d?.summary;
+          const failed = !isWeather && error && !isLoading && !summary;
           return (
             <button
               key={c.id}
@@ -57,8 +58,8 @@ export default function KnowBeforeYouGo({ trip, know, loading }) {
                 <c.Icon className="w-3 h-3 text-accent" strokeWidth={1.8} />
               </div>
               <p className="font-body text-[11px] text-foreground font-semibold leading-tight">{c.title}</p>
-              <p className="font-body text-[10px] text-muted-foreground mt-0.5 leading-tight line-clamp-2">
-                {isLoading || !summary ? "—" : summary}
+              <p className={`font-body text-[10px] mt-0.5 leading-tight line-clamp-2 ${failed ? "text-destructive" : "text-muted-foreground"}`}>
+                {isLoading ? "—" : failed ? "Unavailable, tap to retry" : summary || "—"}
               </p>
             </button>
           );
@@ -98,6 +99,8 @@ export default function KnowBeforeYouGo({ trip, know, loading }) {
               ) : (
                 <p className="font-body text-sm text-muted-foreground">No forecast yet — see the Packing tab.</p>
               )
+            ) : error && !data ? (
+              <p className="font-body text-sm text-muted-foreground">Couldn't load this right now — close and reopen this card to try again.</p>
             ) : (
               <>
                 <p className="font-body text-sm text-foreground font-medium mb-1">{data?.summary || "—"}</p>
