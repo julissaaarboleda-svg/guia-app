@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { Send, Sparkles } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
@@ -207,7 +207,7 @@ export default function AIAssistant() {
   // height all the way down, which is fragile and previously broke other
   // pages when changed to accommodate this one. Finding the nearest <main>
   // gives the true scrollable viewport regardless of how Layout is styled.
-  useEffect(() => {
+  useLayoutEffect(() => {
     const mainEl = containerRef.current?.closest("main");
     if (!mainEl) return;
     const updateHeight = () => setContainerHeight(mainEl.clientHeight);
