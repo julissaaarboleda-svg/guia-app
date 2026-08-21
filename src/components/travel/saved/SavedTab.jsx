@@ -30,38 +30,44 @@ export default function SavedTab({ trip, onUpdate, cityOrder }) {
   const [itinModal, setItinModal] = useState({ open: false, item: null });
 
   useEffect(() => {
-    if (!city) return;
-    let alive = true;
-    setCategory("all"); setPrice("all"); setFailed(false);
-    const cached = getCachedTopPicks(trip.id, city);
-    // Stale-while-revalidate: show cached picks instantly, refresh silently if stale.
-    if (cached && cached.length) {
-      setPicks(cached);
-      setLoading(false);
-      if (getCacheAge(trip.id, city) > STALE_MS) {
-        generateTopPicks(trip, city)
-          .then((res) => { if (!alive) return; const list = res?.picks || []; if (list.length) { setPicks(list); setCachedTopPicks(trip.id, city, list); } })
-          .catch(() => {});
-      }
-      return () => { alive = false; };
-    }
-    setLoading(true); setPicks(null);
-    generateTopPicks(trip, city)
-      .then((res) => { if (!alive) return; const list = res?.picks || []; setPicks(list); setLoading(false); setFailed(!list.length); if (list.length) setCachedTopPicks(trip.id, city, list); })
-      .catch(() => { if (alive) { setPicks(null); setLoading(false); setFailed(true); } });
-    return () => { alive = false; };
-  }, [trip.id, city]);
-
-  const refreshPicks = async () => {
-    setRefreshing(true); setFailed(false);
-    try { const res = await generateTopPicks(trip, city); const list = res?.picks || []; setPicks(list); setFailed(!list.length); if (list.length) setCachedTopPicks(trip.id, city, list); }
-    catch { setFailed(true); } finally { setRefreshing(false); }
-  };
+    setCategory("all");
+  }, [city]);
 
   const wishItems = trip.wish_list?.items || [];
   const cityItems = wishItems.filter((i) => !i.city || i.city === city);
   const savedNames = new Set(cityItems.map((i) => (i.name || "").toLowerCase()));
   const isSaved = (pick) => savedNames.has((pick.name || "").toLowerCase());
+  const excludeNamesList = cityItems.map((i) => i.name).filter(Boolean);
+
+  useEffect(() => {
+    if (!city) return;
+    let alive = true;
+    setPrice("all"); setNearItin(false); setFailed(false);
+    const cached = getCachedTopPicks(trip.id, city, category);
+    // Stale-while-revalidate: show cached picks instantly, refresh silently if stale.
+    if (cached && cached.length) {
+      setPicks(cached);
+      setLoading(false);
+      if (getCacheAge(trip.id, city, category) > STALE_MS) {
+        generateTopPicks(trip, city, { category, excludeNames: excludeNamesList })
+          .then((res) => { if (!alive) return; const list = res?.picks || []; if (list.length) { setPicks(list); setCachedTopPicks(trip.id, city, list, category); } })
+          .catch(() => {});
+      }
+      return () => { alive = false; };
+    }
+    setLoading(true); setPicks(null);
+    generateTopPicks(trip, city, { category, excludeNames: excludeNamesList })
+      .then((res) => { if (!alive) return; const list = res?.picks || []; setPicks(list); setLoading(false); setFailed(!list.length); if (list.length) setCachedTopPicks(trip.id, city, list, category); })
+      .catch(() => { if (alive) { setPicks(null); setLoading(false); setFailed(true); } });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trip.id, city, category]);
+
+  const refreshPicks = async () => {
+    setRefreshing(true); setFailed(false);
+    try { const res = await generateTopPicks(trip, city, { category, excludeNames: excludeNamesList }); const list = res?.picks || []; setPicks(list); setFailed(!list.length); if (list.length) setCachedTopPicks(trip.id, city, list, category); }
+    catch { setFailed(true); } finally { setRefreshing(false); }
+  };
 
   const persistWish = async (items) => {
     const updated = await base44.entities.Trip.update(trip.id, { wish_list: { ...(trip.wish_list || {}), items } });
@@ -135,7 +141,6 @@ export default function SavedTab({ trip, onUpdate, cityOrder }) {
   const filteredPicks = useMemo(() => {
     if (!picks) return picks;
     let list = picks;
-    if (category !== "all") list = list.filter((p) => (p.category || "").toLowerCase() === category);
     if (price !== "all") list = list.filter((p) => (p.price || "").length === price.length);
     if (nearItin) {
       list = [...list].sort((a, b) => {
@@ -145,7 +150,7 @@ export default function SavedTab({ trip, onUpdate, cityOrder }) {
       });
     }
     return list;
-  }, [picks, category, price, nearItin, itineraryLocations]);
+  }, [picks, price, nearItin, itineraryLocations]);
 
   const filteredWish = useMemo(() => {
     if (category === "all") return cityItems;
