@@ -65,9 +65,9 @@ async function searchCategory(apiKey, city, country, category, count) {
     headers: {
       "Content-Type": "application/json",
       "X-Goog-Api-Key": apiKey,
-      "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.priceLevel,places.websiteUri",
+      "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.priceLevel,places.websiteUri,places.editorialSummary",
     },
-    body: JSON.stringify({ textQuery, maxResultCount: Math.min(count, 20) }),
+    body: JSON.stringify({ textQuery, maxResultCount: Math.min(count, 20), languageCode: "en" }),
   });
   const data = await res.json();
   if (!res.ok) {
@@ -78,12 +78,23 @@ async function searchCategory(apiKey, city, country, category, count) {
     name: place.displayName?.text || "",
     category,
     aiBadge: badgeFor(place.rating || 0, place.userRatingCount || 0),
-    description: place.formattedAddress || "",
+    // Real editorial summary when Google has one (a genuine written blurb,
+    // in English per languageCode above) — falls back to the address only
+    // when no summary exists, same as before.
+    description: place.editorialSummary?.text || place.formattedAddress || "",
+    address: place.formattedAddress || "",
     neighborhood: guessNeighborhood(place.formattedAddress),
     rating: place.rating || null,
     reviewCount: place.userRatingCount || 0,
     price: priceLevelToSymbol(place.priceLevel),
     website: place.websiteUri || "",
+    // No API provides verified social handles, and having AI guess one
+    // risks pointing someone at the wrong account entirely. This links to
+    // a real Instagram search for the place's name instead — always
+    // accurate, never a fabricated handle.
+    instagramSearchUrl: place.displayName?.text
+      ? `https://www.instagram.com/explore/search/keyword/?q=${encodeURIComponent(place.displayName.text)}`
+      : "",
     place_id: place.id,
   }));
 }
