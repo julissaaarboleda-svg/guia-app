@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Star, Heart, Plus, Sparkles, MapPin } from "lucide-react";
+import { Star, Heart, Plus, Sparkles, MapPin, Instagram } from "lucide-react";
 import { generatePickImage } from "@/lib/savedAi";
 import { categoryMeta } from "./categoryMeta";
 
@@ -91,21 +91,38 @@ export default function TopPicksCarousel({ trip, city, picks, loading, refreshin
                   )}
                 </div>
                 <div className="p-2.5 flex flex-col">
-                  <div className="min-h-[48px]">
-                    {p.website ? (
-                      <a href={p.website} target="_blank" rel="noopener noreferrer" className="font-heading text-[13px] text-foreground font-semibold leading-tight line-clamp-2 hover:text-accent transition-colors">{p.name}</a>
-                    ) : (
-                      <p className="font-heading text-[13px] text-foreground font-semibold leading-tight line-clamp-2">{p.name}</p>
-                    )}
-                    <p className="font-body text-[10.5px] text-muted-foreground mt-0.5 leading-snug line-clamp-1">{p.description}</p>
+                  <div className="min-h-[62px]">
+                    <a
+                      href={`https://www.google.com/search?q=${encodeURIComponent(`${p.name} ${city}`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="font-heading text-[13px] text-foreground font-semibold leading-tight line-clamp-2 hover:text-accent transition-colors"
+                    >
+                      {p.name}
+                    </a>
+                    <p className="font-body text-[10.5px] text-muted-foreground mt-0.5 leading-snug line-clamp-3">{p.description}</p>
                   </div>
-                  <div className="flex items-center mt-2 pt-2 border-t border-border/60">
+                  <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border/60">
                     <button
                       onClick={() => onWishlist({ ...p, image: img })}
-                      className="w-full inline-flex items-center justify-center gap-1 py-1 font-body text-[10.5px] text-muted-foreground hover:text-foreground transition-colors"
+                      className="flex-1 inline-flex items-center justify-center gap-1 py-1 font-body text-[10.5px] text-muted-foreground hover:text-foreground transition-colors"
                     >
                       <Heart className={`w-3 h-3 ${saved ? "fill-accent text-accent" : ""}`} /> {saved ? "Saved" : "Wishlist"}
                     </button>
+                    {p.instagramSearchUrl && (
+                      <a
+                        href={p.instagramSearchUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label={`Search ${p.name} on Instagram`}
+                        title="Search on Instagram"
+                      >
+                        <Instagram className="w-3 h-3" />
+                      </a>
+                    )}
                   </div>
                 </div>
               </div>
