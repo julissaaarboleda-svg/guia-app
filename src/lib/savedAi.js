@@ -1,5 +1,6 @@
 import { base44 } from "@/api/base44Client";
-import { getSeason } from "@/lib/journeyAi";
+
+export const DEFAULT_CATEGORIES = ["restaurant", "cafe", "museum", "attractions", "nature", "experience", "nightlife", "shopping", "relax"];
 
 const picksCache = new Map();
 const imgCache = new Map();
@@ -13,20 +14,20 @@ function writeLs(obj) {
   try { localStorage.setItem(LS_KEY, JSON.stringify(obj)); } catch { /* quota */ }
 }
 
-export function getCachedTopPicks(tripId, city) {
-  const key = `${tripId}|${city}`;
+export function getCachedTopPicks(tripId, city, category = "all") {
+  const key = `${tripId}|${city}|${category}`;
   if (picksCache.has(key)) return picksCache.get(key);
   const ls = readLs();
   const entry = ls[key];
   if (entry?.picks?.length) { picksCache.set(key, entry.picks); return entry.picks; }
   return undefined;
 }
-export function getCacheAge(tripId, city) {
-  const entry = readLs()[`${tripId}|${city}`];
+export function getCacheAge(tripId, city, category = "all") {
+  const entry = readLs()[`${tripId}|${city}|${category}`];
   return entry?.ts ? Date.now() - entry.ts : Infinity;
 }
-export function setCachedTopPicks(tripId, city, data) {
-  const key = `${tripId}|${city}`;
+export function setCachedTopPicks(tripId, city, data, category = "all") {
+  const key = `${tripId}|${city}|${category}`;
   picksCache.set(key, data);
   const ls = readLs();
   ls[key] = { picks: data, ts: Date.now() };
@@ -52,61 +53,34 @@ export function setCachedPickImage(tripId, city, name, url, attribution) {
   writeLs(ls);
 }
 
-export async function generateTopPicks(trip, city) {
-  const season = getSeason(trip.start_date) || "unknown";
-  const seed = Math.floor(Math.random() * 100000);
-  const categories = ["restaurant", "cafe", "museum", "attractions", "nature", "experience", "nightlife", "shopping", "relax"];
-  const prompt = `You are a luxury travel curator for the Guía app. The traveler is visiting ${city}${trip.country ? ", " + trip.country : ""} during ${season} season.
+// Fetches real places via the places-search Netlify function (Google Places
+// Text Search under the hood — see netlify/functions/places-search.js).
+// - No category filter (or "all"): 1 pick per category, 9 total — same shape
+//   as the old default view.
+// - A specific category: 6 real picks for just that category, instead of
+//   filtering down to the single pick that category had in the mixed set.
+// excludeNames should be the traveler's already-saved place names for this
+// trip/city, so a saved place never resurfaces in the picks.
+export async function generateTopPicks(trip, city, { category = "all", excludeNames = [] } = {}) {
+  const categories = category === "all" ? DEFAULT_CATEGORIES : [category];
+  const perCategory = category === "all" ? 1 : 6;
 
-Use live web knowledge to return REAL, well-known places in ${city}. You MUST include the city's most iconic landmarks and must-see sights under the "attractions" category — never omit the famous sights (e.g. Rio de Janeiro: Christ the Redeemer, Sugar Loaf Mountain, Copacabana Beach, Ipanema Beach; Paris: Eiffel Tower, Louvre, Notre-Dame; Tokyo: Senso-ji, Shibuya Crossing, Tsukiji).
+  const res = await fetch("/.netlify/functions/places-search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      city,
+      country: trip.country,
+      categories,
+      perCategory,
+      excludeNames,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error || "Places search failed");
 
-Return exactly 1 pick for EACH of these categories (9 total): ${categories.join(", ")}.
-Each pick: { name (REAL place in ${city}), category (exactly one of: ${categories.map((c) => `"${c}"`).join(", ")}), aiBadge (one of "Highly Recommended", "Hidden Gem", "Popular with Locals"), description (one sentence under 80 chars), neighborhood, rating (number like 4.7), reviewCount (integer like 1240), price (like "$" or "$$" or "$$$" or "$$$$" or "" for museums/landmarks), website (real https URL or empty string), imagePrompt (short editorial travel photo prompt: subject, warm golden light, no text, no people, no watermark) }.
-
-Variety seed: ${seed}. Favor variety across the 9 — mix iconic staples with genuine local favorites, and do not repeat the same selection as a prior call.
-
-Return JSON: { picks: [ exactly 9 objects, 1 per category ] }.`;
-  const schema = {
-    type: "object",
-    properties: {
-      picks: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            name: { type: "string" },
-            category: { type: "string" },
-            aiBadge: { type: "string" },
-            description: { type: "string" },
-            neighborhood: { type: "string" },
-            rating: { type: "number" },
-            reviewCount: { type: "number" },
-            price: { type: "string" },
-            website: { type: "string" },
-            imagePrompt: { type: "string" },
-          },
-        },
-      },
-    },
-  };
-  // Retry transient LLM failures (timeouts / rate limits) before surfacing an error.
-  let lastErr;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const res = await base44.integrations.Core.InvokeLLM({
-        prompt,
-        add_context_from_internet: true,
-        model: "gemini_3_flash",
-        response_json_schema: schema,
-      });
-      if (res?.picks?.length) return res;
-      lastErr = new Error("empty picks");
-    } catch (err) {
-      lastErr = err;
-    }
-    if (attempt < 2) await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
-  }
-  throw lastErr;
+  const picks = categories.flatMap((cat) => data.results?.[cat] || []);
+  return { picks };
 }
 
 export async function generatePickImage(tripId, city, name, imagePrompt) {
