@@ -10,6 +10,11 @@
 // those need specific structured-output handling — this one is for everything else.
 
 const { GoogleGenAI } = require("@google/genai");
+const { getStore, connectLambda } = require("@netlify/blobs");
+
+// --- Rate limit settings (same approach as Chapter I's gemini-proxy.js) ---
+const RATE_LIMIT = 30;              // max requests allowed per window, per IP
+const WINDOW_MS = 60 * 60 * 1000;   // window length: 1 hour
 
 const CORS = {
   "Content-Type": "application/json",
@@ -28,6 +33,8 @@ function extractJson(text) {
 }
 
 exports.handler = async (event, context) => {
+  connectLambda(event);
+
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: CORS, body: "" };
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: "Method not allowed" }) };
@@ -38,6 +45,42 @@ exports.handler = async (event, context) => {
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: "GEMINI_API_KEY not set" }) };
+
+  // --- Rate limiting: check this before doing anything else ---
+  // Keyed by logged-in user id rather than IP, since Guía requires auth
+  // (unlike Chapter I, which is anonymous) — this gives each person their
+  // own 30/hour budget instead of everyone behind the same office wifi
+  // sharing one bucket. Uses connectLambda(event) above for auto-detected
+  // credentials — Guía's proven Blobs pattern, no separate site/token env
+  // vars needed.
+  try {
+    const store = getStore("rate-limits");
+    const key = `user-${user.sub || user.email || "unknown"}`;
+    const now = Date.now();
+
+    let record = await store.get(key, { type: "json" });
+    if (!record || now - record.windowStart > WINDOW_MS) {
+      record = { count: 0, windowStart: now };
+    }
+
+    if (record.count >= RATE_LIMIT) {
+      const retryAfterMin = Math.ceil((WINDOW_MS - (now - record.windowStart)) / 60000);
+      return {
+        statusCode: 429,
+        headers: CORS,
+        body: JSON.stringify({
+          error: `You've hit the request limit. Please try again in about ${retryAfterMin} minute(s).`,
+        }),
+      };
+    }
+
+    record.count += 1;
+    await store.setJSON(key, record);
+  } catch (err) {
+    // Never let a rate-limit bug block a legitimate request.
+    console.error("Rate limit check failed (allowing request):", err);
+  }
+  // --- End rate limiting ---
 
   try {
     const { prompt, grounded, wantJson } = JSON.parse(event.body);
