@@ -102,16 +102,121 @@ export function computeCityDateRanges(trip) {
   return ranges.filter((r) => r.city);
 }
 
-function weatherIcon(condition) {
-  const c = (condition || "").toLowerCase();
-  if (/thunder/.test(c)) return "⛈";
-  if (/rain|shower|drizzle/.test(c)) return "🌧";
-  if (/snow/.test(c)) return "🌨";
-  if (/fog|mist|haze/.test(c)) return "🌫";
-  if (/partly|mostly cloudy|overcast/.test(c)) return "⛅";
-  if (/cloud/.test(c)) return "☁";
-  if (/wind/.test(c)) return "💨";
-  return "☀";
+// Maps Open-Meteo's WMO weather codes to a short condition label + icon.
+// https://open-meteo.com/en/docs (WMO Weather interpretation codes)
+function weatherCodeInfo(code) {
+  const map = {
+    0: { condition: "Clear sky", icon: "☀" },
+    1: { condition: "Mostly clear", icon: "☀" },
+    2: { condition: "Partly cloudy", icon: "⛅" },
+    3: { condition: "Overcast", icon: "☁" },
+    45: { condition: "Fog", icon: "🌫" },
+    48: { condition: "Fog", icon: "🌫" },
+    51: { condition: "Light drizzle", icon: "🌧" },
+    53: { condition: "Drizzle", icon: "🌧" },
+    55: { condition: "Heavy drizzle", icon: "🌧" },
+    56: { condition: "Freezing drizzle", icon: "🌧" },
+    57: { condition: "Freezing drizzle", icon: "🌧" },
+    61: { condition: "Light rain", icon: "🌧" },
+    63: { condition: "Rain", icon: "🌧" },
+    65: { condition: "Heavy rain", icon: "🌧" },
+    66: { condition: "Freezing rain", icon: "🌧" },
+    67: { condition: "Freezing rain", icon: "🌧" },
+    71: { condition: "Light snow", icon: "🌨" },
+    73: { condition: "Snow", icon: "🌨" },
+    75: { condition: "Heavy snow", icon: "🌨" },
+    77: { condition: "Snow grains", icon: "🌨" },
+    80: { condition: "Rain showers", icon: "🌧" },
+    81: { condition: "Rain showers", icon: "🌧" },
+    82: { condition: "Heavy showers", icon: "🌧" },
+    85: { condition: "Snow showers", icon: "🌨" },
+    86: { condition: "Snow showers", icon: "🌨" },
+    95: { condition: "Thunderstorm", icon: "⛈" },
+    96: { condition: "Thunderstorm", icon: "⛈" },
+    99: { condition: "Thunderstorm", icon: "⛈" },
+  };
+  return map[code] || { condition: "", icon: "☀" };
+}
+
+// Looks up a city's coordinates via Open-Meteo's free geocoding API.
+async function geocodeCity(city) {
+  try {
+    const res = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`
+    );
+    const data = await res.json();
+    const r = data?.results?.[0];
+    return r ? { lat: r.latitude, lon: r.longitude } : null;
+  } catch {
+    return null;
+  }
+}
+
+function avg(nums) {
+  const valid = nums.filter((n) => typeof n === "number" && !isNaN(n));
+  if (!valid.length) return null;
+  return Math.round(valid.reduce((a, b) => a + b, 0) / valid.length);
+}
+
+function mode(nums) {
+  const valid = nums.filter((n) => typeof n === "number");
+  if (!valid.length) return null;
+  const counts = {};
+  valid.forEach((n) => { counts[n] = (counts[n] || 0) + 1; });
+  return Number(Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0]);
+}
+
+// Real forecast (Open-Meteo issues reliable daily forecasts ~15 days out).
+async function fetchLiveForecast(lat, lon, start, end) {
+  const res = await fetch(
+    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,weathercode&temperature_unit=fahrenheit&timezone=auto&start_date=${start}&end_date=${end}`
+  );
+  const data = await res.json();
+  const highs = data?.daily?.temperature_2m_max || [];
+  const lows = data?.daily?.temperature_2m_min || [];
+  const codes = data?.daily?.weathercode || [];
+  if (!highs.length) return null;
+  const codeInfo = weatherCodeInfo(mode(codes));
+  return { high: avg(highs), low: avg(lows), condition: codeInfo.condition, icon: codeInfo.icon };
+}
+
+// For trips further out than the forecast window: average the same
+// calendar dates from the past 2 years of real recorded weather, so it's
+// still genuine data — a "typically what this time of year looks like"
+// estimate — rather than an AI guess.
+async function fetchHistoricalAverage(lat, lon, start, end) {
+  const thisYear = new Date().getFullYear();
+  const years = [thisYear - 1, thisYear - 2];
+  const mmdd = (d) => d.slice(5); // "MM-DD" from "YYYY-MM-DD"
+  const startMD = mmdd(start);
+  const endMD = mmdd(end);
+
+  const results = await Promise.all(
+    years.map(async (y) => {
+      try {
+        const s = `${y}-${startMD}`;
+        const e = `${y}-${endMD}`;
+        const res = await fetch(
+          `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,weathercode&temperature_unit=fahrenheit&timezone=auto&start_date=${s}&end_date=${e}`
+        );
+        const data = await res.json();
+        return {
+          highs: data?.daily?.temperature_2m_max || [],
+          lows: data?.daily?.temperature_2m_min || [],
+          codes: data?.daily?.weathercode || [],
+        };
+      } catch {
+        return { highs: [], lows: [], codes: [] };
+      }
+    })
+  );
+
+  const allHighs = results.flatMap((r) => r.highs);
+  const allLows = results.flatMap((r) => r.lows);
+  const allCodes = results.flatMap((r) => r.codes);
+  if (!allHighs.length) return null;
+  const codeInfo = weatherCodeInfo(mode(allCodes));
+  return { high: avg(allHighs), low: avg(allLows), condition: codeInfo.condition, icon: codeInfo.icon };
 }
 
 export async function fetchWeather(trip) {
@@ -122,57 +227,38 @@ export async function fetchWeather(trip) {
   const orderedCities = [];
   ranges.forEach((r) => { if (r.city && !orderedCities.includes(r.city)) orderedCities.push(r.city); });
   cities.forEach((c) => { if (!orderedCities.includes(c)) orderedCities.push(c); });
-  const cityInfo = orderedCities.map((c) => {
-    const r = ranges.find((x) => x.city === c) || {};
-    const fmt = (d) => (d ? format(parseISO(d), "MMM d") : "");
-    return {
-      city: c,
-      dateRange: r.start && r.end ? `${fmt(r.start)} – ${fmt(r.end)}` : "",
-    };
-  });
-  const season = getSeason(trip.start_date) || "unknown";
-  const prompt = `You are a meteorologist for a travel app. Provide realistic weather forecasts for these cities during the trip dates (${trip.start_date} to ${trip.end_date}, ${season} season). Use current web knowledge.
 
-Cities: ${cityInfo.map((c) => c.city).join(", ")}
+  const today = new Date();
+  const FORECAST_WINDOW_DAYS = 15;
 
-Return JSON: { forecasts: [ { city, highF (integer °F), lowF (integer °F), condition (short, e.g. "Mostly sunny", "Rain showers", "Partly cloudy") } ] } — one entry per city in the same order. Keep condition text under 25 characters.`;
-  try {
-    const res = await base44.integrations.Core.InvokeLLM({
-      prompt,
-      add_context_from_internet: true,
-      model: "gemini_3_flash",
-      response_json_schema: {
-        type: "object",
-        properties: {
-          forecasts: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                city: { type: "string" },
-                highF: { type: "number" },
-                lowF: { type: "number" },
-                condition: { type: "string" },
-              },
-            },
-          },
-        },
-      },
-    });
-    const fcasts = res?.forecasts || [];
-    return cityInfo.map((c) => {
-      const f = fcasts.find((x) => (x.city || "").toLowerCase() === c.city.toLowerCase()) || {};
-      return {
-        ...c,
-        high: f.highF ?? null,
-        low: f.lowF ?? null,
-        condition: f.condition || "",
-        icon: weatherIcon(f.condition),
-      };
-    });
-  } catch {
-    return cityInfo.map((c) => ({ ...c, high: null, low: null, condition: "", icon: "☀" }));
-  }
+  const results = await Promise.all(
+    orderedCities.map(async (city) => {
+      const r = ranges.find((x) => x.city === city) || {};
+      const fmt = (d) => (d ? format(parseISO(d), "MMM d") : "");
+      const base = { city, dateRange: r.start && r.end ? `${fmt(r.start)} – ${fmt(r.end)}` : "" };
+
+      if (!r.start || !r.end) return { ...base, high: null, low: null, condition: "", icon: "☀" };
+
+      const coords = await geocodeCity(city);
+      if (!coords) return { ...base, high: null, low: null, condition: "", icon: "☀" };
+
+      const daysUntilStart = Math.ceil((parseISO(r.start) - today) / 86400000);
+      let weather = null;
+      try {
+        weather = daysUntilStart <= FORECAST_WINDOW_DAYS
+          ? await fetchLiveForecast(coords.lat, coords.lon, r.start, r.end)
+          : await fetchHistoricalAverage(coords.lat, coords.lon, r.start, r.end);
+      } catch (err) {
+        console.error(`Weather fetch failed for ${city}:`, err);
+      }
+
+      return weather
+        ? { ...base, ...weather }
+        : { ...base, high: null, low: null, condition: "", icon: "☀" };
+    })
+  );
+
+  return results;
 }
 
 export async function generatePackingList(trip, prefs) {
