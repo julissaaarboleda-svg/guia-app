@@ -199,6 +199,27 @@ export default function AIAssistant() {
   const [loading, setLoading] = useState(false);
   const [context, setContext] = useState("");
   const scrollRef = useRef(null);
+  const containerRef = useRef(null);
+  const [containerHeight, setContainerHeight] = useState(null);
+
+  // Measures the real pixel height available for this page — this avoids
+  // depending on ancestor CSS (Layout.jsx) correctly passing a percentage
+  // height all the way down, which is fragile and previously broke other
+  // pages when changed to accommodate this one. Finding the nearest <main>
+  // gives the true scrollable viewport regardless of how Layout is styled.
+  useEffect(() => {
+    const updateHeight = () => {
+      const mainEl = containerRef.current?.closest("main");
+      if (mainEl) setContainerHeight(mainEl.clientHeight);
+    };
+    updateHeight();
+    window.addEventListener("resize", updateHeight);
+    window.visualViewport?.addEventListener("resize", updateHeight);
+    return () => {
+      window.removeEventListener("resize", updateHeight);
+      window.visualViewport?.removeEventListener("resize", updateHeight);
+    };
+  }, []);
 
   useEffect(() => {
     const loadData = async () => {
@@ -280,7 +301,11 @@ export default function AIAssistant() {
   };
 
   return (
-    <div className="flex flex-col h-full max-w-[800px] mx-auto w-full">
+    <div
+      ref={containerRef}
+      className="flex flex-col max-w-[800px] mx-auto w-full"
+      style={{ height: containerHeight ? `${containerHeight}px` : "100%" }}
+    >
       <PageHeader
         title="AI Assistant"
         subtitle="Ask me anything"
