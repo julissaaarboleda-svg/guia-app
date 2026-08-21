@@ -31,6 +31,7 @@ export default function Travel() {
   const [loading, setLoading] = useState(true);
   const [knowData, setKnowData] = useState(null);
   const [knowLoading, setKnowLoading] = useState(false);
+  const [knowError, setKnowError] = useState(false);
 
   const load = async () => {
     const data = await base44.entities.Trip.list("-start_date");
@@ -122,11 +123,11 @@ export default function Travel() {
     const city = (cur.cities || [])[0] || cur.country || "";
     if (!city) { setKnowData(null); return; }
     const cached = getCachedExplore(cur.id, city);
-    if (cached?.know) { setKnowData(cached.know); setKnowLoading(false); return; }
-    setKnowLoading(true); setKnowData(null);
+    if (cached?.know) { setKnowData(cached.know); setKnowLoading(false); setKnowError(false); return; }
+    setKnowLoading(true); setKnowData(null); setKnowError(false);
     generateHappeningAndKnow(cur, city)
       .then((r) => { if (!alive) return; setKnowData(r?.know || null); setKnowLoading(false); if (r?.know) setCachedExplore(cur.id, city, { know: r.know }); })
-      .catch(() => { if (alive) setKnowLoading(false); });
+      .catch((err) => { console.error("generateHappeningAndKnow failed:", err); if (alive) { setKnowLoading(false); setKnowError(true); } });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trips]);
@@ -264,7 +265,7 @@ export default function Travel() {
                   <JourneyProgress trip={current} onNavigate={(tab) => openTrip(current, tab)} />
                   <TravelAssistant trip={current} onNavigate={(tab) => openTrip(current, tab)} />
                   <UpcomingEvent trip={current} onNavigate={(tab) => openTrip(current, tab)} />
-                  <KnowBeforeYouGo trip={current} know={knowData} loading={knowLoading} />
+                  <KnowBeforeYouGo trip={current} know={knowData} loading={knowLoading} error={knowError} />
                 </>
               ) : (
                 <div className="text-center py-16">
