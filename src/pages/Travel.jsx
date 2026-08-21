@@ -14,7 +14,8 @@ import KnowBeforeYouGo from "@/components/travel/KnowBeforeYouGo";
 import { Plus, Search, Plane } from "lucide-react";
 import { parseISO } from "date-fns";
 import { computePlanningProgress } from "@/lib/journeyAi";
-import { generateHappeningAndKnow, getCachedExplore, setCachedExplore } from "@/lib/exploreAi";
+import { getCachedExplore, setCachedExplore } from "@/lib/exploreAi";
+import { getCountryInfo, buildKnowBeforeYouGo } from "@/lib/countryInfo";
 
 export default function Travel() {
   const [trips, setTrips] = useState([]);
@@ -23,7 +24,6 @@ export default function Travel() {
   const [autoEditTrip, setAutoEditTrip] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [showCover, setShowCover] = useState(null);
-  const [generatingFor, setGeneratingFor] = useState(null);
   const [showSearch, setShowSearch] = useState(false);
   const [query, setQuery] = useState("");
   const [viewTab, setViewTab] = useState("current");
@@ -68,29 +68,13 @@ export default function Travel() {
   }, [trips, searchParams]);
 
   const createJourney = async (formData) => {
-    const created = await base44.entities.Trip.create({
+    await base44.entities.Trip.create({
       ...formData,
       description: "",
       flag_emoji: "",
     });
     setShowAdd(false);
     await load();
-    generateCoverForTrip(created, "editorial");
-  };
-
-  const generateCoverForTrip = async (trip, styleId) => {
-    setGeneratingFor(trip.id);
-    try {
-      const url = await generateCover(trip, styleId);
-      const updated = await base44.entities.Trip.update(trip.id, { hero_image_url: url });
-      setTrips((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
-      if (selected?.id === updated.id) setSelected(updated);
-      if (showCover?.id === updated.id) setShowCover(updated);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setGeneratingFor(null);
-    }
   };
 
   const openTrip = (trip, tab = "Itinerary") => {
@@ -126,7 +110,7 @@ export default function Travel() {
     if (cached?.know) { setKnowData(cached.know); setKnowLoading(false); setKnowError(false); return; }
     // Second-level cache: saved on the trip itself, so once any device
     // successfully generates this, every device (and every future reload)
-    // loads it instantly with no AI call at all.
+    // loads it instantly with no re-fetch.
     const saved = cur.explore_know;
     if (saved && saved.city === city && saved.know) {
       setKnowData(saved.know);
@@ -136,22 +120,21 @@ export default function Travel() {
       return;
     }
     setKnowLoading(true); setKnowData(null); setKnowError(false);
-    generateHappeningAndKnow(cur, city)
-      .then((r) => {
+    getCountryInfo(cur.country)
+      .then((countryInfo) => {
         if (!alive) return;
-        setKnowData(r?.know || null);
+        const know = buildKnowBeforeYouGo(cur.country, countryInfo);
+        setKnowData(know);
         setKnowLoading(false);
-        if (r?.know) {
-          setCachedExplore(cur.id, city, { know: r.know });
-          const payload = { city, know: r.know, generatedAt: Date.now() };
-          base44.entities.Trip.update(cur.id, { explore_know: payload })
-            .then((updated) => {
-              setTrips((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
-            })
-            .catch((err) => console.error("Failed to save explore_know to trip:", err));
-        }
+        setCachedExplore(cur.id, city, { know });
+        const payload = { city, know, generatedAt: Date.now() };
+        base44.entities.Trip.update(cur.id, { explore_know: payload })
+          .then((updated) => {
+            setTrips((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+          })
+          .catch((err) => console.error("Failed to save explore_know to trip:", err));
       })
-      .catch((err) => { console.error("generateHappeningAndKnow failed:", err); if (alive) { setKnowLoading(false); setKnowError(true); } });
+      .catch((err) => { console.error("getCountryInfo failed:", err); if (alive) { setKnowLoading(false); setKnowError(true); } });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trips]);
@@ -281,7 +264,6 @@ export default function Travel() {
                 <>
                   <JourneyHero
                     trip={current}
-                    generating={generatingFor === current.id}
                     onOpen={() => openTrip(current, "Itinerary")}
                     onCustomize={() => setShowCover(current)}
                     onEditTrip={() => editTrip(current)}
@@ -347,7 +329,6 @@ export default function Travel() {
           setTrips((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
           setShowCover(updated);
         }}
-        onRegenerating={(isOn) => setGeneratingFor(isOn && showCover ? showCover.id : null)}
       />
     </div>
   );
