@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Star, Heart, Plus, Sparkles, MapPin, Instagram } from "lucide-react";
+import { Star, Heart, Plus, Sparkles, MapPin, Instagram, X } from "lucide-react";
 import { generatePickImage } from "@/lib/savedAi";
 import { categoryMeta } from "./categoryMeta";
 
 export default function TopPicksCarousel({ trip, city, picks, loading, refreshing, failed, onRefresh, onWishlist, isSaved }) {
   const [images, setImages] = useState({});
+  const [expanded, setExpanded] = useState(null);
   const requestedRef = useRef(new Set()); // which picks we've already kicked off a generation for
 
   // We no longer eagerly fire off 8 concurrent image generations here — that
@@ -101,7 +102,12 @@ export default function TopPicksCarousel({ trip, city, picks, loading, refreshin
                     >
                       {p.name}
                     </a>
-                    <p className="font-body text-[10.5px] text-muted-foreground mt-0.5 leading-snug line-clamp-3">{p.description}</p>
+                    <p
+                      onClick={() => setExpanded(p)}
+                      className="font-body text-[10.5px] text-muted-foreground mt-0.5 leading-snug line-clamp-3 cursor-pointer"
+                    >
+                      {p.description}
+                    </p>
                   </div>
                   <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border/60">
                     <button
@@ -110,19 +116,17 @@ export default function TopPicksCarousel({ trip, city, picks, loading, refreshin
                     >
                       <Heart className={`w-3 h-3 ${saved ? "fill-accent text-accent" : ""}`} /> {saved ? "Saved" : "Wishlist"}
                     </button>
-                    {p.instagramSearchUrl && (
-                      <a
-                        href={p.instagramSearchUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
-                        aria-label={`Search ${p.name} on Instagram`}
-                        title="Search on Instagram"
-                      >
-                        <Instagram className="w-3 h-3" />
-                      </a>
-                    )}
+                    <a
+                      href={`https://www.google.com/search?q=${encodeURIComponent(`site:instagram.com ${p.name} ${city}`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label={`Search ${p.name} on Instagram`}
+                      title="Search on Instagram"
+                    >
+                      <Instagram className="w-3 h-3" />
+                    </a>
                   </div>
                 </div>
               </div>
@@ -148,6 +152,48 @@ export default function TopPicksCarousel({ trip, city, picks, loading, refreshin
           </div>
         )}
       </div>
+
+      {expanded && (
+        <div
+          className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/45 backdrop-blur-sm"
+          onClick={() => setExpanded(null)}
+        >
+          <div
+            className="bg-card border border-border rounded-t-3xl md:rounded-2xl w-full max-w-md p-5 shadow-[0_20px_50px_-28px_rgba(0,0,0,0.4)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3 mb-2">
+              <h3 className="font-heading text-base text-foreground font-semibold leading-snug">{expanded.name}</h3>
+              <button onClick={() => setExpanded(null)} className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {expanded.neighborhood && (
+              <p className="font-body text-[12px] text-muted-foreground mb-2">{expanded.neighborhood}</p>
+            )}
+            <p className="font-body text-sm text-foreground leading-relaxed">{expanded.description}</p>
+            <div className="flex items-center gap-3 mt-4 pt-3 border-t border-border/60">
+              <a
+                href={`https://www.google.com/search?q=${encodeURIComponent(`${expanded.name} ${city}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 text-center py-2 rounded-xl bg-foreground text-background font-body text-[13px] font-medium hover:opacity-90 transition-opacity"
+              >
+                Search
+              </a>
+              <a
+                href={`https://www.google.com/search?q=${encodeURIComponent(`site:instagram.com ${expanded.name} ${city}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-xl border border-border text-foreground hover:bg-secondary transition-colors"
+                aria-label={`Search ${expanded.name} on Instagram`}
+              >
+                <Instagram className="w-4 h-4" />
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
