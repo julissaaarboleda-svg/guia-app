@@ -1,6 +1,7 @@
-import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Send, Sparkles } from "lucide-react";
+import { Send, Sparkles, ChevronLeft } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import ReactMarkdown from "react-markdown";
 
@@ -199,29 +200,14 @@ export default function AIAssistant() {
   const [loading, setLoading] = useState(false);
   const [context, setContext] = useState("");
   const scrollRef = useRef(null);
-  const containerRef = useRef(null);
-  const [containerHeight, setContainerHeight] = useState(null);
+  const inputBarRef = useRef(null);
+  const navigate = useNavigate();
 
-  // Measures the real pixel height available for this page — this avoids
-  // depending on ancestor CSS (Layout.jsx) correctly passing a percentage
-  // height all the way down, which is fragile and previously broke other
-  // pages when changed to accommodate this one. Finding the nearest <main>
-  // gives the true scrollable viewport regardless of how Layout is styled.
-  useLayoutEffect(() => {
-    const mainEl = containerRef.current?.closest("main");
-    if (!mainEl) return;
-    const updateHeight = () => setContainerHeight(mainEl.clientHeight);
-    updateHeight();
-    // ResizeObserver catches ANY change to main's actual rendered size —
-    // not just window resizes — including the header settling to its final
-    // height after user data loads, which a plain resize listener misses.
-    const ro = new ResizeObserver(updateHeight);
-    ro.observe(mainEl);
-    window.visualViewport?.addEventListener("resize", updateHeight);
-    return () => {
-      ro.disconnect();
-      window.visualViewport?.removeEventListener("resize", updateHeight);
-    };
+  // Instead of measuring/matching heights (fragile — depends on the
+  // ancestor layout chain cooperating), just scroll the input bar into view
+  // directly. This works regardless of how tall the page's container is.
+  useEffect(() => {
+    inputBarRef.current?.scrollIntoView({ block: "end" });
   }, []);
 
   useEffect(() => {
@@ -262,6 +248,7 @@ export default function AIAssistant() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
+    inputBarRef.current?.scrollIntoView({ block: "end" });
   }, [messages, loading]);
 
   // Persist every change so leaving this page and coming back — or even a
@@ -304,26 +291,30 @@ export default function AIAssistant() {
   };
 
   return (
-    <div
-      ref={containerRef}
-      className="flex flex-col max-w-[800px] mx-auto w-full"
-      style={{ height: containerHeight ? `${containerHeight}px` : "100%" }}
-    >
+    <div className="flex flex-col max-w-[800px] mx-auto w-full">
+      <button
+        onClick={() => navigate(-1)}
+        className="flex items-center gap-1 px-6 md:px-8 pt-4 font-body text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ChevronLeft className="w-4 h-4" /> Back
+      </button>
       <PageHeader
         title="AI Assistant"
         subtitle="Ask me anything"
         actions={
-          messages.length > 0 && (
-            <button
-              onClick={clearHistory}
-              className="text-[12px] font-body text-muted-foreground hover:text-destructive transition-colors"
-            >
-              Clear
-            </button>
-          )
+          <div className="flex items-center gap-3">
+            {messages.length > 0 && (
+              <button
+                onClick={clearHistory}
+                className="text-[12px] font-body text-muted-foreground hover:text-destructive transition-colors"
+              >
+                Clear
+              </button>
+            )}
+          </div>
         }
       />
-      <div className="flex-1 overflow-y-auto px-6 md:px-8 pb-4 space-y-4" ref={scrollRef}>
+      <div className="px-6 md:px-8 pb-4 space-y-4" ref={scrollRef}>
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center text-center py-16 text-muted-foreground">
             <Sparkles className="w-10 h-10 mb-3 text-muted-foreground/40" />
@@ -359,7 +350,7 @@ export default function AIAssistant() {
       </div>
 
       {/* Input bar */}
-      <div className="px-6 md:px-8 pb-6 md:pb-8">
+      <div className="px-6 md:px-8 pb-6 md:pb-8" ref={inputBarRef}>
         <div className="flex items-center gap-2 bg-card border border-border rounded-full pl-4 pr-1.5 py-1.5">
           <input
             value={input}
