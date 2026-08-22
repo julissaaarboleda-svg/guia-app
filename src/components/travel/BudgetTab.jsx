@@ -5,6 +5,59 @@ import DateInput from "@/components/DateInput";
 
 const CATEGORIES = ["Flights", "Hotel", "Food", "Activities", "Transport", "Shopping", "Other"];
 
+// Fixed colors per known category so a given category always reads the
+// same way across visits, rather than shifting with data order.
+const CATEGORY_COLORS = {
+  Flights: "#378ADD",
+  Hotel: "#7F77DD",
+  Food: "#D85A30",
+  Activities: "#1D9E75",
+  Transport: "#BA7517",
+  Shopping: "#D4537E",
+  Other: "#888780",
+};
+
+// Groups expenses by category and totals each. If there are more than 4
+// categories in play, the smallest ones fold into a single "Other" ring so
+// the summary always stays scannable at a glance instead of growing with
+// every new category someone uses.
+function buildCategoryRings(expenses) {
+  const totals = {};
+  expenses.forEach((e) => {
+    const cat = e.category || "Other";
+    totals[cat] = (totals[cat] || 0) + (Number(e.amount) || 0);
+  });
+  const entries = Object.entries(totals).filter(([, amt]) => amt > 0).sort((a, b) => b[1] - a[1]);
+  if (entries.length <= 4) return entries;
+  const top = new Map(entries.slice(0, 3));
+  const restTotal = entries.slice(3).reduce((s, [, amt]) => s + amt, 0);
+  top.set("Other", (top.get("Other") || 0) + restTotal);
+  return Array.from(top.entries()).sort((a, b) => b[1] - a[1]);
+}
+
+function CategoryRing({ label, amount, totalSpent }) {
+  const pct = totalSpent > 0 ? Math.round((amount / totalSpent) * 100) : 0;
+  const color = CATEGORY_COLORS[label] || CATEGORY_COLORS.Other;
+  const r = 21;
+  const c = 2 * Math.PI * r;
+  const offset = c - (pct / 100) * c;
+  return (
+    <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
+      <svg width="52" height="52" viewBox="0 0 52 52" className="flex-shrink-0">
+        <circle cx="26" cy="26" r={r} fill="none" stroke="var(--border)" strokeWidth="5" />
+        <circle
+          cx="26" cy="26" r={r} fill="none" stroke={color} strokeWidth="5"
+          strokeLinecap="round" strokeDasharray={c} strokeDashoffset={offset}
+          transform="rotate(-90 26 26)"
+        />
+        <text x="26" y="30" textAnchor="middle" className="fill-foreground" fontSize="12" fontWeight="600">{pct}%</text>
+      </svg>
+      <p className="text-[11px] text-foreground font-medium truncate max-w-full">{label}</p>
+      <p className="text-[10px] text-muted-foreground">${amount.toLocaleString()}</p>
+    </div>
+  );
+}
+
 export default function BudgetTab({ trip, onUpdate }) {
   const [form, setForm] = useState({ name: "", category: "Food", amount: "", date: "" });
   const [editingBudget, setEditingBudget] = useState(false);
@@ -17,6 +70,7 @@ export default function BudgetTab({ trip, onUpdate }) {
   const pct = budgetTarget > 0 ? Math.min((totalSpent / budgetTarget) * 100, 100) : 0;
   const isOverBudget = budgetTarget > 0 && totalSpent > budgetTarget;
   const isNearBudget = !isOverBudget && pct >= 80 && budgetTarget > 0;
+  const categoryRings = buildCategoryRings(expenses);
 
   const saveBudget = async () => {
     const updated = await base44.entities.Trip.update(trip.id, { budget_target: budgetInput ? Number(budgetInput) : null });
@@ -40,6 +94,19 @@ export default function BudgetTab({ trip, onUpdate }) {
 
   return (
     <div className="space-y-4 font-body">
+      {/* Spending by category — shown above the budget target bar so you
+          can see where the money's actually going at a glance. */}
+      {categoryRings.length > 0 && (
+        <div className="bg-card border border-border rounded-2xl p-5">
+          <h3 className="text-sm font-medium text-foreground mb-3">Spending by category</h3>
+          <div className="flex gap-2">
+            {categoryRings.map(([label, amount]) => (
+              <CategoryRing key={label} label={label} amount={amount} totalSpent={totalSpent} />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Budget summary */}
       {editingBudget ? (
         <div className="bg-card border border-border rounded-2xl p-5">
