@@ -9,7 +9,6 @@ import PhotosVideosPage from "./memories/PhotosVideosPage";
 import NotesReflectionsPage from "./memories/NotesReflectionsPage";
 import StoryPreviewPage from "./memories/StoryPreviewPage";
 import TripRouteMap from "./memories/TripRouteMap";
-import JournalSection from "./memories/JournalSection";
 
 export default function MemoriesTab({ trip, onUpdate }) {
   const [view, setView] = useState(null);
@@ -18,7 +17,7 @@ export default function MemoriesTab({ trip, onUpdate }) {
   const total = memoriesTotal(trip);
   const places = visiblePlaces(trip);
   const media = trip.memory_media || [];
-  const notes = visibleNotes(trip);
+  const journalEntries = (trip.journal_entries || []).slice().sort((a, b) => (b.date || "").localeCompare(a.date || ""));
   const photos = media.filter((m) => m.type === "photo").length;
   const videos = media.filter((m) => m.type === "video").length;
   const cover = useMemo(() => pickCoverImage(trip), [trip]);
@@ -33,7 +32,7 @@ export default function MemoriesTab({ trip, onUpdate }) {
     const rest = media.filter((m) => !m.favorited);
     return [...fav, ...rest].slice(0, 4);
   }, [media]);
-  const favNote = useMemo(() => notes.find((n) => n.favorited) || notes[0], [notes]);
+  const favNote = useMemo(() => journalEntries.find((e) => e.note), [journalEntries]);
 
   if (view === "places") return <FavoritePlacesPage trip={trip} onUpdate={onUpdate} onBack={() => setView(null)} />;
   if (view === "photos") return <PhotosVideosPage trip={trip} onUpdate={onUpdate} onBack={() => setView(null)} />;
@@ -51,8 +50,6 @@ export default function MemoriesTab({ trip, onUpdate }) {
       </div>
 
       <MemoriesCover cover={cover} reflection={reflection} tripName={trip.title} />
-
-      <JournalSection trip={trip} onUpdate={onUpdate} />
 
       <StoryProgressCard trip={trip} onContinue={(area) => setView(area)} />
 
@@ -80,8 +77,8 @@ export default function MemoriesTab({ trip, onUpdate }) {
           icon={<Heart className="w-4 h-4" />}
           title="Notes & Reflections"
           subtitle="What you felt and want to remember."
-          count={`${notes.length} notes`}
-          previewQuote={favNote?.text}
+          count={`${journalEntries.length} note${journalEntries.length !== 1 ? "s" : ""}`}
+          previewQuote={favNote?.note}
           previewImg={favNote?.photo_url}
           empty="Nothing written yet."
           onClick={() => setView("notes")}
