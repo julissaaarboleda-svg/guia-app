@@ -56,24 +56,6 @@ export default function MemoriesTab({ trip, onUpdate }) {
       {/* 2-column grid */}
       <div className="grid grid-cols-2 gap-2.5">
         <MemoryCard
-          icon={<MapPin className="w-4 h-4" />}
-          title="Favorite Places"
-          subtitle="The places that made this trip special."
-          count={`${places.length} places saved`}
-          previews={placePreviews.map((p) => p.image).filter(Boolean)}
-          empty="No favorite places yet."
-          onClick={() => setView("places")}
-        />
-        <MemoryCard
-          icon={<Camera className="w-4 h-4" />}
-          title="Photos & Videos"
-          subtitle="Your moments, all in one place."
-          count={`${photos} photos · ${videos} videos`}
-          previews={mediaPreviews.map((m) => m.thumbnail || m.url).filter(Boolean)}
-          empty="No moments added yet."
-          onClick={() => setView("photos")}
-        />
-        <MemoryCard
           icon={<Heart className="w-4 h-4" />}
           title="Notes & Reflections"
           subtitle="What you felt and want to remember."
@@ -91,6 +73,24 @@ export default function MemoriesTab({ trip, onUpdate }) {
           storyThumb={cover}
           empty="Your story will appear here."
           onClick={() => setView("story")}
+        />
+        <MemoryCard
+          icon={<MapPin className="w-4 h-4" />}
+          title="Favorite Places"
+          subtitle="The places that made this trip special."
+          count={`${places.length} places saved`}
+          previews={placePreviews.map((p) => p.image).filter(Boolean)}
+          empty="No favorite places yet."
+          onClick={() => setView("places")}
+        />
+        <MemoryCard
+          icon={<Camera className="w-4 h-4" />}
+          title="Photos & Videos"
+          subtitle="Your moments, all in one place."
+          count={`${photos} photos · ${videos} videos`}
+          previews={mediaPreviews.map((m) => m.thumbnail || m.url).filter(Boolean)}
+          empty="No moments added yet."
+          onClick={() => setView("photos")}
         />
       </div>
 
