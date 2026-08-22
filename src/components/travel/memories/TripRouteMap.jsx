@@ -134,9 +134,9 @@ export default function TripRouteMap({ trip }) {
     <>
       <button
         onClick={() => setExpanded(true)}
-        className="text-left bg-card border border-border rounded-2xl p-3.5 hover:border-accent/40 transition-colors"
+        className="text-left bg-card border border-border rounded-2xl p-2.5 hover:border-accent/40 transition-colors"
       >
-        <div className="h-[72px] rounded-xl bg-[#EFE9DF] flex items-center justify-center mb-2.5">
+        <div className="h-[52px] rounded-xl bg-[#EFE9DF] flex items-center justify-center mb-1.5">
           <MapIcon className="w-6 h-6 text-accent" strokeWidth={1.5} />
         </div>
         <h3 className="font-heading text-[14px] text-foreground font-semibold leading-tight">Where you went</h3>
