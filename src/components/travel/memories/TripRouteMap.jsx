@@ -41,20 +41,23 @@ export default function TripRouteMap({ trip }) {
   if (cities.length === 0) return null;
 
   return (
-    <div className="bg-card border border-border rounded-2xl overflow-hidden">
-      <div className="px-3.5 pt-3.5 pb-2 flex items-center gap-1.5">
-        <MapIcon className="w-4 h-4 text-accent" />
-        <h3 className="font-heading text-[14px] font-medium text-foreground">Where you went</h3>
-      </div>
+    <div className="bg-card border border-border rounded-2xl p-3.5">
       {loading ? (
-        <div className="h-[190px] bg-muted animate-pulse" />
+        <div className="h-[72px] rounded-xl bg-muted animate-pulse mb-2.5" />
       ) : failed ? (
-        <div className="h-[120px] flex items-center justify-center">
-          <p className="font-body text-[11px] text-muted-foreground">Couldn't load the map right now.</p>
+        <div className="h-[72px] rounded-xl bg-muted flex items-center justify-center mb-2.5">
+          <p className="font-body text-[10px] text-muted-foreground">Couldn't load the map right now.</p>
         </div>
       ) : (
-        <img src={dataUrl} alt={`Map of ${cities.join(", ")}`} className="w-full h-[190px] object-cover" />
+        <div className="h-[72px] rounded-xl overflow-hidden mb-2.5">
+          <img src={dataUrl} alt={`Map of ${cities.join(", ")}`} className="w-full h-full object-cover" />
+        </div>
       )}
+      <div className="flex items-center gap-1.5 mb-1 text-accent">
+        <MapIcon className="w-4 h-4" />
+      </div>
+      <h3 className="font-heading text-[14px] text-foreground font-semibold leading-tight">Where you went</h3>
+      <p className="font-body text-[10px] text-muted-foreground mt-0.5 leading-snug">{cities.length} cit{cities.length !== 1 ? "ies" : "y"} on this trip</p>
     </div>
   );
 }
