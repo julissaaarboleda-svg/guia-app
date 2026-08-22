@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { Edit2, Check, X, Plus, Trash, Calendar, MapPin, Star } from "lucide-react";
 import ReactQuill from "react-quill";
@@ -44,7 +44,6 @@ function dayCity(day, trip, cityOrder) {
   if (cities.length === 0) return trip.country || "";
   if (cities.length === 1) return cities[0];
 
-  // If the day's content references a specific city, use it
   const hay = `${day?.title || ""} ${day?.description || ""} ${(day?.activities || [])
     .map((a) => `${a.activity || ""} ${a.location || ""} ${a.notes || ""}`)
     .join(" ")}`.toLowerCase();
@@ -54,7 +53,6 @@ function dayCity(day, trip, cityOrder) {
     .sort((a, b) => a.idx - b.idx)[0];
   if (matched) return matched.c;
 
-  // Otherwise map the day's date across the trip date range onto the city order
   if (day?.date && trip.start_date && trip.end_date) {
     const s = Date.parse(trip.start_date + "T00:00:00");
     const e = Date.parse(trip.end_date + "T00:00:00");
@@ -82,16 +80,20 @@ export default function ItineraryTab({ trip, onUpdate, cityOrder }) {
   useEffect(() => { setItinerary(trip.itinerary || []); }, [trip.itinerary]);
   useEffect(() => { if (activeIdx > itinerary.length - 1) setActiveIdx(Math.max(0, itinerary.length - 1)); }, [itinerary.length, activeIdx]);
 
+  // Lets ActivityModal show a "Date" dropdown when editing/adding an item,
+  // so you can move something to a different day instead of deleting and
+  // recreating it. Mirrors the same pattern SavedTab.jsx already uses.
+  const dayOptions = useMemo(
+    () => itinerary.map((d) => ({ date: d.date || "", label: d.date ? format(parseISO(d.date), "EEE, MMM d") : `Day ${d.day}` })),
+    [itinerary]
+  );
+
   const persist = async (next) => {
     const saved = await base44.entities.Trip.update(trip.id, { itinerary: next });
     onUpdate(saved);
     return saved;
   };
 
-  // Auto-generate one day per date in the trip's range the first time this
-  // tab is opened on a fresh trip. Previously nothing ever populated the
-  // itinerary automatically — you had to add every day by hand, one at a
-  // time, which is what made it look like "not all the dates" showed up.
   useEffect(() => {
     if (itinerary.length > 0 || !trip.start_date || !trip.end_date) return;
     const start = parseISO(trip.start_date);
@@ -148,10 +150,6 @@ export default function ItineraryTab({ trip, onUpdate, cityOrder }) {
       persist(next);
       return;
     }
-    // Editing an existing day's date needs to re-sort the whole array
-    // afterward too — previously it just updated in place at the same
-    // array position, so changing a day's date to something earlier or
-    // later than its neighbors left the list visibly out of order.
     const next = [...itinerary];
     const editedDay = { ...next[dayEdit.index], title: dayEdit.title, description: dayEdit.description, date: dayEdit.date || next[dayEdit.index].date };
     next[dayEdit.index] = editedDay;
@@ -170,44 +168,50 @@ export default function ItineraryTab({ trip, onUpdate, cityOrder }) {
 
   const saveActivity = async (activity) => {
     const { dayIndex, actIndex } = activityModal;
-    const { _newStopCity, ...cleanActivity } = activity;
+    const { _newStopCity, dayDate, ...cleanActivity } = activity;
     let next = [...itinerary];
 
-    // A flight/stay only spills onto a second day when its "arrives/checks
-    // out on a different day" toggle was left on — that's what puts an
-    // explicit date on arrival/checkOut now. No toggle, no second date, no
-    // companion entry.
+    // If the item's date was changed to a day different from where it
+    // currently lives, move it there instead of updating it in place —
+    // this is what lets you reschedule something without deleting and
+    // recreating it.
+    let targetDayIndex = dayIndex;
+    const movingDay = dayDate && itinerary[dayIndex]?.date !== dayDate;
+    if (movingDay) {
+      const foundIdx = next.findIndex((d) => d.date === dayDate);
+      if (foundIdx !== -1) {
+        if (actIndex !== null) {
+          next[dayIndex] = { ...next[dayIndex], activities: next[dayIndex].activities.filter((_, i) => i !== actIndex) };
+        }
+        targetDayIndex = foundIdx;
+      }
+    }
+
     const spilloverDate = cleanActivity.category === "flight"
       ? cleanActivity.arrival?.date
       : cleanActivity.category === "hotel"
         ? cleanActivity.checkOut?.date
         : null;
     const entryKey = cleanActivity.category === "flight"
-      ? `flight-${cleanActivity.flightNumber || ""}-${cleanActivity.departure?.time || ""}-${dayIndex}`
+      ? `flight-${cleanActivity.flightNumber || ""}-${cleanActivity.departure?.time || ""}-${targetDayIndex}`
       : cleanActivity.category === "hotel"
-        ? `hotel-${cleanActivity.name || ""}-${cleanActivity.checkIn?.time || ""}-${dayIndex}`
+        ? `hotel-${cleanActivity.name || ""}-${cleanActivity.checkIn?.time || ""}-${targetDayIndex}`
         : null;
 
     if (entryKey) {
-      // Remove any previous companion entry for this same flight/stay from
-      // every day, so editing it (e.g. turning the toggle off, or changing
-      // the date) doesn't leave a stale duplicate behind.
       next = next.map((d) => ({
         ...d,
         activities: (d.activities || []).filter((a) => a._companionKey !== entryKey),
       }));
     }
 
-    if (actIndex !== null) {
-      next[dayIndex].activities[actIndex] = cleanActivity;
+    if (!movingDay && actIndex !== null) {
+      next[targetDayIndex].activities[actIndex] = cleanActivity;
     } else {
-      next[dayIndex].activities = [...(next[dayIndex].activities || []), cleanActivity];
+      next[targetDayIndex].activities = [...(next[targetDayIndex].activities || []), cleanActivity];
     }
-    // keep timed order for a clean timeline
-    next[dayIndex].activities = [...next[dayIndex].activities].sort((a, b) => (a.time || "99").localeCompare(b.time || "99"));
+    next[targetDayIndex].activities = [...next[targetDayIndex].activities].sort((a, b) => (a.time || "99").localeCompare(b.time || "99"));
 
-    // Spills onto a second day — place a companion entry there too, so it
-    // doesn't only show up on the day it started.
     if (spilloverDate && entryKey) {
       const otherDayIdx = next.findIndex((d) => d.date === spilloverDate);
       if (otherDayIdx !== -1) {
@@ -222,17 +226,13 @@ export default function ItineraryTab({ trip, onUpdate, cityOrder }) {
         next[otherDayIdx].activities = [...(next[otherDayIdx].activities || []), companion]
           .sort((a, b) => (a.time || "99").localeCompare(b.time || "99"));
       }
-      // If that day genuinely isn't in the itinerary yet (outside the
-      // trip's current date range), there's nowhere to place it — the
-      // entry still saves correctly on its original day either way.
     }
 
     setItinerary(next);
+    if (movingDay) setActiveIdx(targetDayIndex); // jump to the day it moved to, so you can see it landed
     setActivityModal({ open: false, dayIndex: null, actIndex: null, activity: null });
     persist(next);
-    // Note: itinerary entries (flights, stays) no longer add to trip.cities
-    // automatically — the trip's official city list only ever reflects what
-    // was set directly on the trip itself, not individual entries added later.
+    if (movingDay) toast.success(`Moved to ${format(parseISO(dayDate), "EEE, MMM d")}`);
   };
 
   const removeActivity = async (dayIndex, actIndex) => {
@@ -240,9 +240,6 @@ export default function ItineraryTab({ trip, onUpdate, cityOrder }) {
     let next = [...itinerary];
     next[dayIndex].activities = next[dayIndex].activities.filter((_, i) => i !== actIndex);
 
-    // If this was a multi-day flight (or its arrival-day companion), clean
-    // up the matching entry on the other day too — otherwise deleting one
-    // half leaves an orphaned card behind.
     const key = deleted?._companionKey || (
       deleted?.category === "flight"
         ? `flight-${deleted.flightNumber || ""}-${deleted.departure?.time || ""}-${dayIndex}`
@@ -305,10 +302,6 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
         .filter((a) => a && (a.activity || a.location || a.notes || a.name))
         .map((a) => ({ date: a.date || "", time: a.time || "", activity: a.activity || "", name: a.name || "", location: a.location || "", address: a.address || "", link: a.link || "", notes: a.notes || "", arrival_date: a.arrival_date || "", arrival_time: a.arrival_time || "", arrival_city: a.arrival_city || "", layover_city: a.layover_city || "", layover_date: a.layover_date || "", layover_duration: a.layover_duration || "", layover_arrival_time: a.layover_arrival_time || "", layover_departure_time: a.layover_departure_time || "" }));
       if (acts.length === 0) { toast.error("No itinerary items found in that file"); return; }
-      // Detected new destination cities aren't added silently anymore — the
-      // AI's guess at "final arrival city" can occasionally be wrong (as it
-      // was with a layover once), so this gets a quick confirm step instead
-      // of directly editing the trip's official city list.
       const existingCities = (trip.cities || []).map((c) => (c || "").toLowerCase());
       const newCities = [];
       for (const a of acts) {
@@ -322,7 +315,6 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
       if (newCities.length > 0) {
         setConfirmCities({ cities: newCities, checked: new Set(newCities) });
       }
-      // For multi-day flights, add an arrival activity on the arrival date so that day isn't empty
       const expanded = [];
       for (const a of acts) {
         expanded.push(a);
@@ -354,14 +346,13 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
           });
         }
       }
-      // Route each item to the itinerary day matching its date; undated items fall back to the active day.
       const next = itinerary.map((d) => ({ ...d, activities: [...(d.activities || [])] }));
       const dateIndex = new Map();
       const mdIndex = new Map();
       next.forEach((d, i) => {
         if (d.date) {
           dateIndex.set(d.date, i);
-          mdIndex.set(d.date.slice(5), i); // MM-DD for year-insensitive matching
+          mdIndex.set(d.date.slice(5), i);
         }
       });
       for (const a of expanded) {
@@ -370,29 +361,22 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
           const md = a.date.slice(5);
           if (mdIndex.has(md)) {
             targetIdx = mdIndex.get(md);
-            a.date = next[targetIdx].date; // normalize to the trip's year
+            a.date = next[targetIdx].date;
           }
         }
         if (targetIdx === null && a.date) {
-          // No day exists yet for this date (e.g. itinerary was empty, or
-          // the import found dates outside the trip's original range) —
-          // create one instead of guessing where it goes, which is what
-          // used to crash the whole import.
           const newDay = { day: next.length + 1, date: a.date, title: "", description: "", activities: [] };
           next.push(newDay);
           dateIndex.set(a.date, next.length - 1);
           targetIdx = next.length - 1;
         }
         if (targetIdx === null && next.length === 0) {
-          // Truly nothing to attach an undated item to — create a fallback day.
           next.push({ day: 1, date: "", title: "", description: "", activities: [] });
           targetIdx = 0;
         }
         if (targetIdx === null) targetIdx = Math.min(activeIdx, next.length - 1);
         next[targetIdx].activities.push(a);
       }
-      // Re-sort chronologically (new days may have been inserted out of
-      // order above) and renumber so "Day 1, 2, 3…" stays correct.
       next.sort((a, b) => {
         if (a.date && b.date) return a.date.localeCompare(b.date);
         if (a.date) return -1;
@@ -400,7 +384,6 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
         return (a.day || 0) - (b.day || 0);
       });
       next.forEach((d, i) => { d.day = i + 1; });
-      // Re-sort each affected day's activities by time
       next.forEach((d) => { d.activities = [...d.activities].sort((x, y) => (x.time || "99").localeCompare(y.time || "99")); });
       setItinerary(next);
       setAddItemOpen(false);
@@ -430,12 +413,6 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
         </div>
         <WishListSection trip={trip} onUpdate={onUpdate} />
 
-        {/* Day edit modal — this needs to be reachable from the empty state too,
-            since "Add a day" opens it before any day exists yet. It used to live
-            only in the populated-itinerary render path below, so tapping "Add a
-            day" on a brand-new trip set dayEdit.open=true but nothing ever
-            appeared, since this component was still returning the empty-state
-            branch above (itinerary was still empty). */}
         {dayEdit.open && (
           <div
             className="fixed inset-0 z-[70] flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm"
@@ -507,7 +484,6 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
 
       <DateStrip days={itinerary} activeIndex={activeIdx} onSelect={setActiveIdx} onAddDay={addDay} />
 
-      {/* Day header */}
       <div className="pt-1">
         <div className="flex items-center justify-between">
           <div className="min-w-0">
@@ -543,7 +519,6 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
         )}
       </div>
 
-      {/* Timeline */}
       <div className="pt-1">
         {day?.activities && day.activities.length > 0 ? (
           <div>
@@ -572,7 +547,6 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
         </button>
       </div>
 
-      {/* Add item type sheet */}
       <AddItemSheet open={addItemOpen} onClose={() => setAddItemOpen(false)} onPick={pickAddType} onImport={handleImport} importing={importing} />
 
       {confirmCities && (
@@ -623,18 +597,19 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
         </div>
       )}
 
-      {/* Activity add/edit modal */}
       <ActivityModal
         open={activityModal.open}
         initialActivity={activityModal.activity}
         tripLocations={tripLocations}
         trip={trip}
         dayLabel={activityModal.dayIndex !== null ? (day?.date ? format(parseISO(day.date), "EEE, MMM d") : `Day ${day?.day}`) : null}
+        dayOptions={dayOptions}
+        initialDayDate={activityModal.dayIndex !== null ? itinerary[activityModal.dayIndex]?.date : undefined}
+        itinerary={itinerary}
         onSave={saveActivity}
         onClose={() => setActivityModal({ open: false, dayIndex: null, actIndex: null, activity: null })}
       />
 
-      {/* Day edit modal */}
       {dayEdit.open && (
         <div
           className="fixed inset-0 z-[70] flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm"
