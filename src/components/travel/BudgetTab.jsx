@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Plus, Trash2, DollarSign, Edit2, Check, X } from "lucide-react";
+import { Plus, Trash2, DollarSign, Edit2, Check, X, ChevronDown } from "lucide-react";
 import DateInput from "@/components/DateInput";
 
 const CATEGORIES = ["Flights", "Hotel", "Food", "Activities", "Transport", "Shopping", "Other"];
@@ -92,6 +92,7 @@ export default function BudgetTab({ trip, onUpdate }) {
   const [form, setForm] = useState({ name: "", category: "Food", amount: "", date: "" });
   const [editingBudget, setEditingBudget] = useState(false);
   const [budgetInput, setBudgetInput] = useState(String(trip.budget_target || ""));
+  const [expandedCats, setExpandedCats] = useState(new Set());
 
   const expenses = trip.expense_items || [];
   const budgetTarget = trip.budget_target || 0;
@@ -101,6 +102,31 @@ export default function BudgetTab({ trip, onUpdate }) {
   const isOverBudget = budgetTarget > 0 && totalSpent > budgetTarget;
   const isNearBudget = !isOverBudget && pct >= 80 && budgetTarget > 0;
   const categoryRings = buildCategoryRings(expenses);
+
+  // Group expenses by category, keeping each item's original index so
+  // "remove" still targets the right entry in the flat expense_items array.
+  const expenseGroups = [];
+  const groupMap = new Map();
+  expenses.forEach((e, idx) => {
+    const cat = e.category || "Other";
+    if (!groupMap.has(cat)) {
+      const group = { category: cat, items: [], total: 0 };
+      groupMap.set(cat, group);
+      expenseGroups.push(group);
+    }
+    const group = groupMap.get(cat);
+    group.items.push({ ...e, idx });
+    group.total += Number(e.amount) || 0;
+  });
+  expenseGroups.sort((a, b) => b.total - a.total);
+
+  const toggleCategory = (cat) => {
+    setExpandedCats((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat); else next.add(cat);
+      return next;
+    });
+  };
 
   const saveBudget = async () => {
     const updated = await base44.entities.Trip.update(trip.id, { budget_target: budgetInput ? Number(budgetInput) : null });
@@ -235,7 +261,8 @@ export default function BudgetTab({ trip, onUpdate }) {
         </button>
       </div>
 
-      {/* Expense list */}
+      {/* Expense list — grouped by category, collapsed by default so a
+          trip with many expenses doesn't turn into one long scroll. */}
       {expenses.length > 0 ? (
         <div className="bg-card border border-border rounded-2xl overflow-hidden">
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
@@ -243,21 +270,40 @@ export default function BudgetTab({ trip, onUpdate }) {
             <span className="text-xs text-muted-foreground">{expenses.length} items</span>
           </div>
           <div className="divide-y divide-border">
-            {expenses.map((e, idx) => (
-              <div key={idx} className="flex items-center gap-3 px-4 py-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-foreground truncate">{e.name}</p>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-xs bg-secondary text-muted-foreground px-1.5 py-0.5 rounded">{e.category}</span>
-                    {e.date && <span className="text-xs text-muted-foreground">{new Date(e.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>}
-                  </div>
+            {expenseGroups.map((group) => {
+              const isOpen = expandedCats.has(group.category);
+              return (
+                <div key={group.category}>
+                  <button
+                    onClick={() => toggleCategory(group.category)}
+                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-secondary/40 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                      <span className="text-sm text-foreground font-medium">{group.category}</span>
+                      <span className="text-xs text-muted-foreground">({group.items.length})</span>
+                    </div>
+                    <span className="text-sm font-semibold text-foreground">${group.total.toLocaleString()}</span>
+                  </button>
+                  {isOpen && (
+                    <div className="divide-y divide-border/60 bg-muted/30">
+                      {group.items.map((e) => (
+                        <div key={e.idx} className="flex items-center gap-3 pl-9 pr-4 py-2.5">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-foreground truncate">{e.name}</p>
+                            {e.date && <span className="text-xs text-muted-foreground">{new Date(e.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>}
+                          </div>
+                          <span className="text-sm font-medium text-foreground flex-shrink-0">${Number(e.amount).toLocaleString()}</span>
+                          <button onClick={() => removeExpense(e.idx)} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <span className="text-sm font-semibold text-foreground flex-shrink-0">${Number(e.amount).toLocaleString()}</span>
-                <button onClick={() => removeExpense(idx)} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div className="px-4 py-3 border-t border-border bg-muted flex justify-between items-center">
             <span className="text-sm font-medium text-foreground">Total spent</span>
