@@ -9,6 +9,7 @@ import PhotosVideosPage from "./memories/PhotosVideosPage";
 import NotesReflectionsPage from "./memories/NotesReflectionsPage";
 import StoryPreviewPage from "./memories/StoryPreviewPage";
 import TripRouteMap from "./memories/TripRouteMap";
+import JournalSection from "./memories/JournalSection";
 
 export default function MemoriesTab({ trip, onUpdate }) {
   const [view, setView] = useState(null);
@@ -50,6 +51,8 @@ export default function MemoriesTab({ trip, onUpdate }) {
       </div>
 
       <MemoriesCover cover={cover} reflection={reflection} tripName={trip.title} />
+
+      <JournalSection trip={trip} onUpdate={onUpdate} />
 
       <StoryProgressCard trip={trip} onContinue={(area) => setView(area)} />
 
