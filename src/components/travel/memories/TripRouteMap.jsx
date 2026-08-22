@@ -47,13 +47,13 @@ export default function TripRouteMap({ trip }) {
         <h3 className="font-heading text-[14px] font-medium text-foreground">Where you went</h3>
       </div>
       {loading ? (
-        <div className="h-[160px] bg-muted animate-pulse" />
+        <div className="h-[190px] bg-muted animate-pulse" />
       ) : failed ? (
-        <div className="h-[100px] flex items-center justify-center">
+        <div className="h-[120px] flex items-center justify-center">
           <p className="font-body text-[11px] text-muted-foreground">Couldn't load the map right now.</p>
         </div>
       ) : (
-        <img src={dataUrl} alt={`Map of ${cities.join(", ")}`} className="w-full h-[160px] object-cover" />
+        <img src={dataUrl} alt={`Map of ${cities.join(", ")}`} className="w-full h-[190px] object-cover" />
       )}
     </div>
   );
