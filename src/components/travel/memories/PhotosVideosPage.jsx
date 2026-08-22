@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, Upload } from "lucide-react";
+import { ArrowLeft, Upload, Trash2 } from "lucide-react";
 import { visibleMedia } from "@/lib/memoryUtils";
 import { base44 } from "@/api/base44Client";
 
@@ -7,6 +7,16 @@ export default function PhotosVideosPage({ trip, onUpdate, onBack }) {
   const media = visibleMedia(trip);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
+
+  const removeMedia = async (idx) => {
+    const updated = media.filter((_, i) => i !== idx);
+    try {
+      const result = await base44.entities.Trip.update(trip.id, { memory_media: updated });
+      onUpdate(result);
+    } catch (err) {
+      console.error("Failed to remove media:", err);
+    }
+  };
 
   const upload = async (e) => {
     const file = e.target.files?.[0];
@@ -50,8 +60,15 @@ export default function PhotosVideosPage({ trip, onUpdate, onBack }) {
       ) : (
         <div className="grid grid-cols-3 gap-2">
           {media.map((m, i) => (
-            <div key={i} className="aspect-square rounded-lg overflow-hidden bg-muted">
+            <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-muted">
               {m.type === "photo" ? <img src={m.url} alt="" className="w-full h-full object-cover" /> : <video src={m.url} className="w-full h-full object-cover" />}
+              <button
+                onClick={() => removeMedia(i)}
+                className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/50 flex items-center justify-center"
+                aria-label="Remove"
+              >
+                <Trash2 className="w-3 h-3 text-white" />
+              </button>
             </div>
           ))}
         </div>
