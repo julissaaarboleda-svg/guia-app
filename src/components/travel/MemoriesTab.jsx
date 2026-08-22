@@ -52,19 +52,16 @@ export default function MemoriesTab({ trip, onUpdate }) {
 
       <StoryProgressCard trip={trip} onContinue={(area) => setView(area)} />
 
-      {/* Notes & Reflections — full width, since it's the primary entry point */}
-      <MemoryCard
-        icon={<Heart className="w-4 h-4" />}
-        title="Notes & Reflections"
-        subtitle="What you felt and want to remember."
-        count={`${journalEntries.length} note${journalEntries.length !== 1 ? "s" : ""}`}
-        quote={favNote?.note}
-        empty="Nothing written yet."
-        onClick={() => setView("notes")}
-        wide
-      />
-
       <div className="grid grid-cols-2 gap-2.5">
+        <MemoryCard
+          icon={<Heart className="w-4 h-4" />}
+          title="Notes & Reflections"
+          subtitle="What you felt and want to remember."
+          count={`${journalEntries.length} note${journalEntries.length !== 1 ? "s" : ""}`}
+          quote={favNote?.note}
+          empty="Nothing written yet."
+          onClick={() => setView("notes")}
+        />
         <MemoryCard
           icon={<MapPin className="w-4 h-4" />}
           title="Favorite Places"
@@ -85,9 +82,8 @@ export default function MemoriesTab({ trip, onUpdate }) {
           empty="No moments added yet."
           onClick={() => setView("photos")}
         />
+        <TripRouteMap trip={trip} />
       </div>
-
-      <TripRouteMap trip={trip} />
 
       {/* Story callout */}
       <div className="flex items-center gap-3 bg-card border border-border rounded-2xl p-3.5">
