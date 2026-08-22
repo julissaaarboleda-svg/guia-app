@@ -172,6 +172,8 @@ You have access to the user's personal data below (goals, tasks, notes, trips, p
 
 But you are NOT limited to this data. Answer any question the user asks — general knowledge, definitions, explanations, advice, brainstorming, anything — exactly as a knowledgeable, helpful assistant would, the same way you'd answer if there were no app data at all. Only mention their personal data when it's actually relevant to what they asked; don't force a connection to their finances or any other single category if the question doesn't call for it.
 
+When the user asks a "how's it going" / status-check style question about something they already have stored (e.g. "how's my trip looking", "how am I doing on my budget", "where do things stand with X project") — do NOT restate everything they already have saved; they can already see that in the app. Instead give a brief status take: what's solid, what's missing or needs attention, and any real risks or gaps worth flagging. A few sentences is usually enough. Only go into full detail (listing out every flight, every line item, every task) if they explicitly ask for a rundown, a full list, or "everything."
+
 ${sections.filter(Boolean).join("\n") || "(No personal data found yet — the user hasn't added much to the app.)"}
 
 Answer naturally and concisely.`;
@@ -203,9 +205,6 @@ export default function AIAssistant() {
   const inputBarRef = useRef(null);
   const navigate = useNavigate();
 
-  // Instead of measuring/matching heights (fragile — depends on the
-  // ancestor layout chain cooperating), just scroll the input bar into view
-  // directly. This works regardless of how tall the page's container is.
   useEffect(() => {
     inputBarRef.current?.scrollIntoView({ block: "end" });
   }, []);
@@ -225,8 +224,6 @@ export default function AIAssistant() {
         base44.entities.BusinessEntry.list("-date"),
         base44.entities.BusinessGoal.list("-created_date"),
       ]);
-      // If any single entity type fails to load, don't let it break the
-      // whole assistant — just proceed without that section.
       const [items, buckets, income, goals, tasks, notes, trips, projects, careerEntries, businessEntries, businessGoals] = results.map(
         (r) => (r.status === "fulfilled" ? r.value : [])
       );
@@ -251,9 +248,6 @@ export default function AIAssistant() {
     inputBarRef.current?.scrollIntoView({ block: "end" });
   }, [messages, loading]);
 
-  // Persist every change so leaving this page and coming back — or even a
-  // full page refresh — doesn't wipe the conversation, matching how
-  // Chapter I keeps chat history visible.
   useEffect(() => {
     try {
       localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages));
