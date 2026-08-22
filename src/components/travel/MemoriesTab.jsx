@@ -101,7 +101,7 @@ export default function MemoriesTab({ trip, onUpdate }) {
 function CoverBand({ images, extraCount, quote, quoteImage, dark }) {
   if (quote && quoteImage) {
     return (
-      <div className="relative h-[72px] rounded-xl overflow-hidden bg-muted mb-2.5">
+      <div className="relative h-[52px] rounded-xl overflow-hidden bg-muted mb-1.5">
         <img src={quoteImage} alt="" className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 px-2.5 pb-1.5">
@@ -114,7 +114,7 @@ function CoverBand({ images, extraCount, quote, quoteImage, dark }) {
   }
   if (quote) {
     return (
-      <div className={`h-[72px] rounded-xl flex items-center px-3 mb-2.5 ${dark ? "bg-[#2E2A27]" : "bg-secondary"}`}>
+      <div className={`h-[52px] rounded-xl flex items-center px-3 mb-1.5 ${dark ? "bg-[#2E2A27]" : "bg-secondary"}`}>
         <p className={`font-heading text-[13px] italic leading-snug line-clamp-2 ${dark ? "text-background" : "text-foreground"}`}>
           "{quote.length > 70 ? quote.slice(0, 70) + "…" : quote}"
         </p>
@@ -125,14 +125,14 @@ function CoverBand({ images, extraCount, quote, quoteImage, dark }) {
   const shown = images.slice(0, 3);
   if (shown.length === 1) {
     return (
-      <div className="h-[72px] rounded-xl overflow-hidden bg-muted mb-2.5">
+      <div className="h-[52px] rounded-xl overflow-hidden bg-muted mb-1.5">
         <img src={shown[0]} alt="" className="w-full h-full object-cover" />
       </div>
     );
   }
   if (shown.length === 2) {
     return (
-      <div className="h-[72px] rounded-xl overflow-hidden mb-2.5 grid grid-cols-2 gap-[3px]">
+      <div className="h-[52px] rounded-xl overflow-hidden mb-1.5 grid grid-cols-2 gap-[3px]">
         {shown.map((src, i) => (
           <div key={i} className="bg-muted overflow-hidden"><img src={src} alt="" className="w-full h-full object-cover" /></div>
         ))}
@@ -141,7 +141,7 @@ function CoverBand({ images, extraCount, quote, quoteImage, dark }) {
   }
   // 3+: big photo + two stacked smaller ones, with a "+N" overlay if there's more beyond what's shown
   return (
-    <div className="h-[72px] rounded-xl overflow-hidden mb-2.5 grid grid-cols-[2fr_1fr] gap-[3px]">
+    <div className="h-[52px] rounded-xl overflow-hidden mb-1.5 grid grid-cols-[2fr_1fr] gap-[3px]">
       <div className="bg-muted overflow-hidden"><img src={shown[0]} alt="" className="w-full h-full object-cover" /></div>
       <div className="grid grid-rows-2 gap-[3px]">
         <div className="bg-muted overflow-hidden"><img src={shown[1]} alt="" className="w-full h-full object-cover" /></div>
@@ -164,21 +164,21 @@ function MemoryCard({ icon, title, subtitle, count, images, extraCount, quote, q
   return (
     <button
       onClick={onClick}
-      className={`text-left rounded-2xl p-3.5 flex flex-col transition-colors ${wide ? "w-full" : ""} ${
+      className={`text-left rounded-2xl p-2.5 flex flex-col transition-colors ${wide ? "w-full" : ""} ${
         dark ? "bg-[#2E2A27] hover:bg-[#3a3531]" : "bg-card border border-border hover:border-accent/40"
       }`}
     >
       {hasCover && <CoverBand images={images} extraCount={extraCount} quote={quote} quoteImage={quoteImage} dark={dark} />}
-      <div className={`flex items-center gap-1.5 mb-1 ${dark ? "text-[#A7773F]" : "text-accent"}`}>{icon}</div>
+      <div className={`flex items-center gap-1.5 mb-0.5 ${dark ? "text-[#A7773F]" : "text-accent"}`}>{icon}</div>
       <h3 className={`font-heading text-[14px] font-semibold leading-tight ${dark ? "text-background" : "text-foreground"}`}>{title}</h3>
-      <p className={`font-body text-[10px] mt-0.5 leading-snug line-clamp-2 ${dark ? "text-background/60" : "text-muted-foreground"}`}>{subtitle}</p>
-      <p className={`font-body text-[10px] mt-1.5 ${dark ? "text-background/50" : "text-muted-foreground/80"}`}>{count}</p>
+      <p className={`font-body text-[10px] mt-0.5 leading-snug line-clamp-1 ${dark ? "text-background/60" : "text-muted-foreground"}`}>{subtitle}</p>
+      <p className={`font-body text-[10px] mt-1 ${dark ? "text-background/50" : "text-muted-foreground/80"}`}>{count}</p>
 
       {!hasCover && (
-        <p className={`font-body text-[10px] italic mt-2 ${dark ? "text-background/40" : "text-muted-foreground/70"}`}>{empty}</p>
+        <p className={`font-body text-[10px] italic mt-1 ${dark ? "text-background/40" : "text-muted-foreground/70"}`}>{empty}</p>
       )}
 
-      <div className="flex items-center justify-end mt-2">
+      <div className="flex items-center justify-end mt-1">
         <ChevronRight className={`w-3.5 h-3.5 ${dark ? "text-background/40" : "text-muted-foreground/60"}`} />
       </div>
     </button>
