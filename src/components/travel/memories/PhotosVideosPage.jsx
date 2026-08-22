@@ -157,8 +157,7 @@ export default function PhotosVideosPage({ trip, onUpdate, onBack }) {
       )}
 
       {/* Album filter chips */}
-      {media.length > 0 && (
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
           <button
             onClick={() => setFilterAlbum("all")}
             className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full transition-colors ${filterAlbum === "all" ? "bg-foreground text-background" : "bg-card border border-border text-muted-foreground"}`}
@@ -181,7 +180,6 @@ export default function PhotosVideosPage({ trip, onUpdate, onBack }) {
             <Plus className="w-3 h-3" /> Album
           </button>
         </div>
-      )}
 
       {media.length === 0 ? (
         <p className="text-sm text-muted-foreground py-8 text-center">No photos or videos yet.</p>
