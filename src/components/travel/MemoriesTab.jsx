@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { MapPin, Camera, Heart, Play, ChevronRight, Sparkles, Star } from "lucide-react";
 import { parseISO, format } from "date-fns";
-import { tripMonthYear, tripDuration, memoriesTotal, pickCoverImage, reflectionLine, computeStoryProgress, continueArea, visiblePlaces, visibleMedia, visibleNotes } from "@/lib/memoryUtils";
+import { tripMonthYear, tripDuration, memoriesTotal, pickCoverImage, computeStoryProgress, continueArea, visiblePlaces, visibleMedia } from "@/lib/memoryUtils";
 import MemoriesCover from "./memories/MemoriesCover";
 import StoryProgressCard from "./memories/StoryProgressCard";
 import FavoritePlacesPage from "./memories/FavoritePlacesPage";
@@ -21,7 +21,6 @@ export default function MemoriesTab({ trip, onUpdate }) {
   const photos = media.filter((m) => m.type === "photo").length;
   const videos = media.filter((m) => m.type === "video").length;
   const cover = useMemo(() => pickCoverImage(trip), [trip]);
-  const reflection = useMemo(() => reflectionLine(trip), [trip]);
   const placePreviews = useMemo(() => {
     const fav = places.filter((p) => p.favorited && p.image);
     const rest = places.filter((p) => p.image && !p.favorited);
@@ -49,7 +48,7 @@ export default function MemoriesTab({ trip, onUpdate }) {
         <span>· {total} memories</span>
       </div>
 
-      <MemoriesCover cover={cover} reflection={reflection} tripName={trip.title} />
+      <MemoriesCover trip={trip} cover={cover} days={dur} placesCount={places.length} photosCount={photos} />
 
       <StoryProgressCard trip={trip} onContinue={(area) => setView(area)} />
 
