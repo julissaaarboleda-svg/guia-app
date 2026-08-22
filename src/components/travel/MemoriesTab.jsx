@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { MapPin, Camera, Heart, ChevronRight, Sparkles, Star } from "lucide-react";
 import { parseISO, format } from "date-fns";
-import { tripMonthYear, tripDuration, memoriesTotal, pickCoverImage, computeStoryProgress, continueArea, visiblePlaces, visibleMedia } from "@/lib/memoryUtils";
+import { tripDuration, pickCoverImage, computeStoryProgress, continueArea, visiblePlaces, visibleMedia } from "@/lib/memoryUtils";
 import MemoriesCover from "./memories/MemoriesCover";
 import StoryProgressCard from "./memories/StoryProgressCard";
 import FavoritePlacesPage from "./memories/FavoritePlacesPage";
@@ -12,9 +12,7 @@ import TripRouteMap from "./memories/TripRouteMap";
 
 export default function MemoriesTab({ trip, onUpdate }) {
   const [view, setView] = useState(null);
-  const my = tripMonthYear(trip);
   const dur = tripDuration(trip);
-  const total = memoriesTotal(trip);
   const places = visiblePlaces(trip);
   const media = trip.memory_media || [];
   const journalEntries = (trip.journal_entries || []).slice().sort((a, b) => (b.date || "").localeCompare(a.date || ""));
@@ -50,14 +48,6 @@ export default function MemoriesTab({ trip, onUpdate }) {
 
   return (
     <div className="space-y-4">
-      {/* Sub-header: month/year + metadata */}
-      <div className="flex items-center gap-1.5 flex-wrap font-body text-[12px] text-muted-foreground">
-        {my && <span className="font-heading text-[14px] text-foreground font-semibold">{my}</span>}
-        {dur && <span>· {dur} days</span>}
-        <span>· {(trip.cities || []).length} cities</span>
-        <span>· {total} memories</span>
-      </div>
-
       <MemoriesCover trip={trip} cover={cover} days={dur} placesCount={places.length} photosCount={photos} />
 
       <StoryProgressCard trip={trip} onContinue={(area) => setView(area)} />
