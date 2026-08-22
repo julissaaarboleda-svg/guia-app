@@ -64,13 +64,14 @@ export default function MemoriesTab({ trip, onUpdate }) {
 
       <div className="grid grid-cols-2 gap-2.5">
         <MemoryCard
-          icon={<Heart className="w-4 h-4" />}
-          title="Notes & Reflections"
-          subtitle="What you felt and want to remember."
-          count={`${journalEntries.length} note${journalEntries.length !== 1 ? "s" : ""}`}
-          quote={favNote?.note}
-          empty="Nothing written yet."
-          onClick={() => setView("notes")}
+          icon={<Camera className="w-4 h-4" />}
+          title="Photos & Videos"
+          subtitle="Your moments, all in one place."
+          count={`${photos} photos · ${videos} videos`}
+          images={mediaPreviews.map((m) => m.thumbnail || m.url).filter(Boolean)}
+          extraCount={Math.max(0, media.length - mediaPreviews.length)}
+          empty="No moments added yet."
+          onClick={() => setView("photos")}
         />
         <MemoryCard
           icon={<MapPin className="w-4 h-4" />}
@@ -83,14 +84,14 @@ export default function MemoriesTab({ trip, onUpdate }) {
           onClick={() => setView("places")}
         />
         <MemoryCard
-          icon={<Camera className="w-4 h-4" />}
-          title="Photos & Videos"
-          subtitle="Your moments, all in one place."
-          count={`${photos} photos · ${videos} videos`}
-          images={mediaPreviews.map((m) => m.thumbnail || m.url).filter(Boolean)}
-          extraCount={Math.max(0, media.length - mediaPreviews.length)}
-          empty="No moments added yet."
-          onClick={() => setView("photos")}
+          icon={<Heart className="w-4 h-4" />}
+          title="Notes & Reflections"
+          subtitle="What you felt and want to remember."
+          count={`${journalEntries.length} note${journalEntries.length !== 1 ? "s" : ""}`}
+          quote={favNote?.note}
+          quoteImage={favNote?.photo_url}
+          empty="Nothing written yet."
+          onClick={() => setView("notes")}
         />
         <TripRouteMap trip={trip} />
       </div>
@@ -107,7 +108,20 @@ export default function MemoriesTab({ trip, onUpdate }) {
   );
 }
 
-function CoverBand({ images, extraCount, quote, dark }) {
+function CoverBand({ images, extraCount, quote, quoteImage, dark }) {
+  if (quote && quoteImage) {
+    return (
+      <div className="relative h-[72px] rounded-xl overflow-hidden bg-muted mb-2.5">
+        <img src={quoteImage} alt="" className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 px-2.5 pb-1.5">
+          <p className="font-heading text-[11.5px] text-white italic leading-snug line-clamp-1">
+            "{quote.length > 50 ? quote.slice(0, 50) + "…" : quote}"
+          </p>
+        </div>
+      </div>
+    );
+  }
   if (quote) {
     return (
       <div className={`h-[72px] rounded-xl flex items-center px-3 mb-2.5 ${dark ? "bg-[#2E2A27]" : "bg-secondary"}`}>
@@ -154,8 +168,8 @@ function CoverBand({ images, extraCount, quote, dark }) {
   );
 }
 
-function MemoryCard({ icon, title, subtitle, count, images, extraCount, quote, empty, onClick, wide }) {
-  const dark = !!quote; // Notes card gets the dark editorial treatment when it has content
+function MemoryCard({ icon, title, subtitle, count, images, extraCount, quote, quoteImage, empty, onClick, wide }) {
+  const dark = !!quote && !quoteImage; // Only go dark/text-only when there's truly no photo to show
   const hasCover = (images && images.length > 0) || quote;
   return (
     <button
@@ -164,7 +178,7 @@ function MemoryCard({ icon, title, subtitle, count, images, extraCount, quote, e
         dark ? "bg-[#2E2A27] hover:bg-[#3a3531]" : "bg-card border border-border hover:border-accent/40"
       }`}
     >
-      {hasCover && <CoverBand images={images} extraCount={extraCount} quote={quote} dark={dark} />}
+      {hasCover && <CoverBand images={images} extraCount={extraCount} quote={quote} quoteImage={quoteImage} dark={dark} />}
       <div className={`flex items-center gap-1.5 mb-1 ${dark ? "text-[#A7773F]" : "text-accent"}`}>{icon}</div>
       <h3 className={`font-heading text-[14px] font-semibold leading-tight ${dark ? "text-background" : "text-foreground"}`}>{title}</h3>
       <p className={`font-body text-[10px] mt-0.5 leading-snug line-clamp-2 ${dark ? "text-background/60" : "text-muted-foreground"}`}>{subtitle}</p>
