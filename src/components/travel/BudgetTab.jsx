@@ -71,7 +71,7 @@ function CategoryRing({ label, amount, totalSpent }) {
   return (
     <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
       <svg width="44" height="44" viewBox="0 0 44 44" className="flex-shrink-0">
-        <circle cx="22" cy="22" r={r} fill="none" stroke="var(--border)" strokeWidth="4" />
+        <circle cx="22" cy="22" r={r} fill="none" stroke="#DCD7CA" strokeWidth="4" />
         <circle
           cx="22" cy="22" r={r} fill="none" stroke={color} strokeWidth="4"
           strokeLinecap="round" strokeDasharray={c} strokeDashoffset={offset}
