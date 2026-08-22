@@ -32,7 +32,7 @@ export default function WeatherSummary({ cities, loading, forecastUrl }) {
       {loading ? (
         <div className="flex gap-2">
           {(cities.length ? cities : [0, 1, 2, 3, 4]).map((c, i) => (
-            <div key={i} className="flex-1 h-[52px] bg-muted rounded-lg animate-pulse" />
+            <div key={i} className="flex-1 h-[64px] bg-muted rounded-lg animate-pulse" />
           ))}
         </div>
       ) : cities.length === 0 ? (
@@ -42,18 +42,18 @@ export default function WeatherSummary({ cities, loading, forecastUrl }) {
       ) : (
         <div className="flex gap-2">
           {cities.map((c, i) => (
-            <div key={i} className="flex-1 min-w-0 flex flex-col items-center text-center gap-1 py-1 pb-2">
-              <p className="font-heading text-[11px] font-semibold text-foreground leading-tight line-clamp-2 min-h-[28px] flex items-center">{c.city}</p>
-              <div className="flex items-center gap-1">
+            <div key={i} className="flex-1 min-w-0 flex flex-col items-center text-center gap-1">
+              <div className="w-7 h-7 rounded-full bg-[#EFE9DF] flex items-center justify-center mb-0.5">
                 <WeatherIcon condition={c.condition} />
-                {c.high != null && c.low != null ? (
-                  <span className="font-body text-[11px] text-foreground whitespace-nowrap">{c.low}–{c.high}°</span>
-                ) : (
-                  <span className="font-body text-[11px] text-muted-foreground">—</span>
-                )}
               </div>
+              <p className="font-heading text-[11px] font-semibold text-foreground leading-tight truncate w-full">{c.city}</p>
+              {c.high != null && c.low != null ? (
+                <span className="font-body text-[11px] text-foreground whitespace-nowrap">{c.low}–{c.high}°</span>
+              ) : (
+                <span className="font-body text-[11px] text-muted-foreground">—</span>
+              )}
               {c.condition && (
-                <p className="font-body text-[10px] text-muted-foreground leading-tight line-clamp-2 min-h-[24px] w-full">{c.condition}</p>
+                <p className="font-body text-[10px] text-muted-foreground leading-tight truncate w-full">{c.condition}</p>
               )}
             </div>
           ))}
