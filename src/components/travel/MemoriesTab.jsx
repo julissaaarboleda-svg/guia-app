@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { MapPin, Camera, Heart, Play, ChevronRight, Sparkles, Star } from "lucide-react";
+import { MapPin, Camera, Heart, ChevronRight, Sparkles, Star } from "lucide-react";
 import { parseISO, format } from "date-fns";
 import { tripMonthYear, tripDuration, memoriesTotal, pickCoverImage, computeStoryProgress, continueArea, visiblePlaces, visibleMedia } from "@/lib/memoryUtils";
 import MemoriesCover from "./memories/MemoriesCover";
@@ -52,33 +52,26 @@ export default function MemoriesTab({ trip, onUpdate }) {
 
       <StoryProgressCard trip={trip} onContinue={(area) => setView(area)} />
 
-      {/* 2-column grid */}
+      {/* Notes & Reflections — full width, since it's the primary entry point */}
+      <MemoryCard
+        icon={<Heart className="w-4 h-4" />}
+        title="Notes & Reflections"
+        subtitle="What you felt and want to remember."
+        count={`${journalEntries.length} note${journalEntries.length !== 1 ? "s" : ""}`}
+        quote={favNote?.note}
+        empty="Nothing written yet."
+        onClick={() => setView("notes")}
+        wide
+      />
+
       <div className="grid grid-cols-2 gap-2.5">
-        <MemoryCard
-          icon={<Heart className="w-4 h-4" />}
-          title="Notes & Reflections"
-          subtitle="What you felt and want to remember."
-          count={`${journalEntries.length} note${journalEntries.length !== 1 ? "s" : ""}`}
-          previewQuote={favNote?.note}
-          previewImg={favNote?.photo_url}
-          empty="Nothing written yet."
-          onClick={() => setView("notes")}
-        />
-        <MemoryCard
-          icon={<Play className="w-4 h-4" />}
-          title="Story Preview"
-          subtitle="See your journey come to life."
-          count={total > 0 ? "Ready to share" : "Add memories to begin"}
-          storyThumb={cover}
-          empty="Your story will appear here."
-          onClick={() => setView("story")}
-        />
         <MemoryCard
           icon={<MapPin className="w-4 h-4" />}
           title="Favorite Places"
           subtitle="The places that made this trip special."
           count={`${places.length} places saved`}
-          previews={placePreviews.map((p) => p.image).filter(Boolean)}
+          images={placePreviews.map((p) => p.image).filter(Boolean)}
+          extraCount={Math.max(0, places.length - placePreviews.length)}
           empty="No favorite places yet."
           onClick={() => setView("places")}
         />
@@ -87,7 +80,8 @@ export default function MemoriesTab({ trip, onUpdate }) {
           title="Photos & Videos"
           subtitle="Your moments, all in one place."
           count={`${photos} photos · ${videos} videos`}
-          previews={mediaPreviews.map((m) => m.thumbnail || m.url).filter(Boolean)}
+          images={mediaPreviews.map((m) => m.thumbnail || m.url).filter(Boolean)}
+          extraCount={Math.max(0, media.length - mediaPreviews.length)}
           empty="No moments added yet."
           onClick={() => setView("photos")}
         />
@@ -107,39 +101,75 @@ export default function MemoriesTab({ trip, onUpdate }) {
   );
 }
 
-function MemoryCard({ icon, title, subtitle, count, previews, previewQuote, previewImg, storyThumb, empty, onClick }) {
-  return (
-    <button onClick={onClick} className="text-left bg-card border border-border rounded-2xl p-3.5 flex flex-col hover:border-accent/40 transition-colors">
-      <div className="flex items-center gap-1.5 text-accent mb-1.5">{icon}</div>
-      <h3 className="font-heading text-[14px] text-foreground font-semibold leading-tight">{title}</h3>
-      <p className="font-body text-[10px] text-muted-foreground mt-0.5 leading-snug line-clamp-2">{subtitle}</p>
-      <p className="font-body text-[10px] text-muted-foreground/80 mt-1.5 mb-2">{count}</p>
-
-      <div className="mt-auto">
-        {previews && previews.length > 0 ? (
-          <div className="flex -space-x-2">
-            {previews.slice(0, 4).map((src, i) => (
-              <div key={i} className="w-9 h-9 rounded-full border-2 border-card bg-muted overflow-hidden">
-                <img src={src} alt="" className="w-full h-full object-cover" />
-              </div>
-            ))}
-          </div>
-        ) : previewQuote ? (
-          <div className="flex items-center gap-2">
-            {previewImg && <div className="w-9 h-9 rounded-lg bg-muted overflow-hidden flex-shrink-0"><img src={previewImg} alt="" className="w-full h-full object-cover" /></div>}
-            <p className="font-body text-[10.5px] text-muted-foreground italic line-clamp-2 flex-1">"{previewQuote.length > 60 ? previewQuote.slice(0, 60) + "…" : previewQuote}"</p>
-          </div>
-        ) : storyThumb ? (
-          <div className="relative w-full aspect-[3/4] rounded-lg overflow-hidden bg-muted max-w-[60px]">
-            <img src={storyThumb} alt="" className="w-full h-full object-cover" />
-            <div className="absolute inset-0 flex items-center justify-center bg-black/25"><Play className="w-4 h-4 text-white fill-white" /></div>
-          </div>
-        ) : (
-          <p className="font-body text-[10px] text-muted-foreground/70 italic">{empty}</p>
-        )}
+function CoverBand({ images, extraCount, quote, dark }) {
+  if (quote) {
+    return (
+      <div className={`h-[72px] rounded-xl flex items-center px-3 mb-2.5 ${dark ? "bg-[#2E2A27]" : "bg-secondary"}`}>
+        <p className={`font-heading text-[13px] italic leading-snug line-clamp-2 ${dark ? "text-background" : "text-foreground"}`}>
+          "{quote.length > 70 ? quote.slice(0, 70) + "…" : quote}"
+        </p>
       </div>
+    );
+  }
+  if (!images || images.length === 0) return null;
+  const shown = images.slice(0, 3);
+  if (shown.length === 1) {
+    return (
+      <div className="h-[72px] rounded-xl overflow-hidden bg-muted mb-2.5">
+        <img src={shown[0]} alt="" className="w-full h-full object-cover" />
+      </div>
+    );
+  }
+  if (shown.length === 2) {
+    return (
+      <div className="h-[72px] rounded-xl overflow-hidden mb-2.5 grid grid-cols-2 gap-[3px]">
+        {shown.map((src, i) => (
+          <div key={i} className="bg-muted overflow-hidden"><img src={src} alt="" className="w-full h-full object-cover" /></div>
+        ))}
+      </div>
+    );
+  }
+  // 3+: big photo + two stacked smaller ones, with a "+N" overlay if there's more beyond what's shown
+  return (
+    <div className="h-[72px] rounded-xl overflow-hidden mb-2.5 grid grid-cols-[2fr_1fr] gap-[3px]">
+      <div className="bg-muted overflow-hidden"><img src={shown[0]} alt="" className="w-full h-full object-cover" /></div>
+      <div className="grid grid-rows-2 gap-[3px]">
+        <div className="bg-muted overflow-hidden"><img src={shown[1]} alt="" className="w-full h-full object-cover" /></div>
+        <div className="relative bg-muted overflow-hidden">
+          <img src={shown[2]} alt="" className="w-full h-full object-cover" />
+          {extraCount > 0 && (
+            <div className="absolute inset-0 bg-black/55 flex items-center justify-center">
+              <span className="font-body text-[10px] text-white font-medium">+{extraCount}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MemoryCard({ icon, title, subtitle, count, images, extraCount, quote, empty, onClick, wide }) {
+  const dark = !!quote; // Notes card gets the dark editorial treatment when it has content
+  const hasCover = (images && images.length > 0) || quote;
+  return (
+    <button
+      onClick={onClick}
+      className={`text-left rounded-2xl p-3.5 flex flex-col transition-colors ${wide ? "w-full" : ""} ${
+        dark ? "bg-[#2E2A27] hover:bg-[#3a3531]" : "bg-card border border-border hover:border-accent/40"
+      }`}
+    >
+      {hasCover && <CoverBand images={images} extraCount={extraCount} quote={quote} dark={dark} />}
+      <div className={`flex items-center gap-1.5 mb-1 ${dark ? "text-[#A7773F]" : "text-accent"}`}>{icon}</div>
+      <h3 className={`font-heading text-[14px] font-semibold leading-tight ${dark ? "text-background" : "text-foreground"}`}>{title}</h3>
+      <p className={`font-body text-[10px] mt-0.5 leading-snug line-clamp-2 ${dark ? "text-background/60" : "text-muted-foreground"}`}>{subtitle}</p>
+      <p className={`font-body text-[10px] mt-1.5 ${dark ? "text-background/50" : "text-muted-foreground/80"}`}>{count}</p>
+
+      {!hasCover && (
+        <p className={`font-body text-[10px] italic mt-2 ${dark ? "text-background/40" : "text-muted-foreground/70"}`}>{empty}</p>
+      )}
+
       <div className="flex items-center justify-end mt-2">
-        <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/60" />
+        <ChevronRight className={`w-3.5 h-3.5 ${dark ? "text-background/40" : "text-muted-foreground/60"}`} />
       </div>
     </button>
   );
