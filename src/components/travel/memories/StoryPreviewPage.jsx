@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { ArrowLeft, ImageIcon, MapPin } from "lucide-react";
 import { format, parseISO } from "date-fns";
-import { pickCoverImage, visiblePlaces, visibleMedia, tripDuration, reflectionLine } from "@/lib/memoryUtils";
+import { pickCoverImage, visiblePlaces, visibleMedia, tripDuration } from "@/lib/memoryUtils";
 import { base44 } from "@/api/base44Client";
 
 function dateRangeLabel(trip) {
@@ -112,7 +112,8 @@ export default function StoryPreviewPage({ trip, onUpdate, onBack }) {
   const media = visibleMedia(trip);
   const photosCount = media.filter((m) => m.type === "photo").length;
   const days = tripDuration(trip);
-  const reflection = useMemo(() => reflectionLine(trip), [trip]);
+  const journalEntries = (trip.journal_entries || []).filter((e) => e.note).sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const reflection = journalEntries[0]?.note || "A journey to remember.";
 
   const [uploading, setUploading] = useState(false);
   const [slide, setSlide] = useState(0);
