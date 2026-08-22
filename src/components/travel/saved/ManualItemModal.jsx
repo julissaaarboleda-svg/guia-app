@@ -1,16 +1,16 @@
 import { useState } from "react";
-import { X, Check } from "lucide-react";
+import { X, Check, ChevronDown } from "lucide-react";
+import { CATEGORY_CHIPS } from "./categoryMeta";
 
-const CATEGORIES = [
-  { value: "restaurant", label: "Restaurant" },
-  { value: "cafe", label: "Café" },
-  { value: "museum", label: "Museum" },
-  { value: "experience", label: "Experience" },
-];
+// Same categories used by the AI recommendations, minus "All" — so a
+// manually-added place fits into the same filters/sections as everything
+// else on the Saved tab.
+const CATEGORIES = CATEGORY_CHIPS.filter((c) => c.value !== "all");
 
 export default function ManualItemModal({ city, onClose, onAdd }) {
   const [name, setName] = useState("");
-  const [category, setCategory] = useState("restaurant");
+  const [category, setCategory] = useState(CATEGORIES[0]?.value || "restaurant");
+  const [categoryOpen, setCategoryOpen] = useState(false);
   const [description, setDescription] = useState("");
   const [website, setWebsite] = useState("");
 
@@ -47,15 +47,30 @@ export default function ManualItemModal({ city, onClose, onAdd }) {
               className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-ring transition-colors"
             />
           </div>
-          <div>
+          <div className="relative">
             <label className="text-xs text-muted-foreground mb-1.5 block">Category</label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-ring transition-colors"
+            <button
+              type="button"
+              onClick={() => setCategoryOpen((o) => !o)}
+              className="w-full flex items-center justify-between bg-muted border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-ring transition-colors"
             >
-              {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-            </select>
+              <span>{CATEGORIES.find((c) => c.value === category)?.label || "Pick a category"}</span>
+              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${categoryOpen ? "rotate-180" : ""}`} />
+            </button>
+            {categoryOpen && (
+              <div className="absolute left-0 right-0 top-full mt-1 z-10 bg-card border border-border rounded-lg shadow-lg max-h-56 overflow-y-auto">
+                {CATEGORIES.map((c) => (
+                  <button
+                    key={c.value}
+                    type="button"
+                    onClick={() => { setCategory(c.value); setCategoryOpen(false); }}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-secondary transition-colors ${category === c.value ? "text-accent font-medium" : "text-foreground"}`}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1.5 block">City</label>
