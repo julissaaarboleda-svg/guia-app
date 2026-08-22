@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { MapPin, Camera, Heart, ChevronRight, Sparkles, Star } from "lucide-react";
 import { parseISO, format } from "date-fns";
 import { tripMonthYear, tripDuration, memoriesTotal, pickCoverImage, computeStoryProgress, continueArea, visiblePlaces, visibleMedia } from "@/lib/memoryUtils";
@@ -32,6 +32,16 @@ export default function MemoriesTab({ trip, onUpdate }) {
     return [...fav, ...rest].slice(0, 4);
   }, [media]);
   const favNote = useMemo(() => journalEntries.find((e) => e.note), [journalEntries]);
+
+  // Switching to a sub-view (Places, Photos, Notes, Story) doesn't trigger a
+  // real page navigation — it's a client-side swap within the same
+  // component — so nothing scrolls back to the top on its own. The app's
+  // actual scrollable area is an inner <main>, not necessarily the window,
+  // so reset both to be safe.
+  useEffect(() => {
+    document.querySelector("main")?.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0 });
+  }, [view]);
 
   if (view === "places") return <FavoritePlacesPage trip={trip} onUpdate={onUpdate} onBack={() => setView(null)} />;
   if (view === "photos") return <PhotosVideosPage trip={trip} onUpdate={onUpdate} onBack={() => setView(null)} />;
