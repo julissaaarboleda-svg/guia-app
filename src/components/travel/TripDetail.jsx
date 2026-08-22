@@ -70,9 +70,6 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
   }, []);
 
   const save = async () => {
-    // Same fix as NewJourneySheet — capture typed-but-unconfirmed text in the
-    // country/city inputs so it isn't silently lost if Save is tapped before
-    // pressing Enter or clicking a suggestion.
     const existingCountries = form.country ? form.country.split(",").map(c => c.trim()).filter(Boolean) : [];
     const finalCountries = countryInput.trim() && !existingCountries.includes(countryInput.trim())
       ? [...existingCountries, countryInput.trim()] : existingCountries;
@@ -92,7 +89,6 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
         : (form.notes || { format: "rich_text", content: "", list_items: [] }),
     };
 
-    // Only regenerate itinerary if trip dates actually changed
     const datesChanged = form.start_date !== trip.start_date || form.end_date !== trip.end_date;
     if (datesChanged && form.start_date && form.end_date) {
       const start = parseISO(form.start_date);
@@ -154,15 +150,9 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
     ? Math.ceil((parseISO(trip.end_date) - parseISO(trip.start_date)) / (1000 * 60 * 60 * 24)) + 1
     : null;
 
-  // Order cities by their first chronological mention in the itinerary
-  // Cities are shown in exactly the order set on the trip — no automatic
-  // reordering. An earlier version tried to re-sort by whichever city was
-  // "first mentioned" in the itinerary's actual text content, but that's
-  // fragile: a city that simply hasn't been typed anywhere yet (very common
-  // right after auto-generating blank days) would lose its place to
-  // whichever city happened to get a stray mention first, silently
-  // overriding the order the person deliberately chose.
   const orderedCities = trip.cities || [];
+
+  const onMemoriesTab = tab === "Recap";
 
   return (
     <div className="min-h-screen bg-background">
@@ -175,10 +165,11 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
       <div className="max-w-4xl mx-auto px-4 md:px-8 pb-28 md:pb-10">
         {/* Unified journey header */}
         <div>
-          {/* Back + actions */}
+          {/* Back + actions — always visible, regardless of tab */}
           <div className="flex items-center justify-between" style={{ paddingTop: '8px' }}>
-            <button onClick={onBack} className="p-2 -ml-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors">
+            <button onClick={onBack} className="flex items-center gap-1.5 p-2 -ml-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors">
               <ArrowLeft className="w-5 h-5" />
+              {onMemoriesTab && <span className="font-body text-sm">Back</span>}
             </button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -203,61 +194,66 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
             </DropdownMenu>
           </div>
 
-          {/* Cover photo + title + status + route */}
-          <div className="flex gap-4 items-start pt-2">
-            <button
-              onClick={() => { setPhotoUrl(trip.hero_image_url || ""); setShowPhotoModal(true); }}
-              className="w-[72px] h-[72px] rounded-2xl overflow-hidden flex-shrink-0 bg-secondary flex items-center justify-center"
-            >
-              {trip.hero_image_url ? (
-                <img src={trip.hero_image_url} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <ImageIcon className="w-6 h-6 text-muted-foreground" strokeWidth={1.6} />
-              )}
-            </button>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="font-heading text-[26px] leading-tight text-foreground font-semibold truncate">
-                  {trip.flag_emoji && <span className="text-xl leading-none mr-1">{trip.flag_emoji}</span>}
-                  {trip.title}
-                </h1>
+          {/* Cover photo + title + status + route + metadata pills — hidden on
+              the Memories tab, since MemoriesCover already shows the photo,
+              title, and trip stats. Showing both was redundant. */}
+          {!onMemoriesTab && (
+            <>
+              <div className="flex gap-4 items-start pt-2">
                 <button
-                  onClick={() => setEditing(true)}
-                  className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-foreground rounded-full hover:bg-secondary transition-colors flex-shrink-0"
+                  onClick={() => { setPhotoUrl(trip.hero_image_url || ""); setShowPhotoModal(true); }}
+                  className="w-[72px] h-[72px] rounded-2xl overflow-hidden flex-shrink-0 bg-secondary flex items-center justify-center"
                 >
-                  <Pencil className="w-3.5 h-3.5" strokeWidth={1.8} />
+                  {trip.hero_image_url ? (
+                    <img src={trip.hero_image_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <ImageIcon className="w-6 h-6 text-muted-foreground" strokeWidth={1.6} />
+                  )}
                 </button>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h1 className="font-heading text-[26px] leading-tight text-foreground font-semibold truncate">
+                      {trip.flag_emoji && <span className="text-xl leading-none mr-1">{trip.flag_emoji}</span>}
+                      {trip.title}
+                    </h1>
+                    <button
+                      onClick={() => setEditing(true)}
+                      className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-foreground rounded-full hover:bg-secondary transition-colors flex-shrink-0"
+                    >
+                      <Pencil className="w-3.5 h-3.5" strokeWidth={1.8} />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap mt-1.5">
+                    <span className={`inline-flex font-body text-[11px] px-2.5 py-0.5 rounded-full border ${statusColors[trip.status || "planning"]}`}>
+                      {trip.status || "planning"}
+                    </span>
+                  </div>
+                  {(orderedCities.length > 0 || trip.country) && (
+                    <div className="flex items-center gap-1 font-body text-[13px] text-muted-foreground min-w-0 mt-1.5">
+                      <MapPin className="w-3 h-3 flex-shrink-0" strokeWidth={1.8} />
+                      <span className="truncate">{(orderedCities.length > 0 ? orderedCities : [trip.country]).filter(Boolean).join(" → ")}</span>
+                      <MapPin className="w-3 h-3 flex-shrink-0" strokeWidth={1.8} />
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-2 flex-wrap mt-1.5">
-                <span className={`inline-flex font-body text-[11px] px-2.5 py-0.5 rounded-full border ${statusColors[trip.status || "planning"]}`}>
-                  {trip.status || "planning"}
+
+              <div className="flex items-center gap-2 flex-wrap mt-3">
+                <span className="inline-flex items-center gap-1.5 font-body text-[12px] text-foreground bg-secondary px-3 py-1.5 rounded-full">
+                  <Calendar className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.8} />
+                  {daysUntil !== null && daysUntil > 0 ? `${daysUntil} days away` : "—"}
+                </span>
+                <span className="inline-flex items-center gap-1.5 font-body text-[12px] text-foreground bg-secondary px-3 py-1.5 rounded-full">
+                  <Clock className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.8} />
+                  {tripDays ? `${tripDays} days long` : "—"}
+                </span>
+                <span className="inline-flex items-center gap-1.5 font-body text-[12px] text-foreground bg-secondary px-3 py-1.5 rounded-full">
+                  <MapPin className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.8} />
+                  {trip.cities?.length || 0} cities
                 </span>
               </div>
-              {(orderedCities.length > 0 || trip.country) && (
-                <div className="flex items-center gap-1 font-body text-[13px] text-muted-foreground min-w-0 mt-1.5">
-                  <MapPin className="w-3 h-3 flex-shrink-0" strokeWidth={1.8} />
-                  <span className="truncate">{(orderedCities.length > 0 ? orderedCities : [trip.country]).filter(Boolean).join(" → ")}</span>
-                  <MapPin className="w-3 h-3 flex-shrink-0" strokeWidth={1.8} />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Trip metadata — pill badges */}
-          <div className="flex items-center gap-2 flex-wrap mt-3">
-            <span className="inline-flex items-center gap-1.5 font-body text-[12px] text-foreground bg-secondary px-3 py-1.5 rounded-full">
-              <Calendar className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.8} />
-              {daysUntil !== null && daysUntil > 0 ? `${daysUntil} days away` : "—"}
-            </span>
-            <span className="inline-flex items-center gap-1.5 font-body text-[12px] text-foreground bg-secondary px-3 py-1.5 rounded-full">
-              <Clock className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.8} />
-              {tripDays ? `${tripDays} days long` : "—"}
-            </span>
-            <span className="inline-flex items-center gap-1.5 font-body text-[12px] text-foreground bg-secondary px-3 py-1.5 rounded-full">
-              <MapPin className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.8} />
-              {trip.cities?.length || 0} cities
-            </span>
-          </div>
+            </>
+          )}
         </div>
 
         {/* Edit modal */}
@@ -547,7 +543,6 @@ export function DetailsTab({ trip, onUpdate }) {
   const saveFlights = async () => {
     const updateData = { flights: flightList };
 
-    // Auto-generate itinerary days from trip start/end dates only (not flight dates)
     if (trip.start_date && trip.end_date) {
       const start = parseISO(trip.start_date);
       const end = parseISO(trip.end_date);
@@ -560,12 +555,11 @@ export function DetailsTab({ trip, onUpdate }) {
           return alreadyExists ? { ...alreadyExists, day: i + 1 } : { day: i + 1, date: dateStr, title: "", description: "", activities: [] };
         });
 
-        // Add arrival info to the matching day (fall back to day 1 if arrival date is outside trip range)
         const outbound = flightList.find(f => f.label === "Outbound" || (!f.label && flightList.indexOf(f) === 0));
         if (outbound) {
           const matchDate = outbound.arrival_date || outbound.departure_date;
           let dayIndex = matchDate ? newItinerary.findIndex(d => d.date === matchDate) : -1;
-          if (dayIndex < 0) dayIndex = 0; // fall back to first day
+          if (dayIndex < 0) dayIndex = 0;
           if (dayIndex >= 0) {
             const arrivalActivity = {
               time: outbound.arrival_time || "",
@@ -574,7 +568,6 @@ export function DetailsTab({ trip, onUpdate }) {
               notes: outbound.airline ? `${outbound.airline} ${outbound.flight_number || ""}`.trim() : "",
             };
             const day = newItinerary[dayIndex];
-            // Only add if not already present
             const exists = day.activities?.some(a => a.activity === arrivalActivity.activity);
             if (!exists) {
               day.activities = [arrivalActivity, ...(day.activities || [])];
@@ -626,7 +619,6 @@ export function DetailsTab({ trip, onUpdate }) {
 
   return (
     <div className="space-y-4 font-body">
-      {/* Flights Section */}
       <div className="bg-card border border-border rounded-2xl p-5">
         <div
           className={`flex items-center justify-between mb-3 ${!editingFlights ? "cursor-pointer" : ""}`}
@@ -691,7 +683,6 @@ export function DetailsTab({ trip, onUpdate }) {
         )}
       </div>
 
-      {/* Stays Section */}
       <div className="bg-card border border-border rounded-2xl p-5">
         <div
           className={`flex items-center justify-between mb-3 ${!editingStays ? "cursor-pointer" : ""}`}
