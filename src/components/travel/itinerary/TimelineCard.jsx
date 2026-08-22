@@ -179,7 +179,7 @@ export default function TimelineCard({ activity, onEdit, onDelete, onAddToMemori
           )}
 
           {/* ---------------- ACTIONS ---------------- */}
-          <div className="flex items-center justify-end gap-3 mt-2 pt-1.5 border-t border-border/60">
+          <div className={`flex items-center justify-end gap-3 mt-2 pt-1.5 ${activity.notes ? "" : "border-t border-border/60"}`}>
             <button
               onClick={onEdit}
               className="text-muted-foreground/70 hover:text-foreground transition-colors"
