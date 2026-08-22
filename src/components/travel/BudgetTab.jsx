@@ -28,32 +28,52 @@ function buildCategoryRings(expenses) {
     totals[cat] = (totals[cat] || 0) + (Number(e.amount) || 0);
   });
   const entries = Object.entries(totals).filter(([, amt]) => amt > 0).sort((a, b) => b[1] - a[1]);
-  if (entries.length <= 4) return entries;
-  const top = new Map(entries.slice(0, 3));
-  const restTotal = entries.slice(3).reduce((s, [, amt]) => s + amt, 0);
-  top.set("Other", (top.get("Other") || 0) + restTotal);
-  return Array.from(top.entries()).sort((a, b) => b[1] - a[1]);
+  let rings;
+  if (entries.length <= 4) {
+    rings = entries;
+  } else {
+    const top = new Map(entries.slice(0, 3));
+    const restTotal = entries.slice(3).reduce((s, [, amt]) => s + amt, 0);
+    top.set("Other", (top.get("Other") || 0) + restTotal);
+    rings = Array.from(top.entries()).sort((a, b) => b[1] - a[1]);
+  }
+  // Pad to 4 slots with greyed-out placeholders from categories that don't
+  // have any spending yet, so the row always stays full instead of a
+  // couple of rings floating with empty space around them.
+  const used = new Set(rings.map(([label]) => label));
+  const placeholders = CATEGORIES.filter((c) => !used.has(c));
+  let i = 0;
+  while (rings.length < 4 && i < placeholders.length) {
+    rings.push([placeholders[i], 0]);
+    i++;
+  }
+  return rings;
 }
 
 function CategoryRing({ label, amount, totalSpent }) {
+  const isEmpty = amount <= 0;
   const pct = totalSpent > 0 ? Math.round((amount / totalSpent) * 100) : 0;
-  const color = CATEGORY_COLORS[label] || CATEGORY_COLORS.Other;
-  const r = 21;
+  const color = isEmpty ? "var(--border)" : (CATEGORY_COLORS[label] || CATEGORY_COLORS.Other);
+  const r = 17;
   const c = 2 * Math.PI * r;
   const offset = c - (pct / 100) * c;
   return (
-    <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
-      <svg width="52" height="52" viewBox="0 0 52 52" className="flex-shrink-0">
-        <circle cx="26" cy="26" r={r} fill="none" stroke="var(--border)" strokeWidth="5" />
-        <circle
-          cx="26" cy="26" r={r} fill="none" stroke={color} strokeWidth="5"
-          strokeLinecap="round" strokeDasharray={c} strokeDashoffset={offset}
-          transform="rotate(-90 26 26)"
-        />
-        <text x="26" y="30" textAnchor="middle" className="fill-foreground" fontSize="12" fontWeight="600">{pct}%</text>
+    <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
+      <svg width="44" height="44" viewBox="0 0 44 44" className="flex-shrink-0">
+        <circle cx="22" cy="22" r={r} fill="none" stroke="var(--border)" strokeWidth="4" />
+        {!isEmpty && (
+          <circle
+            cx="22" cy="22" r={r} fill="none" stroke={color} strokeWidth="4"
+            strokeLinecap="round" strokeDasharray={c} strokeDashoffset={offset}
+            transform="rotate(-90 22 22)"
+          />
+        )}
+        <text x="22" y="26" textAnchor="middle" className={isEmpty ? "fill-muted-foreground" : "fill-foreground"} fontSize="10.5" fontWeight="600">
+          {isEmpty ? "–" : `${pct}%`}
+        </text>
       </svg>
-      <p className="text-[11px] text-foreground font-medium truncate max-w-full">{label}</p>
-      <p className="text-[10px] text-muted-foreground">${amount.toLocaleString()}</p>
+      <p className={`text-[10.5px] font-medium truncate max-w-full ${isEmpty ? "text-muted-foreground" : "text-foreground"}`}>{label}</p>
+      <p className="text-[9.5px] text-muted-foreground">{isEmpty ? "No spending" : `$${amount.toLocaleString()}`}</p>
     </div>
   );
 }
@@ -97,9 +117,9 @@ export default function BudgetTab({ trip, onUpdate }) {
       {/* Spending by category — shown above the budget target bar so you
           can see where the money's actually going at a glance. */}
       {categoryRings.length > 0 && (
-        <div className="bg-card border border-border rounded-2xl p-5">
-          <h3 className="text-sm font-medium text-foreground mb-3">Spending by category</h3>
-          <div className="flex gap-2">
+        <div className="bg-card border border-border rounded-2xl p-4">
+          <h3 className="text-sm font-medium text-foreground mb-2.5">Spending by category</h3>
+          <div className="flex gap-1.5">
             {categoryRings.map(([label, amount]) => (
               <CategoryRing key={label} label={label} amount={amount} totalSpent={totalSpent} />
             ))}
