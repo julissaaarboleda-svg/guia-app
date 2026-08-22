@@ -37,7 +37,22 @@ exports.handler = async (event, context) => {
       ? `&path=${encodeURIComponent(`color:0xA7773Fcc|weight:3|${labeled.join("|")}`)}`
       : "";
 
-    const url = `https://maps.googleapis.com/maps/api/staticmap?size=640x360&scale=2&maptype=terrain${pathParam}&${markerParams}&key=${apiKey}`;
+    // Clean, branded look instead of Google's default cluttered map: hide
+    // every default label, road, and POI icon (the lettered pins already
+    // say which city is which), then recolor land/water to match the app
+    // palette instead of Google's stock green/blue.
+    const styleParams = [
+      "feature:all|element:labels|visibility:off",
+      "feature:road|visibility:off",
+      "feature:poi|visibility:off",
+      "feature:administrative|visibility:off",
+      "feature:landscape|color:0xF1EEE5",
+      "feature:water|color:0xA9C4B8",
+    ]
+      .map((s) => `style=${encodeURIComponent(s)}`)
+      .join("&");
+
+    const url = `https://maps.googleapis.com/maps/api/staticmap?size=640x420&scale=2&maptype=roadmap${pathParam}&${markerParams}&${styleParams}&key=${apiKey}`;
 
     const res = await fetch(url);
     if (!res.ok) {
