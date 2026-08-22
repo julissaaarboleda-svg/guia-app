@@ -71,7 +71,10 @@ export default function TopPicksCarousel({ trip, city, picks, loading, refreshin
             const saved = isSaved(p);
             return (
               <div key={i} ref={requestOnVisible(p)} className="flex-shrink-0 w-[148px] rounded-xl border border-border bg-card overflow-hidden">
-                <div className="relative h-[92px] bg-muted">
+                <div
+                  onClick={() => setExpanded(p)}
+                  className="relative h-[92px] bg-muted cursor-pointer"
+                >
                   {img ? (
                     <img src={img} alt={p.name} className="w-full h-full object-cover" />
                   ) : (
@@ -170,7 +173,8 @@ export default function TopPicksCarousel({ trip, city, picks, loading, refreshin
             )}
             <button
               onClick={() => setExpanded(null)}
-              className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-black/45 text-white hover:bg-black/60 transition-colors"
+              className="absolute right-4 w-9 h-9 flex items-center justify-center rounded-full bg-black/45 text-white hover:bg-black/60 transition-colors"
+              style={{ top: "calc(env(safe-area-inset-top, 0px) + 2.5rem)" }}
               aria-label="Close"
             >
               <X className="w-5 h-5" />
