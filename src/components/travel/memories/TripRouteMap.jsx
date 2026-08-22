@@ -104,6 +104,13 @@ export default function TripRouteMap({ trip }) {
         }
 
         mapInstanceRef.current = map;
+        // The map is created inside a just-opened modal — its container
+        // may not have its final size yet at this exact moment, which is
+        // the classic cause of Leaflet rendering a blank grey map. Forcing
+        // a recalculation on the next frame (and once more shortly after)
+        // fixes that reliably.
+        requestAnimationFrame(() => map.invalidateSize());
+        setTimeout(() => map.invalidateSize(), 200);
         setLoading(false);
       } catch (err) {
         console.error("Trip map failed:", err);
