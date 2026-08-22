@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Plus, Trash2, DollarSign, Edit2, Check, X } from "lucide-react";
 import DateInput from "@/components/DateInput";
@@ -53,21 +53,31 @@ function buildCategoryRings(expenses) {
 function CategoryRing({ label, amount, totalSpent }) {
   const isEmpty = amount <= 0;
   const pct = totalSpent > 0 ? Math.round((amount / totalSpent) * 100) : 0;
-  const color = isEmpty ? "var(--border)" : (CATEGORY_COLORS[label] || CATEGORY_COLORS.Other);
+  const color = CATEGORY_COLORS[label] || CATEGORY_COLORS.Other;
   const r = 17;
   const c = 2 * Math.PI * r;
-  const offset = c - (pct / 100) * c;
+
+  // Every ring starts fully grey (0%) and the colored arc animates in on
+  // top, so populated rings visibly "fill in" on load and empty ones stay
+  // at rest looking the same as any other ring — never broken or blank.
+  const [animatedPct, setAnimatedPct] = useState(0);
+  useEffect(() => {
+    const t = setTimeout(() => setAnimatedPct(pct), 50);
+    return () => clearTimeout(t);
+  }, [pct]);
+
+  const offset = c - (animatedPct / 100) * c;
+
   return (
     <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
       <svg width="44" height="44" viewBox="0 0 44 44" className="flex-shrink-0">
         <circle cx="22" cy="22" r={r} fill="none" stroke="var(--border)" strokeWidth="4" />
-        {!isEmpty && (
-          <circle
-            cx="22" cy="22" r={r} fill="none" stroke={color} strokeWidth="4"
-            strokeLinecap="round" strokeDasharray={c} strokeDashoffset={offset}
-            transform="rotate(-90 22 22)"
-          />
-        )}
+        <circle
+          cx="22" cy="22" r={r} fill="none" stroke={color} strokeWidth="4"
+          strokeLinecap="round" strokeDasharray={c} strokeDashoffset={offset}
+          transform="rotate(-90 22 22)"
+          style={{ transition: "stroke-dashoffset 0.6s ease-out" }}
+        />
         <text x="22" y="26" textAnchor="middle" className={isEmpty ? "fill-muted-foreground" : "fill-foreground"} fontSize="10.5" fontWeight="600">
           {isEmpty ? "–" : `${pct}%`}
         </text>
