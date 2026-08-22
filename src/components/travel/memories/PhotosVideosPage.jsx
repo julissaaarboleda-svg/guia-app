@@ -9,8 +9,16 @@ export default function PhotosVideosPage({ trip, onUpdate, onBack }) {
   const [error, setError] = useState(null);
   const [filterAlbum, setFilterAlbum] = useState("all");
   const [editingIdx, setEditingIdx] = useState(null);
+  // Replaces window.prompt() — a native OS dialog that can't be styled at
+  // all — with a real in-app modal matching Guía's brand.
+  const [textPrompt, setTextPrompt] = useState(null); // { title, placeholder, onSubmit }
+  const [textPromptValue, setTextPromptValue] = useState("");
 
-  const albums = [...new Set(media.map((m) => m.album).filter(Boolean))];
+  // Albums are now a real, persisted list on the trip (trip.memory_albums)
+  // instead of only existing implicitly through photos that reference them.
+  // That's what let a newly-created empty album disappear before — nothing
+  // was actually saved until a photo happened to use that name.
+  const albums = [...new Set([...(trip.memory_albums || []), ...media.map((m) => m.album).filter(Boolean)])];
 
   const persist = async (updated) => {
     const result = await base44.entities.Trip.update(trip.id, { memory_media: updated });
@@ -61,21 +69,64 @@ export default function PhotosVideosPage({ trip, onUpdate, onBack }) {
   };
 
   const createAlbumForFilter = () => {
-    const name = window.prompt("New album name");
-    if (name && name.trim()) setFilterAlbum(name.trim());
+    setTextPromptValue("");
+    setTextPrompt({
+      title: "New album",
+      placeholder: "e.g. São Paulo",
+      onSubmit: async (name) => {
+        const trimmed = name.trim();
+        if (!trimmed) return;
+        const existingAlbums = trip.memory_albums || [];
+        if (!existingAlbums.includes(trimmed)) {
+          try {
+            const result = await base44.entities.Trip.update(trip.id, { memory_albums: [...existingAlbums, trimmed] });
+            onUpdate(result);
+          } catch (err) {
+            console.error("Failed to create album:", err);
+          }
+        }
+        setFilterAlbum(trimmed);
+      },
+    });
   };
 
-  const createAlbumAndAssign = async (idx) => {
-    const name = window.prompt("New album name");
-    if (!name || !name.trim()) return;
-    await setAlbumFor(idx, name.trim());
+  const createAlbumAndAssign = (idx) => {
+    setTextPromptValue("");
+    setTextPrompt({
+      title: "New album",
+      placeholder: "e.g. São Paulo",
+      onSubmit: async (name) => {
+        const trimmed = name.trim();
+        if (!trimmed) return;
+        const existingAlbums = trip.memory_albums || [];
+        const nextAlbums = existingAlbums.includes(trimmed) ? existingAlbums : [...existingAlbums, trimmed];
+        const updatedMedia = media.map((m, i) => (i === idx ? { ...m, album: trimmed } : m));
+        try {
+          const result = await base44.entities.Trip.update(trip.id, { memory_media: updatedMedia, memory_albums: nextAlbums });
+          onUpdate(result);
+        } catch (err) {
+          console.error("Failed to create album:", err);
+        }
+      },
+    });
   };
 
-  const addTagFor = async (idx) => {
-    const tag = window.prompt("Add a tag");
-    if (!tag || !tag.trim()) return;
-    const updated = media.map((m, i) => (i === idx ? { ...m, tags: [...(m.tags || []), tag.trim()] } : m));
-    try { await persist(updated); } catch (err) { console.error("Failed to add tag:", err); }
+  const addTagFor = (idx) => {
+    setTextPromptValue("");
+    setTextPrompt({
+      title: "Add a tag",
+      placeholder: "e.g. scenery",
+      onSubmit: async (tag) => {
+        const trimmed = tag.trim();
+        if (!trimmed) return;
+        const updated = media.map((m, i) => (i === idx ? { ...m, tags: [...(m.tags || []), trimmed] } : m));
+        try {
+          await persist(updated);
+        } catch (err) {
+          console.error("Failed to add tag:", err);
+        }
+      },
+    });
   };
 
   const removeTagFor = async (idx, tag) => {
@@ -223,6 +274,53 @@ export default function PhotosVideosPage({ trip, onUpdate, onBack }) {
                 className="text-xs px-3 py-1.5 rounded-full border border-dashed border-border text-muted-foreground flex items-center gap-1"
               >
                 <Plus className="w-3 h-3" /> Add tag
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Branded text-entry modal — replaces window.prompt() everywhere */}
+      {textPrompt && (
+        <div
+          className="fixed inset-0 z-[80] flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm"
+          onClick={() => setTextPrompt(null)}
+        >
+          <div
+            className="bg-card border border-border rounded-t-3xl md:rounded-2xl w-full max-w-sm p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-heading text-base text-foreground mb-3">{textPrompt.title}</h3>
+            <input
+              autoFocus
+              value={textPromptValue}
+              onChange={(e) => setTextPromptValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && textPromptValue.trim()) {
+                  textPrompt.onSubmit(textPromptValue);
+                  setTextPrompt(null);
+                }
+              }}
+              placeholder={textPrompt.placeholder}
+              className="w-full bg-muted border border-border rounded-lg px-3 py-2.5 text-sm text-foreground outline-none focus:border-accent transition-colors mb-4"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  if (!textPromptValue.trim()) return;
+                  textPrompt.onSubmit(textPromptValue);
+                  setTextPrompt(null);
+                }}
+                disabled={!textPromptValue.trim()}
+                className="flex-1 bg-accent text-accent-foreground py-2.5 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
+              >
+                Add
+              </button>
+              <button
+                onClick={() => setTextPrompt(null)}
+                className="px-4 py-2.5 text-muted-foreground text-sm hover:text-foreground transition-colors"
+              >
+                Cancel
               </button>
             </div>
           </div>
