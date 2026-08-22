@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Map } from "lucide-react";
+import { Map as MapIcon } from "lucide-react";
 
 const mapCache = new Map();
 
@@ -43,7 +43,7 @@ export default function TripRouteMap({ trip }) {
   return (
     <div className="bg-card border border-border rounded-2xl overflow-hidden">
       <div className="px-3.5 pt-3.5 pb-2 flex items-center gap-1.5">
-        <Map className="w-4 h-4 text-accent" />
+        <MapIcon className="w-4 h-4 text-accent" />
         <h3 className="font-heading text-[14px] font-medium text-foreground">Where you went</h3>
       </div>
       {loading ? (
