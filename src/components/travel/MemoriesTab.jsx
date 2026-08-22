@@ -8,6 +8,7 @@ import FavoritePlacesPage from "./memories/FavoritePlacesPage";
 import PhotosVideosPage from "./memories/PhotosVideosPage";
 import NotesReflectionsPage from "./memories/NotesReflectionsPage";
 import StoryPreviewPage from "./memories/StoryPreviewPage";
+import TripRouteMap from "./memories/TripRouteMap";
 
 export default function MemoriesTab({ trip, onUpdate }) {
   const [view, setView] = useState(null);
@@ -92,6 +93,8 @@ export default function MemoriesTab({ trip, onUpdate }) {
           onClick={() => setView("story")}
         />
       </div>
+
+      <TripRouteMap trip={trip} />
 
       {/* Story callout */}
       <div className="flex items-center gap-3 bg-card border border-border rounded-2xl p-3.5">
