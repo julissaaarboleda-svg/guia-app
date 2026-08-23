@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Map as MapIcon, X } from "lucide-react";
 
 let leafletPromise = null;
-function loadLeaflet() {
+export function loadLeaflet() {
   if (window.L) return Promise.resolve(window.L);
   if (leafletPromise) return leafletPromise;
   leafletPromise = new Promise((resolve, reject) => {
@@ -28,7 +28,7 @@ function loadLeaflet() {
 }
 
 const geocodeCache = new Map();
-async function geocodeCity(city, country) {
+export async function geocodeCity(city, country) {
   const key = `${city}|${country || ""}`;
   if (geocodeCache.has(key)) return geocodeCache.get(key);
   const q = `${city}${country ? ", " + country : ""}`;
