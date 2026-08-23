@@ -2,6 +2,12 @@ import { useState } from "react";
 import { ArrowLeft, Plus, X, Check } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { base44 } from "@/api/base44Client";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
+
+function stripHtml(html) {
+  return (html || "").replace(/<[^>]*>/g, "").trim();
+}
 
 export default function NotesReflectionsPage({ trip, onUpdate, onBack }) {
   const entries = (trip.journal_entries || []).slice().sort((a, b) => (a.date || "").localeCompare(b.date || ""));
@@ -37,11 +43,12 @@ export default function NotesReflectionsPage({ trip, onUpdate, onBack }) {
   };
 
   const save = async () => {
-    if (!day || (!note.trim() && !photoUrl)) return;
+    const plainNote = stripHtml(note);
+    if (!day || (!plainNote && !photoUrl)) return;
     const newEntry = {
       id: (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()),
       date: day,
-      note: note.trim(),
+      note,
       photo_url: photoUrl,
     };
     const updated = [...(trip.journal_entries || []), newEntry];
@@ -109,7 +116,12 @@ export default function NotesReflectionsPage({ trip, onUpdate, onBack }) {
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                {e.note && <p className="text-sm text-foreground leading-relaxed mt-1 whitespace-pre-wrap">{e.note}</p>}
+                {e.note && (
+                  <div
+                    className="text-sm text-foreground leading-relaxed mt-1 quill-render"
+                    dangerouslySetInnerHTML={{ __html: e.note }}
+                  />
+                )}
               </div>
             </div>
           ))}
@@ -118,7 +130,7 @@ export default function NotesReflectionsPage({ trip, onUpdate, onBack }) {
 
       {open && (
         <div className="fixed inset-0 z-[70] flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setOpen(false)}>
-          <div className="bg-card border border-border rounded-t-3xl md:rounded-2xl w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-card border border-border rounded-t-3xl md:rounded-2xl w-full max-w-sm p-5 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-heading text-base text-foreground">New entry</h3>
               <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground">
@@ -138,13 +150,16 @@ export default function NotesReflectionsPage({ trip, onUpdate, onBack }) {
             </select>
 
             <p className="text-xs text-muted-foreground mb-1.5">Note (optional)</p>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={4}
-              placeholder="What happened today?"
-              className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-accent resize-none mb-4"
-            />
+            <div className="mb-4">
+              <ReactQuill
+                value={note}
+                onChange={setNote}
+                placeholder="Write about your day…"
+                className="bg-muted rounded-lg quill-notes"
+                theme="snow"
+                modules={{ clipboard: { matchVisual: false } }}
+              />
+            </div>
 
             <p className="text-xs text-muted-foreground mb-1.5">Photo (optional)</p>
             {photoUrl ? (
@@ -167,7 +182,7 @@ export default function NotesReflectionsPage({ trip, onUpdate, onBack }) {
 
             <button
               onClick={save}
-              disabled={!day || (!note.trim() && !photoUrl)}
+              disabled={!day || (!stripHtml(note) && !photoUrl)}
               className="w-full flex items-center justify-center gap-1.5 bg-accent text-accent-foreground py-2.5 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
             >
               <Check className="w-4 h-4" /> Save entry
