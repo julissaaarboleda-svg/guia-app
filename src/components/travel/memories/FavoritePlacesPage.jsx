@@ -1,8 +1,20 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Trash2 } from "lucide-react";
 import { visiblePlaces } from "@/lib/memoryUtils";
+import { base44 } from "@/api/base44Client";
 
-export default function FavoritePlacesPage({ trip, onBack }) {
+export default function FavoritePlacesPage({ trip, onUpdate, onBack }) {
   const places = visiblePlaces(trip);
+
+  const removePlace = async (id) => {
+    const updated = (trip.memory_places || []).filter((p) => p.id !== id);
+    try {
+      const result = await base44.entities.Trip.update(trip.id, { memory_places: updated });
+      onUpdate(result);
+    } catch (err) {
+      console.error("Failed to remove place:", err);
+    }
+  };
+
   return (
     <div className="p-4 space-y-3">
       <button onClick={onBack} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
@@ -18,10 +30,17 @@ export default function FavoritePlacesPage({ trip, onBack }) {
               <div className="w-12 h-12 rounded-lg bg-muted overflow-hidden flex-shrink-0">
                 {p.image && <img src={p.image} alt="" className="w-full h-full object-cover" />}
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-foreground truncate">{p.name}</p>
                 <p className="text-xs text-muted-foreground truncate">{p.city}</p>
               </div>
+              <button
+                onClick={() => removePlace(p.id)}
+                className="text-muted-foreground/50 hover:text-destructive transition-colors flex-shrink-0 p-1"
+                aria-label="Remove place"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
             </div>
           ))}
         </div>
