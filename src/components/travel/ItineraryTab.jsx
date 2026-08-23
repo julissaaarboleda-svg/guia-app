@@ -73,16 +73,13 @@ export default function ItineraryTab({ trip, onUpdate, cityOrder }) {
   const [addItemOpen, setAddItemOpen] = useState(false);
   const [dayEdit, setDayEdit] = useState({ open: false, index: null, title: "", description: "", date: "" });
   const [importing, setImporting] = useState(false);
-  const [confirmCities, setConfirmCities] = useState(null); // { cities: [...], checked: Set }
+  const [confirmCities, setConfirmCities] = useState(null);
 
   const tripLocations = [...(trip.cities || []), trip.country].filter(Boolean);
 
   useEffect(() => { setItinerary(trip.itinerary || []); }, [trip.itinerary]);
   useEffect(() => { if (activeIdx > itinerary.length - 1) setActiveIdx(Math.max(0, itinerary.length - 1)); }, [itinerary.length, activeIdx]);
 
-  // Lets ActivityModal show a "Date" dropdown when editing/adding an item,
-  // so you can move something to a different day instead of deleting and
-  // recreating it. Mirrors the same pattern SavedTab.jsx already uses.
   const dayOptions = useMemo(
     () => itinerary.map((d) => ({ date: d.date || "", label: d.date ? format(parseISO(d.date), "EEE, MMM d") : `Day ${d.day}` })),
     [itinerary]
@@ -171,10 +168,6 @@ export default function ItineraryTab({ trip, onUpdate, cityOrder }) {
     const { _newStopCity, dayDate, ...cleanActivity } = activity;
     let next = [...itinerary];
 
-    // If the item's date was changed to a day different from where it
-    // currently lives, move it there instead of updating it in place —
-    // this is what lets you reschedule something without deleting and
-    // recreating it.
     let targetDayIndex = dayIndex;
     const movingDay = dayDate && itinerary[dayIndex]?.date !== dayDate;
     if (movingDay) {
@@ -229,7 +222,7 @@ export default function ItineraryTab({ trip, onUpdate, cityOrder }) {
     }
 
     setItinerary(next);
-    if (movingDay) setActiveIdx(targetDayIndex); // jump to the day it moved to, so you can see it landed
+    if (movingDay) setActiveIdx(targetDayIndex);
     setActivityModal({ open: false, dayIndex: null, actIndex: null, activity: null });
     persist(next);
     if (movingDay) toast.success(`Moved to ${format(parseISO(dayDate), "EEE, MMM d")}`);
@@ -513,7 +506,11 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
             </button>
           </div>
         </div>
-        {day?.title && <p className="font-body text-sm text-foreground mt-1">{day.title}</p>}
+        {day?.title && (
+          <span className="inline-block font-body text-[11px] font-semibold tracking-wide uppercase px-2.5 py-1 rounded-full bg-accent/15 text-accent mt-1.5">
+            {day.title}
+          </span>
+        )}
         {day?.description && (
           <div className="text-sm text-muted-foreground mt-1 quill-render" dangerouslySetInnerHTML={{ __html: day.description }} />
         )}
