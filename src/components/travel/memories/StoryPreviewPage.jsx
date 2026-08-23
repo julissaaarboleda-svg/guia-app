@@ -52,8 +52,12 @@ function CoverSlide({ trip, coverUrl, days, placesCount, photosCount, onChangeCo
           {days != null && (
             <div><p className="font-heading text-base leading-none">{days}</p><p className="font-body text-[9.5px] text-white/70 mt-1">days</p></div>
           )}
-          <div><p className="font-heading text-base leading-none">{placesCount}</p><p className="font-body text-[9.5px] text-white/70 mt-1">place{placesCount !== 1 ? "s" : ""} saved</p></div>
-          <div><p className="font-heading text-base leading-none">{photosCount}</p><p className="font-body text-[9.5px] text-white/70 mt-1">photo{photosCount !== 1 ? "s" : ""}</p></div>
+          {placesCount > 0 && (
+            <div><p className="font-heading text-base leading-none">{placesCount}</p><p className="font-body text-[9.5px] text-white/70 mt-1">place{placesCount !== 1 ? "s" : ""} saved</p></div>
+          )}
+          {photosCount > 0 && (
+            <div><p className="font-heading text-base leading-none">{photosCount}</p><p className="font-body text-[9.5px] text-white/70 mt-1">photo{photosCount !== 1 ? "s" : ""}</p></div>
+          )}
         </div>
       </div>
     </div>
@@ -154,17 +158,39 @@ function PlacesSlide({ places }) {
   const shown = places.slice(0, 6);
   return (
     <div className="absolute inset-0 bg-[#F7F3EC] flex flex-col">
-      <div className="flex-1 relative">
-        <div className="absolute inset-0 grid grid-cols-2 gap-[2px] overflow-y-auto p-[2px]">
-          {shown.map((p) => (
-            <div key={p.id} className="relative rounded-sm overflow-hidden bg-muted aspect-square">
-              {p.image ? <img src={p.image} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-[#7D8A53]" />}
-              <div className="absolute inset-x-0 bottom-0 bg-black/50 px-2 py-1">
-                <p className="font-body text-[10px] text-white truncate">{p.name}</p>
-              </div>
+      <div className="flex-1 relative overflow-hidden">
+        {shown.length === 1 && (
+          <div className="relative w-full h-full">
+            {shown[0].image ? <img src={shown[0].image} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-[#7D8A53]" />}
+            <div className="absolute inset-x-0 bottom-0 bg-black/50 px-3 py-2">
+              <p className="font-body text-[12px] text-white truncate">{shown[0].name}</p>
             </div>
-          ))}
-        </div>
+          </div>
+        )}
+        {shown.length === 2 && (
+          <div className="w-full h-full grid grid-cols-2 gap-[2px]">
+            {shown.map((p) => (
+              <div key={p.id} className="relative">
+                {p.image ? <img src={p.image} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-[#7D8A53]" />}
+                <div className="absolute inset-x-0 bottom-0 bg-black/50 px-2 py-1">
+                  <p className="font-body text-[10px] text-white truncate">{p.name}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {shown.length >= 3 && (
+          <div className="absolute inset-0 grid grid-cols-2 gap-[2px] overflow-y-auto p-[2px]">
+            {shown.map((p) => (
+              <div key={p.id} className="relative rounded-sm overflow-hidden bg-muted aspect-square">
+                {p.image ? <img src={p.image} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-[#7D8A53]" />}
+                <div className="absolute inset-x-0 bottom-0 bg-black/50 px-2 py-1">
+                  <p className="font-body text-[10px] text-white truncate">{p.name}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
       <div className="flex-shrink-0 bg-[#F7F3EC] px-3.5 py-2 border-t border-[#E3DED0]">
         <p className="font-heading text-[12.5px] text-[#2E2A27] leading-tight">Favorite places</p>
@@ -215,19 +241,45 @@ function MomentsSlide({ photos }) {
   const shown = photos.slice(0, 6);
   return (
     <div className="absolute inset-0 bg-[#F7F3EC] flex flex-col">
-      <div className="flex-1 relative">
-        <div className="absolute inset-0 grid grid-cols-2 gap-[2px] overflow-y-auto p-[2px]">
-          {shown.map((m, i) => (
-            <div key={i} className="relative rounded-sm overflow-hidden bg-muted aspect-square">
-              {m.type === "photo" ? <img src={m.url} alt="" className="w-full h-full object-cover" /> : <video src={m.url} className="w-full h-full object-cover" />}
-              {m.tags?.[0] && (
-                <span className="absolute bottom-1 left-1 text-[8px] px-1.5 py-0.5 rounded-full bg-black/55 text-white">
-                  {m.tags[0]}
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
+      <div className="flex-1 relative overflow-hidden">
+        {shown.length === 1 && (
+          <div className="relative w-full h-full">
+            {shown[0].type === "photo" ? <img src={shown[0].url} alt="" className="w-full h-full object-cover" /> : <video src={shown[0].url} className="w-full h-full object-cover" />}
+            {shown[0].tags?.[0] && (
+              <span className="absolute bottom-2 left-2 text-[9px] px-2 py-0.5 rounded-full bg-black/55 text-white">
+                {shown[0].tags[0]}
+              </span>
+            )}
+          </div>
+        )}
+        {shown.length === 2 && (
+          <div className="w-full h-full grid grid-cols-2 gap-[2px]">
+            {shown.map((m, i) => (
+              <div key={i} className="relative">
+                {m.type === "photo" ? <img src={m.url} alt="" className="w-full h-full object-cover" /> : <video src={m.url} className="w-full h-full object-cover" />}
+                {m.tags?.[0] && (
+                  <span className="absolute bottom-1 left-1 text-[8px] px-1.5 py-0.5 rounded-full bg-black/55 text-white">
+                    {m.tags[0]}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        {shown.length >= 3 && (
+          <div className="absolute inset-0 grid grid-cols-2 gap-[2px] overflow-y-auto p-[2px]">
+            {shown.map((m, i) => (
+              <div key={i} className="relative rounded-sm overflow-hidden bg-muted aspect-square">
+                {m.type === "photo" ? <img src={m.url} alt="" className="w-full h-full object-cover" /> : <video src={m.url} className="w-full h-full object-cover" />}
+                {m.tags?.[0] && (
+                  <span className="absolute bottom-1 left-1 text-[8px] px-1.5 py-0.5 rounded-full bg-black/55 text-white">
+                    {m.tags[0]}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
       <div className="flex-shrink-0 bg-[#F7F3EC] px-3.5 py-2 border-t border-[#E3DED0]">
         <p className="font-heading text-[12.5px] text-[#2E2A27] leading-tight">Moments</p>
@@ -309,7 +361,7 @@ export default function StoryPreviewPage({ trip, onUpdate, onBack }) {
     if (places.length > 0) s.push({ key: "places", type: "places" });
     albumNames.forEach((a) => s.push({ key: `album:${a}`, type: "album", album: a }));
     if (unassignedMedia.length > 0) s.push({ key: "moments", type: "moments" });
-    if (photosOnly.length > 0) s.push({ key: "scrapbook", type: "scrapbook" });
+    if (photosOnly.length >= 2) s.push({ key: "scrapbook", type: "scrapbook" });
     return s;
   }, [cities.length, places.length, albumNames.join(","), unassignedMedia.length, photosOnly.length]);
 
