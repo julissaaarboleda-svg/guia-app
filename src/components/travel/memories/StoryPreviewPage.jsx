@@ -1,8 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { ArrowLeft, ImageIcon, MapPin, Pencil, X, Check } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { pickCoverImage, visiblePlaces, visibleMedia, tripDuration } from "@/lib/memoryUtils";
 import { base44 } from "@/api/base44Client";
+import { loadLeaflet, geocodeCity } from "./TripRouteMap";
 
 function dateRangeLabel(trip) {
   if (!trip.start_date) return "";
@@ -82,21 +83,94 @@ function CoverSlide({ trip, coverUrl, days, placesCount, photosCount, onChangeCo
   );
 }
 
-function RouteSlide({ cities, quote, onEditQuote }) {
+function RouteSlide({ trip, cities, quote, onEditQuote }) {
+  const mapContainerRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    setFailed(false);
+
+    (async () => {
+      try {
+        const L = await loadLeaflet();
+        const points = [];
+        for (const city of cities) {
+          const p = await geocodeCity(city, trip.country);
+          if (p) points.push(p);
+          await new Promise((r) => setTimeout(r, 250));
+        }
+        if (!alive) return;
+        if (points.length === 0) throw new Error("Couldn't locate any cities");
+
+        // Non-interactive — this is a background visual for the slide, not
+        // something to accidentally pan while swiping through the story.
+        const map = L.map(mapContainerRef.current, {
+          zoomControl: false,
+          attributionControl: false,
+          dragging: false,
+          touchZoom: false,
+          scrollWheelZoom: false,
+          doubleClickZoom: false,
+          boxZoom: false,
+          keyboard: false,
+        });
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(map);
+
+        const latlngs = points.map((p) => [p.lat, p.lon]);
+        if (latlngs.length > 1) {
+          L.polyline(latlngs, { color: "#A7773F", weight: 3, opacity: 0.9 }).addTo(map);
+        }
+        points.forEach((p, i) => {
+          L.circleMarker([p.lat, p.lon], { radius: 6, color: "#A7773F", fillColor: "#A7773F", fillOpacity: 1, weight: 2 })
+            .addTo(map)
+            .bindTooltip(cities[i], { permanent: true, direction: "top", offset: [0, -7], className: "trip-map-label" })
+            .openTooltip();
+        });
+
+        if (latlngs.length > 1) map.fitBounds(latlngs, { padding: [30, 40] });
+        else map.setView(latlngs[0], 11);
+
+        mapInstanceRef.current = map;
+        requestAnimationFrame(() => map.invalidateSize());
+        setTimeout(() => map.invalidateSize(), 200);
+        setLoading(false);
+      } catch (err) {
+        console.error("Route slide map failed:", err);
+        if (alive) { setFailed(true); setLoading(false); }
+      }
+    })();
+
+    return () => {
+      alive = false;
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, [cities.join(",")]);
+
   return (
-    <div className="absolute inset-0 bg-[#2E2A27] flex flex-col px-5 py-8">
+    <div className="absolute inset-0 bg-[#2E2A27]">
       <QuoteEditButton onClick={onEditQuote} />
-      <p className="font-heading text-lg text-white mb-6">Your route</p>
-      <div className="flex-1 flex flex-col justify-center gap-1">
-        {cities.map((c, i) => (
-          <div key={c}>
-            <div className="flex items-center gap-2.5">
-              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: "#A7773F" }} />
-              <span className="font-body text-[13px] text-white">{c}</span>
-            </div>
-            {i < cities.length - 1 && <div className="w-px h-4 ml-[3px]" style={{ background: "rgba(167,119,63,0.5)" }} />}
-          </div>
-        ))}
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center z-[6]">
+          <p className="font-body text-[11px] text-white/60">Loading route…</p>
+        </div>
+      )}
+      {failed && (
+        <div className="absolute inset-0 flex items-center justify-center z-[6] px-6 text-center">
+          <p className="font-body text-[11px] text-white/60">Couldn't load the route right now.</p>
+        </div>
+      )}
+      <div ref={mapContainerRef} className="w-full h-full" />
+      <div className="absolute top-3 left-3 z-[6]">
+        <span className="inline-block font-body text-[9px] px-2.5 py-1 rounded-full text-white" style={{ background: "#A7773F" }}>
+          Your route
+        </span>
       </div>
       <QuoteOverlay text={quote} />
     </div>
@@ -311,7 +385,7 @@ export default function StoryPreviewPage({ trip, onUpdate, onBack }) {
           />
         )}
         {current.type === "route" && (
-          <RouteSlide cities={cities} quote={quoteTextFor("route")} onEditQuote={() => setQuoteEditorKey("route")} />
+          <RouteSlide trip={trip} cities={cities} quote={quoteTextFor("route")} onEditQuote={() => setQuoteEditorKey("route")} />
         )}
         {current.type === "places" && (
           <PlacesSlide places={places} quote={quoteTextFor("places")} onEditQuote={() => setQuoteEditorKey("places")} />
