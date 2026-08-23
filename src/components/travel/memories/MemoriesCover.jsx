@@ -46,14 +46,18 @@ export default function MemoriesCover({ trip, cover, days, placesCount, photosCo
               <p className="font-body text-[9.5px] text-white/70 mt-1">days</p>
             </div>
           )}
-          <div>
-            <p className="font-heading text-base text-white leading-none">{placesCount}</p>
-            <p className="font-body text-[9.5px] text-white/70 mt-1">place{placesCount !== 1 ? "s" : ""} saved</p>
-          </div>
-          <div>
-            <p className="font-heading text-base text-white leading-none">{photosCount}</p>
-            <p className="font-body text-[9.5px] text-white/70 mt-1">photo{photosCount !== 1 ? "s" : ""}</p>
-          </div>
+          {placesCount > 0 && (
+            <div>
+              <p className="font-heading text-base text-white leading-none">{placesCount}</p>
+              <p className="font-body text-[9.5px] text-white/70 mt-1">place{placesCount !== 1 ? "s" : ""} saved</p>
+            </div>
+          )}
+          {photosCount > 0 && (
+            <div>
+              <p className="font-heading text-base text-white leading-none">{photosCount}</p>
+              <p className="font-body text-[9.5px] text-white/70 mt-1">photo{photosCount !== 1 ? "s" : ""}</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
