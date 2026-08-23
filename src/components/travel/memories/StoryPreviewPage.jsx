@@ -163,7 +163,7 @@ function RouteSlide({ trip, cities, quote, onEditQuote }) {
       </div>
       <div className="flex-shrink-0 bg-[#F7F3EC] px-3.5 py-2 border-t border-[#E3DED0]">
         {quote && <p className="font-heading text-[10px] text-[#2E2A27] italic leading-snug line-clamp-1 mb-0.5">"{quote}"</p>}
-        <p className="font-heading text-[12.5px] text-[#2E2A27] leading-tight">Your route</p>
+        <p className="font-heading text-[12.5px] text-[#2E2A27] leading-tight">My route</p>
       </div>
     </div>
   );
@@ -281,12 +281,12 @@ function ScrapbookSlide({ trip, photos, onEdit }) {
     : photos.slice(0, 5).map((p, i) => ({ url: p.url, ...SCRAPBOOK_SPOTS[i] }));
 
   return (
-    <div className="absolute inset-0 bg-[#2E2A27] overflow-hidden">
+    <div className="absolute inset-0 bg-[#F7F3EC] overflow-hidden">
       <QuoteEditButton onClick={onEdit} />
       {items.map((item, i) => (
         <div
           key={item.url + i}
-          className="absolute bg-[#F7F3EC] p-1 rounded-sm shadow-lg"
+          className="absolute bg-[#F7F3EC] border border-[#E3DED0] p-1 rounded-sm shadow-lg"
           style={{
             top: item.top, left: item.left, right: item.right, bottom: item.bottom,
             width: item.size || "30%",
@@ -299,7 +299,7 @@ function ScrapbookSlide({ trip, photos, onEdit }) {
         </div>
       ))}
       <div
-        className="absolute top-1/2 left-1/2 bg-[#F7F3EC] p-1.5 rounded-sm shadow-xl"
+        className="absolute top-1/2 left-1/2 bg-[#F7F3EC] border border-[#E3DED0] p-1.5 rounded-sm shadow-xl"
         style={{ width: "40%", transform: "translate(-50%, -50%) rotate(-2deg)" }}
       >
         <div className="w-full aspect-square overflow-hidden bg-[#7D8A53]" />
