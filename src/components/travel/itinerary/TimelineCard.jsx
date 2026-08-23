@@ -8,11 +8,6 @@ function fmtDate(d) {
   return dt.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-// Flight departure/arrival cities are often stored as the full
-// "City, State, Country" string from the search picker. That's too long to
-// sit on one row next to an arrow icon, so trim it down to "City, State"
-// (or just "City" if that's all there is) for display purposes only — the
-// full value stays untouched in the data.
 function shortLocation(str) {
   if (!str) return str;
   const parts = str.split(",").map((s) => s.trim()).filter(Boolean);
@@ -39,7 +34,6 @@ export default function TimelineCard({ activity, onEdit, onDelete, onAddToMemori
 
   return (
     <div className="relative flex gap-2.5">
-      {/* Icon + short connector line (only between this icon and the next, not a full-height rail) */}
       <div className="flex flex-col items-center flex-shrink-0">
         <div
           className="w-7 h-7 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 mt-0.5"
@@ -54,7 +48,6 @@ export default function TimelineCard({ activity, onEdit, onDelete, onAddToMemori
         {!isLast && <div className="w-px flex-1 mt-1.5 border-l border-dotted border-accent/50" />}
       </div>
 
-      {/* Card */}
       <div className={`flex-1 min-w-0 ${isLast ? "" : "pb-1.5"}`}>
         <div className="bg-card border border-border rounded-xl px-3 py-2.5">
           <div className="flex items-center gap-1.5 mb-1.5">
@@ -71,7 +64,7 @@ export default function TimelineCard({ activity, onEdit, onDelete, onAddToMemori
             <>
               <div className="flex items-center gap-1.5 flex-wrap">
                 {activity.departure?.city && (
-                  <span className="font-body text-[13px] font-semibold" style={{ color }}>
+                  <span className="font-body text-[13px] font-semibold text-foreground">
                     {shortLocation(activity.departure.city)}{depCode && <span className="font-body text-[11px] text-muted-foreground font-normal ml-1">{depCode}</span>}
                   </span>
                 )}
@@ -79,15 +72,15 @@ export default function TimelineCard({ activity, onEdit, onDelete, onAddToMemori
                   <ArrowRight className="w-3 h-3 text-muted-foreground/60 flex-shrink-0" />
                 )}
                 {activity.arrival?.city && (
-                  <span className="font-body text-[13px] font-semibold" style={{ color }}>
+                  <span className="font-body text-[13px] font-semibold text-foreground">
                     {shortLocation(activity.arrival.city)}{arrCode && <span className="font-body text-[11px] text-muted-foreground font-normal ml-1">{arrCode}</span>}
                   </span>
                 )}
               </div>
               {(depTime || arrTime) && (
                 <div className="flex items-center gap-3 font-body text-[11px] text-muted-foreground mt-1">
-                  {depTime && <span>Depart {depTime}</span>}
-                  {arrTime && <span>Arrive {arrTime}{arrDate && ` · ${arrDate}`}</span>}
+                  {depTime && <span>Depart <span className="text-accent font-semibold">{depTime}</span></span>}
+                  {arrTime && <span>Arrive <span className="text-accent font-semibold">{arrTime}</span>{arrDate && ` · ${arrDate}`}</span>}
                 </div>
               )}
               {(activity.airline || activity.flightNumber) && (
@@ -102,14 +95,14 @@ export default function TimelineCard({ activity, onEdit, onDelete, onAddToMemori
           {key === "hotel" && (
             <>
               {activity.name && (
-                <p className="font-body text-[13px] font-semibold leading-snug truncate" style={{ color }}>
+                <p className="font-body text-[13px] font-semibold leading-snug truncate text-foreground">
                   {activity.name}
                 </p>
               )}
               {(checkInTime || checkOutTime) && (
                 <div className="flex items-center gap-3 font-body text-[11px] text-muted-foreground mt-1">
-                  {checkInTime && <span>Check in {checkInTime}</span>}
-                  {checkOutTime && <span>Check out {checkOutTime}{checkOutDate && ` · ${checkOutDate}`}</span>}
+                  {checkInTime && <span>Check in <span className="text-accent font-semibold">{checkInTime}</span></span>}
+                  {checkOutTime && <span>Check out <span className="text-accent font-semibold">{checkOutTime}</span>{checkOutDate && ` · ${checkOutDate}`}</span>}
                 </div>
               )}
               {activity.location && (
@@ -135,18 +128,18 @@ export default function TimelineCard({ activity, onEdit, onDelete, onAddToMemori
           {(key === "restaurant" || key === "activity" || key === "note") && (
             <>
               <div className="flex items-center gap-1.5">
-                {simpleTime && <span className="font-body text-[11px] text-muted-foreground">{simpleTime}</span>}
+                {simpleTime && <span className="font-body text-[11px] text-accent font-semibold">{simpleTime}</span>}
                 {activity.activity && <span className="font-body text-[11px] text-muted-foreground/80">{activity.activity}</span>}
               </div>
               {activity.name && (
                 activity.link ? (
                   <a href={activity.link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
-                    className="font-body text-[13px] font-semibold mt-1 truncate hover:underline inline-flex items-center gap-1 max-w-full" style={{ color }}>
+                    className="font-body text-[13px] font-semibold mt-1 truncate hover:underline inline-flex items-center gap-1 max-w-full text-foreground">
                     <span className="truncate">{activity.name}</span>
                     <ExternalLink className="w-3 h-3 flex-shrink-0" />
                   </a>
                 ) : (
-                  <p className="font-body text-[13px] font-semibold leading-snug mt-1 truncate" style={{ color }}>
+                  <p className="font-body text-[13px] font-semibold leading-snug mt-1 truncate text-foreground">
                     {activity.name}
                   </p>
                 )
