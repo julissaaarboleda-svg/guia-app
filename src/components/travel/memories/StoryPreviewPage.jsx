@@ -27,15 +27,6 @@ function QuoteEditButton({ onClick }) {
   );
 }
 
-function QuoteOverlay({ text }) {
-  if (!text) return null;
-  return (
-    <div className="absolute inset-x-0 bottom-0 px-3.5 pb-3 pt-8 bg-gradient-to-t from-black/85 to-transparent">
-      <p className="font-heading text-[12px] text-white italic leading-snug line-clamp-2">"{text}"</p>
-    </div>
-  );
-}
-
 function CoverSlide({ trip, coverUrl, days, placesCount, photosCount, onChangeCover, uploading }) {
   const cities = trip.cities || [];
   return (
@@ -154,25 +145,25 @@ function RouteSlide({ trip, cities, quote, onEditQuote }) {
   }, [cities.join(",")]);
 
   return (
-    <div className="absolute inset-0 bg-[#2E2A27]">
-      <QuoteEditButton onClick={onEditQuote} />
-      {loading && (
-        <div className="absolute inset-0 flex items-center justify-center z-[6]">
-          <p className="font-body text-[11px] text-white/60">Loading route…</p>
-        </div>
-      )}
-      {failed && (
-        <div className="absolute inset-0 flex items-center justify-center z-[6] px-6 text-center">
-          <p className="font-body text-[11px] text-white/60">Couldn't load the route right now.</p>
-        </div>
-      )}
-      <div ref={mapContainerRef} className="w-full h-full" />
-      <div className="absolute top-3 left-3 z-[6]">
-        <span className="inline-block font-body text-[9px] px-2.5 py-1 rounded-full text-white" style={{ background: "#A7773F" }}>
-          Your route
-        </span>
+    <div className="absolute inset-0 bg-[#F7F3EC] flex flex-col">
+      <div className="flex-1 relative overflow-hidden">
+        <QuoteEditButton onClick={onEditQuote} />
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center z-[6]">
+            <p className="font-body text-[11px] text-[#888780]">Loading route…</p>
+          </div>
+        )}
+        {failed && (
+          <div className="absolute inset-0 flex items-center justify-center z-[6] px-6 text-center">
+            <p className="font-body text-[11px] text-[#888780]">Couldn't load the route right now.</p>
+          </div>
+        )}
+        <div ref={mapContainerRef} className="w-full h-full" />
       </div>
-      <QuoteOverlay text={quote} />
+      <div className="flex-shrink-0 bg-[#F7F3EC] px-3.5 py-2 border-t border-[#E3DED0]">
+        {quote && <p className="font-heading text-[10px] text-[#2E2A27] italic leading-snug line-clamp-1 mb-0.5">"{quote}"</p>}
+        <p className="font-heading text-[12.5px] text-[#2E2A27] leading-tight">Your route</p>
+      </div>
     </div>
   );
 }
@@ -180,20 +171,24 @@ function RouteSlide({ trip, cities, quote, onEditQuote }) {
 function PlacesSlide({ places, quote, onEditQuote }) {
   const shown = places.slice(0, 6);
   return (
-    <div className="absolute inset-0 bg-[#2E2A27] flex flex-col">
-      <QuoteEditButton onClick={onEditQuote} />
-      <p className="font-heading text-lg text-white px-4 pt-6 pb-3">Favorite places</p>
-      <div className="flex-1 grid grid-cols-2 gap-1.5 px-4 overflow-y-auto">
-        {shown.map((p) => (
-          <div key={p.id} className="relative rounded-lg overflow-hidden bg-muted aspect-square">
-            {p.image ? <img src={p.image} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-[#7D8A53]" />}
-            <div className="absolute inset-x-0 bottom-0 bg-black/50 px-2 py-1">
-              <p className="font-body text-[10px] text-white truncate">{p.name}</p>
+    <div className="absolute inset-0 bg-[#F7F3EC] flex flex-col">
+      <div className="flex-1 relative">
+        <QuoteEditButton onClick={onEditQuote} />
+        <div className="absolute inset-0 grid grid-cols-2 gap-[2px] overflow-y-auto p-[2px]">
+          {shown.map((p) => (
+            <div key={p.id} className="relative rounded-sm overflow-hidden bg-muted aspect-square">
+              {p.image ? <img src={p.image} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-[#7D8A53]" />}
+              <div className="absolute inset-x-0 bottom-0 bg-black/50 px-2 py-1">
+                <p className="font-body text-[10px] text-white truncate">{p.name}</p>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-      <QuoteOverlay text={quote} />
+      <div className="flex-shrink-0 bg-[#F7F3EC] px-3.5 py-2 border-t border-[#E3DED0]">
+        {quote && <p className="font-heading text-[10px] text-[#2E2A27] italic leading-snug line-clamp-1 mb-0.5">"{quote}"</p>}
+        <p className="font-heading text-[12.5px] text-[#2E2A27] leading-tight">Favorite places</p>
+      </div>
     </div>
   );
 }
@@ -204,38 +199,38 @@ function AlbumSlide({ albumName, photos, quote, onEditQuote }) {
   const shown = photos.slice(0, 3);
   const extra = Math.max(0, photos.length - shown.length);
   return (
-    <div className="absolute inset-0 bg-[#2E2A27]">
-      <QuoteEditButton onClick={onEditQuote} />
-      {shown.length === 1 && (
-        <img src={shown[0].url} alt="" className="w-full h-full object-cover" />
-      )}
-      {shown.length === 2 && (
-        <div className="w-full h-full grid grid-cols-2 gap-[2px]">
-          {shown.map((p, i) => <img key={i} src={p.url} alt="" className="w-full h-full object-cover" />)}
-        </div>
-      )}
-      {shown.length >= 3 && (
-        <div className="w-full h-full grid grid-cols-[2fr_1fr] gap-[2px]">
+    <div className="absolute inset-0 bg-[#F7F3EC] flex flex-col">
+      <div className="flex-1 relative overflow-hidden">
+        <QuoteEditButton onClick={onEditQuote} />
+        {shown.length === 1 && (
           <img src={shown[0].url} alt="" className="w-full h-full object-cover" />
-          <div className="grid grid-rows-2 gap-[2px]">
-            <img src={shown[1].url} alt="" className="w-full h-full object-cover" />
-            <div className="relative">
-              <img src={shown[2].url} alt="" className="w-full h-full object-cover" />
-              {extra > 0 && (
-                <div className="absolute inset-0 bg-black/55 flex items-center justify-center">
-                  <span className="font-body text-[13px] text-white font-medium">+{extra}</span>
-                </div>
-              )}
+        )}
+        {shown.length === 2 && (
+          <div className="w-full h-full grid grid-cols-2 gap-[2px]">
+            {shown.map((p, i) => <img key={i} src={p.url} alt="" className="w-full h-full object-cover" />)}
+          </div>
+        )}
+        {shown.length >= 3 && (
+          <div className="w-full h-full grid grid-cols-[2fr_1fr] gap-[2px]">
+            <img src={shown[0].url} alt="" className="w-full h-full object-cover" />
+            <div className="grid grid-rows-2 gap-[2px]">
+              <img src={shown[1].url} alt="" className="w-full h-full object-cover" />
+              <div className="relative">
+                <img src={shown[2].url} alt="" className="w-full h-full object-cover" />
+                {extra > 0 && (
+                  <div className="absolute inset-0 bg-black/55 flex items-center justify-center">
+                    <span className="font-body text-[13px] text-white font-medium">+{extra}</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
-      <div className="absolute top-3 left-3">
-        <span className="inline-block font-body text-[9px] px-2.5 py-1 rounded-full text-white" style={{ background: "#A7773F" }}>
-          {albumName}
-        </span>
+        )}
       </div>
-      <QuoteOverlay text={quote} />
+      <div className="flex-shrink-0 bg-[#F7F3EC] px-3.5 py-2 border-t border-[#E3DED0]">
+        {quote && <p className="font-heading text-[10px] text-[#2E2A27] italic leading-snug line-clamp-1 mb-0.5">"{quote}"</p>}
+        <p className="font-heading text-[12.5px] text-[#2E2A27] leading-tight">{albumName}</p>
+      </div>
     </div>
   );
 }
@@ -243,17 +238,26 @@ function AlbumSlide({ albumName, photos, quote, onEditQuote }) {
 function MomentsSlide({ photos, quote, onEditQuote }) {
   const shown = photos.slice(0, 6);
   return (
-    <div className="absolute inset-0 bg-[#2E2A27] flex flex-col">
-      <QuoteEditButton onClick={onEditQuote} />
-      <p className="font-heading text-lg text-white px-4 pt-6 pb-3">Moments</p>
-      <div className="flex-1 grid grid-cols-2 gap-1.5 px-4 overflow-y-auto">
-        {shown.map((m, i) => (
-          <div key={i} className="rounded-lg overflow-hidden bg-muted aspect-square">
-            {m.type === "photo" ? <img src={m.url} alt="" className="w-full h-full object-cover" /> : <video src={m.url} className="w-full h-full object-cover" />}
-          </div>
-        ))}
+    <div className="absolute inset-0 bg-[#F7F3EC] flex flex-col">
+      <div className="flex-1 relative">
+        <QuoteEditButton onClick={onEditQuote} />
+        <div className="absolute inset-0 grid grid-cols-2 gap-[2px] overflow-y-auto p-[2px]">
+          {shown.map((m, i) => (
+            <div key={i} className="relative rounded-sm overflow-hidden bg-muted aspect-square">
+              {m.type === "photo" ? <img src={m.url} alt="" className="w-full h-full object-cover" /> : <video src={m.url} className="w-full h-full object-cover" />}
+              {m.tags?.[0] && (
+                <span className="absolute bottom-1 left-1 text-[8px] px-1.5 py-0.5 rounded-full bg-black/55 text-white">
+                  {m.tags[0]}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
-      <QuoteOverlay text={quote} />
+      <div className="flex-shrink-0 bg-[#F7F3EC] px-3.5 py-2 border-t border-[#E3DED0]">
+        {quote && <p className="font-heading text-[10px] text-[#2E2A27] italic leading-snug line-clamp-1 mb-0.5">"{quote}"</p>}
+        <p className="font-heading text-[12.5px] text-[#2E2A27] leading-tight">Moments</p>
+      </div>
     </div>
   );
 }
