@@ -38,7 +38,7 @@ function FlightLeg({ flight }) {
             <div className="w-1.5 h-1.5 rounded-full bg-card" />
           </div>
           <div>
-            <p className="text-sm font-bold text-foreground">{formatTime(flight.departure_time)}</p>
+            <p className="text-sm font-bold text-accent">{formatTime(flight.departure_time)}</p>
             {flight.departure_airport && (
               <p className="text-xs text-muted-foreground mt-0.5">{flight.departure_airport}</p>
             )}
@@ -69,7 +69,7 @@ function FlightLeg({ flight }) {
             <div className="w-1.5 h-1.5 rounded-full bg-accent" />
           </div>
           <div>
-            <p className="text-sm font-bold text-foreground">{formatTime(flight.arrival_time)}</p>
+            <p className="text-sm font-bold text-accent">{formatTime(flight.arrival_time)}</p>
             {flight.arrival_airport && (
               <p className="text-xs text-muted-foreground mt-0.5">{flight.arrival_airport}</p>
             )}
@@ -105,7 +105,6 @@ function FlightCard({ flight, label }) {
 }
 
 export default function FlightTimeline({ flights, flightInfo }) {
-  // Prefer new `flights` array; fall back to legacy `flight_info`
   if (flights?.length > 0) {
     return (
       <div className="space-y-5 font-body">
