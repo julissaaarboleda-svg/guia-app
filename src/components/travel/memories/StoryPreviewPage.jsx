@@ -4,6 +4,7 @@ import { format, parseISO } from "date-fns";
 import { pickCoverImage, visiblePlaces, visibleMedia, tripDuration } from "@/lib/memoryUtils";
 import { base44 } from "@/api/base44Client";
 import { loadLeaflet, geocodeCity } from "./TripRouteMap";
+import ScrapbookEditor from "./ScrapbookEditor";
 
 function dateRangeLabel(trip) {
   if (!trip.start_date) return "";
@@ -266,31 +267,37 @@ function MomentsSlide({ photos, quote, onEditQuote }) {
 // comes in a later pass; for now it shows up to 5 real trip photos plus a
 // centered polaroid carrying the trip title.
 const SCRAPBOOK_SPOTS = [
-  { top: "8%", left: "6%", rotate: "-9deg", size: "34%" },
-  { top: "12%", right: "7%", rotate: "7deg", size: "32%" },
-  { bottom: "30%", left: "10%", rotate: "5deg", size: "30%" },
-  { bottom: "16%", right: "8%", rotate: "-6deg", size: "34%" },
-  { top: "46%", left: "4%", rotate: "-4deg", size: "26%" },
+  { top: "8%", left: "6%", rotate: -9, size: "34%" },
+  { top: "12%", right: "7%", rotate: 7, size: "32%" },
+  { bottom: "30%", left: "10%", rotate: 5, size: "30%" },
+  { bottom: "16%", right: "8%", rotate: -6, size: "34%" },
+  { top: "46%", left: "4%", rotate: -4, size: "26%" },
 ];
 
-function ScrapbookSlide({ trip, photos }) {
-  const shown = photos.slice(0, 5);
+function ScrapbookSlide({ trip, photos, onEdit }) {
+  const savedLayout = trip.scrapbook_layout;
+  const items = savedLayout && savedLayout.length > 0
+    ? savedLayout
+    : photos.slice(0, 5).map((p, i) => ({ url: p.url, ...SCRAPBOOK_SPOTS[i] }));
+
   return (
     <div className="absolute inset-0 bg-[#2E2A27] overflow-hidden">
-      {shown.map((p, i) => {
-        const spot = SCRAPBOOK_SPOTS[i];
-        return (
-          <div
-            key={i}
-            className="absolute bg-[#F7F3EC] p-1 rounded-sm shadow-lg"
-            style={{ top: spot.top, left: spot.left, right: spot.right, bottom: spot.bottom, width: spot.size, transform: `rotate(${spot.rotate})` }}
-          >
-            <div className="w-full aspect-square overflow-hidden">
-              <img src={p.url} alt="" className="w-full h-full object-cover" />
-            </div>
+      <QuoteEditButton onClick={onEdit} />
+      {items.map((item, i) => (
+        <div
+          key={item.url + i}
+          className="absolute bg-[#F7F3EC] p-1 rounded-sm shadow-lg"
+          style={{
+            top: item.top, left: item.left, right: item.right, bottom: item.bottom,
+            width: item.size || "30%",
+            transform: `rotate(${item.rotate}deg)`,
+          }}
+        >
+          <div className="w-full aspect-square overflow-hidden">
+            <img src={item.url} alt="" className="w-full h-full object-cover" />
           </div>
-        );
-      })}
+        </div>
+      ))}
       <div
         className="absolute top-1/2 left-1/2 bg-[#F7F3EC] p-1.5 rounded-sm shadow-xl"
         style={{ width: "40%", transform: "translate(-50%, -50%) rotate(-2deg)" }}
@@ -319,6 +326,7 @@ export default function StoryPreviewPage({ trip, onUpdate, onBack }) {
   const [uploading, setUploading] = useState(false);
   const [slide, setSlide] = useState(0);
   const [quoteEditorKey, setQuoteEditorKey] = useState(null);
+  const [scrapbookEditorOpen, setScrapbookEditorOpen] = useState(false);
 
   const quotes = trip.story_quotes || {};
   const journalEntries = (trip.journal_entries || []).filter((e) => e.note);
@@ -371,6 +379,16 @@ export default function StoryPreviewPage({ trip, onUpdate, onBack }) {
     return entry?.note || null;
   };
 
+  const saveScrapbookLayout = async (layout) => {
+    try {
+      const updated = await base44.entities.Trip.update(trip.id, { scrapbook_layout: layout });
+      onUpdate(updated);
+    } catch (err) {
+      console.error("Failed to save scrapbook layout:", err);
+    }
+    setScrapbookEditorOpen(false);
+  };
+
   const current = slides[slide];
 
   return (
@@ -406,7 +424,7 @@ export default function StoryPreviewPage({ trip, onUpdate, onBack }) {
           <MomentsSlide photos={unassignedMedia} quote={quoteTextFor("moments")} onEditQuote={() => setQuoteEditorKey("moments")} />
         )}
         {current.type === "scrapbook" && (
-          <ScrapbookSlide trip={trip} photos={photosOnly} />
+          <ScrapbookSlide trip={trip} photos={photosOnly} onEdit={() => setScrapbookEditorOpen(true)} />
         )}
 
         <div className="absolute top-2.5 left-2.5 right-2.5 flex gap-1 z-10">
@@ -463,6 +481,15 @@ export default function StoryPreviewPage({ trip, onUpdate, onBack }) {
             )}
           </div>
         </div>
+      )}
+
+      {scrapbookEditorOpen && (
+        <ScrapbookEditor
+          trip={trip}
+          allPhotos={photosOnly}
+          onSave={saveScrapbookLayout}
+          onClose={() => setScrapbookEditorOpen(false)}
+        />
       )}
     </div>
   );
