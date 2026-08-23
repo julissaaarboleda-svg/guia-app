@@ -38,16 +38,20 @@ export default function PhotosVideosPage({ trip, onUpdate, onBack }) {
   const upload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.type.startsWith("video/")) {
+      setError("Video uploads are coming soon! For now, photos work great.");
+      e.target.value = "";
+      return;
+    }
     setUploading(true);
     setError(null);
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      const isVideo = file.type.startsWith("video/");
       const updated = [
         ...media,
         {
           url: file_url,
-          type: isVideo ? "video" : "photo",
+          type: "photo",
           favorited: false,
           album: filterAlbum !== "all" ? filterAlbum : null,
           tags: [],
@@ -55,7 +59,7 @@ export default function PhotosVideosPage({ trip, onUpdate, onBack }) {
       ];
       await persist(updated);
     } catch (err) {
-      console.error("Photo/video upload failed:", err);
+      console.error("Photo upload failed:", err);
       setError("Couldn't upload that file. Try again, or try a different photo.");
     } finally {
       setUploading(false);
@@ -148,10 +152,11 @@ export default function PhotosVideosPage({ trip, onUpdate, onBack }) {
       <div className="flex items-center justify-between">
         <h2 className="font-heading text-lg text-foreground">Photos & Videos</h2>
         <label className={`flex items-center gap-1.5 text-xs font-medium bg-accent text-accent-foreground px-3 py-1.5 rounded-full transition-opacity ${uploading ? "opacity-60 cursor-wait" : "cursor-pointer hover:opacity-90"}`}>
-          <Upload className="w-3.5 h-3.5" /> {uploading ? "Uploading…" : "Add"}
-          <input type="file" accept="image/*,image/heic,image/heif,.heic,.heif,video/*" className="hidden" onChange={upload} disabled={uploading} />
+          <Upload className="w-3.5 h-3.5" /> {uploading ? "Uploading…" : "Add photo"}
+          <input type="file" accept="image/*,image/heic,image/heif,.heic,.heif" className="hidden" onChange={upload} disabled={uploading} />
         </label>
       </div>
+      <p className="text-[11px] text-muted-foreground -mt-1.5">Video uploads coming soon — photos only for now.</p>
       {error && (
         <p className="text-xs text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>
       )}
