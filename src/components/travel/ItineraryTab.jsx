@@ -40,6 +40,8 @@ function deriveAlerts(day) {
 }
 
 function dayCity(day, trip, cityOrder) {
+  if (day?.city) return day.city;
+
   const cities = ((cityOrder && cityOrder.length ? cityOrder : trip.cities) || []).filter(Boolean);
   if (cities.length === 0) return trip.country || "";
   if (cities.length === 1) return cities[0];
@@ -53,17 +55,11 @@ function dayCity(day, trip, cityOrder) {
     .sort((a, b) => a.idx - b.idx)[0];
   if (matched) return matched.c;
 
-  if (day?.date && trip.start_date && trip.end_date) {
-    const s = Date.parse(trip.start_date + "T00:00:00");
-    const e = Date.parse(trip.end_date + "T00:00:00");
-    const d = Date.parse(day.date + "T00:00:00");
-    if (e > s) {
-      const pos = Math.max(0, Math.min(1, (d - s) / (e - s)));
-      const idx = Math.min(cities.length - 1, Math.round(pos * (cities.length - 1)));
-      return cities[idx];
-    }
-  }
-  return cities[0];
+  // No explicit city and nothing in the day's own content mentions one —
+  // rather than guess by splitting the trip's date range proportionally
+  // across cities (which can confidently show the wrong city, as it did
+  // here), show nothing until the person sets it directly.
+  return "";
 }
 
 export default function ItineraryTab({ trip, onUpdate, cityOrder }) {
@@ -71,7 +67,7 @@ export default function ItineraryTab({ trip, onUpdate, cityOrder }) {
   const [activeIdx, setActiveIdx] = useState(0);
   const [activityModal, setActivityModal] = useState({ open: false, dayIndex: null, actIndex: null, activity: null });
   const [addItemOpen, setAddItemOpen] = useState(false);
-  const [dayEdit, setDayEdit] = useState({ open: false, index: null, title: "", description: "", date: "" });
+  const [dayEdit, setDayEdit] = useState({ open: false, index: null, title: "", description: "", date: "", city: "" });
   const [importing, setImporting] = useState(false);
   const [confirmCities, setConfirmCities] = useState(null);
 
@@ -118,7 +114,7 @@ export default function ItineraryTab({ trip, onUpdate, cityOrder }) {
     } else if (trip.start_date) {
       defaultDate = trip.start_date;
     }
-    setDayEdit({ open: true, index: null, title: "", description: "", date: defaultDate });
+    setDayEdit({ open: true, index: null, title: "", description: "", date: defaultDate, city: "" });
   };
 
   const deleteDay = async (index) => {
@@ -132,7 +128,7 @@ export default function ItineraryTab({ trip, onUpdate, cityOrder }) {
   const saveDayEdit = async () => {
     if (dayEdit.index === null) {
       const nextDay = (itinerary.length > 0 ? Math.max(...itinerary.map((d) => d.day)) : 0) + 1;
-      const newDay = { day: nextDay, date: dayEdit.date || "", title: dayEdit.title, description: dayEdit.description, activities: [] };
+      const newDay = { day: nextDay, date: dayEdit.date || "", title: dayEdit.title, description: dayEdit.description, city: dayEdit.city || "", activities: [] };
       const next = [...itinerary, newDay].sort((a, b) => {
         if (a.date && b.date) return a.date.localeCompare(b.date);
         if (a.date) return -1;
@@ -143,12 +139,12 @@ export default function ItineraryTab({ trip, onUpdate, cityOrder }) {
       const newIdx = next.indexOf(newDay);
       setItinerary(next);
       setActiveIdx(newIdx >= 0 ? newIdx : next.length - 1);
-      setDayEdit({ open: false, index: null, title: "", description: "", date: "" });
+      setDayEdit({ open: false, index: null, title: "", description: "", date: "", city: "" });
       persist(next);
       return;
     }
     const next = [...itinerary];
-    const editedDay = { ...next[dayEdit.index], title: dayEdit.title, description: dayEdit.description, date: dayEdit.date || next[dayEdit.index].date };
+    const editedDay = { ...next[dayEdit.index], title: dayEdit.title, description: dayEdit.description, date: dayEdit.date || next[dayEdit.index].date, city: dayEdit.city || "" };
     next[dayEdit.index] = editedDay;
     next.sort((a, b) => {
       if (a.date && b.date) return a.date.localeCompare(b.date);
@@ -159,7 +155,7 @@ export default function ItineraryTab({ trip, onUpdate, cityOrder }) {
     next.forEach((d, i) => { d.day = i + 1; });
     setItinerary(next);
     setActiveIdx(next.indexOf(editedDay));
-    setDayEdit({ open: false, index: null, title: "", description: "", date: "" });
+    setDayEdit({ open: false, index: null, title: "", description: "", date: "", city: "" });
     persist(next);
   };
 
@@ -409,7 +405,7 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
         {dayEdit.open && (
           <div
             className="fixed inset-0 z-[70] flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm"
-            onClick={() => setDayEdit({ open: false, index: null, title: "", description: "", date: "" })}
+            onClick={() => setDayEdit({ open: false, index: null, title: "", description: "", date: "", city: "" })}
           >
             <div
               className="bg-card border border-border rounded-t-3xl md:rounded-2xl w-full max-w-md shadow-editorial flex flex-col max-h-[80vh]"
@@ -417,7 +413,7 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
             >
               <div className="flex items-center justify-between p-5 pb-3">
                 <h2 className="font-heading text-lg text-foreground">{dayEdit.index === null ? "Add day" : "Edit day"}</h2>
-                <button onClick={() => setDayEdit({ open: false, index: null, title: "", description: "", date: "" })} className="text-muted-foreground hover:text-foreground transition-colors">
+                <button onClick={() => setDayEdit({ open: false, index: null, title: "", description: "", date: "", city: "" })} className="text-muted-foreground hover:text-foreground transition-colors">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -429,6 +425,19 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
                     onChange={(e) => setDayEdit((s) => ({ ...s, date: e.target.value }))}
                     className="w-full bg-muted border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring transition-colors"
                   />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1.5 block">City</label>
+                  <select
+                    value={dayEdit.city}
+                    onChange={(e) => setDayEdit((s) => ({ ...s, city: e.target.value }))}
+                    className="w-full bg-muted border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring transition-colors"
+                  >
+                    <option value="">No specific city</option>
+                    {(trip.cities || []).map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground mb-1.5 block">Day title</label>
@@ -455,7 +464,7 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
                 <button onClick={saveDayEdit} className="flex-1 flex items-center justify-center gap-1.5 bg-accent text-accent-foreground px-4 py-2.5 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">
                   <Check className="w-4 h-4" /> Save
                 </button>
-                <button onClick={() => setDayEdit({ open: false, index: null, title: "", description: "", date: "" })} className="px-4 py-2.5 text-muted-foreground text-sm hover:text-foreground transition-colors">
+                <button onClick={() => setDayEdit({ open: false, index: null, title: "", description: "", date: "", city: "" })} className="px-4 py-2.5 text-muted-foreground text-sm hover:text-foreground transition-colors">
                   Cancel
                 </button>
               </div>
@@ -491,7 +500,7 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
             <button
-              onClick={() => setDayEdit({ open: true, index: activeIdx, title: day?.title || "", description: day?.description || "", date: day?.date || "" })}
+              onClick={() => setDayEdit({ open: true, index: activeIdx, title: day?.title || "", description: day?.description || "", date: day?.date || "", city: day?.city || "" })}
               className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
               aria-label="Edit day"
             >
@@ -610,7 +619,7 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
       {dayEdit.open && (
         <div
           className="fixed inset-0 z-[70] flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm"
-          onClick={() => setDayEdit({ open: false, index: null, title: "", description: "", date: "" })}
+          onClick={() => setDayEdit({ open: false, index: null, title: "", description: "", date: "", city: "" })}
         >
           <div
             className="bg-card border border-border rounded-t-3xl md:rounded-2xl w-full max-w-md shadow-editorial flex flex-col max-h-[80vh]"
@@ -618,7 +627,7 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
           >
             <div className="flex items-center justify-between p-5 pb-3">
               <h2 className="font-heading text-lg text-foreground">{dayEdit.index === null ? "Add day" : "Edit day"}</h2>
-              <button onClick={() => setDayEdit({ open: false, index: null, title: "", description: "", date: "" })} className="text-muted-foreground hover:text-foreground transition-colors">
+              <button onClick={() => setDayEdit({ open: false, index: null, title: "", description: "", date: "", city: "" })} className="text-muted-foreground hover:text-foreground transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -630,6 +639,19 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
                   onChange={(e) => setDayEdit((s) => ({ ...s, date: e.target.value }))}
                   className="w-full bg-muted border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring transition-colors"
                 />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1.5 block">City</label>
+                <select
+                  value={dayEdit.city}
+                  onChange={(e) => setDayEdit((s) => ({ ...s, city: e.target.value }))}
+                  className="w-full bg-muted border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring transition-colors"
+                >
+                  <option value="">No specific city</option>
+                  {(trip.cities || []).map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="text-xs text-muted-foreground mb-1.5 block">Day title</label>
@@ -656,7 +678,7 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
               <button onClick={saveDayEdit} className="flex-1 flex items-center justify-center gap-1.5 bg-accent text-accent-foreground px-4 py-2.5 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">
                 <Check className="w-4 h-4" /> Save
               </button>
-              <button onClick={() => setDayEdit({ open: false, index: null, title: "", description: "", date: "" })} className="px-4 py-2.5 text-muted-foreground text-sm hover:text-foreground transition-colors">
+              <button onClick={() => setDayEdit({ open: false, index: null, title: "", description: "", date: "", city: "" })} className="px-4 py-2.5 text-muted-foreground text-sm hover:text-foreground transition-colors">
                 Cancel
               </button>
             </div>
