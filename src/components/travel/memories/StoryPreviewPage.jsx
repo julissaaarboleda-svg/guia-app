@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { ArrowLeft, ImageIcon, MapPin, Pencil, X, Check } from "lucide-react";
+import { ArrowLeft, ImageIcon } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { pickCoverImage, visiblePlaces, visibleMedia, tripDuration } from "@/lib/memoryUtils";
 import { base44 } from "@/api/base44Client";
@@ -11,21 +11,6 @@ function dateRangeLabel(trip) {
   const start = format(parseISO(trip.start_date), "MMM d");
   const end = trip.end_date ? format(parseISO(trip.end_date), "d") : null;
   return end ? `${start} – ${end}` : start;
-}
-
-// Small edit affordance shown in the corner of any slide that supports a
-// quote — the person chooses which note (if any) shows on which slide,
-// nothing is auto-matched.
-function QuoteEditButton({ onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      className="absolute top-3 right-3 w-7 h-7 rounded-full bg-black/40 flex items-center justify-center z-10"
-      aria-label="Edit quote"
-    >
-      <Pencil className="w-3 h-3 text-white" />
-    </button>
-  );
 }
 
 function CoverSlide({ trip, coverUrl, days, placesCount, photosCount, onChangeCover, uploading }) {
@@ -41,7 +26,7 @@ function CoverSlide({ trip, coverUrl, days, placesCount, photosCount, onChangeCo
         className="absolute inset-0"
         style={{ background: "linear-gradient(180deg, rgba(46,42,39,0.15) 0%, rgba(46,42,39,0.05) 35%, rgba(46,42,39,0.92) 100%)" }}
       />
-      <label className={`absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center transition-opacity ${uploading ? "opacity-60" : "cursor-pointer hover:bg-black/55"}`}>
+      <label className={`absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center transition-opacity z-10 ${uploading ? "opacity-60" : "cursor-pointer hover:bg-black/55"}`}>
         <ImageIcon className="w-3.5 h-3.5 text-white" />
         <input type="file" accept="image/*,image/heic,image/heif,.heic,.heif" className="hidden" onChange={onChangeCover} disabled={uploading} />
       </label>
@@ -75,7 +60,7 @@ function CoverSlide({ trip, coverUrl, days, placesCount, photosCount, onChangeCo
   );
 }
 
-function RouteSlide({ trip, cities, quote, onEditQuote }) {
+function RouteSlide({ trip, cities }) {
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const [loading, setLoading] = useState(true);
@@ -98,8 +83,6 @@ function RouteSlide({ trip, cities, quote, onEditQuote }) {
         if (!alive) return;
         if (points.length === 0) throw new Error("Couldn't locate any cities");
 
-        // Non-interactive — this is a background visual for the slide, not
-        // something to accidentally pan while swiping through the story.
         const map = L.map(mapContainerRef.current, {
           zoomControl: false,
           attributionControl: false,
@@ -148,7 +131,6 @@ function RouteSlide({ trip, cities, quote, onEditQuote }) {
   return (
     <div className="absolute inset-0 bg-[#F7F3EC] flex flex-col">
       <div className="flex-1 relative overflow-hidden">
-        <QuoteEditButton onClick={onEditQuote} />
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center z-[6]">
             <p className="font-body text-[11px] text-[#888780]">Loading route…</p>
@@ -162,19 +144,17 @@ function RouteSlide({ trip, cities, quote, onEditQuote }) {
         <div ref={mapContainerRef} className="w-full h-full" />
       </div>
       <div className="flex-shrink-0 bg-[#F7F3EC] px-3.5 py-2 border-t border-[#E3DED0]">
-        {quote && <p className="font-heading text-[10px] text-[#2E2A27] italic leading-snug line-clamp-1 mb-0.5">"{quote}"</p>}
         <p className="font-heading text-[12.5px] text-[#2E2A27] leading-tight">My route</p>
       </div>
     </div>
   );
 }
 
-function PlacesSlide({ places, quote, onEditQuote }) {
+function PlacesSlide({ places }) {
   const shown = places.slice(0, 6);
   return (
     <div className="absolute inset-0 bg-[#F7F3EC] flex flex-col">
       <div className="flex-1 relative">
-        <QuoteEditButton onClick={onEditQuote} />
         <div className="absolute inset-0 grid grid-cols-2 gap-[2px] overflow-y-auto p-[2px]">
           {shown.map((p) => (
             <div key={p.id} className="relative rounded-sm overflow-hidden bg-muted aspect-square">
@@ -187,22 +167,18 @@ function PlacesSlide({ places, quote, onEditQuote }) {
         </div>
       </div>
       <div className="flex-shrink-0 bg-[#F7F3EC] px-3.5 py-2 border-t border-[#E3DED0]">
-        {quote && <p className="font-heading text-[10px] text-[#2E2A27] italic leading-snug line-clamp-1 mb-0.5">"{quote}"</p>}
         <p className="font-heading text-[12.5px] text-[#2E2A27] leading-tight">Favorite places</p>
       </div>
     </div>
   );
 }
 
-// Adaptive album layout — 1 photo = full-bleed hero, 2 = side by side,
-// 3+ = big photo + two smaller ones with a "+N" badge for the rest.
-function AlbumSlide({ albumName, photos, quote, onEditQuote }) {
+function AlbumSlide({ albumName, photos }) {
   const shown = photos.slice(0, 3);
   const extra = Math.max(0, photos.length - shown.length);
   return (
     <div className="absolute inset-0 bg-[#F7F3EC] flex flex-col">
       <div className="flex-1 relative overflow-hidden">
-        <QuoteEditButton onClick={onEditQuote} />
         {shown.length === 1 && (
           <img src={shown[0].url} alt="" className="w-full h-full object-cover" />
         )}
@@ -229,19 +205,17 @@ function AlbumSlide({ albumName, photos, quote, onEditQuote }) {
         )}
       </div>
       <div className="flex-shrink-0 bg-[#F7F3EC] px-3.5 py-2 border-t border-[#E3DED0]">
-        {quote && <p className="font-heading text-[10px] text-[#2E2A27] italic leading-snug line-clamp-1 mb-0.5">"{quote}"</p>}
         <p className="font-heading text-[12.5px] text-[#2E2A27] leading-tight">{albumName}</p>
       </div>
     </div>
   );
 }
 
-function MomentsSlide({ photos, quote, onEditQuote }) {
+function MomentsSlide({ photos }) {
   const shown = photos.slice(0, 6);
   return (
     <div className="absolute inset-0 bg-[#F7F3EC] flex flex-col">
       <div className="flex-1 relative">
-        <QuoteEditButton onClick={onEditQuote} />
         <div className="absolute inset-0 grid grid-cols-2 gap-[2px] overflow-y-auto p-[2px]">
           {shown.map((m, i) => (
             <div key={i} className="relative rounded-sm overflow-hidden bg-muted aspect-square">
@@ -256,16 +230,12 @@ function MomentsSlide({ photos, quote, onEditQuote }) {
         </div>
       </div>
       <div className="flex-shrink-0 bg-[#F7F3EC] px-3.5 py-2 border-t border-[#E3DED0]">
-        {quote && <p className="font-heading text-[10px] text-[#2E2A27] italic leading-snug line-clamp-1 mb-0.5">"{quote}"</p>}
         <p className="font-heading text-[12.5px] text-[#2E2A27] leading-tight">Moments</p>
       </div>
     </div>
   );
 }
 
-// Fixed scattered layout for the scrapbook finale — position/count picking
-// comes in a later pass; for now it shows up to 5 real trip photos plus a
-// centered polaroid carrying the trip title.
 const SCRAPBOOK_SPOTS = [
   { top: "8%", left: "6%", rotate: -9, size: "34%" },
   { top: "12%", right: "7%", rotate: 7, size: "32%" },
@@ -282,7 +252,13 @@ function ScrapbookSlide({ trip, photos, onEdit }) {
 
   return (
     <div className="absolute inset-0 bg-[#F7F3EC] overflow-hidden">
-      <QuoteEditButton onClick={onEdit} />
+      <button
+        onClick={onEdit}
+        className="absolute top-3 right-3 w-7 h-7 rounded-full bg-black/40 flex items-center justify-center z-10"
+        aria-label="Edit scrapbook"
+      >
+        <ImageIcon className="w-3 h-3 text-white" />
+      </button>
       {items.map((item, i) => (
         <div
           key={item.url + i}
@@ -325,11 +301,7 @@ export default function StoryPreviewPage({ trip, onUpdate, onBack }) {
 
   const [uploading, setUploading] = useState(false);
   const [slide, setSlide] = useState(0);
-  const [quoteEditorKey, setQuoteEditorKey] = useState(null);
   const [scrapbookEditorOpen, setScrapbookEditorOpen] = useState(false);
-
-  const quotes = trip.story_quotes || {};
-  const journalEntries = (trip.journal_entries || []).filter((e) => e.note);
 
   const slides = useMemo(() => {
     const s = [{ key: "cover", type: "cover" }];
@@ -360,25 +332,6 @@ export default function StoryPreviewPage({ trip, onUpdate, onBack }) {
     }
   };
 
-  const setQuoteFor = async (slideKey, entryId) => {
-    const nextQuotes = { ...quotes };
-    if (entryId) nextQuotes[slideKey] = entryId; else delete nextQuotes[slideKey];
-    try {
-      const updated = await base44.entities.Trip.update(trip.id, { story_quotes: nextQuotes });
-      onUpdate(updated);
-    } catch (err) {
-      console.error("Failed to set quote:", err);
-    }
-    setQuoteEditorKey(null);
-  };
-
-  const quoteTextFor = (slideKey) => {
-    const entryId = quotes[slideKey];
-    if (!entryId) return null;
-    const entry = journalEntries.find((e) => e.id === entryId);
-    return entry?.note || null;
-  };
-
   const saveScrapbookLayout = async (layout) => {
     try {
       const updated = await base44.entities.Trip.update(trip.id, { scrapbook_layout: layout });
@@ -406,23 +359,12 @@ export default function StoryPreviewPage({ trip, onUpdate, onBack }) {
             onChangeCover={changeCover} uploading={uploading}
           />
         )}
-        {current.type === "route" && (
-          <RouteSlide trip={trip} cities={cities} quote={quoteTextFor("route")} onEditQuote={() => setQuoteEditorKey("route")} />
-        )}
-        {current.type === "places" && (
-          <PlacesSlide places={places} quote={quoteTextFor("places")} onEditQuote={() => setQuoteEditorKey("places")} />
-        )}
+        {current.type === "route" && <RouteSlide trip={trip} cities={cities} />}
+        {current.type === "places" && <PlacesSlide places={places} />}
         {current.type === "album" && (
-          <AlbumSlide
-            albumName={current.album}
-            photos={mediaByAlbum[current.album] || []}
-            quote={quoteTextFor(current.key)}
-            onEditQuote={() => setQuoteEditorKey(current.key)}
-          />
+          <AlbumSlide albumName={current.album} photos={mediaByAlbum[current.album] || []} />
         )}
-        {current.type === "moments" && (
-          <MomentsSlide photos={unassignedMedia} quote={quoteTextFor("moments")} onEditQuote={() => setQuoteEditorKey("moments")} />
-        )}
+        {current.type === "moments" && <MomentsSlide photos={unassignedMedia} />}
         {current.type === "scrapbook" && (
           <ScrapbookSlide trip={trip} photos={photosOnly} onEdit={() => setScrapbookEditorOpen(true)} />
         )}
@@ -442,46 +384,6 @@ export default function StoryPreviewPage({ trip, onUpdate, onBack }) {
       <p className="text-xs text-center text-muted-foreground">
         Tap the sides to browse slides. A shareable export (Instagram/TikTok) isn't wired up yet — this is a live preview.
       </p>
-
-      {quoteEditorKey && (
-        <div className="fixed inset-0 z-[70] flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setQuoteEditorKey(null)}>
-          <div className="bg-card border border-border rounded-t-3xl md:rounded-2xl w-full max-w-sm p-5 max-h-[70vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-heading text-base text-foreground">Choose a note for this slide</h3>
-              <button onClick={() => setQuoteEditorKey(null)} className="text-muted-foreground hover:text-foreground">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            {quotes[quoteEditorKey] && (
-              <button
-                onClick={() => setQuoteFor(quoteEditorKey, null)}
-                className="w-full text-left text-xs text-destructive px-3 py-2 rounded-lg bg-destructive/10 mb-3"
-              >
-                Remove current note from this slide
-              </button>
-            )}
-            {journalEntries.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-6 text-center">No journal notes yet — add some in Notes & Reflections first.</p>
-            ) : (
-              <div className="space-y-2">
-                {journalEntries.map((entry) => (
-                  <button
-                    key={entry.id}
-                    onClick={() => setQuoteFor(quoteEditorKey, entry.id)}
-                    className={`w-full text-left p-3 rounded-xl border transition-colors ${quotes[quoteEditorKey] === entry.id ? "border-accent bg-accent/10" : "border-border hover:border-accent/40"}`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-xs text-foreground italic leading-snug flex-1">"{entry.note}"</p>
-                      {quotes[quoteEditorKey] === entry.id && <Check className="w-4 h-4 text-accent flex-shrink-0" />}
-                    </div>
-                    {entry.date && <p className="text-[10px] text-muted-foreground mt-1">{format(parseISO(entry.date), "MMM d")}</p>}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {scrapbookEditorOpen && (
         <ScrapbookEditor
