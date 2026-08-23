@@ -30,6 +30,7 @@ export default function MemoriesTab({ trip, onUpdate }) {
     return [...fav, ...rest].slice(0, 4);
   }, [media]);
   const favNote = useMemo(() => journalEntries.find((e) => e.note), [journalEntries]);
+  const favNoteText = favNote?.note ? favNote.note.replace(/<[^>]*>/g, "").trim() : null;
 
   // Switching to a sub-view (Places, Photos, Notes, Story) doesn't trigger a
   // real page navigation — it's a client-side swap within the same
@@ -78,7 +79,7 @@ export default function MemoriesTab({ trip, onUpdate }) {
           title="Notes & Reflections"
           subtitle="What you felt and want to remember."
           count={`${journalEntries.length} note${journalEntries.length !== 1 ? "s" : ""}`}
-          quote={favNote?.note}
+          quote={favNoteText}
           quoteImage={favNote?.photo_url}
           empty="Nothing written yet."
           onClick={() => setView("notes")}
