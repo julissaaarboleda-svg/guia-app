@@ -125,7 +125,7 @@ export default function ScrapbookEditor({ trip, allPhotos, onSave, onClose }) {
           ) : (
             <div>
               <p className="text-xs text-muted-foreground mb-3">Tap and drag any photo to move it.</p>
-              <div ref={canvasRef} className="relative w-full aspect-[9/16] bg-[#2E2A27] rounded-xl overflow-hidden select-none">
+              <div ref={canvasRef} className="relative w-full aspect-[9/16] bg-[#F7F3EC] rounded-xl overflow-hidden select-none">
                 {selected.map((url, i) => {
                   const pos = positions[url] || ensurePosition(url, i);
                   return (
@@ -133,7 +133,7 @@ export default function ScrapbookEditor({ trip, allPhotos, onSave, onClose }) {
                       key={url}
                       onMouseDown={(e) => startDrag(e, url)}
                       onTouchStart={(e) => startDrag(e, url)}
-                      className="absolute bg-[#F7F3EC] p-1 rounded-sm shadow-lg cursor-grab active:cursor-grabbing"
+                      className="absolute bg-[#F7F3EC] border border-[#E3DED0] p-1 rounded-sm shadow-lg cursor-grab active:cursor-grabbing"
                       style={{ top: pos.top, left: pos.left, width: "30%", transform: `rotate(${pos.rotate}deg)`, touchAction: "none" }}
                     >
                       <div className="w-full aspect-square overflow-hidden">
