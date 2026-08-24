@@ -234,7 +234,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
   return (
     <div className="min-h-screen bg-stone-50">
       <div className="p-4 md:p-8 max-w-4xl mx-auto" style={{ paddingTop: "1.25rem" }}>
-        <div className="rounded-[24px] p-5 mb-5 relative overflow-hidden h-[26vh] min-h-[210px] max-h-[290px] flex flex-col" style={{ background: coverImage ? undefined : accentColor }}>
+        <div className="rounded-[24px] p-5 mb-5 relative overflow-hidden h-[19vh] min-h-[165px] max-h-[220px] flex flex-col" style={{ background: coverImage ? undefined : accentColor }}>
           {/* Action row — consolidated into a single menu instead of four
               separate floating icon buttons, matching the pattern used on
               the Trip detail page. */}
@@ -463,39 +463,39 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
         <div className="flex gap-1.5 mb-4 bg-white border border-stone-200 rounded-xl p-1.5">
           <button
             onClick={() => setTab("tasks")}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-1 rounded-lg text-[13px] font-medium transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-1 rounded-lg text-[12px] font-medium transition-colors ${
               tab === "tasks" ? "text-white" : "text-stone-500 hover:text-stone-900"
             }`}
             style={tab === "tasks" ? { backgroundColor: "#A7773F" } : undefined}
           >
-            <ListTodo className="w-3.5 h-3.5 flex-shrink-0" /> Tasks
+            <ListTodo className="w-3 h-3 flex-shrink-0" /> Tasks
           </button>
           <button
             onClick={() => setTab("resources")}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-1 rounded-lg text-[13px] font-medium transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-1 rounded-lg text-[12px] font-medium transition-colors ${
               tab === "resources" ? "text-white" : "text-stone-500 hover:text-stone-900"
             }`}
             style={tab === "resources" ? { backgroundColor: "#A7773F" } : undefined}
           >
-            <Sparkles className="w-3.5 h-3.5 flex-shrink-0" /> Resources
+            <Sparkles className="w-3 h-3 flex-shrink-0" /> Resources
           </button>
           <button
             onClick={() => setTab("notes")}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-1 rounded-lg text-[13px] font-medium transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-1 rounded-lg text-[12px] font-medium transition-colors ${
               tab === "notes" ? "text-white" : "text-stone-500 hover:text-stone-900"
             }`}
             style={tab === "notes" ? { backgroundColor: "#A7773F" } : undefined}
           >
-            <StickyNote className="w-3.5 h-3.5 flex-shrink-0" /> Notes
+            <StickyNote className="w-3 h-3 flex-shrink-0" /> Notes
           </button>
           <button
             onClick={() => setTab("budget")}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-1 rounded-lg text-[13px] font-medium transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-1 rounded-lg text-[12px] font-medium transition-colors ${
               tab === "budget" ? "text-white" : "text-stone-500 hover:text-stone-900"
             }`}
             style={tab === "budget" ? { backgroundColor: "#A7773F" } : undefined}
           >
-            <DollarSign className="w-3.5 h-3.5 flex-shrink-0" /> Budget
+            <DollarSign className="w-3 h-3 flex-shrink-0" /> Budget
           </button>
         </div>
 
