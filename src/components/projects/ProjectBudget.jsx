@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Check, Pencil } from "lucide-react";
+import { Plus, Trash2, Check, Pencil, ChevronDown } from "lucide-react";
 
 const CHIP_COLORS = ["#A7773F", "#7D8A53", "#A77C81", "#6B655D", "#8A6530"];
 function colorForPerson(email) {
@@ -57,6 +57,21 @@ export default function ProjectBudget({ target, expenses, collaborators = [], cu
   };
 
   const total = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const { settledTotal, outstandingTotal } = expenses.reduce(
+    (acc, e) => {
+      const payers = payersFor(e);
+      if (payers.length === 0) return acc;
+      const share = Number(e.amount) / payers.length;
+      const settledBy = e.settled_by || [];
+      payers.forEach((p) => {
+        if (settledBy.includes(p)) acc.settledTotal += share;
+        else acc.outstandingTotal += share;
+      });
+      return acc;
+    },
+    { settledTotal: 0, outstandingTotal: 0 }
+  );
+  const hasTracking = settledTotal > 0 || outstandingTotal > 0;
   const pct = target > 0 ? Math.min(100, Math.round((total / target) * 100)) : 0;
   const over = target > 0 && total > target;
 
@@ -118,10 +133,23 @@ export default function ProjectBudget({ target, expenses, collaborators = [], cu
       ) : (
         <button
           onClick={() => { setTargetInput(target || ""); setEditingTarget(true); }}
-          className="text-xs text-muted-foreground mb-4 hover:text-foreground transition-colors"
+          className="text-xs text-muted-foreground mb-2 hover:text-foreground transition-colors"
         >
           {target > 0 ? `of $${target.toLocaleString()} budget` : "Set a budget target"}
         </button>
+      )}
+
+      {hasTracking && (
+        <div className="grid grid-cols-2 gap-2 mb-4 pt-2 border-t border-border">
+          <div className="rounded-lg p-2" style={{ background: "#7D8A5314" }}>
+            <p className="text-[9px] font-medium" style={{ color: "#5F6A3F" }}>Settled</p>
+            <p className="text-sm font-bold" style={{ color: "#5F6A3F" }}>${settledTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+          </div>
+          <div className="rounded-lg p-2" style={{ background: "#A77C8114" }}>
+            <p className="text-[9px] font-medium" style={{ color: "#8A5F64" }}>Outstanding</p>
+            <p className="text-sm font-bold" style={{ color: "#8A5F64" }}>${outstandingTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+          </div>
+        </div>
       )}
 
       {/* Add expense — collapsed behind a button until tapped */}
@@ -240,12 +268,18 @@ export default function ProjectBudget({ target, expenses, collaborators = [], cu
                   >
                     <p className="text-sm text-foreground truncate">{e.name}</p>
                     {payers.length > 0 && (
-                      <span className={`flex-shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-medium ${allSettled ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
+                      <span
+                        className="flex-shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-medium"
+                        style={allSettled ? { background: "#7D8A5320", color: "#5F6A3F" } : { background: "#A77C8120", color: "#8A5F64" }}
+                      >
                         {allSettled ? "Settled" : "Tracking"}
                       </span>
                     )}
                   </button>
                   <span className="text-sm font-medium text-foreground flex-shrink-0">${Number(e.amount).toLocaleString()}</span>
+                  {payers.length > 0 && (
+                    <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground/50 flex-shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                  )}
                 {collaborators.length > 0 && (
                   <div className="relative flex-shrink-0">
                     <button
@@ -342,9 +376,8 @@ export default function ProjectBudget({ target, expenses, collaborators = [], cu
                           </div>
                           <button
                             onClick={() => toggleSettled(i, email)}
-                            className={`flex-shrink-0 flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-full transition-colors ${
-                              settled ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"
-                            }`}
+                            className="flex-shrink-0 flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-full transition-colors"
+                            style={settled ? { background: "#7D8A5320", color: "#5F6A3F" } : { background: "#A77C8120", color: "#8A5F64" }}
                           >
                             {settled ? (
                               <><Check className="w-2.5 h-2.5" /> Settled</>
