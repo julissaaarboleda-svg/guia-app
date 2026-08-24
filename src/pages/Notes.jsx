@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 
-// Register custom font sizes for the editor size dropdown
 const Size = ReactQuill.Quill.import("attributors/style/size");
 Size.whitelist = ["small", "12px", "14px", "16px", "18px", "large", "huge"];
 ReactQuill.Quill.register(Size, true);
@@ -56,31 +55,53 @@ export default function Notes() {
 
   useEffect(() => { load(); }, []);
 
+  // Creates the folder and adds it straight into local state — no full
+  // reload needed. The previous version called load() here, which
+  // re-fetched every note AND every folder from the backend before the new
+  // collection appeared, which is what caused the visible delay.
   const createCollection = async (data) => {
-    await base44.entities.Folder.create({
+    const created = await base44.entities.Folder.create({
       name: data.name,
       icon_type: data.icon_type || "folder",
       emoji: data.emoji,
       accent_color: data.accent_color || "sage",
     });
+    setFolders((prev) => [created, ...prev]);
     setShowNewCollection(false);
-    await load();
   };
 
   const updateCollection = async (id, patch) => {
     await base44.entities.Folder.update(id, patch);
-    await load();
+    setFolders((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
     if (openCollection?.id === id) setOpenCollection((prev) => (prev ? { ...prev, ...patch } : prev));
   };
 
+  // Deleting a collection needs to un-set folder_id on any notes that were
+  // inside it. The previous version tried base44.entities.Note.updateMany()
+  // with a MongoDB-style {$unset:...} operator — but this app's backend is
+  // a simple per-record Netlify function, not MongoDB, and doesn't support
+  // that. It's leftover code from before the migration off Base44 that was
+  // never actually verified against the real backend. When it threw, the
+  // rest of this function (deleting the folder, reloading) never ran, and
+  // the UI was left stuck mid-load — which is why the whole page went
+  // blank. Fixed by updating each affected note individually, the same way
+  // every other update in this file works, and wrapping everything so the
+  // loading state always resolves even if something fails.
   const deleteCollection = async (id) => {
-    const folderNotes = notes.filter((n) => n.folder_id === id);
-    if (folderNotes.length > 0) {
-      await base44.entities.Note.updateMany({ folder_id: id }, { $unset: { folder_id: "" } });
+    try {
+      const folderNotes = notes.filter((n) => n.folder_id === id);
+      await Promise.all(
+        folderNotes.map((n) => base44.entities.Note.update(n.id, { folder_id: null }))
+      );
+      await base44.entities.Folder.delete(id);
+
+      setNotes((prev) => prev.map((n) => (n.folder_id === id ? { ...n, folder_id: null } : n)));
+      setFolders((prev) => prev.filter((f) => f.id !== id));
+      if (openCollection?.id === id) setOpenCollection(null);
+    } catch (err) {
+      console.error("Failed to delete collection:", err);
+      toast({ title: "Couldn't delete collection", description: "Please try again.", variant: "destructive" });
     }
-    await base44.entities.Folder.delete(id);
-    if (openCollection?.id === id) setOpenCollection(null);
-    await load();
   };
 
   const startNewNote = async (folderId) => {
@@ -89,8 +110,6 @@ export default function Notes() {
     setSelected(n);
   };
 
-  // Switching type is only offered while a note is still completely blank
-  // (see isBlank below), so this never has to migrate real content.
   const switchNoteType = async (type) => {
     if (!selected || type === selected.note_type) return;
     const patch = type === "list" ? { note_type: "list", list_items: [], content: "" } : { note_type: "text", content: "", list_items: [] };
@@ -99,9 +118,6 @@ export default function Notes() {
     await base44.entities.Note.update(selected.id, patch);
   };
 
-  // Silent persist used by both the debounced auto-save and manual Save button.
-  // Updates local state first (list view + editor both reflect it instantly),
-  // then writes to the backend in the background — no full reload needed.
   const persistNote = async (note, showToast = false) => {
     const patch = { title: note.title, content: note.content, list_items: note.list_items, attachments: note.attachments || [] };
     setNotes(prev => prev.map(n => n.id === note.id ? { ...n, ...patch } : n));
@@ -115,8 +131,6 @@ export default function Notes() {
     backToList();
   };
 
-  // Auto-save: fires ~900ms after the person stops typing in title/content,
-  // so nothing is lost if they navigate away without hitting Save.
   useEffect(() => {
     if (!selected || adding) return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
@@ -244,9 +258,6 @@ export default function Notes() {
   const showingDetail = !!selected;
 
   const backToList = async () => {
-    // If the person opened a note and left without typing anything at all,
-    // silently discard the empty draft instead of leaving clutter behind —
-    // same behavior as Apple Notes.
     if (selected) {
       const isBlank = !selected.title?.trim() && !selected.content?.trim() &&
         (!selected.list_items || selected.list_items.length === 0) &&
@@ -265,7 +276,6 @@ export default function Notes() {
     ? notes.filter((n) => n.folder_id === openCollection.id)
     : [];
 
-  /* ---------------- Editor ---------------- */
   const noteFolder = adding
     ? openCollection
     : selected?.folder_id
@@ -275,7 +285,6 @@ export default function Notes() {
   if (showingDetail) {
     return (
       <div className="max-w-[900px] mx-auto w-full pb-12">
-        {/* top bar */}
         <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm px-6 md:px-10 lg:px-14 pb-4 border-b border-border flex items-center gap-2.5" style={{ paddingTop: "1.25rem" }}>
           <button onClick={backToList} className="w-9 h-9 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors flex-shrink-0" title="Back">
             <ArrowLeft className="w-4 h-4" />
@@ -400,7 +409,6 @@ export default function Notes() {
     );
   }
 
-  /* ---------------- Collection View ---------------- */
   if (openCollection) {
     return (
       <div className="max-w-[900px] mx-auto w-full pb-8">
@@ -465,7 +473,6 @@ export default function Notes() {
     );
   }
 
-  /* ---------------- Landing ---------------- */
   return (
     <>
       <NotesLanding
@@ -501,7 +508,6 @@ export default function Notes() {
   );
 }
 
-/* ---------------- Note row menu ---------------- */
 function NoteMenuSheet({ note, folders, onClose, onDelete, onMove }) {
   if (!note) return null;
   return (
