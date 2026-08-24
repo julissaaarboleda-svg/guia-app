@@ -15,7 +15,9 @@ import {
   Upload,
   FileDown,
   DollarSign,
+  MoreVertical,
 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import ProjectCollaborators from "@/components/projects/ProjectCollaborators";
 import ProjectResources from "@/components/projects/ProjectResources";
 import ProjectTasks from "@/components/projects/ProjectTasks";
@@ -55,17 +57,12 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
     base44.auth
       .me()
       .then((u) => {
-        // Fallback for projects created before created_by_id was correctly
-        // set (a real bug, now fixed in entities.js) — treat ownerless legacy
-        // projects as owned by whoever's viewing them, rather than permanently
-        // locking out editing/collaborator management on old data.
         setIsOwner(!project.created_by_id || u.id === project.created_by_id);
         setCurrentUserEmail(u.email);
       })
       .catch(() => setIsOwner(false));
   }, [project.created_by_id]);
 
-  // Real-time sync for collaborative updates
   useEffect(() => {
     const unsub = base44.entities.Project.subscribe((event) => {
       if (event.id === project.id) {
@@ -155,17 +152,24 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
     }
   };
 
+  // Emails are now normalized to lowercase before storing or comparing —
+  // this is what let "ruth@..." and "Ruth@..." get added as two separate
+  // collaborators. The dedup check was case-sensitive, so a differently
+  // capitalized retry looked like a brand new person.
   const addCollaborator = async (email) => {
-    if (collaborators.includes(email)) return;
+    const normalized = (email || "").trim().toLowerCase();
+    if (!normalized) return;
+    if (collaborators.some((c) => c.toLowerCase() === normalized)) return;
     const updated = await base44.entities.Project.update(project.id, {
-      collaborators: [...collaborators, email],
+      collaborators: [...collaborators, normalized],
     });
     onUpdate(updated);
   };
 
   const removeCollaborator = async (email) => {
+    const normalized = (email || "").trim().toLowerCase();
     const updated = await base44.entities.Project.update(project.id, {
-      collaborators: collaborators.filter((c) => c !== email),
+      collaborators: collaborators.filter((c) => c.toLowerCase() !== normalized),
     });
     onUpdate(updated);
   };
@@ -221,8 +225,10 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
   return (
     <div className="min-h-screen bg-stone-50">
       <div className="p-4 md:p-8 max-w-4xl mx-auto" style={{ paddingTop: "1.25rem" }}>
-        <div className="rounded-[24px] p-5 mb-6 relative overflow-hidden h-[26vh] min-h-[210px] max-h-[290px] flex flex-col" style={{ background: coverImage ? undefined : accentColor }}>
-          {/* Action row — overlaid on the photo */}
+        <div className="rounded-[24px] p-5 mb-5 relative overflow-hidden h-[26vh] min-h-[210px] max-h-[290px] flex flex-col" style={{ background: coverImage ? undefined : accentColor }}>
+          {/* Action row — consolidated into a single menu instead of four
+              separate floating icon buttons, matching the pattern used on
+              the Trip detail page. */}
           <div className="relative z-10 flex items-center justify-between mb-2">
             <button
               onClick={onBack}
@@ -230,43 +236,32 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
             >
               <ArrowLeft className="w-3.5 h-3.5" strokeWidth={1.8} />
             </button>
-            <div className="flex gap-1">
-              <button
-                onClick={handleExportPdf}
-                disabled={exporting}
-                className="w-7 h-7 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-stone-100 transition-colors disabled:opacity-50"
-                title="Export as PDF"
-              >
-                {exporting ? (
-                  <div className="w-3.5 h-3.5 border-2 border-stone-300 border-t-stone-700 rounded-full animate-spin" />
-                ) : (
-                  <FileDown className="w-3.5 h-3.5" strokeWidth={1.8} />
-                )}
-              </button>
-              <button
-                onClick={() => setShowCollabModal(true)}
-                className="w-7 h-7 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-stone-100 transition-colors"
-                title="Add collaborator"
-              >
-                <UserPlus className="w-3.5 h-3.5" strokeWidth={1.8} />
-              </button>
-              <button
-                onClick={() => setEditing(!editing)}
-                className="w-7 h-7 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-stone-100 transition-colors"
-                title="Edit project (cover & details)"
-              >
-                <Edit2 className="w-3.5 h-3.5" strokeWidth={1.8} />
-              </button>
-              {isOwner && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <button
-                  onClick={deleteProject}
-                  className="w-7 h-7 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-rose-500 hover:text-white transition-colors"
-                  title="Delete project"
+                  className="w-7 h-7 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-stone-100 transition-colors"
+                  aria-label="Project actions"
                 >
-                  <Trash2 className="w-3.5 h-3.5" strokeWidth={1.8} />
+                  <MoreVertical className="w-3.5 h-3.5" strokeWidth={1.8} />
                 </button>
-              )}
-            </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 rounded-lg">
+                <DropdownMenuItem onClick={() => setShowCollabModal(true)} className="gap-2 cursor-pointer">
+                  <UserPlus className="w-4 h-4" /> Add collaborator
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setEditing(!editing)} className="gap-2 cursor-pointer">
+                  <Edit2 className="w-4 h-4" /> Edit project
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportPdf} disabled={exporting} className="gap-2 cursor-pointer">
+                  <FileDown className="w-4 h-4" /> {exporting ? "Exporting…" : "Export as PDF"}
+                </DropdownMenuItem>
+                {isOwner && (
+                  <DropdownMenuItem onClick={deleteProject} className="gap-2 cursor-pointer text-rose-600 focus:text-rose-600">
+                    <Trash2 className="w-4 h-4" /> Delete project
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {coverImage && (
@@ -281,7 +276,6 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
             </div>
           )}
 
-          {/* Status badge, top-left of the photo */}
           <span
             className={`relative self-start font-body text-[9px] uppercase tracking-[0.14em] px-3 py-1 rounded-full border flex-shrink-0 ${
               statusColors[project.status || "planning"]
@@ -323,40 +317,42 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
           projectTitle={project.title}
         />
 
-        {/* Progress */}
-        <div className="bg-white border border-stone-200 rounded-2xl p-5 mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium font-heading text-stone-500">Overall Progress</h3>
-            <span className="text-lg font-bold text-stone-900">{progress}%</span>
+        {/* Progress — tighter padding, thinner bar */}
+        <div className="bg-white border border-stone-200 rounded-2xl p-3.5 mb-3">
+          <div className="flex items-center justify-between mb-1.5">
+            <h3 className="text-xs font-medium font-heading text-stone-500">Overall Progress</h3>
+            <span className="text-sm font-bold text-stone-900">{progress}%</span>
           </div>
-          <div className="h-3 bg-stone-100 rounded-full overflow-hidden">
+          <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden">
             <div
               className="h-full bg-green-600 rounded-full transition-all"
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-xs text-stone-400 mt-2">
+          <p className="text-[11px] text-stone-400 mt-1.5">
             {tasks.filter((t) => t.completed).length} of {tasks.length} tasks complete
           </p>
         </div>
 
-        {/* Budget summary — tap to open the full Budget tab */}
+        {/* Budget summary — tighter padding, thinner bar with an actually
+            visible track color (the previous #A7773F26 alpha tint read as
+            almost invisible against the card background). */}
         <button
           onClick={() => setTab("budget")}
-          className="w-full text-left bg-white border border-stone-200 rounded-2xl p-5 mb-6 hover:border-stone-300 transition-colors"
+          className="w-full text-left bg-white border border-stone-200 rounded-2xl p-3.5 mb-5 hover:border-stone-300 transition-colors"
         >
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium font-heading text-stone-500">Budget</h3>
-            <span className="text-xs font-medium" style={{ color: "#A7773F" }}>View details →</span>
+          <div className="flex items-center justify-between mb-1.5">
+            <h3 className="text-xs font-medium font-heading text-stone-500">Budget</h3>
+            <span className="text-[11px] font-medium" style={{ color: "#A7773F" }}>View details →</span>
           </div>
-          <div className="flex items-baseline gap-1.5 mb-2">
-            <span className="text-xl font-bold text-stone-900">${totalSpent.toLocaleString()}</span>
-            <span className="text-xs text-stone-400">
+          <div className="flex items-baseline gap-1.5 mb-1.5">
+            <span className="text-base font-bold text-stone-900">${totalSpent.toLocaleString()}</span>
+            <span className="text-[11px] text-stone-400">
               {budgetTarget > 0 ? `of $${budgetTarget.toLocaleString()}` : "spent so far"}
             </span>
           </div>
           {budgetTarget > 0 && (
-            <div className="h-2 rounded-full overflow-hidden" style={{ background: "#A7773F26" }}>
+            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "#EFE9DF" }}>
               <div
                 className="h-full rounded-full transition-all"
                 style={{
@@ -454,43 +450,43 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
           </div>
         )}
 
-        {/* Tabs */}
-        <div className="flex gap-1 mb-4 bg-white border border-stone-200 rounded-xl p-1">
+        {/* Tabs — a bit more breathing room around the labels */}
+        <div className="flex gap-1.5 mb-4 bg-white border border-stone-200 rounded-xl p-1.5">
           <button
             onClick={() => setTab("tasks")}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-1 rounded-lg text-[13px] font-medium transition-colors ${
               tab === "tasks" ? "text-white" : "text-stone-500 hover:text-stone-900"
             }`}
             style={tab === "tasks" ? { backgroundColor: "#A7773F" } : undefined}
           >
-            <ListTodo className="w-4 h-4" /> Tasks
+            <ListTodo className="w-3.5 h-3.5 flex-shrink-0" /> Tasks
           </button>
           <button
             onClick={() => setTab("resources")}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-1 rounded-lg text-[13px] font-medium transition-colors ${
               tab === "resources" ? "text-white" : "text-stone-500 hover:text-stone-900"
             }`}
             style={tab === "resources" ? { backgroundColor: "#A7773F" } : undefined}
           >
-            <Sparkles className="w-4 h-4" /> Resources
+            <Sparkles className="w-3.5 h-3.5 flex-shrink-0" /> Resources
           </button>
           <button
             onClick={() => setTab("notes")}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-1 rounded-lg text-[13px] font-medium transition-colors ${
               tab === "notes" ? "text-white" : "text-stone-500 hover:text-stone-900"
             }`}
             style={tab === "notes" ? { backgroundColor: "#A7773F" } : undefined}
           >
-            <StickyNote className="w-4 h-4" /> Notes
+            <StickyNote className="w-3.5 h-3.5 flex-shrink-0" /> Notes
           </button>
           <button
             onClick={() => setTab("budget")}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-1 rounded-lg text-[13px] font-medium transition-colors ${
               tab === "budget" ? "text-white" : "text-stone-500 hover:text-stone-900"
             }`}
             style={tab === "budget" ? { backgroundColor: "#A7773F" } : undefined}
           >
-            <DollarSign className="w-4 h-4" /> Budget
+            <DollarSign className="w-3.5 h-3.5 flex-shrink-0" /> Budget
           </button>
         </div>
 
