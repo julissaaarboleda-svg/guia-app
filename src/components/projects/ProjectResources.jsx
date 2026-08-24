@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Upload, Link2, Trash2, FileText, X } from "lucide-react";
+import { Upload, Trash2, FileText, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
 function isImage(att) {
@@ -7,8 +7,7 @@ function isImage(att) {
   return /\.(jpe?g|png|gif|webp|heic|svg)$/.test(name) || (att.type || "").startsWith("image/");
 }
 
-export default function ProjectResources({ attachments, links, onAttachmentsChange, onLinksChange }) {
-  const [newLink, setNewLink] = useState("");
+export default function ProjectResources({ attachments, onAttachmentsChange }) {
   const [uploading, setUploading] = useState(false);
   const [lightbox, setLightbox] = useState(null);
 
@@ -25,12 +24,6 @@ export default function ProjectResources({ attachments, links, onAttachmentsChan
   };
 
   const removeAttachment = (i) => onAttachmentsChange(attachments.filter((_, idx) => idx !== i));
-
-  const addLink = () => {
-    if (!newLink.trim()) return;
-    onLinksChange([...links, { url: newLink.trim() }]);
-    setNewLink("");
-  };
 
   return (
     <div className="space-y-5">
@@ -74,25 +67,6 @@ export default function ProjectResources({ attachments, links, onAttachmentsChan
             )}
           </div>
         )}
-      </div>
-      <div>
-        <h3 className="text-sm font-medium text-foreground mb-2">Links</h3>
-        <div className="flex gap-2 mb-2">
-          <input
-            value={newLink}
-            onChange={(e) => setNewLink(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && addLink()}
-            placeholder="https://..."
-            className="flex-1 bg-muted border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring"
-          />
-          <button onClick={addLink} className="px-3 bg-foreground text-background rounded-lg text-sm"><Link2 className="w-4 h-4" /></button>
-        </div>
-        {links.map((l, i) => (
-          <div key={i} className="flex items-center justify-between py-1">
-            <a href={l.url} target="_blank" rel="noreferrer" className="text-xs text-accent hover:underline truncate">{l.url}</a>
-            <button onClick={() => onLinksChange(links.filter((_, idx) => idx !== i))} className="text-muted-foreground/50 hover:text-destructive"><Trash2 className="w-3.5 h-3.5" /></button>
-          </div>
-        ))}
       </div>
 
       {lightbox && (
