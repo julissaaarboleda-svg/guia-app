@@ -206,31 +206,42 @@ export default function ProjectBudget({ target, expenses, collaborators = [], cu
                       )}
                     </button>
                     {reassigningIdx === i && (
-                      <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-lg shadow-lg z-10 py-1 min-w-[150px]">
-                        {currentEmail && (
-                          <button
-                            onClick={() => togglePayerFor(i, currentEmail)}
-                            className="w-full flex items-center gap-2 text-left px-3 py-1.5 text-xs hover:bg-secondary"
-                          >
-                            <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 ${payers.includes(currentEmail) ? "bg-accent border-accent" : "border-input"}`}>
-                              {payers.includes(currentEmail) && <Check className="w-2.5 h-2.5 text-white" />}
-                            </span>
-                            <span className={payers.includes(currentEmail) ? "font-semibold text-foreground" : "text-muted-foreground"}>Me</span>
-                          </button>
-                        )}
-                        {collaborators.filter((c) => c !== currentEmail).map((c) => (
-                          <button
-                            key={c}
-                            onClick={() => togglePayerFor(i, c)}
-                            className="w-full flex items-center gap-2 text-left px-3 py-1.5 text-xs hover:bg-secondary"
-                          >
-                            <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 ${payers.includes(c) ? "bg-accent border-accent" : "border-input"}`}>
-                              {payers.includes(c) && <Check className="w-2.5 h-2.5 text-white" />}
-                            </span>
-                            <span className={`truncate ${payers.includes(c) ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{c.split("@")[0]}</span>
-                          </button>
-                        ))}
-                      </div>
+                      <>
+                        <div className="fixed inset-0 z-[9]" onClick={() => setReassigningIdx(null)} />
+                        <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-lg shadow-lg z-10 py-1 min-w-[150px]">
+                          {currentEmail && (
+                            <button
+                              onClick={() => togglePayerFor(i, currentEmail)}
+                              className="w-full flex items-center gap-2 text-left px-3 py-1.5 text-xs hover:bg-secondary"
+                            >
+                              <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 ${payers.includes(currentEmail) ? "bg-accent border-accent" : "border-input"}`}>
+                                {payers.includes(currentEmail) && <Check className="w-2.5 h-2.5 text-white" />}
+                              </span>
+                              <span className={payers.includes(currentEmail) ? "font-semibold text-foreground" : "text-muted-foreground"}>Me</span>
+                            </button>
+                          )}
+                          {collaborators.filter((c) => c !== currentEmail).map((c) => (
+                            <button
+                              key={c}
+                              onClick={() => togglePayerFor(i, c)}
+                              className="w-full flex items-center gap-2 text-left px-3 py-1.5 text-xs hover:bg-secondary"
+                            >
+                              <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 ${payers.includes(c) ? "bg-accent border-accent" : "border-input"}`}>
+                                {payers.includes(c) && <Check className="w-2.5 h-2.5 text-white" />}
+                              </span>
+                              <span className={`truncate ${payers.includes(c) ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{c.split("@")[0]}</span>
+                            </button>
+                          ))}
+                          <div className="border-t border-border mt-1 pt-1">
+                            <button
+                              onClick={() => setReassigningIdx(null)}
+                              className="w-full text-center px-3 py-1.5 text-xs font-medium text-accent hover:bg-secondary"
+                            >
+                              Done
+                            </button>
+                          </div>
+                        </div>
+                      </>
                     )}
                   </div>
                 )}
