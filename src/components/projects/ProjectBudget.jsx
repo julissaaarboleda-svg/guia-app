@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Check } from "lucide-react";
+import { Plus, Trash2, Check, Pencil } from "lucide-react";
 
 const CHIP_COLORS = ["#A7773F", "#7D8A53", "#A77C81", "#6B655D", "#8A6530"];
 function colorForPerson(email) {
@@ -21,7 +21,7 @@ function payersFor(expense) {
   return [];
 }
 
-export default function ProjectBudget({ target, expenses, collaborators = [], currentEmail, onSetTarget, onAddExpense, onRemoveExpense, onReassignExpense }) {
+export default function ProjectBudget({ target, expenses, collaborators = [], currentEmail, onSetTarget, onAddExpense, onRemoveExpense, onReassignExpense, onUpdateExpense }) {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [paidBy, setPaidBy] = useState([currentEmail].filter(Boolean));
@@ -29,6 +29,22 @@ export default function ProjectBudget({ target, expenses, collaborators = [], cu
   const [editingTarget, setEditingTarget] = useState(false);
   const [targetInput, setTargetInput] = useState(target || "");
   const [reassigningIdx, setReassigningIdx] = useState(null);
+  const [editingIdx, setEditingIdx] = useState(null);
+  const [editName, setEditName] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+
+  const startEdit = (e, i) => {
+    setEditingIdx(i);
+    setEditName(e.name || "");
+    setEditAmount(String(e.amount ?? ""));
+  };
+
+  const saveEdit = () => {
+    const amt = parseFloat(editAmount);
+    if (!editName.trim() || !amt || amt <= 0) return;
+    onUpdateExpense(editingIdx, { name: editName.trim(), amount: amt });
+    setEditingIdx(null);
+  };
 
   const total = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const pct = target > 0 ? Math.min(100, Math.round((total / target) * 100)) : 0;
@@ -170,6 +186,38 @@ export default function ProjectBudget({ target, expenses, collaborators = [], cu
           <p className="text-sm text-muted-foreground text-center py-4">No expenses yet.</p>
         ) : (
           expenses.map((e, i) => {
+            if (editingIdx === i) {
+              return (
+                <div key={i} className="py-2.5 border-t border-border">
+                  <input
+                    value={editName}
+                    onChange={(ev) => setEditName(ev.target.value)}
+                    placeholder="What was it for?"
+                    autoFocus
+                    className="w-full bg-muted border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring mb-2"
+                  />
+                  <div className="relative mb-2">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
+                    <input
+                      type="number"
+                      value={editAmount}
+                      onChange={(ev) => setEditAmount(ev.target.value)}
+                      onKeyDown={(ev) => ev.key === "Enter" && saveEdit()}
+                      placeholder="0.00"
+                      className="w-full bg-muted border border-input rounded-lg pl-6 pr-3 py-2 text-sm outline-none focus:border-ring"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={saveEdit} className="flex-1 text-white py-1.5 rounded-lg text-xs font-medium hover:opacity-90" style={{ backgroundColor: "#A7773F" }}>
+                      Save
+                    </button>
+                    <button onClick={() => setEditingIdx(null)} className="px-3 py-1.5 text-muted-foreground text-xs hover:text-foreground transition-colors">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              );
+            }
             const payers = payersFor(e);
             return (
               <div key={i} className="flex items-center gap-3 py-2 border-t border-border">
@@ -245,6 +293,9 @@ export default function ProjectBudget({ target, expenses, collaborators = [], cu
                     )}
                   </div>
                 )}
+                <button onClick={() => startEdit(e, i)} className="text-muted-foreground/50 hover:text-foreground flex-shrink-0">
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
                 <button onClick={() => onRemoveExpense(i)} className="text-muted-foreground/50 hover:text-destructive flex-shrink-0">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
