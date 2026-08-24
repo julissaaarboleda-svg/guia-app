@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Plus, Trash2, SlidersHorizontal, User, DollarSign, Check } from "lucide-react";
+import { Plus, Trash2, SlidersHorizontal, User, DollarSign, Check, Pencil } from "lucide-react";
 import DateInput from "@/components/DateInput";
 
 const CHIP_COLORS = ["#A7773F", "#7D8A53", "#A77C81", "#6B655D", "#8A6530"];
@@ -36,7 +36,7 @@ function dueDateInfo(dueDate) {
   return { label: `Due ${label}`, tone: "normal" };
 }
 
-export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd, onToggle, onRemove, onReassign, onAddToBudget }) {
+export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd, onToggle, onRemove, onReassign, onAddToBudget, onUpdateTask }) {
   const [name, setName] = useState("");
   const [assignees, setAssignees] = useState([currentEmail]);
   const [dueDate, setDueDate] = useState("");
@@ -46,6 +46,21 @@ export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd
   const [showAssigneeFilter, setShowAssigneeFilter] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [reassigningIdx, setReassigningIdx] = useState(null);
+  const [editingIdx, setEditingIdx] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDueDate, setEditDueDate] = useState("");
+
+  const startEdit = (t) => {
+    setEditingIdx(t._idx);
+    setEditTitle(t.title || "");
+    setEditDueDate(t.due_date || "");
+  };
+
+  const saveEdit = () => {
+    if (!editTitle.trim()) return;
+    onUpdateTask(editingIdx, { title: editTitle.trim(), due_date: editDueDate || null });
+    setEditingIdx(null);
+  };
 
   const toggleAssignee = (email) => {
     setAssignees((prev) => (prev.includes(email) ? prev.filter((e) => e !== email) : [...prev, email]));
@@ -209,6 +224,30 @@ export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd
       </div>
       <div className="space-y-1">
         {filtered.map((t) => {
+          if (editingIdx === t._idx) {
+            return (
+              <div key={t._idx} className="py-2.5 border-t border-border">
+                <input
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && saveEdit()}
+                  autoFocus
+                  className="w-full bg-muted border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring mb-2"
+                />
+                <div className="mb-2">
+                  <DateInput value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={saveEdit} className="flex-1 text-white py-1.5 rounded-lg text-xs font-medium hover:opacity-90" style={{ backgroundColor: "#A7773F" }}>
+                    Save
+                  </button>
+                  <button onClick={() => setEditingIdx(null)} className="px-3 py-1.5 text-muted-foreground text-xs hover:text-foreground transition-colors">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            );
+          }
           const due = dueDateInfo(t.due_date);
           const people = assigneesFor(t, currentEmail);
           return (
@@ -282,6 +321,7 @@ export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd
                   </>
                 )}
               </div>
+              <button onClick={() => startEdit(t)} className="text-muted-foreground/50 hover:text-foreground flex-shrink-0"><Pencil className="w-3.5 h-3.5" /></button>
               <button onClick={() => onRemove(t._idx)} className="text-muted-foreground/50 hover:text-destructive flex-shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
             </div>
           );
