@@ -234,7 +234,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
   return (
     <div className="min-h-screen bg-stone-50">
       <div className="p-4 md:p-8 max-w-4xl mx-auto" style={{ paddingTop: "1.25rem" }}>
-        <div className="rounded-[24px] p-5 mb-5 relative overflow-hidden h-[19vh] min-h-[165px] max-h-[220px] flex flex-col" style={{ background: coverImage ? undefined : accentColor }}>
+        <div className="rounded-[24px] p-4 mb-5 relative overflow-hidden h-[210px] flex flex-col" style={{ background: coverImage ? undefined : accentColor }}>
           {/* Action row — consolidated into a single menu instead of four
               separate floating icon buttons, matching the pattern used on
               the Trip detail page. */}
@@ -294,13 +294,13 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
           </span>
 
           <div className="relative mt-auto [text-shadow:0_1px_4px_rgba(0,0,0,0.5)]">
-            <h1 className="text-2xl font-heading font-bold text-white truncate">{project.title}</h1>
+            <h1 className="text-xl font-heading font-bold text-white truncate">{project.title}</h1>
             {project.target_date && (
               <>
-                <div className="h-px bg-white/25 w-full my-2" />
+                <div className="h-px bg-white/25 w-full my-1.5" />
                 <div className="flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-white/80 flex-shrink-0" strokeWidth={1.8} />
-                  <p className="text-white/85 text-sm">
+                  <Calendar className="w-3 h-3 text-white/80 flex-shrink-0" strokeWidth={1.8} />
+                  <p className="text-white/85 text-xs">
                     Due:{" "}
                     {parseISO(project.target_date).toLocaleDateString("en-US", {
                       weekday: "short",
