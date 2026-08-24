@@ -32,6 +32,16 @@ export default function ProjectBudget({ target, expenses, collaborators = [], cu
   const [editingIdx, setEditingIdx] = useState(null);
   const [editName, setEditName] = useState("");
   const [editAmount, setEditAmount] = useState("");
+  const [expandedIdx, setExpandedIdx] = useState(null);
+
+  const isSettled = (expense, email) => (expense.settled_by || []).includes(email);
+
+  const toggleSettled = (idx, email) => {
+    const expense = expenses[idx];
+    const current = expense.settled_by || [];
+    const next = current.includes(email) ? current.filter((e) => e !== email) : [...current, email];
+    onUpdateExpense(idx, { settled_by: next });
+  };
 
   const startEdit = (e, i) => {
     setEditingIdx(i);
@@ -219,12 +229,23 @@ export default function ProjectBudget({ target, expenses, collaborators = [], cu
               );
             }
             const payers = payersFor(e);
+            const allSettled = payers.length > 0 && payers.every((p) => isSettled(e, p));
+            const isExpanded = expandedIdx === i;
             return (
-              <div key={i} className="flex items-center gap-3 py-2 border-t border-border">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-foreground truncate">{e.name}</p>
-                </div>
-                <span className="text-sm font-medium text-foreground flex-shrink-0">${Number(e.amount).toLocaleString()}</span>
+              <div key={i} className="border-t border-border">
+                <div className="flex items-center gap-3 py-2">
+                  <button
+                    onClick={() => payers.length > 0 && setExpandedIdx(isExpanded ? null : i)}
+                    className="flex-1 min-w-0 flex items-center gap-1.5 text-left"
+                  >
+                    <p className="text-sm text-foreground truncate">{e.name}</p>
+                    {payers.length > 0 && (
+                      <span className={`flex-shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-medium ${allSettled ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
+                        {allSettled ? "Settled" : "Tracking"}
+                      </span>
+                    )}
+                  </button>
+                  <span className="text-sm font-medium text-foreground flex-shrink-0">${Number(e.amount).toLocaleString()}</span>
                 {collaborators.length > 0 && (
                   <div className="relative flex-shrink-0">
                     <button
@@ -299,6 +320,43 @@ export default function ProjectBudget({ target, expenses, collaborators = [], cu
                 <button onClick={() => onRemoveExpense(i)} className="text-muted-foreground/50 hover:text-destructive flex-shrink-0">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
+                </div>
+
+                {isExpanded && payers.length > 0 && (
+                  <div className="pb-2.5 pl-1 space-y-1.5">
+                    {payers.map((email) => {
+                      const share = Number(e.amount) / payers.length;
+                      const settled = isSettled(e, email);
+                      return (
+                        <div key={email} className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span
+                              className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[8px] font-bold flex-shrink-0"
+                              style={{ background: colorForPerson(email) }}
+                            >
+                              {initialsFor(email, currentEmail)}
+                            </span>
+                            <span className="text-xs text-foreground truncate">
+                              {email === currentEmail ? "Me" : email.split("@")[0]} · ${share.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => toggleSettled(i, email)}
+                            className={`flex-shrink-0 flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-full transition-colors ${
+                              settled ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"
+                            }`}
+                          >
+                            {settled ? (
+                              <><Check className="w-2.5 h-2.5" /> Settled</>
+                            ) : (
+                              `Owes $${share.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+                            )}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })
