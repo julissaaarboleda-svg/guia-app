@@ -21,13 +21,11 @@ function payersFor(expense) {
   return [];
 }
 
-export default function ProjectBudget({ target, expenses, collaborators = [], currentEmail, onSetTarget, onAddExpense, onRemoveExpense, onReassignExpense, onUpdateExpense }) {
+export default function ProjectBudget({ target, expenses, collaborators = [], currentEmail, onAddExpense, onRemoveExpense, onReassignExpense, onUpdateExpense }) {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [paidBy, setPaidBy] = useState([currentEmail].filter(Boolean));
   const [showForm, setShowForm] = useState(false);
-  const [editingTarget, setEditingTarget] = useState(false);
-  const [targetInput, setTargetInput] = useState(target || "");
   const [reassigningIdx, setReassigningIdx] = useState(null);
   const [editingIdx, setEditingIdx] = useState(null);
   const [editName, setEditName] = useState("");
@@ -56,7 +54,6 @@ export default function ProjectBudget({ target, expenses, collaborators = [], cu
     setEditingIdx(null);
   };
 
-  const total = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const { settledTotal, outstandingTotal } = expenses.reduce(
     (acc, e) => {
       const payers = payersFor(e);
@@ -72,8 +69,6 @@ export default function ProjectBudget({ target, expenses, collaborators = [], cu
     { settledTotal: 0, outstandingTotal: 0 }
   );
   const hasTracking = settledTotal > 0 || outstandingTotal > 0;
-  const pct = target > 0 ? Math.min(100, Math.round((total / target) * 100)) : 0;
-  const over = target > 0 && total > target;
 
   const togglePayer = (email) => {
     setPaidBy((prev) => (prev.includes(email) ? prev.filter((e) => e !== email) : [...prev, email]));
@@ -89,12 +84,6 @@ export default function ProjectBudget({ target, expenses, collaborators = [], cu
     setShowForm(false);
   };
 
-  const saveTarget = () => {
-    const t = parseFloat(targetInput);
-    onSetTarget(t > 0 ? t : 0);
-    setEditingTarget(false);
-  };
-
   const togglePayerFor = (idx, email) => {
     const current = payersFor(expenses[idx]);
     const next = current.includes(email) ? current.filter((e) => e !== email) : [...current, email];
@@ -103,44 +92,9 @@ export default function ProjectBudget({ target, expenses, collaborators = [], cu
 
   return (
     <div>
-      {/* Spent / target */}
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-sm font-medium text-foreground">Spent</span>
-        <span className="text-sm font-semibold" style={{ color: over ? "#DC2626" : "#A7773F" }}>
-          ${total.toLocaleString()}
-        </span>
-      </div>
-      <div className="h-2.5 rounded-full overflow-hidden mb-1" style={{ background: "#EFE9DF" }}>
-        <div
-          className="h-full rounded-full transition-all"
-          style={{ width: `${pct}%`, background: over ? "#DC2626" : "#A7773F" }}
-        />
-      </div>
-      {editingTarget ? (
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-xs text-muted-foreground">Budget target: $</span>
-          <input
-            type="number"
-            value={targetInput}
-            onChange={(e) => setTargetInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && saveTarget()}
-            autoFocus
-            className="w-24 bg-muted border border-input rounded-md px-2 py-1 text-xs outline-none focus:border-ring"
-          />
-          <button onClick={saveTarget} className="text-xs font-medium" style={{ color: "#A7773F" }}>Save</button>
-          <button onClick={() => setEditingTarget(false)} className="text-xs text-muted-foreground">Cancel</button>
-        </div>
-      ) : (
-        <button
-          onClick={() => { setTargetInput(target || ""); setEditingTarget(true); }}
-          className="text-xs text-muted-foreground mb-2 hover:text-foreground transition-colors"
-        >
-          {target > 0 ? `of $${target.toLocaleString()} budget` : "Set a budget target"}
-        </button>
-      )}
 
       {hasTracking && (
-        <div className="grid grid-cols-2 gap-2 mb-4 pt-2 border-t border-border">
+        <div className="grid grid-cols-2 gap-2 mb-4">
           <div className="rounded-lg p-2" style={{ background: "#7D8A5314" }}>
             <p className="text-[9px] font-medium" style={{ color: "#5F6A3F" }}>Settled</p>
             <p className="text-sm font-bold" style={{ color: "#5F6A3F" }}>${settledTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
