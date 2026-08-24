@@ -127,6 +127,13 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
     onUpdate(result);
   };
 
+  const updateTask = async (index, patch) => {
+    const updated = [...tasks];
+    updated[index] = { ...updated[index], ...patch };
+    const result = await base44.entities.Project.update(project.id, { tasks: updated });
+    onUpdate(result);
+  };
+
   const updateAccentColor = async (hex) => {
     setAccentColor(hex);
     setCoverImage(null);
@@ -179,11 +186,6 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
     onUpdate(updated);
   };
 
-  const setLinks = async (links) => {
-    const updated = await base44.entities.Project.update(project.id, { links });
-    onUpdate(updated);
-  };
-
   const setNotes = async (notes) => {
     const updated = await base44.entities.Project.update(project.id, { notes });
     onUpdate(updated);
@@ -206,6 +208,13 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
 
   const removeExpense = async (idx) => {
     const updatedExpenses = expenses.filter((_, i) => i !== idx);
+    const updated = await base44.entities.Project.update(project.id, { expenses: updatedExpenses });
+    onUpdate(updated);
+  };
+
+  const updateExpense = async (idx, patch) => {
+    const updatedExpenses = [...expenses];
+    updatedExpenses[idx] = { ...updatedExpenses[idx], ...patch };
     const updated = await base44.entities.Project.update(project.id, { expenses: updatedExpenses });
     onUpdate(updated);
   };
@@ -317,52 +326,52 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
           projectTitle={project.title}
         />
 
-        {/* Progress — tighter padding, thinner bar */}
-        <div className="bg-white border border-stone-200 rounded-2xl p-3.5 mb-3">
-          <div className="flex items-center justify-between mb-1.5">
-            <h3 className="text-xs font-medium font-heading text-stone-500">Overall Progress</h3>
-            <span className="text-sm font-bold text-stone-900">{progress}%</span>
-          </div>
-          <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-green-600 rounded-full transition-all"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <p className="text-[11px] text-stone-400 mt-1.5">
-            {tasks.filter((t) => t.completed).length} of {tasks.length} tasks complete
-          </p>
-        </div>
-
-        {/* Budget summary — tighter padding, thinner bar with an actually
-            visible track color (the previous #A7773F26 alpha tint read as
-            almost invisible against the card background). */}
-        <button
-          onClick={() => setTab("budget")}
-          className="w-full text-left bg-white border border-stone-200 rounded-2xl p-3.5 mb-5 hover:border-stone-300 transition-colors"
-        >
-          <div className="flex items-center justify-between mb-1.5">
-            <h3 className="text-xs font-medium font-heading text-stone-500">Budget</h3>
-            <span className="text-[11px] font-medium" style={{ color: "#A7773F" }}>View details →</span>
-          </div>
-          <div className="flex items-baseline gap-1.5 mb-1.5">
-            <span className="text-base font-bold text-stone-900">${totalSpent.toLocaleString()}</span>
-            <span className="text-[11px] text-stone-400">
-              {budgetTarget > 0 ? `of $${budgetTarget.toLocaleString()}` : "spent so far"}
-            </span>
-          </div>
-          {budgetTarget > 0 && (
-            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "#EFE9DF" }}>
+        {/* Progress + Budget — side by side to save vertical space. Explicit
+            gap (not just padding) keeps them from ever touching, even on
+            narrow phone widths. Numbers kept modest (text-base, not
+            text-xl+) so they don't dominate the small card. */}
+        <div className="grid grid-cols-2 gap-3 mb-5">
+          <div className="bg-white border border-stone-200 rounded-2xl p-3 min-w-0">
+            <p className="text-[10px] font-medium font-heading text-stone-500 mb-1">Progress</p>
+            <p className="text-base font-bold text-stone-900 mb-1.5">{progress}%</p>
+            <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden mb-1.5">
               <div
-                className="h-full rounded-full transition-all"
-                style={{
-                  width: `${Math.min(100, Math.round((totalSpent / budgetTarget) * 100))}%`,
-                  background: totalSpent > budgetTarget ? "#DC2626" : "#A7773F",
-                }}
+                className="h-full bg-green-600 rounded-full transition-all"
+                style={{ width: `${progress}%` }}
               />
             </div>
-          )}
-        </button>
+            <p className="text-[9.5px] text-stone-400 truncate">
+              {tasks.filter((t) => t.completed).length} of {tasks.length} tasks
+            </p>
+          </div>
+
+          <button
+            onClick={() => setTab("budget")}
+            className="text-left bg-white border border-stone-200 rounded-2xl p-3 min-w-0 hover:border-stone-300 transition-colors"
+          >
+            <div className="flex items-center justify-between mb-1 gap-1">
+              <p className="text-[10px] font-medium font-heading text-stone-500 truncate">Budget</p>
+              <span className="text-[9px] font-medium flex-shrink-0" style={{ color: "#A7773F" }}>Details →</span>
+            </div>
+            <p className="text-base font-bold text-stone-900 mb-1.5 truncate">
+              ${totalSpent.toLocaleString()}
+              <span className="text-[10px] text-stone-400 font-normal ml-1">
+                {budgetTarget > 0 ? `/ $${budgetTarget.toLocaleString()}` : "spent"}
+              </span>
+            </p>
+            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "#EFE9DF" }}>
+              {budgetTarget > 0 && (
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(100, Math.round((totalSpent / budgetTarget) * 100))}%`,
+                    background: totalSpent > budgetTarget ? "#DC2626" : "#A7773F",
+                  }}
+                />
+              )}
+            </div>
+          </button>
+        </div>
 
         {/* Edit form */}
         {editing && (
@@ -502,13 +511,12 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
               onRemove={removeTask}
               onReassign={reassignTask}
               onAddToBudget={addExpense}
+              onUpdateTask={updateTask}
             />
           ) : tab === "resources" ? (
             <ProjectResources
               attachments={project.attachments || []}
-              links={project.links || []}
               onAttachmentsChange={setAttachments}
-              onLinksChange={setLinks}
             />
           ) : tab === "notes" ? (
             <ProjectNotes notes={project.notes} onSave={setNotes} />
@@ -522,6 +530,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
               onAddExpense={addExpense}
               onRemoveExpense={removeExpense}
               onReassignExpense={reassignExpense}
+              onUpdateExpense={updateExpense}
             />
           )}
         </div>
