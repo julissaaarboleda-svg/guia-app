@@ -45,6 +45,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
     description: project.description || "",
     status: project.status || "planning",
     target_date: project.target_date || "",
+    budget_target: project.budget_target || "",
   });
   const [tab, setTab] = useState("tasks");
   const [isOwner, setIsOwner] = useState(false);
@@ -77,6 +78,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
       ...form,
       description: form.description || "",
       target_date: form.target_date || "",
+      budget_target: form.budget_target ? Number(form.budget_target) : 0,
     });
     onUpdate(updated);
     setEditing(false);
@@ -439,6 +441,16 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
                   className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-stone-900 text-sm outline-none focus:border-stone-400 transition-colors"
                 />
               </div>
+              <div>
+                <label className="text-xs text-stone-500 mb-1 block">Budget target ($)</label>
+                <input
+                  type="number"
+                  value={form.budget_target}
+                  onChange={(e) => setForm((f) => ({ ...f, budget_target: e.target.value }))}
+                  placeholder="500"
+                  className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-stone-900 text-sm outline-none focus:border-stone-400 transition-colors"
+                />
+              </div>
             </div>
             <div className="flex gap-2">
               <button
@@ -526,7 +538,6 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
               expenses={expenses}
               collaborators={collaborators}
               currentEmail={currentUserEmail}
-              onSetTarget={setBudgetTarget}
               onAddExpense={addExpense}
               onRemoveExpense={removeExpense}
               onReassignExpense={reassignExpense}
