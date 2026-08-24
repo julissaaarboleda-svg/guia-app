@@ -114,9 +114,9 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
     onUpdate(result);
   };
 
-  const reassignTask = async (index, email) => {
+  const reassignTask = async (index, assignees) => {
     const updated = [...tasks];
-    updated[index] = { ...updated[index], assignee: email };
+    updated[index] = { ...updated[index], assignees, assignee: undefined };
     const result = await base44.entities.Project.update(project.id, { tasks: updated });
     onUpdate(result);
   };
@@ -210,9 +210,9 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
     onUpdate(updated);
   };
 
-  const reassignExpense = async (idx, email) => {
+  const reassignExpense = async (idx, paidBy) => {
     const updatedExpenses = [...expenses];
-    updatedExpenses[idx] = { ...updatedExpenses[idx], paid_by: email };
+    updatedExpenses[idx] = { ...updatedExpenses[idx], paid_by: paidBy };
     const updated = await base44.entities.Project.update(project.id, { expenses: updatedExpenses });
     onUpdate(updated);
   };
@@ -501,6 +501,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
               onToggle={toggleTask}
               onRemove={removeTask}
               onReassign={reassignTask}
+              onAddToBudget={addExpense}
             />
           ) : tab === "resources" ? (
             <ProjectResources
