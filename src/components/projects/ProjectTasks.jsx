@@ -86,8 +86,10 @@ export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd
 
   const filtered = useMemo(() => {
     const withIdx = tasks.map((t, i) => ({ ...t, _idx: i }));
-    if (filter === "all") return withIdx;
-    return withIdx.filter((t) => assigneesFor(t, currentEmail).includes(filter));
+    const scoped = filter === "all" ? withIdx : withIdx.filter((t) => assigneesFor(t, currentEmail).includes(filter));
+    // Completed tasks sink to the bottom instead of staying wherever they
+    // happened to be created — keeps the active work at the top.
+    return [...scoped].sort((a, b) => (a.completed ? 1 : 0) - (b.completed ? 1 : 0));
   }, [tasks, filter, currentEmail]);
 
   const countFor = (email) => tasks.filter((t) => assigneesFor(t, currentEmail).includes(email)).length;
@@ -248,7 +250,7 @@ export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd
               </div>
             );
           }
-          const due = dueDateInfo(t.due_date);
+          const due = t.completed ? null : dueDateInfo(t.due_date);
           const people = assigneesFor(t, currentEmail);
           return (
             <div key={t._idx} className="flex items-center gap-3 py-2 border-t border-border">
