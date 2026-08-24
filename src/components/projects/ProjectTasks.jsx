@@ -246,29 +246,40 @@ export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd
                   )}
                 </button>
                 {reassigningIdx === t._idx && (
-                  <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-lg shadow-lg z-10 py-1 min-w-[150px]">
-                    <button
-                      onClick={() => toggleTaskAssignee(t._idx, currentEmail)}
-                      className="w-full flex items-center gap-2 text-left px-3 py-1.5 text-xs hover:bg-secondary"
-                    >
-                      <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 ${people.includes(currentEmail) ? "bg-accent border-accent" : "border-input"}`}>
-                        {people.includes(currentEmail) && <Check className="w-2.5 h-2.5 text-white" />}
-                      </span>
-                      <span className={people.includes(currentEmail) ? "font-semibold text-foreground" : "text-muted-foreground"}>Me</span>
-                    </button>
-                    {collaborators.filter((c) => c !== currentEmail).map((c) => (
+                  <>
+                    <div className="fixed inset-0 z-[9]" onClick={() => setReassigningIdx(null)} />
+                    <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-lg shadow-lg z-10 py-1 min-w-[150px]">
                       <button
-                        key={c}
-                        onClick={() => toggleTaskAssignee(t._idx, c)}
+                        onClick={() => toggleTaskAssignee(t._idx, currentEmail)}
                         className="w-full flex items-center gap-2 text-left px-3 py-1.5 text-xs hover:bg-secondary"
                       >
-                        <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 ${people.includes(c) ? "bg-accent border-accent" : "border-input"}`}>
-                          {people.includes(c) && <Check className="w-2.5 h-2.5 text-white" />}
+                        <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 ${people.includes(currentEmail) ? "bg-accent border-accent" : "border-input"}`}>
+                          {people.includes(currentEmail) && <Check className="w-2.5 h-2.5 text-white" />}
                         </span>
-                        <span className={`truncate ${people.includes(c) ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{c.split("@")[0]}</span>
+                        <span className={people.includes(currentEmail) ? "font-semibold text-foreground" : "text-muted-foreground"}>Me</span>
                       </button>
-                    ))}
-                  </div>
+                      {collaborators.filter((c) => c !== currentEmail).map((c) => (
+                        <button
+                          key={c}
+                          onClick={() => toggleTaskAssignee(t._idx, c)}
+                          className="w-full flex items-center gap-2 text-left px-3 py-1.5 text-xs hover:bg-secondary"
+                        >
+                          <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 ${people.includes(c) ? "bg-accent border-accent" : "border-input"}`}>
+                            {people.includes(c) && <Check className="w-2.5 h-2.5 text-white" />}
+                          </span>
+                          <span className={`truncate ${people.includes(c) ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{c.split("@")[0]}</span>
+                        </button>
+                      ))}
+                      <div className="border-t border-border mt-1 pt-1">
+                        <button
+                          onClick={() => setReassigningIdx(null)}
+                          className="w-full text-center px-3 py-1.5 text-xs font-medium text-accent hover:bg-secondary"
+                        >
+                          Done
+                        </button>
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
               <button onClick={() => onRemove(t._idx)} className="text-muted-foreground/50 hover:text-destructive flex-shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
