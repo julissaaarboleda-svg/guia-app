@@ -24,11 +24,19 @@ export function buildFocusItems({ tasks = [], goals = [], projects = [], finItem
     });
   });
 
+  // Sub-items (goal sub-tasks, project tasks, packing items) usually don't
+  // carry their own stable id in storage, so IDs here used to be built from
+  // the item's array index (`${g.id}-${i}`). That's unstable: completing
+  // any earlier item in the same array shifts every later item's index
+  // down by one, silently handing it a different ID than it had a moment
+  // ago — which is what caused the "wrong task gets auto-checked" bug in
+  // Today's Focus. Building the ID from the item's own content instead
+  // means it stays the same regardless of what else gets removed around it.
   goals.forEach((g) => {
-    (g.sub_tasks || []).forEach((s, i) => {
+    (g.sub_tasks || []).forEach((s) => {
       if (s.completed) return;
       items.push({
-        id: `goal-${g.id}-${i}`, kind: "goal", refId: g.id, subIndex: i,
+        id: `goal-${g.id}-${encodeURIComponent(s.text || "")}`, kind: "goal", refId: g.id, subText: s.text,
         title: s.text, module: "goals",
         priority: g.status === "in_progress" ? "normal" : "low",
         due: g.target_date, dueIn: inDays(g.target_date),
@@ -37,10 +45,10 @@ export function buildFocusItems({ tasks = [], goals = [], projects = [], finItem
   });
 
   projects.forEach((p) => {
-    (p.tasks || []).forEach((tk, i) => {
+    (p.tasks || []).forEach((tk) => {
       if (tk.completed) return;
       items.push({
-        id: `proj-${p.id}-${i}`, kind: "project", refId: p.id, subIndex: i,
+        id: `proj-${p.id}-${encodeURIComponent(tk.title || "")}-${tk.due_date || ""}`, kind: "project", refId: p.id, subTitle: tk.title,
         title: tk.title, module: "projects",
         priority: p.status === "active" ? "normal" : "low",
         due: tk.due_date, dueIn: inDays(tk.due_date),
@@ -81,10 +89,10 @@ export function buildFocusItems({ tasks = [], goals = [], projects = [], finItem
     .filter((t) => t.start_date && parseISO(t.start_date) >= now)
     .sort((a, b) => parseISO(a.start_date) - parseISO(b.start_date))[0];
   if (nextTrip) {
-    (nextTrip.packing_items || []).forEach((pk, i) => {
+    (nextTrip.packing_items || []).forEach((pk) => {
       if (pk.packed) return;
       items.push({
-        id: `pack-${nextTrip.id}-${i}`, kind: "pack", refId: nextTrip.id, subIndex: i,
+        id: `pack-${nextTrip.id}-${encodeURIComponent(pk.name || "")}`, kind: "pack", refId: nextTrip.id, subName: pk.name,
         title: pk.name, module: "travel",
         priority: "normal", due: nextTrip.start_date, dueIn: inDays(nextTrip.start_date),
       });
@@ -139,9 +147,6 @@ export function buildUpNext({ trips = [], projects = [], bizEntries = [] }) {
       image: p.cover_image_url || null, accentColor: p.accent_color || "#A7773F",
     });
   });
-  // Only "Event" category business entries surface here — everything else
-  // in the business log is for record-keeping, not a date you'd want to
-  // be reminded is coming up.
   bizEntries.forEach((b) => {
     if (b.category !== "Event" || !b.date) return;
     const days = differenceInCalendarDays(parseISO(b.date), now);
