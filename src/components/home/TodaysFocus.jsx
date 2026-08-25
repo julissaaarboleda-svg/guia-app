@@ -2,30 +2,31 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Check } from "lucide-react";
 import { getModule } from "@/lib/homeModules";
-
 const PRIORITY_CHIP = {
   high: "bg-forest/10 text-forest",
   urgent: "bg-forest/15 text-forest",
   normal: "bg-olive/10 text-olive",
   low: "bg-muted text-muted-foreground",
 };
-
 export default function TodaysFocus({ items, total = 0, onComplete }) {
-  // Completing an item removes it from `items` immediately (parent state
-  // update), which — if done with no transition — instantly shifts the next
-  // row up into the exact spot the finger/cursor was just on, making it look
-  // like the WRONG item got checked. We track "completing" ids locally so
-  // the tapped row visibly checks off and fades in place first; the actual
-  // removal (onComplete) fires after that beat, so nothing jumps underneath
-  // a still-active pointer.
   const [completingIds, setCompletingIds] = useState(new Set());
-
   const handleComplete = (it) => {
     if (completingIds.has(it.id)) return;
     setCompletingIds((prev) => new Set(prev).add(it.id));
-    setTimeout(() => onComplete(it), 320);
+    setTimeout(() => {
+      onComplete(it);
+      // Clean up afterward — this used to never happen, so a stale id
+      // could sit in the set indefinitely. Combined with homeData.js's old
+      // index-based IDs (now fixed to be content-based), a stale entry
+      // here could end up matching a completely different item that later
+      // reused the same id, making it look auto-checked.
+      setCompletingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(it.id);
+        return next;
+      });
+    }, 320);
   };
-
   return (
     <section>
       <div className="flex items-end justify-between mb-2.5">
@@ -34,7 +35,6 @@ export default function TodaysFocus({ items, total = 0, onComplete }) {
           {total > items.length ? `View All (${total})` : "View all"} <ArrowRight className="w-3 h-3" />
         </Link>
       </div>
-
       {items.length === 0 ? (
         <p className="text-[13px] text-muted-foreground font-body py-5 text-center">Nothing pressing today. A calm, open day.</p>
       ) : (
