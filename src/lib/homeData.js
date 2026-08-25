@@ -24,19 +24,11 @@ export function buildFocusItems({ tasks = [], goals = [], projects = [], finItem
     });
   });
 
-  // Sub-items (goal sub-tasks, project tasks, packing items) usually don't
-  // carry their own stable id in storage, so IDs here used to be built from
-  // the item's array index (`${g.id}-${i}`). That's unstable: completing
-  // any earlier item in the same array shifts every later item's index
-  // down by one, silently handing it a different ID than it had a moment
-  // ago — which is what caused the "wrong task gets auto-checked" bug in
-  // Today's Focus. Building the ID from the item's own content instead
-  // means it stays the same regardless of what else gets removed around it.
   goals.forEach((g) => {
-    (g.sub_tasks || []).forEach((s) => {
+    (g.sub_tasks || []).forEach((s, i) => {
       if (s.completed) return;
       items.push({
-        id: `goal-${g.id}-${encodeURIComponent(s.text || "")}`, kind: "goal", refId: g.id, subText: s.text,
+        id: `goal-${g.id}-${i}`, kind: "goal", refId: g.id, subIndex: i,
         title: s.text, module: "goals",
         priority: g.status === "in_progress" ? "normal" : "low",
         due: g.target_date, dueIn: inDays(g.target_date),
@@ -45,10 +37,10 @@ export function buildFocusItems({ tasks = [], goals = [], projects = [], finItem
   });
 
   projects.forEach((p) => {
-    (p.tasks || []).forEach((tk) => {
+    (p.tasks || []).forEach((tk, i) => {
       if (tk.completed) return;
       items.push({
-        id: `proj-${p.id}-${encodeURIComponent(tk.title || "")}-${tk.due_date || ""}`, kind: "project", refId: p.id, subTitle: tk.title,
+        id: `proj-${p.id}-${i}`, kind: "project", refId: p.id, subIndex: i,
         title: tk.title, module: "projects",
         priority: p.status === "active" ? "normal" : "low",
         due: tk.due_date, dueIn: inDays(tk.due_date),
@@ -89,10 +81,10 @@ export function buildFocusItems({ tasks = [], goals = [], projects = [], finItem
     .filter((t) => t.start_date && parseISO(t.start_date) >= now)
     .sort((a, b) => parseISO(a.start_date) - parseISO(b.start_date))[0];
   if (nextTrip) {
-    (nextTrip.packing_items || []).forEach((pk) => {
+    (nextTrip.packing_items || []).forEach((pk, i) => {
       if (pk.packed) return;
       items.push({
-        id: `pack-${nextTrip.id}-${encodeURIComponent(pk.name || "")}`, kind: "pack", refId: nextTrip.id, subName: pk.name,
+        id: `pack-${nextTrip.id}-${i}`, kind: "pack", refId: nextTrip.id, subIndex: i,
         title: pk.name, module: "travel",
         priority: "normal", due: nextTrip.start_date, dueIn: inDays(nextTrip.start_date),
       });
