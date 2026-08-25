@@ -13,8 +13,6 @@ const statusColors = {
   completed: "bg-muted text-foreground border-border",
 };
 
-// Same person-color logic as ProjectTasks.jsx, so the same collaborator gets
-// the same color everywhere in the app, not just within one project's task list.
 const CHIP_COLORS = ["#A7773F", "#7D8A53", "#A77C81", "#6B655D", "#8A6530"];
 function colorForPerson(email) {
   let hash = 0;
@@ -28,14 +26,21 @@ function initialsFor(email, currentEmail) {
 
 export default function Projects() {
   const [projects, setProjects] = useState([]);
+  // Without this, `projects` starts as an empty array on every visit, and
+  // since there was nothing distinguishing "haven't fetched yet" from
+  // "genuinely no projects", the empty state flashed on screen for however
+  // long the fetch took, then swapped to the real list once it arrived.
+  const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ title: "", description: "", status: "planning", target_date: "" });
   const [currentEmail, setCurrentEmail] = useState("");
 
   const load = async () => {
+    setLoading(true);
     const data = await base44.entities.Project.list("-created_date");
     setProjects(data);
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -95,15 +100,21 @@ export default function Projects() {
       />
       <div className="p-4 md:p-8">
 
-      {projects.length === 0 && (
+      {loading ? (
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,380px),1fr))] gap-3">
+          {[0, 1].map((i) => (
+            <div key={i} className="h-[110px] rounded-2xl bg-card border border-border animate-pulse" />
+          ))}
+        </div>
+      ) : projects.length === 0 ? (
         <div className="text-center py-20 text-muted-foreground/60 bg-card border border-border rounded-2xl">
           <Briefcase className="w-10 h-10 mx-auto mb-3 opacity-40" />
           <p className="text-muted-foreground mb-1">No projects yet</p>
           <p className="text-sm text-muted-foreground">Add your first project to get started</p>
         </div>
-      )}
+      ) : null}
 
-      {active.length > 0 && (
+      {!loading && active.length > 0 && (
         <div className="mb-8">
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Active Projects</h2>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,380px),1fr))] gap-3">
@@ -194,7 +205,7 @@ export default function Projects() {
         </div>
       )}
 
-      {completed.length > 0 && (
+      {!loading && completed.length > 0 && (
         <div>
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Completed Projects</h2>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,380px),1fr))] gap-2">
