@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Check } from "lucide-react";
 import { getModule } from "@/lib/homeModules";
@@ -9,17 +9,27 @@ const PRIORITY_CHIP = {
   low: "bg-muted text-muted-foreground",
 };
 export default function TodaysFocus({ items, total = 0, onComplete }) {
+  // The bug: sub-item ids (goal sub-tasks, project tasks, packing items)
+  // are built from their array index. Completing one shifts every later
+  // item's index down by one, so a completely different item can inherit
+  // the id that was just marked "completing" a moment ago — making it look
+  // auto-checked. Rather than change the id scheme (which the parent's
+  // completion logic likely depends on via `subIndex`), this keeps its own
+  // frozen copy of the list and only re-syncs from the parent once nothing
+  // is mid-animation — so a shifted list from the parent can never arrive
+  // while a completion is still playing out.
+  const [localItems, setLocalItems] = useState(items);
   const [completingIds, setCompletingIds] = useState(new Set());
+
+  useEffect(() => {
+    if (completingIds.size === 0) setLocalItems(items);
+  }, [items, completingIds.size]);
+
   const handleComplete = (it) => {
     if (completingIds.has(it.id)) return;
     setCompletingIds((prev) => new Set(prev).add(it.id));
     setTimeout(() => {
       onComplete(it);
-      // Clean up afterward — this used to never happen, so a stale id
-      // could sit in the set indefinitely. Combined with homeData.js's old
-      // index-based IDs (now fixed to be content-based), a stale entry
-      // here could end up matching a completely different item that later
-      // reused the same id, making it look auto-checked.
       setCompletingIds((prev) => {
         const next = new Set(prev);
         next.delete(it.id);
@@ -27,19 +37,20 @@ export default function TodaysFocus({ items, total = 0, onComplete }) {
       });
     }, 320);
   };
+
   return (
     <section>
       <div className="flex items-end justify-between mb-2.5">
         <h2 className="font-heading text-lg text-foreground font-semibold">Today’s Focus</h2>
         <Link to="/goals" className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
-          {total > items.length ? `View All (${total})` : "View all"} <ArrowRight className="w-3 h-3" />
+          {total > localItems.length ? `View All (${total})` : "View all"} <ArrowRight className="w-3 h-3" />
         </Link>
       </div>
-      {items.length === 0 ? (
+      {localItems.length === 0 ? (
         <p className="text-[13px] text-muted-foreground font-body py-5 text-center">Nothing pressing today. A calm, open day.</p>
       ) : (
         <div className="rounded-2xl bg-card overflow-hidden">
-          {items.map((it, i) => {
+          {localItems.map((it, i) => {
             const mod = getModule(it.module);
             const Icon = mod.Icon;
             const isCompleting = completingIds.has(it.id);
