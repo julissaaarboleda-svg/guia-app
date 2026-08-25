@@ -1,28 +1,24 @@
 import { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { Upload, ChevronDown, Check } from "lucide-react";
-
 const MODES = [
   { id: "photo_quote", label: "Photo + Quote" },
   { id: "photo", label: "Photo Only" },
   { id: "quote", label: "Quote Only" },
   { id: "hide", label: "Hide Hero" },
 ];
-
 export default function EditorialHero({ image, quote, mode, setMode, onUpload }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const fileRef = useRef(null);
-
   if (mode === "hide") return null;
   const showQuote = mode === "photo_quote" || mode === "quote";
   const showPhoto = mode === "photo_quote" || mode === "photo";
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-      className="relative w-full h-[26vh] min-h-[210px] max-h-[290px] rounded-[24px]"
+      className="relative w-full h-[210px] rounded-[24px]"
     >
       <div className="absolute inset-0 rounded-[24px] overflow-hidden bg-charcoal">
         {showPhoto && image && (
@@ -41,7 +37,6 @@ export default function EditorialHero({ image, quote, mode, setMode, onUpload })
           </div>
         )}
       </div>
-
       <div className="absolute bottom-4 right-5 z-20">
         <button
           onClick={() => setMenuOpen((o) => !o)}
