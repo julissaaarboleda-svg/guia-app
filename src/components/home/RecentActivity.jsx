@@ -1,34 +1,32 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ChevronDown } from "lucide-react";
 import { getModule } from "@/lib/homeModules";
 import { relativeTime } from "@/lib/homeData";
-
 const MODULE_PATH = {
   travel: "/travel", finance: "/finance", goals: "/goals",
   business: "/business", projects: "/projects", notes: "/notes",
   career: "/career", tasks: "/goals",
 };
-
 const GLYPH = {
   travel: "✈", finance: "💰", goals: "🎯", business: "💼",
   notes: "📝", projects: "◎", career: "💻", tasks: "✓",
 };
-
 export default function RecentActivity({ items }) {
-  const shown = items.slice(0, 6);
-  const hasMore = items.length > 6;
-
+  const [expanded, setExpanded] = useState(false);
+  const capped = items.slice(0, 6);
+  const shown = expanded ? capped : capped.slice(0, 3);
+  const hasMore = capped.length > 3;
   return (
     <section>
       <div className="flex items-end justify-between mb-3">
         <h2 className="font-heading text-lg text-foreground font-semibold">Recent Updates</h2>
-        {hasMore && (
+        {items.length > 6 && (
           <Link to="/notes" className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
             View All <ArrowRight className="w-3 h-3" />
           </Link>
         )}
       </div>
-
       {shown.length === 0 ? (
         <div className="py-6 text-center">
           <p className="font-body text-[13px] text-muted-foreground">You haven’t made any updates this week.</p>
@@ -61,6 +59,15 @@ export default function RecentActivity({ items }) {
               </Link>
             );
           })}
+          {hasMore && (
+            <button
+              onClick={() => setExpanded((e) => !e)}
+              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors mt-1.5 pt-1"
+            >
+              {expanded ? "Show less" : `Show ${capped.length - 3} more`}
+              <ChevronDown className={`w-3 h-3 transition-transform ${expanded ? "rotate-180" : ""}`} />
+            </button>
+          )}
         </div>
       )}
     </section>
