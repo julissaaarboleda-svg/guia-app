@@ -45,6 +45,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
     description: project.description || "",
     status: project.status || "planning",
     target_date: project.target_date || "",
+    date_type: project.date_type || "due",
     budget_target: project.budget_target || "",
   });
   const [tab, setTab] = useState("tasks");
@@ -77,7 +78,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
     const updated = await base44.entities.Project.update(project.id, {
       ...form,
       description: form.description || "",
-      target_date: form.target_date || "",
+      target_date: form.date_type === "ongoing" ? "" : form.target_date || "",
       budget_target: form.budget_target ? Number(form.budget_target) : 0,
     });
     onUpdate(updated);
@@ -297,13 +298,21 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
 
           <div className="relative mt-auto [text-shadow:0_1px_4px_rgba(0,0,0,0.5)]">
             <h1 className="text-xl font-heading font-bold text-white truncate">{project.title}</h1>
-            {project.target_date && (
+            {project.date_type === "ongoing" ? (
+              <>
+                <div className="h-px bg-white/25 w-full my-1.5" />
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="w-3 h-3 text-white/80 flex-shrink-0" strokeWidth={1.8} />
+                  <p className="text-white/85 text-xs">Ongoing</p>
+                </div>
+              </>
+            ) : project.target_date && (
               <>
                 <div className="h-px bg-white/25 w-full my-1.5" />
                 <div className="flex items-center gap-1.5">
                   <Calendar className="w-3 h-3 text-white/80 flex-shrink-0" strokeWidth={1.8} />
                   <p className="text-white/85 text-xs">
-                    Due:{" "}
+                    {project.date_type === "date" ? "" : "Due: "}
                     {parseISO(project.target_date).toLocaleDateString("en-US", {
                       weekday: "short",
                       month: "long",
@@ -434,13 +443,29 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
                 </select>
               </div>
               <div>
-                <label className="text-xs text-stone-500 mb-1 block">Target date</label>
-                <DateInput
-                  value={form.target_date}
-                  onChange={(e) => setForm((f) => ({ ...f, target_date: e.target.value }))}
+                <label className="text-xs text-stone-500 mb-1 block">Date type</label>
+                <select
+                  value={form.date_type}
+                  onChange={(e) => setForm((f) => ({ ...f, date_type: e.target.value }))}
                   className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-stone-900 text-sm outline-none focus:border-stone-400 transition-colors"
-                />
+                >
+                  <option value="due">Due date</option>
+                  <option value="date">Event date</option>
+                  <option value="ongoing">Ongoing — no date</option>
+                </select>
               </div>
+              {form.date_type !== "ongoing" && (
+                <div>
+                  <label className="text-xs text-stone-500 mb-1 block">
+                    {form.date_type === "date" ? "Date" : "Target date"}
+                  </label>
+                  <DateInput
+                    value={form.target_date}
+                    onChange={(e) => setForm((f) => ({ ...f, target_date: e.target.value }))}
+                    className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-stone-900 text-sm outline-none focus:border-stone-400 transition-colors"
+                  />
+                </div>
+              )}
               <div>
                 <label className="text-xs text-stone-500 mb-1 block">Budget target ($)</label>
                 <input
