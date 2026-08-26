@@ -49,7 +49,19 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
     date_type: project.date_type || "due",
     budget_target: project.budget_target || "",
   });
-  const [tab, setTab] = useState("tasks");
+  const [tab, setTabState] = useState(() => {
+    try {
+      return localStorage.getItem(`guia-project-tab-${project.id}`) || "tasks";
+    } catch {
+      return "tasks";
+    }
+  });
+  const setTab = (t) => {
+    setTabState(t);
+    try {
+      localStorage.setItem(`guia-project-tab-${project.id}`, t);
+    } catch {}
+  };
   const [isOwner, setIsOwner] = useState(false);
   const [currentUserEmail, setCurrentUserEmail] = useState("");
 
@@ -549,13 +561,13 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
             <StickyNote className="w-3 h-3 flex-shrink-0" /> Notes
           </button>
           <button
-            onClick={() => setTab("giving")}
+            onClick={() => setTab("support")}
             className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-1 rounded-lg text-[12px] font-medium transition-colors ${
-              tab === "giving" ? "text-white" : "text-stone-500 hover:text-stone-900"
+              tab === "support" ? "text-white" : "text-stone-500 hover:text-stone-900"
             }`}
-            style={tab === "giving" ? { backgroundColor: "#A7773F" } : undefined}
+            style={tab === "support" ? { backgroundColor: "#A7773F" } : undefined}
           >
-            <HandHeart className="w-3 h-3 flex-shrink-0" /> Giving
+            <HandHeart className="w-3 h-3 flex-shrink-0" /> Support
           </button>
           <button
             onClick={() => setTab("budget")}
@@ -589,7 +601,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
             />
           ) : tab === "notes" ? (
             <ProjectNotes notes={project.notes} onSave={setNotes} />
-          ) : tab === "giving" ? (
+          ) : tab === "support" ? (
             <ProjectContributions
               contributions={contributions}
               onAdd={addContribution}
