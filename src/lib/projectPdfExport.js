@@ -1,7 +1,6 @@
 import jsPDF from "jspdf";
 import { parseISO } from "date-fns";
 
-// Colors matching Guía's brand palette
 const CHARCOAL = "#2E2A27";
 const COGNAC = "#A7773F";
 const OLIVE = "#7D8A53";
@@ -13,9 +12,6 @@ function isImageAttachment(att) {
   return /\.(jpe?g|png|gif|webp|heic|svg)$/.test(name) || (att.type || "").startsWith("image/");
 }
 
-// Fetches an image (same-origin or CORS-enabled) and converts it to a data
-// URL so jsPDF can embed it. Returns null on any failure so callers can fall
-// back gracefully instead of crashing the whole export.
 async function toDataUrl(url) {
   try {
     const res = await fetch(url);
@@ -30,6 +26,23 @@ async function toDataUrl(url) {
   } catch {
     return null;
   }
+}
+
+// project.notes might be a single rich-text object (like the trip Wish List's
+// {format, content} shape used elsewhere in this app) rather than an array
+// of multiple notes. Calling .forEach() on a plain object throws and crashes
+// the whole export before it ever reaches doc.save() — this normalizes
+// either shape into a list so the export can't fail on this regardless of
+// which one the data actually is.
+function normalizeNotes(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "string" && raw.trim()) {
+    return [{ title: "Notes", content: raw }];
+  }
+  if (raw && typeof raw === "object" && (raw.content || raw.format)) {
+    return [{ title: "Notes", content: raw.content || "" }];
+  }
+  return [];
 }
 
 export async function exportProjectPdf(project) {
@@ -63,14 +76,12 @@ export async function exportProjectPdf(project) {
     doc.rect(0, 0, W, coverH, "F");
   }
 
-  // Dark overlay across the bottom of the cover so title text stays legible
   if (doc.setGState && doc.GState) {
     doc.setGState(new doc.GState({ opacity: 0.68 }));
     doc.setFillColor(CHARCOAL);
     doc.rect(0, coverH * 0.45, W, coverH * 0.55, "F");
     doc.setGState(new doc.GState({ opacity: 1 }));
   } else {
-    // Fallback for older jsPDF without opacity support: solid title strip
     doc.setFillColor(CHARCOAL);
     doc.rect(0, coverH - 0.95, W, 0.95, "F");
   }
@@ -84,7 +95,7 @@ export async function exportProjectPdf(project) {
   doc.setFontSize(24);
   doc.text(project.title || "Untitled project", 0.6, coverH - 0.55, { maxWidth: W - 1.2 });
 
-  if (project.target_date) {
+  if (project.date_type !== "ongoing" && project.target_date) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9.5);
     doc.setTextColor("#E8DFD2");
@@ -92,11 +103,15 @@ export async function exportProjectPdf(project) {
       weekday: "long", month: "long", day: "numeric", year: "numeric",
     });
     doc.text(dateStr, 0.6, coverH - 0.28);
+  } else if (project.date_type === "ongoing") {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+    doc.setTextColor("#E8DFD2");
+    doc.text("Ongoing", 0.6, coverH - 0.28);
   }
 
   y = coverH + 0.4;
 
-  // ---- Summary (from the project's own description, skipped if empty) ----
   if (project.description?.trim()) {
     doc.setTextColor(CHARCOAL);
     doc.setFont("times", "italic");
@@ -132,7 +147,7 @@ export async function exportProjectPdf(project) {
 
   // ---- Resources ----
   const attachments = project.attachments || [];
-  const links = project.links || [];
+  const links = Array.isArray(project.links) ? project.links : [];
   y = sectionHeader("Resources", y);
 
   const imageAttachments = attachments.filter(isImageAttachment);
@@ -193,7 +208,7 @@ export async function exportProjectPdf(project) {
   y += 0.2;
 
   // ---- Notes ----
-  const notes = project.notes || [];
+  const notes = normalizeNotes(project.notes);
   y = sectionHeader("Notes", y);
   if (notes.length === 0) {
     doc.setTextColor(MUTED);
@@ -223,7 +238,7 @@ export async function exportProjectPdf(project) {
   y += 0.1;
 
   // ---- Collaborators ----
-  const collaborators = project.collaborators || [];
+  const collaborators = Array.isArray(project.collaborators) ? project.collaborators : [];
   y = sectionHeader("Collaborators", y);
   const people = ["You (owner)", ...collaborators];
   people.forEach((p) => {
@@ -232,7 +247,7 @@ export async function exportProjectPdf(project) {
     doc.setTextColor("#FFFFFF");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
-    doc.text(p[0].toUpperCase(), 0.72, y, { align: "center" });
+    doc.text((p[0] || "?").toUpperCase(), 0.72, y, { align: "center" });
     doc.setTextColor(CHARCOAL);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9.5);
