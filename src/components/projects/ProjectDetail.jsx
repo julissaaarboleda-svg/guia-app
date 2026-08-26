@@ -23,7 +23,8 @@ import ProjectResources from "@/components/projects/ProjectResources";
 import ProjectTasks from "@/components/projects/ProjectTasks";
 import ProjectNotes from "@/components/projects/ProjectNotes";
 import ProjectBudget from "@/components/projects/ProjectBudget";
-import { StickyNote } from "lucide-react";
+import ProjectContributions from "@/components/projects/ProjectContributions";
+import { StickyNote, HandHeart } from "lucide-react";
 import { exportProjectPdf } from "@/lib/projectPdfExport";
 
 const statusColors = {
@@ -226,6 +227,28 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
     const updatedExpenses = [...expenses];
     updatedExpenses[idx] = { ...updatedExpenses[idx], paid_by: paidBy };
     const updated = await base44.entities.Project.update(project.id, { expenses: updatedExpenses });
+    onUpdate(updated);
+  };
+
+  const contributions = project.contributions || [];
+
+  const addContribution = async (contribution) => {
+    const updated = await base44.entities.Project.update(project.id, {
+      contributions: [...contributions, contribution],
+    });
+    onUpdate(updated);
+  };
+
+  const updateContribution = async (idx, patch) => {
+    const updatedContributions = [...contributions];
+    updatedContributions[idx] = { ...updatedContributions[idx], ...patch };
+    const updated = await base44.entities.Project.update(project.id, { contributions: updatedContributions });
+    onUpdate(updated);
+  };
+
+  const removeContribution = async (idx) => {
+    const updatedContributions = contributions.filter((_, i) => i !== idx);
+    const updated = await base44.entities.Project.update(project.id, { contributions: updatedContributions });
     onUpdate(updated);
   };
 
@@ -526,6 +549,15 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
             <StickyNote className="w-3 h-3 flex-shrink-0" /> Notes
           </button>
           <button
+            onClick={() => setTab("giving")}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-1 rounded-lg text-[12px] font-medium transition-colors ${
+              tab === "giving" ? "text-white" : "text-stone-500 hover:text-stone-900"
+            }`}
+            style={tab === "giving" ? { backgroundColor: "#A7773F" } : undefined}
+          >
+            <HandHeart className="w-3 h-3 flex-shrink-0" /> Giving
+          </button>
+          <button
             onClick={() => setTab("budget")}
             className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-1 rounded-lg text-[12px] font-medium transition-colors ${
               tab === "budget" ? "text-white" : "text-stone-500 hover:text-stone-900"
@@ -557,6 +589,13 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
             />
           ) : tab === "notes" ? (
             <ProjectNotes notes={project.notes} onSave={setNotes} />
+          ) : tab === "giving" ? (
+            <ProjectContributions
+              contributions={contributions}
+              onAdd={addContribution}
+              onUpdate={updateContribution}
+              onRemove={removeContribution}
+            />
           ) : (
             <ProjectBudget
               target={budgetTarget}
