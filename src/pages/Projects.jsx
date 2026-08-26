@@ -38,9 +38,14 @@ export default function Projects() {
 
   const load = async () => {
     setLoading(true);
-    const data = await base44.entities.Project.list("-created_date");
-    setProjects(data);
-    setLoading(false);
+    try {
+      const data = await base44.entities.Project.list("-created_date");
+      setProjects(data);
+    } catch (err) {
+      console.error("Failed to load projects:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -195,7 +200,17 @@ export default function Projects() {
                     </div>
                     <div className="flex items-center gap-2 ml-4">
                       <button
-                        onClick={async (e) => { e.stopPropagation(); if (confirm("Delete this project?")) { await base44.entities.Project.delete(project.id); load(); } }}
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (!confirm("Delete this project?")) return;
+                          try {
+                            await base44.entities.Project.delete(project.id);
+                            await load();
+                          } catch (err) {
+                            console.error("Failed to delete project:", err);
+                            alert("Couldn't delete this project — please try again.");
+                          }
+                        }}
                         className="text-muted-foreground/60 hover:text-rose-400 transition-colors p-1"
                       >
                         <Trash2 className="w-4 h-4" />
