@@ -147,7 +147,12 @@ export default function Projects() {
                       </div>
                       {project.description && <p className="text-muted-foreground text-xs line-clamp-1">{project.description}</p>}
                       <div className="flex items-center gap-2.5">
-                        {project.target_date && (
+                        {project.date_type === "ongoing" ? (
+                          <span className="inline-flex items-center gap-1 text-muted-foreground text-[11.5px]">
+                            <Calendar className="w-3 h-3" strokeWidth={1.8} />
+                            Ongoing
+                          </span>
+                        ) : project.target_date && (
                           <span className="inline-flex items-center gap-1 text-muted-foreground text-[11.5px]">
                             <Calendar className="w-3 h-3" strokeWidth={1.8} />
                             {parseISO(project.target_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
