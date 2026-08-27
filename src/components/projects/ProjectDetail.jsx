@@ -52,6 +52,9 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadError, setUploadError] = useState(null);
   const [coverImage, setCoverImage] = useState(project.cover_image_url || null);
+  useEffect(() => {
+    setCoverImage(project.cover_image_url || null);
+  }, [project.cover_image_url]);
   const [form, setForm] = useState({
     title: project.title,
     description: project.description || "",
@@ -399,52 +402,58 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
           projectTitle={project.title}
         />
 
-        {/* Progress + Budget — side by side to save vertical space. Explicit
-            gap (not just padding) keeps them from ever touching, even on
-            narrow phone widths. Numbers kept modest (text-base, not
-            text-xl+) so they don't dominate the small card. */}
-        <div className="grid grid-cols-2 gap-3 mb-5">
-          <div className="bg-white border border-stone-200 rounded-2xl p-3 min-w-0">
-            <p className="text-[10px] font-medium font-heading text-stone-500 mb-1">Progress</p>
-            <p className="text-base font-bold text-stone-900 mb-1.5">{progress}%</p>
-            <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden mb-1.5">
-              <div
-                className="h-full bg-green-600 rounded-full transition-all"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <p className="text-[9.5px] text-stone-400 truncate">
-              {tasks.filter((t) => t.completed).length} of {tasks.length} tasks
-            </p>
-          </div>
+        {/* Progress + Budget — only shown when their matching tab is
+            actually enabled for this project. Showing "0 of 0 tasks" on a
+            project with Tasks turned off entirely was exactly the kind of
+            clutter the section-visibility toggle was meant to remove. */}
+        {(visibleTabs.tasks || visibleTabs.budget) && (
+          <div className={`grid gap-3 mb-5 ${visibleTabs.tasks && visibleTabs.budget ? "grid-cols-2" : "grid-cols-1"}`}>
+            {visibleTabs.tasks && (
+              <div className="bg-white border border-stone-200 rounded-2xl p-3 min-w-0">
+                <p className="text-[10px] font-medium font-heading text-stone-500 mb-1">Progress</p>
+                <p className="text-base font-bold text-stone-900 mb-1.5">{progress}%</p>
+                <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden mb-1.5">
+                  <div
+                    className="h-full bg-green-600 rounded-full transition-all"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                <p className="text-[9.5px] text-stone-400 truncate">
+                  {tasks.filter((t) => t.completed).length} of {tasks.length} tasks
+                </p>
+              </div>
+            )}
 
-          <button
-            onClick={() => setTab("budget")}
-            className="text-left bg-white border border-stone-200 rounded-2xl p-3 min-w-0 hover:border-stone-300 transition-colors"
-          >
-            <div className="flex items-center justify-between mb-1 gap-1">
-              <p className="text-[10px] font-medium font-heading text-stone-500 truncate">Budget</p>
-              <span className="text-[9px] font-medium flex-shrink-0" style={{ color: "#A7773F" }}>Details →</span>
-            </div>
-            <p className="text-base font-bold text-stone-900 mb-1.5 truncate">
-              ${totalSpent.toLocaleString()}
-              <span className="text-[10px] text-stone-400 font-normal ml-1">
-                {budgetTarget > 0 ? `/ $${budgetTarget.toLocaleString()}` : "spent"}
-              </span>
-            </p>
-            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "#EFE9DF" }}>
-              {budgetTarget > 0 && (
-                <div
-                  className="h-full rounded-full transition-all"
-                  style={{
-                    width: `${Math.min(100, Math.round((totalSpent / budgetTarget) * 100))}%`,
-                    background: totalSpent > budgetTarget ? "#DC2626" : "#A7773F",
-                  }}
-                />
-              )}
-            </div>
-          </button>
-        </div>
+            {visibleTabs.budget && (
+              <button
+                onClick={() => setTab("budget")}
+                className="text-left bg-white border border-stone-200 rounded-2xl p-3 min-w-0 hover:border-stone-300 transition-colors"
+              >
+                <div className="flex items-center justify-between mb-1 gap-1">
+                  <p className="text-[10px] font-medium font-heading text-stone-500 truncate">Budget</p>
+                  <span className="text-[9px] font-medium flex-shrink-0" style={{ color: "#A7773F" }}>Details →</span>
+                </div>
+                <p className="text-base font-bold text-stone-900 mb-1.5 truncate">
+                  ${totalSpent.toLocaleString()}
+                  <span className="text-[10px] text-stone-400 font-normal ml-1">
+                    {budgetTarget > 0 ? `/ $${budgetTarget.toLocaleString()}` : "spent"}
+                  </span>
+                </p>
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "#EFE9DF" }}>
+                  {budgetTarget > 0 && (
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${Math.min(100, Math.round((totalSpent / budgetTarget) * 100))}%`,
+                        background: totalSpent > budgetTarget ? "#DC2626" : "#A7773F",
+                      }}
+                    />
+                  )}
+                </div>
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Edit form */}
         {editing && (
