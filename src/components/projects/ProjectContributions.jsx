@@ -4,6 +4,7 @@ import { Plus, Trash2, Check, Pencil, X } from "lucide-react";
 export default function ProjectContributions({ contributions, onAdd, onUpdate, onRemove }) {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
+  const [addAmount, setAddAmount] = useState("");
   const [markingIdx, setMarkingIdx] = useState(null);
   const [amountInput, setAmountInput] = useState("");
   const [editingIdx, setEditingIdx] = useState(null);
@@ -15,8 +16,14 @@ export default function ProjectContributions({ contributions, onAdd, onUpdate, o
 
   const submitAdd = () => {
     if (!name.trim()) return;
-    onAdd({ name: name.trim(), status: "expected", amount: null });
+    const amt = parseFloat(addAmount);
+    if (amt > 0) {
+      onAdd({ name: name.trim(), status: "received", amount: amt });
+    } else {
+      onAdd({ name: name.trim(), status: "expected", amount: null });
+    }
     setName("");
+    setAddAmount("");
     setShowForm(false);
   };
 
@@ -67,23 +74,33 @@ export default function ProjectContributions({ contributions, onAdd, onUpdate, o
           className="w-full flex items-center justify-center gap-1.5 border border-dashed rounded-lg py-2.5 text-sm font-medium mb-3 transition-colors"
           style={{ borderColor: "#A7773F", color: "#A7773F" }}
         >
-          <Plus className="w-4 h-4" /> Add expected contributor
+          <Plus className="w-4 h-4" /> Add contributor
         </button>
       ) : (
         <div className="mb-3 space-y-2">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && submitAdd()}
             placeholder="Their name"
             autoFocus
             className="w-full bg-muted border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring"
           />
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
+            <input
+              type="number"
+              value={addAmount}
+              onChange={(e) => setAddAmount(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submitAdd()}
+              placeholder="Leave blank if they haven't sent it yet"
+              className="w-full bg-muted border border-input rounded-lg pl-6 pr-3 py-2 text-sm outline-none focus:border-ring"
+            />
+          </div>
           <div className="flex gap-2">
             <button onClick={submitAdd} className="flex-1 flex items-center justify-center gap-1.5 text-white py-2 rounded-lg text-sm font-medium hover:opacity-90" style={{ backgroundColor: "#A7773F" }}>
               <Plus className="w-4 h-4" /> Add
             </button>
-            <button onClick={() => { setShowForm(false); setName(""); }} className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors">
+            <button onClick={() => { setShowForm(false); setName(""); setAddAmount(""); }} className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors">
               Cancel
             </button>
           </div>
