@@ -27,6 +27,17 @@ import ProjectContributions from "@/components/projects/ProjectContributions";
 import { StickyNote, HandHeart } from "lucide-react";
 import { exportProjectPdf } from "@/lib/projectPdfExport";
 
+const DEFAULT_VISIBLE_TABS = { tasks: true, resources: true, notes: true, support: false, budget: true };
+const CATEGORIES = [
+  { id: "event", label: "Event", emoji: "🎉" },
+  { id: "home", label: "Home", emoji: "🏠" },
+  { id: "work", label: "Work", emoji: "💼" },
+  { id: "personal", label: "Personal", emoji: "✨" },
+  { id: "financial", label: "Financial", emoji: "💰" },
+  { id: "other", label: "Other", emoji: "•••" },
+];
+const TAB_LABELS = { tasks: "Tasks", resources: "Resources", notes: "Notes", support: "Support", budget: "Budget" };
+
 const statusColors = {
   planning: "bg-amber-50 text-amber-700 border-amber-100",
   active: "bg-green-50 text-green-700 border-green-100",
@@ -48,6 +59,8 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
     target_date: project.target_date || "",
     date_type: project.date_type || "due",
     budget_target: project.budget_target || "",
+    category: project.category || "",
+    visible_tabs: project.visible_tabs || DEFAULT_VISIBLE_TABS,
   });
   const [tab, setTabState] = useState(() => {
     try {
@@ -67,6 +80,13 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
 
   const tasks = project.tasks || [];
   const collaborators = project.collaborators || [];
+  const visibleTabs = project.visible_tabs || DEFAULT_VISIBLE_TABS;
+
+  useEffect(() => {
+    if (visibleTabs[tab]) return;
+    const firstVisible = Object.keys(visibleTabs).find((k) => visibleTabs[k]);
+    if (firstVisible) setTab(firstVisible);
+  }, [visibleTabs[tab]]);
 
   useEffect(() => {
     base44.auth
@@ -323,13 +343,20 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
             </div>
           )}
 
-          <span
-            className={`relative self-start font-body text-[9px] uppercase tracking-[0.14em] px-3 py-1 rounded-full border flex-shrink-0 ${
-              statusColors[project.status || "planning"]
-            }`}
-          >
-            {project.status?.replace("_", " ") || "planning"}
-          </span>
+          <div className="relative flex items-center gap-1.5">
+            <span
+              className={`self-start font-body text-[9px] uppercase tracking-[0.14em] px-3 py-1 rounded-full border flex-shrink-0 ${
+                statusColors[project.status || "planning"]
+              }`}
+            >
+              {project.status?.replace("_", " ") || "planning"}
+            </span>
+            {project.category && CATEGORIES.find((c) => c.id === project.category) && (
+              <span className="self-start font-body text-[9px] px-2.5 py-1 rounded-full bg-white/90 text-stone-700 flex-shrink-0 flex items-center gap-1">
+                {CATEGORIES.find((c) => c.id === project.category).emoji} {CATEGORIES.find((c) => c.id === project.category).label}
+              </span>
+            )}
+          </div>
 
           <div className="relative mt-auto [text-shadow:0_1px_4px_rgba(0,0,0,0.5)]">
             <h1 className="text-xl font-heading font-bold text-white truncate">{project.title}</h1>
@@ -511,6 +538,49 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
                   className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-stone-900 text-sm outline-none focus:border-stone-400 transition-colors"
                 />
               </div>
+              <div>
+                <label className="text-xs text-stone-500 mb-1.5 block">Category</label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {CATEGORIES.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, category: f.category === c.id ? "" : c.id }))}
+                      className={`flex flex-col items-center gap-0.5 py-2 rounded-lg text-[11px] font-medium transition-colors ${
+                        form.category === c.id ? "text-white" : "bg-stone-50 text-stone-500 border border-stone-200"
+                      }`}
+                      style={form.category === c.id ? { backgroundColor: "#A7773F" } : undefined}
+                    >
+                      <span className="text-base leading-none">{c.emoji}</span>
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-stone-500 mb-1.5 block">Sections shown</label>
+                <div className="space-y-1.5">
+                  {Object.keys(DEFAULT_VISIBLE_TABS).map((key) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, visible_tabs: { ...f.visible_tabs, [key]: !f.visible_tabs[key] } }))}
+                      className="w-full flex items-center justify-between bg-stone-50 border border-stone-200 rounded-lg px-3 py-2"
+                    >
+                      <span className="text-sm text-stone-700">{TAB_LABELS[key]}</span>
+                      <span
+                        className="w-8 h-[18px] rounded-full relative transition-colors flex-shrink-0"
+                        style={{ backgroundColor: form.visible_tabs[key] ? "#A7773F" : "#E7E2D8" }}
+                      >
+                        <span
+                          className="absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-all"
+                          style={{ left: form.visible_tabs[key] ? "18px" : "2px" }}
+                        />
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
             <div className="flex gap-2">
               <button
@@ -533,51 +603,61 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
 
         {/* Tabs — a bit more breathing room around the labels */}
         <div className="flex gap-1.5 mb-4 bg-white border border-stone-200 rounded-xl p-1.5">
-          <button
-            onClick={() => setTab("tasks")}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-1 rounded-lg text-[12px] font-medium transition-colors ${
-              tab === "tasks" ? "text-white" : "text-stone-500 hover:text-stone-900"
-            }`}
-            style={tab === "tasks" ? { backgroundColor: "#A7773F" } : undefined}
-          >
-            <ListTodo className="w-3 h-3 flex-shrink-0" /> Tasks
-          </button>
-          <button
-            onClick={() => setTab("resources")}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-1 rounded-lg text-[12px] font-medium transition-colors ${
-              tab === "resources" ? "text-white" : "text-stone-500 hover:text-stone-900"
-            }`}
-            style={tab === "resources" ? { backgroundColor: "#A7773F" } : undefined}
-          >
-            <Sparkles className="w-3 h-3 flex-shrink-0" /> Resources
-          </button>
-          <button
-            onClick={() => setTab("notes")}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-1 rounded-lg text-[12px] font-medium transition-colors ${
-              tab === "notes" ? "text-white" : "text-stone-500 hover:text-stone-900"
-            }`}
-            style={tab === "notes" ? { backgroundColor: "#A7773F" } : undefined}
-          >
-            <StickyNote className="w-3 h-3 flex-shrink-0" /> Notes
-          </button>
-          <button
-            onClick={() => setTab("support")}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-1 rounded-lg text-[12px] font-medium transition-colors ${
-              tab === "support" ? "text-white" : "text-stone-500 hover:text-stone-900"
-            }`}
-            style={tab === "support" ? { backgroundColor: "#A7773F" } : undefined}
-          >
-            <HandHeart className="w-3 h-3 flex-shrink-0" /> Support
-          </button>
-          <button
-            onClick={() => setTab("budget")}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-1 rounded-lg text-[12px] font-medium transition-colors ${
-              tab === "budget" ? "text-white" : "text-stone-500 hover:text-stone-900"
-            }`}
-            style={tab === "budget" ? { backgroundColor: "#A7773F" } : undefined}
-          >
-            <DollarSign className="w-3 h-3 flex-shrink-0" /> Budget
-          </button>
+          {visibleTabs.tasks && (
+            <button
+              onClick={() => setTab("tasks")}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-1 rounded-lg text-[12px] font-medium transition-colors ${
+                tab === "tasks" ? "text-white" : "text-stone-500 hover:text-stone-900"
+              }`}
+              style={tab === "tasks" ? { backgroundColor: "#A7773F" } : undefined}
+            >
+              <ListTodo className="w-3 h-3 flex-shrink-0" /> Tasks
+            </button>
+          )}
+          {visibleTabs.resources && (
+            <button
+              onClick={() => setTab("resources")}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-1 rounded-lg text-[12px] font-medium transition-colors ${
+                tab === "resources" ? "text-white" : "text-stone-500 hover:text-stone-900"
+              }`}
+              style={tab === "resources" ? { backgroundColor: "#A7773F" } : undefined}
+            >
+              <Sparkles className="w-3 h-3 flex-shrink-0" /> Resources
+            </button>
+          )}
+          {visibleTabs.notes && (
+            <button
+              onClick={() => setTab("notes")}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-1 rounded-lg text-[12px] font-medium transition-colors ${
+                tab === "notes" ? "text-white" : "text-stone-500 hover:text-stone-900"
+              }`}
+              style={tab === "notes" ? { backgroundColor: "#A7773F" } : undefined}
+            >
+              <StickyNote className="w-3 h-3 flex-shrink-0" /> Notes
+            </button>
+          )}
+          {visibleTabs.support && (
+            <button
+              onClick={() => setTab("support")}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-1 rounded-lg text-[12px] font-medium transition-colors ${
+                tab === "support" ? "text-white" : "text-stone-500 hover:text-stone-900"
+              }`}
+              style={tab === "support" ? { backgroundColor: "#A7773F" } : undefined}
+            >
+              <HandHeart className="w-3 h-3 flex-shrink-0" /> Support
+            </button>
+          )}
+          {visibleTabs.budget && (
+            <button
+              onClick={() => setTab("budget")}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-1 rounded-lg text-[12px] font-medium transition-colors ${
+                tab === "budget" ? "text-white" : "text-stone-500 hover:text-stone-900"
+              }`}
+              style={tab === "budget" ? { backgroundColor: "#A7773F" } : undefined}
+            >
+              <DollarSign className="w-3 h-3 flex-shrink-0" /> Budget
+            </button>
+          )}
         </div>
 
         {/* Tab content */}
