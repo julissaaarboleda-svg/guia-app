@@ -292,7 +292,7 @@ export default function AIAssistant() {
       // like it needs current, real-world info (see SEARCH_TRIGGER_WORDS
       // above) — everything else stays on the cheaper plain-generation path.
       const grounded = needsSearch(userMsg);
-      const res = await base44.integrations.Core.InvokeLLM({ prompt, grounded });
+      const res = await base44.integrations.Core.InvokeLLM({ prompt, add_context_from_internet: grounded });
       setMessages([...newMessages, { role: "assistant", content: res }]);
     } catch (err) {
       const message = err?.message?.includes("search limit")
