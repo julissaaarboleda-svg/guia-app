@@ -13,6 +13,8 @@ const CATEGORIES = [
   { id: "other", label: "Other", emoji: "•••" },
 ];
 const categoryInfo = (id) => CATEGORIES.find((c) => c.id === id);
+const DEFAULT_VISIBLE_TABS = { tasks: true, resources: true, notes: true, support: false, budget: true };
+const TAB_LABELS = { tasks: "Tasks", resources: "Resources", notes: "Notes", support: "Support", budget: "Budget" };
 import PageHeader from "@/components/PageHeader";
 import DateInput from "@/components/DateInput";
 
@@ -43,7 +45,7 @@ export default function Projects() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ title: "", description: "", status: "planning", target_date: "", category: "" });
+  const [form, setForm] = useState({ title: "", description: "", status: "planning", target_date: "", category: "", visible_tabs: DEFAULT_VISIBLE_TABS });
   const [currentEmail, setCurrentEmail] = useState("");
 
   const load = async () => {
@@ -72,7 +74,7 @@ export default function Projects() {
       tasks: [],
     });
     setShowAdd(false);
-    setForm({ title: "", description: "", status: "planning", target_date: "", category: "" });
+    setForm({ title: "", description: "", status: "planning", target_date: "", category: "", visible_tabs: DEFAULT_VISIBLE_TABS });
     await load();
     setSelected(created);
   };
@@ -225,11 +227,13 @@ export default function Projects() {
                         onClick={async (e) => {
                           e.stopPropagation();
                           if (!confirm("Delete this project?")) return;
+                          const previous = projects;
+                          setProjects((prev) => prev.filter((p) => p.id !== project.id));
                           try {
                             await base44.entities.Project.delete(project.id);
-                            await load();
                           } catch (err) {
                             console.error("Failed to delete project:", err);
+                            setProjects(previous);
                             alert("Couldn't delete this project — please try again.");
                           }
                         }}
@@ -316,6 +320,30 @@ export default function Projects() {
                 <label className="text-xs text-muted-foreground mb-1 block">Target date</label>
                 <DateInput value={form.target_date} onChange={e => setForm(f => ({ ...f, target_date: e.target.value }))}
                   className="w-full bg-stone-50 border border-border rounded-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-ring transition-colors" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1.5 block">Sections shown</label>
+                <div className="space-y-1.5">
+                  {Object.keys(DEFAULT_VISIBLE_TABS).map((key) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, visible_tabs: { ...f.visible_tabs, [key]: !f.visible_tabs[key] } }))}
+                      className="w-full flex items-center justify-between bg-stone-50 border border-border rounded-xl px-4 py-2.5"
+                    >
+                      <span className="text-sm text-foreground">{TAB_LABELS[key]}</span>
+                      <span
+                        className="w-8 h-[18px] rounded-full relative transition-colors flex-shrink-0"
+                        style={{ backgroundColor: form.visible_tabs[key] ? "#A7773F" : "#E7E2D8" }}
+                      >
+                        <span
+                          className="absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-all"
+                          style={{ left: form.visible_tabs[key] ? "18px" : "2px" }}
+                        />
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
               <button onClick={addProject} className="w-full bg-foreground text-background py-2.5 rounded-xl text-sm font-medium hover:opacity-90 transition-colors flex items-center justify-center gap-2">
                 <Plus className="w-4 h-4" /> Add Project
