@@ -174,18 +174,30 @@ But you are NOT limited to this data. Answer any question the user asks — gene
 
 When the user asks a "how's it going" / status-check style question about something they already have stored (e.g. "how's my trip looking", "how am I doing on my budget", "where do things stand with X project") — do NOT restate everything they already have saved; they can already see that in the app. Instead give a brief status take: what's solid, what's missing or needs attention, and any real risks or gaps worth flagging. A few sentences is usually enough. Only go into full detail (listing out every flight, every line item, every task) if they explicitly ask for a rundown, a full list, or "everything."
 
+If you have access to real-time search results for this question, use them to give a current, specific answer (real event names, dates, venues) rather than general knowledge about what's typically available.
+
 ${sections.filter(Boolean).join("\n") || "(No personal data found yet — the user hasn't added much to the app.)"}
 
 Answer naturally and concisely.`;
 }
 
 const CHAT_STORAGE_KEY = "guia:ai-chat-history";
-
-// How many prior messages (user + assistant combined) get sent to Gemini as
-// context on each new question. The full conversation still lives in state
-// and localStorage for display — this only limits what's re-sent as input,
-// so token cost (and $) stays flat instead of growing with every message.
 const MAX_CONTEXT_MESSAGES = 8;
+
+// Only questions that actually need current, real-world info should trigger
+// a grounded (Google Search) call — those cost more per request than a
+// plain generation. Everything else (advice, questions about their own
+// stored data, general knowledge) stays on the cheap path exactly as before.
+const SEARCH_TRIGGER_WORDS = [
+  "event", "events", "happening", "going on", "this week", "this weekend",
+  "today", "tonight", "tomorrow", "concert", "exhibit", "exhibition",
+  "festival", "show", "current", "latest", "news", "weather", "right now",
+  "open now", "closed", "hours", "schedule", "playing", "showing", "recent",
+];
+function needsSearch(text) {
+  const lower = text.toLowerCase();
+  return SEARCH_TRIGGER_WORDS.some((w) => lower.includes(w));
+}
 
 function loadStoredMessages() {
   try {
@@ -276,10 +288,17 @@ export default function AIAssistant() {
 
       const prompt = `${context}\n\n${conversation}\n\nAssistant:`;
 
-      const res = await base44.integrations.Core.InvokeLLM({ prompt });
+      // Only pay for search grounding when the question actually looks
+      // like it needs current, real-world info (see SEARCH_TRIGGER_WORDS
+      // above) — everything else stays on the cheaper plain-generation path.
+      const grounded = needsSearch(userMsg);
+      const res = await base44.integrations.Core.InvokeLLM({ prompt, grounded });
       setMessages([...newMessages, { role: "assistant", content: res }]);
     } catch (err) {
-      setMessages([...newMessages, { role: "assistant", content: "Sorry, I couldn't process that right now. Please try again." }]);
+      const message = err?.message?.includes("search limit")
+        ? err.message
+        : "Sorry, I couldn't process that right now. Please try again.";
+      setMessages([...newMessages, { role: "assistant", content: message }]);
     }
     setLoading(false);
   };
