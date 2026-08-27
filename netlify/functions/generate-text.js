@@ -16,6 +16,12 @@ const { getStore, connectLambda } = require("@netlify/blobs");
 const RATE_LIMIT = 30;              // max requests allowed per window, per IP
 const WINDOW_MS = 60 * 60 * 1000;   // window length: 1 hour
 
+// Grounded (Google Search) requests cost more per call than a plain text
+// generation, so they get their own, tighter budget on top of the general
+// limit above — protects against runaway search cost specifically, even if
+// someone's well within the general 30/hour limit.
+const GROUNDED_RATE_LIMIT = 8;      // max grounded requests per window, per user
+
 const CORS = {
   "Content-Type": "application/json",
   "Access-Control-Allow-Origin": "*",
@@ -32,6 +38,22 @@ function extractJson(text) {
   try { return JSON.parse(raw.slice(start, end + 1)); } catch { return null; }
 }
 
+// Shared helper for both the general and grounded limits — same
+// check-and-increment logic, just a different store key and cap.
+async function checkAndIncrement(store, key, limit, now) {
+  let record = await store.get(key, { type: "json" });
+  if (!record || now - record.windowStart > WINDOW_MS) {
+    record = { count: 0, windowStart: now };
+  }
+  if (record.count >= limit) {
+    const retryAfterMin = Math.ceil((WINDOW_MS - (now - record.windowStart)) / 60000);
+    return { limited: true, retryAfterMin };
+  }
+  record.count += 1;
+  await store.setJSON(key, record);
+  return { limited: false };
+}
+
 exports.handler = async (event, context) => {
   connectLambda(event);
 
@@ -46,6 +68,9 @@ exports.handler = async (event, context) => {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: "GEMINI_API_KEY not set" }) };
 
+  const { prompt, grounded, wantJson } = JSON.parse(event.body || "{}");
+  if (!prompt) return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "Missing 'prompt'" }) };
+
   // --- Rate limiting: check this before doing anything else ---
   // Keyed by logged-in user id rather than IP, since Guía requires auth
   // (unlike Chapter I, which is anonymous) — this gives each person their
@@ -55,27 +80,33 @@ exports.handler = async (event, context) => {
   // vars needed.
   try {
     const store = getStore("rate-limits");
-    const key = `user-${user.sub || user.email || "unknown"}`;
+    const userKey = `user-${user.sub || user.email || "unknown"}`;
     const now = Date.now();
 
-    let record = await store.get(key, { type: "json" });
-    if (!record || now - record.windowStart > WINDOW_MS) {
-      record = { count: 0, windowStart: now };
-    }
-
-    if (record.count >= RATE_LIMIT) {
-      const retryAfterMin = Math.ceil((WINDOW_MS - (now - record.windowStart)) / 60000);
+    const general = await checkAndIncrement(store, userKey, RATE_LIMIT, now);
+    if (general.limited) {
       return {
         statusCode: 429,
         headers: CORS,
         body: JSON.stringify({
-          error: `You've hit the request limit. Please try again in about ${retryAfterMin} minute(s).`,
+          error: `You've hit the request limit. Please try again in about ${general.retryAfterMin} minute(s).`,
         }),
       };
     }
 
-    record.count += 1;
-    await store.setJSON(key, record);
+    if (grounded) {
+      const groundedKey = `${userKey}-grounded`;
+      const groundedCheck = await checkAndIncrement(store, groundedKey, GROUNDED_RATE_LIMIT, now);
+      if (groundedCheck.limited) {
+        return {
+          statusCode: 429,
+          headers: CORS,
+          body: JSON.stringify({
+            error: `You've hit the search limit for this hour. Please try again in about ${groundedCheck.retryAfterMin} minute(s), or ask without needing current info.`,
+          }),
+        };
+      }
+    }
   } catch (err) {
     // Never let a rate-limit bug block a legitimate request.
     console.error("Rate limit check failed (allowing request):", err);
@@ -83,9 +114,6 @@ exports.handler = async (event, context) => {
   // --- End rate limiting ---
 
   try {
-    const { prompt, grounded, wantJson } = JSON.parse(event.body);
-    if (!prompt) throw new Error("Missing 'prompt'");
-
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
       model: "gemini-3.6-flash",
