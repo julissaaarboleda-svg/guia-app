@@ -71,7 +71,11 @@ export default function ProjectResources({ attachments, onAttachmentsChange }) {
 
       {lightbox && (
         <div className="fixed inset-0 z-[80] bg-black/85 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
-          <button onClick={() => setLightbox(null)} className="absolute top-4 right-4 text-white/70 hover:text-white">
+          <button
+            onClick={() => setLightbox(null)}
+            className="absolute right-4 p-3 -m-1 text-white/70 hover:text-white"
+            style={{ top: "max(1rem, calc(env(safe-area-inset-top) + 0.5rem))" }}
+          >
             <X className="w-6 h-6" />
           </button>
           <img src={lightbox.url} alt={lightbox.name} className="max-w-full max-h-full object-contain rounded-lg" onClick={(e) => e.stopPropagation()} />
