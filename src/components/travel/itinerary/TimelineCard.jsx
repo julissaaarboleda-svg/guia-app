@@ -18,6 +18,14 @@ function shortLocation(str) {
   return str;
 }
 
+// Universal Google Maps search link — on a phone with a maps app installed
+// (Google Maps, or Apple Maps via iOS's own link handling) this opens
+// directly in that app; otherwise it falls back to the browser. Works the
+// same regardless of which maps app the person actually has.
+function mapsUrl(address) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+}
+
 // Whether this activity is already behind us. A day entirely before today
 // counts as fully past regardless of individual times; a day after today
 // is never past. Only on today itself do individual activity times matter —
@@ -27,7 +35,12 @@ function shortLocation(str) {
 function isPastNow(dayDate, timeStr) {
   if (!dayDate) return false;
   const today = new Date();
-  const todayStr = today.toISOString().slice(0, 10);
+  // toISOString() reports UTC, not local time — mismatched against the
+  // local getHours()/getMinutes() below, this made "today" resolve to the
+  // wrong calendar date depending on time of day and timezone offset,
+  // which is why some items weren't striking through correctly.
+  const pad = (n) => String(n).padStart(2, "0");
+  const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
   if (dayDate < todayStr) return true;
   if (dayDate > todayStr) return false;
   if (!timeStr) return false;
@@ -64,8 +77,18 @@ export default function TimelineCard({ activity, onEdit, onDelete, onAddToMemori
 
   // Only restaurant/activity/note cards collapse — flights and hotels stay
   // fully expanded since their info is already compact and essential.
-  const collapsible = key === "restaurant" || key === "activity" || key === "note";
-  const hasExtra = !!(activity.location || activity.address || activity.link || activity.notes);
+  // Every type is collapsible now — flights and hotels included. Each
+  // type defines its own "core" (always visible) vs "extra" (behind the
+  // expand toggle): for a flight, route + times are core and
+  // airline/flight number is extra; for a hotel, name + check-in/out
+  // times are core and location/address/link are extra; for the rest,
+  // time + title is core and everything else is extra.
+  const collapsible = true;
+  const hasExtra = key === "flight"
+    ? !!(activity.airline || activity.flightNumber)
+    : key === "hotel"
+      ? !!(activity.location || activity.address || activity.link)
+      : !!(activity.location || activity.address || activity.link || activity.notes);
   const [expanded, setExpanded] = useState(false);
   const showExtra = !collapsible || expanded || !hasExtra;
 
@@ -131,7 +154,7 @@ export default function TimelineCard({ activity, onEdit, onDelete, onAddToMemori
                   {arrTime && <span>Arrive <span className="text-accent font-semibold">{arrTime}</span>{arrDate && ` · ${arrDate}`}</span>}
                 </div>
               )}
-              {(activity.airline || activity.flightNumber) && (
+              {showExtra && (activity.airline || activity.flightNumber) && (
                 <div className="font-body text-[11px] text-muted-foreground/80 mt-1.5 pt-1.5 border-t border-border/60">
                   {[activity.airline, activity.flightNumber].filter(Boolean).join(" · ")}
                 </div>
@@ -153,16 +176,22 @@ export default function TimelineCard({ activity, onEdit, onDelete, onAddToMemori
                   {checkOutTime && <span>Check out <span className="text-accent font-semibold">{checkOutTime}</span>{checkOutDate && ` · ${checkOutDate}`}</span>}
                 </div>
               )}
-              {activity.location && (
+              {showExtra && activity.location && (
                 <p className="font-body text-[11.5px] text-muted-foreground mt-0.5 truncate">{activity.location}</p>
               )}
-              {activity.address && (
-                <p className="font-body text-[11px] text-muted-foreground/70 mt-0.5 flex items-center gap-1">
+              {showExtra && activity.address && (
+                <a
+                  href={mapsUrl(activity.address)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  className="font-body text-[11px] text-muted-foreground/70 hover:text-accent mt-0.5 flex items-center gap-1 transition-colors"
+                >
                   <MapPin className="w-2.5 h-2.5 flex-shrink-0" />
-                  <span className="truncate">{activity.address}</span>
-                </p>
+                  <span className="truncate underline decoration-dotted">{activity.address}</span>
+                </a>
               )}
-              {activity.link && (
+              {showExtra && activity.link && (
                 <a href={activity.link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
                   className="font-body text-[11px] text-info mt-1 inline-flex items-center gap-1 hover:underline">
                   <ExternalLink className="w-3 h-3 flex-shrink-0" />
@@ -196,10 +225,16 @@ export default function TimelineCard({ activity, onEdit, onDelete, onAddToMemori
                 <p className="font-body text-[11.5px] text-muted-foreground mt-0.5 truncate">{activity.location}</p>
               )}
               {showExtra && activity.address && (
-                <p className="font-body text-[11px] text-muted-foreground/70 mt-0.5 flex items-center gap-1">
+                <a
+                  href={mapsUrl(activity.address)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  className="font-body text-[11px] text-muted-foreground/70 hover:text-accent mt-0.5 flex items-center gap-1 transition-colors"
+                >
                   <MapPin className="w-2.5 h-2.5 flex-shrink-0" />
-                  <span className="truncate">{activity.address}</span>
-                </p>
+                  <span className="truncate underline decoration-dotted">{activity.address}</span>
+                </a>
               )}
               {showExtra && !activity.name && activity.link && (
                 <a href={activity.link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
