@@ -19,6 +19,8 @@ import CollectionSheet from "@/components/notes/CollectionSheet";
 import NewCollectionSheet from "@/components/notes/NewCollectionSheet";
 import { accentHex } from "@/components/notes/collectionAccents";
 
+const PLACE_TYPES = ["Restaurant", "Café", "Bar", "Shop", "Hotel", "Attraction", "Park", "Other"];
+
 function mapsUrl(address) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 }
@@ -603,13 +605,21 @@ function PlaceFormSheet({ form, onChange, onClose, onSave }) {
             />
           </div>
           <div>
-            <label className="font-body text-[12px] text-muted-foreground mb-1 block">Type</label>
-            <input
-              value={form.type}
-              onChange={(e) => onChange({ ...form, type: e.target.value })}
-              placeholder="e.g. Restaurant, Café, Shop"
-              className="w-full bg-secondary border border-border rounded-xl px-4 py-2.5 text-[14px] text-foreground outline-none focus:border-ring transition-colors"
-            />
+            <label className="font-body text-[12px] text-muted-foreground mb-1.5 block">Type</label>
+            <div className="grid grid-cols-3 gap-1.5">
+              {PLACE_TYPES.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => onChange({ ...form, type: form.type === t ? "" : t })}
+                  className={`py-2 rounded-lg text-[12px] font-medium transition-colors ${
+                    form.type === t ? "bg-foreground text-background" : "bg-secondary text-foreground hover:bg-secondary/70"
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
           </div>
           <div>
             <label className="font-body text-[12px] text-muted-foreground mb-1 block">Address</label>
