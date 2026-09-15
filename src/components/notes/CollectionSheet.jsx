@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import {
-  Pencil, Smile, RefreshCw, Palette, Pin, Archive, Trash2, X, Check,
+  Pencil, Smile, RefreshCw, Palette, Tag, Pin, Archive, Trash2, X, Check,
 } from "lucide-react";
 import { COLLECTION_ACCENTS } from "./collectionAccents";
+import { COLLECTION_CATEGORIES } from "./CollectionCard";
 
 const EMOJI_CHOICES = ["📁", "✈️", "🏡", "👗", "💼", "🍳", "📚", "❤️", "✨", "🎯", "🌿", "☕", "🎵", "📷", "💡", "🌊"];
 
@@ -29,6 +30,7 @@ export default function CollectionSheet({ folder, onClose, onUpdate, onDelete })
       action: () => commit({ icon_type: folder.icon_type === "emoji" ? "folder" : "emoji" }),
     },
     { icon: Palette, label: "Accent Color", action: () => setStep("color") },
+    { icon: Tag, label: "Category", action: () => setStep("category") },
     { icon: Pin, label: folder.pinned ? "Unpin Collection" : "Pin Collection", action: () => commit({ pinned: !folder.pinned }) },
     { icon: Archive, label: folder.archived ? "Unarchive" : "Archive", action: () => commit({ archived: !folder.archived }) },
     { icon: Trash2, label: "Delete", danger: true, action: () => { if (confirm("Delete this collection? Notes will be kept but unfiled.")) { onDelete(folder.id); onClose(); } } },
@@ -57,6 +59,9 @@ export default function CollectionSheet({ folder, onClose, onUpdate, onDelete })
               >
                 <m.icon className="w-4 h-4 flex-shrink-0" strokeWidth={1.6} />
                 <span className="font-body text-[15px]">{m.label}</span>
+                {m.label === "Category" && folder.category && (
+                  <span className="ml-auto font-body text-[12px] text-muted-foreground">{folder.category}</span>
+                )}
               </button>
             ))}
           </div>
@@ -126,6 +131,27 @@ export default function CollectionSheet({ folder, onClose, onUpdate, onDelete })
                   >
                     {folder.accent_color === key && <Check className="w-4 h-4 text-white" />}
                   </span>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setStep("menu")} className="w-full mt-5 py-2.5 rounded-xl border border-border text-[14px] text-muted-foreground hover:text-foreground transition-colors">Back</button>
+          </div>
+        )}
+
+        {step === "category" && (
+          <div className="px-5 pb-6 pt-2">
+            <p className="font-body text-[13px] text-muted-foreground mb-3">Category</p>
+            <div className="grid grid-cols-2 gap-2">
+              {COLLECTION_CATEGORIES.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => commit({ category: folder.category === cat ? "" : cat })}
+                  className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[13px] font-medium transition-colors ${
+                    folder.category === cat ? "bg-foreground text-background" : "bg-secondary text-foreground hover:bg-secondary/70"
+                  }`}
+                >
+                  {folder.category === cat && <Check className="w-3.5 h-3.5" />}
+                  {cat}
                 </button>
               ))}
             </div>
