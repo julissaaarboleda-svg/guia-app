@@ -8,7 +8,7 @@ ReactQuill.Quill.register(Size, true);
 import { base44 } from "@/api/base44Client";
 import {
   Plus, Trash2, List, FileText, Check, ArrowLeft, Paperclip, Pencil,
-  Folder as FolderIcon, Share2, Download, MoreHorizontal,
+  Folder as FolderIcon, Share2, Download, MoreHorizontal, MapPin, Navigation, X,
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import AttachmentSheet from "@/components/notes/AttachmentSheet";
@@ -19,9 +19,14 @@ import CollectionSheet from "@/components/notes/CollectionSheet";
 import NewCollectionSheet from "@/components/notes/NewCollectionSheet";
 import { accentHex } from "@/components/notes/collectionAccents";
 
+function mapsUrl(address) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+}
+
 export default function Notes() {
   const [notes, setNotes] = useState([]);
   const [folders, setFolders] = useState([]);
+  const [savedPlaces, setSavedPlaces] = useState([]);
   const [activeFolder, setActiveFolder] = useState(null);
   const [adding, setAdding] = useState(false);
   const [newType, setNewType] = useState("text");
@@ -38,27 +43,27 @@ export default function Notes() {
   const [moveNote, setMoveNote] = useState(null);
   const [viewerAttachment, setViewerAttachment] = useState(null);
   const [showNewCollection, setShowNewCollection] = useState(false);
+  const [placeForm, setPlaceForm] = useState(null); // { id?, name, type, address } | null
+  const [placeMenu, setPlaceMenu] = useState(null);
   const newItemRef = useRef(null);
   const autoSaveTimer = useRef(null);
   const { toast } = useToast();
 
   const load = async () => {
     setLoading(true);
-    const [n, f] = await Promise.all([
+    const [n, f, p] = await Promise.all([
       base44.entities.Note.list("-updated_date"),
       base44.entities.Folder.list("-created_date"),
+      base44.entities.SavedPlace.list("-updated_date"),
     ]);
     setNotes(n);
     setFolders(f);
+    setSavedPlaces(p);
     setLoading(false);
   };
 
   useEffect(() => { load(); }, []);
 
-  // Creates the folder and adds it straight into local state — no full
-  // reload needed. The previous version called load() here, which
-  // re-fetched every note AND every folder from the backend before the new
-  // collection appeared, which is what caused the visible delay.
   const createCollection = async (data) => {
     const created = await base44.entities.Folder.create({
       name: data.name,
@@ -76,17 +81,6 @@ export default function Notes() {
     if (openCollection?.id === id) setOpenCollection((prev) => (prev ? { ...prev, ...patch } : prev));
   };
 
-  // Deleting a collection needs to un-set folder_id on any notes that were
-  // inside it. The previous version tried base44.entities.Note.updateMany()
-  // with a MongoDB-style {$unset:...} operator — but this app's backend is
-  // a simple per-record Netlify function, not MongoDB, and doesn't support
-  // that. It's leftover code from before the migration off Base44 that was
-  // never actually verified against the real backend. When it threw, the
-  // rest of this function (deleting the folder, reloading) never ran, and
-  // the UI was left stuck mid-load — which is why the whole page went
-  // blank. Fixed by updating each affected note individually, the same way
-  // every other update in this file works, and wrapping everything so the
-  // loading state always resolves even if something fails.
   const deleteCollection = async (id) => {
     try {
       const folderNotes = notes.filter((n) => n.folder_id === id);
@@ -104,8 +98,12 @@ export default function Notes() {
     }
   };
 
-  const startNewNote = async (folderId) => {
-    const n = await base44.entities.Note.create({ title: "", content: "", note_type: "text", folder_id: folderId || null });
+  // type: "list" jumps straight into checklist mode instead of the default
+  // text note — used by the "New checklist" button on the Checklists tab.
+  const startNewNote = async (folderId, type) => {
+    const note_type = type === "list" ? "list" : "text";
+    const extra = note_type === "list" ? { list_items: [] } : {};
+    const n = await base44.entities.Note.create({ title: "", content: "", note_type, folder_id: folderId || null, ...extra });
     setNotes(prev => [n, ...prev]);
     setSelected(n);
   };
@@ -247,6 +245,29 @@ export default function Notes() {
     } finally {
       setSharing(false);
     }
+  };
+
+  // ---- Saved Places ----
+  const openAddPlace = () => setPlaceForm({ name: "", type: "", address: "" });
+  const openEditPlace = (p) => { setPlaceMenu(null); setPlaceForm({ id: p.id, name: p.name || "", type: p.type || "", address: p.address || "" }); };
+
+  const savePlace = async () => {
+    if (!placeForm?.name?.trim()) return;
+    const patch = { name: placeForm.name.trim(), type: placeForm.type.trim(), address: placeForm.address.trim() };
+    if (placeForm.id) {
+      await base44.entities.SavedPlace.update(placeForm.id, patch);
+      setSavedPlaces(prev => prev.map(p => p.id === placeForm.id ? { ...p, ...patch } : p));
+    } else {
+      const created = await base44.entities.SavedPlace.create(patch);
+      setSavedPlaces(prev => [created, ...prev]);
+    }
+    setPlaceForm(null);
+  };
+
+  const deletePlace = async (id) => {
+    setSavedPlaces(prev => prev.filter(p => p.id !== id));
+    setPlaceMenu(null);
+    await base44.entities.SavedPlace.delete(id);
   };
 
   const isList = selected?.note_type === "list";
@@ -478,13 +499,16 @@ export default function Notes() {
       <NotesLanding
         notes={notes}
         folders={folders}
+        savedPlaces={savedPlaces}
         loading={loading}
-        onQuickCapture={() => startNewNote(null)}
+        onQuickCapture={(type) => startNewNote(null, type)}
         onOpenCollection={(f) => setOpenCollection(f)}
         onOpenNote={(n) => setSelected(n)}
         onNewCollection={() => setShowNewCollection(true)}
         onLongPressCollection={(f) => setLongPressFolder(f)}
         onNoteMenu={(n) => setNoteMenu(n)}
+        onAddPlace={openAddPlace}
+        onPlaceMenu={(p) => setPlaceMenu(p)}
       />
       <NewCollectionSheet
         open={showNewCollection}
@@ -503,6 +527,18 @@ export default function Notes() {
         onClose={() => setNoteMenu(null)}
         onDelete={remove}
         onMove={moveNoteToFolder}
+      />
+      <PlaceFormSheet
+        form={placeForm}
+        onChange={setPlaceForm}
+        onClose={() => setPlaceForm(null)}
+        onSave={savePlace}
+      />
+      <PlaceMenuSheet
+        place={placeMenu}
+        onClose={() => setPlaceMenu(null)}
+        onEdit={openEditPlace}
+        onDelete={deletePlace}
       />
     </>
   );
@@ -535,6 +571,99 @@ function NoteMenuSheet({ note, folders, onClose, onDelete, onMove }) {
           <div className="border-t border-border my-2" />
           <button onClick={() => onDelete(note.id)} className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left text-destructive hover:bg-secondary transition-colors">
             <Trash2 className="w-4 h-4" /> Delete note
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Add/edit a saved place — just a name, a free-text type, and an address.
+function PlaceFormSheet({ form, onChange, onClose, onSave }) {
+  if (!form) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="relative w-full sm:max-w-sm bg-card rounded-t-3xl sm:rounded-3xl shadow-2xl border border-border overflow-hidden">
+        <div className="flex items-center justify-between px-5 pt-4 pb-2">
+          <p className="font-heading text-base text-foreground">{form.id ? "Edit place" : "Save a place"}</p>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="px-5 pb-6 pt-2 space-y-3">
+          <div>
+            <label className="font-body text-[12px] text-muted-foreground mb-1 block">Name</label>
+            <input
+              autoFocus
+              value={form.name}
+              onChange={(e) => onChange({ ...form, name: e.target.value })}
+              placeholder="e.g. Nari"
+              className="w-full bg-secondary border border-border rounded-xl px-4 py-2.5 text-[14px] text-foreground outline-none focus:border-ring transition-colors"
+            />
+          </div>
+          <div>
+            <label className="font-body text-[12px] text-muted-foreground mb-1 block">Type</label>
+            <input
+              value={form.type}
+              onChange={(e) => onChange({ ...form, type: e.target.value })}
+              placeholder="e.g. Restaurant, Café, Shop"
+              className="w-full bg-secondary border border-border rounded-xl px-4 py-2.5 text-[14px] text-foreground outline-none focus:border-ring transition-colors"
+            />
+          </div>
+          <div>
+            <label className="font-body text-[12px] text-muted-foreground mb-1 block">Address</label>
+            <input
+              value={form.address}
+              onChange={(e) => onChange({ ...form, address: e.target.value })}
+              placeholder="Street address"
+              className="w-full bg-secondary border border-border rounded-xl px-4 py-2.5 text-[14px] text-foreground outline-none focus:border-ring transition-colors"
+            />
+          </div>
+          <button
+            onClick={onSave}
+            disabled={!form.name.trim()}
+            className="w-full py-2.5 rounded-xl bg-foreground text-background text-[14px] font-medium flex items-center justify-center gap-1.5 disabled:opacity-40"
+          >
+            <Check className="w-4 h-4" /> Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlaceMenuSheet({ place, onClose, onEdit, onDelete }) {
+  if (!place) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="relative w-full sm:max-w-sm bg-card rounded-t-3xl sm:rounded-3xl shadow-2xl border border-border overflow-hidden">
+        <div className="flex items-center justify-between px-5 pt-4 pb-2">
+          <div className="w-8" />
+          <p className="font-heading text-base text-foreground truncate max-w-[200px]">{place.name}</p>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="h-1 w-10 rounded-full bg-border mx-auto mb-1" />
+        <div className="px-2 pb-6 pt-2">
+          {place.address && (
+            <a
+              href={mapsUrl(place.address)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left text-foreground hover:bg-secondary transition-colors"
+            >
+              <Navigation className="w-4 h-4" /> Open in maps
+            </a>
+          )}
+          <button onClick={() => onEdit(place)} className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left text-foreground hover:bg-secondary transition-colors">
+            <Pencil className="w-4 h-4" /> Edit
+          </button>
+          <div className="border-t border-border my-2" />
+          <button onClick={() => onDelete(place.id)} className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left text-destructive hover:bg-secondary transition-colors">
+            <Trash2 className="w-4 h-4" /> Delete
           </button>
         </div>
       </div>
