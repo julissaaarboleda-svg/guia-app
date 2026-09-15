@@ -582,7 +582,35 @@ function NoteMenuSheet({ note, folders, onClose, onDelete, onMove }) {
 
 // Add/edit a saved place — just a name, a free-text type, and an address.
 function PlaceFormSheet({ form, onChange, onClose, onSave }) {
+  const [suggestions, setSuggestions] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const debounceTimer = useRef(null);
+
+  useEffect(() => {
+    if (!form) { setSuggestions([]); return; }
+    if (!form.address || form.address.trim().length < 2) { setSuggestions([]); return; }
+    clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const { predictions } = await base44.integrations.Core.SearchPlacesAutocomplete({ input: form.address });
+        setSuggestions(predictions || []);
+      } catch {
+        setSuggestions([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 350);
+    return () => clearTimeout(debounceTimer.current);
+  }, [form?.address]);
+
   if (!form) return null;
+
+  const pickSuggestion = (description) => {
+    onChange({ ...form, address: description });
+    setSuggestions([]);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
@@ -621,14 +649,32 @@ function PlaceFormSheet({ form, onChange, onClose, onSave }) {
               ))}
             </div>
           </div>
-          <div>
+          <div className="relative">
             <label className="font-body text-[12px] text-muted-foreground mb-1 block">Address</label>
             <input
               value={form.address}
               onChange={(e) => onChange({ ...form, address: e.target.value })}
-              placeholder="Street address"
+              placeholder="Search worldwide…"
+              autoComplete="off"
               className="w-full bg-secondary border border-border rounded-xl px-4 py-2.5 text-[14px] text-foreground outline-none focus:border-ring transition-colors"
             />
+            {(suggestions.length > 0 || searching) && (
+              <div className="absolute left-0 right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-lg z-10 py-1 max-h-52 overflow-y-auto">
+                {searching && suggestions.length === 0 ? (
+                  <p className="px-3 py-2 font-body text-[12px] text-muted-foreground">Searching…</p>
+                ) : (
+                  suggestions.map((s) => (
+                    <button
+                      key={s.placeId}
+                      onClick={() => pickSuggestion(s.description)}
+                      className="w-full text-left px-3 py-2 font-body text-[12.5px] text-foreground hover:bg-secondary transition-colors truncate"
+                    >
+                      {s.description}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
           </div>
           <button
             onClick={onSave}
