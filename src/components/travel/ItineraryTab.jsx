@@ -55,16 +55,23 @@ function dayCity(day, trip, cityOrder) {
     .sort((a, b) => a.idx - b.idx)[0];
   if (matched) return matched.c;
 
-  // No explicit city and nothing in the day's own content mentions one —
-  // rather than guess by splitting the trip's date range proportionally
-  // across cities (which can confidently show the wrong city, as it did
-  // here), show nothing until the person sets it directly.
   return "";
+}
+
+// Finds today's date within the itinerary so the tab opens there instead of
+// always defaulting to day 1 — coming back to check a trip already in
+// progress means you almost always want "where am I now", not the start.
+function todayIndex(itinerary) {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const idx = itinerary.findIndex((d) => d.date === todayStr);
+  return idx >= 0 ? idx : 0;
 }
 
 export default function ItineraryTab({ trip, onUpdate, cityOrder }) {
   const [itinerary, setItinerary] = useState(trip.itinerary || []);
-  const [activeIdx, setActiveIdx] = useState(0);
+  const [activeIdx, setActiveIdx] = useState(() => todayIndex(trip.itinerary || []));
+  const [dayView, setDayView] = useState("schedule"); // "schedule" | "notes"
+  const [privateNotes, setPrivateNotes] = useState("");
   const [activityModal, setActivityModal] = useState({ open: false, dayIndex: null, actIndex: null, activity: null });
   const [addItemOpen, setAddItemOpen] = useState(false);
   const [dayEdit, setDayEdit] = useState({ open: false, index: null, title: "", description: "", date: "", city: "" });
@@ -75,6 +82,15 @@ export default function ItineraryTab({ trip, onUpdate, cityOrder }) {
 
   useEffect(() => { setItinerary(trip.itinerary || []); }, [trip.itinerary]);
   useEffect(() => { if (activeIdx > itinerary.length - 1) setActiveIdx(Math.max(0, itinerary.length - 1)); }, [itinerary.length, activeIdx]);
+
+  // Personal per-day notes ("restaurant ideas, spending notes, personal
+  // observations") are deliberately a separate field from day.description —
+  // description is the always-visible day summary shown under the header
+  // and edited through the day-edit form; this is a private scratchpad
+  // tied to Schedule/My Notes toggle instead.
+  useEffect(() => {
+    setPrivateNotes(itinerary[activeIdx]?.private_notes || "");
+  }, [activeIdx, itinerary]);
 
   const dayOptions = useMemo(
     () => itinerary.map((d) => ({ date: d.date || "", label: d.date ? format(parseISO(d.date), "EEE, MMM d") : `Day ${d.day}` })),
@@ -388,6 +404,14 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
   const day = itinerary[activeIdx];
   const city = dayCity(day, trip, cityOrder);
 
+  const savePrivateNotes = async (value) => {
+    setPrivateNotes(value);
+    const next = [...itinerary];
+    next[activeIdx] = { ...next[activeIdx], private_notes: value };
+    setItinerary(next);
+    persist(next);
+  };
+
   if (!itinerary || itinerary.length === 0) {
     return (
       <div className="space-y-4">
@@ -525,33 +549,65 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
         )}
       </div>
 
-      <div className="pt-1">
-        {day?.activities && day.activities.length > 0 ? (
-          <div>
-            {day.activities.map((activity, actIndex) => (
-              <TimelineCard
-                key={actIndex}
-                activity={activity}
-                isLast={actIndex === day.activities.length - 1}
-                onEdit={() => setActivityModal({ open: true, dayIndex: activeIdx, actIndex, activity })}
-                onDelete={() => removeActivity(activeIdx, actIndex)}
-                onAddToMemories={() => saveActivityToMemories(activeIdx, actIndex)}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="bg-card border border-dashed border-border rounded-xl p-6 text-center">
-            <p className="font-body text-sm text-muted-foreground">Nothing planned yet for this day.</p>
-          </div>
-        )}
-
+      {/* Schedule / My Notes toggle — My Notes is a private per-day
+          scratchpad, separate from the day.description summary above. */}
+      <div className="flex bg-muted rounded-xl p-[3px]">
         <button
-          onClick={() => setAddItemOpen(true)}
-          className="mt-3 w-full flex items-center justify-center gap-1.5 py-3 rounded-xl border border-border text-foreground text-sm font-medium hover:bg-secondary/60 transition-colors"
+          onClick={() => setDayView("schedule")}
+          className={`flex-1 text-center py-2 rounded-[9px] font-body text-[13px] font-semibold transition-colors ${
+            dayView === "schedule" ? "bg-card text-foreground" : "text-muted-foreground"
+          }`}
         >
-          <Plus className="w-4 h-4" /> Add Item
+          Schedule
+        </button>
+        <button
+          onClick={() => setDayView("notes")}
+          className={`flex-1 text-center py-2 rounded-[9px] font-body text-[13px] font-semibold transition-colors ${
+            dayView === "notes" ? "bg-card text-foreground" : "text-muted-foreground"
+          }`}
+        >
+          My Notes
         </button>
       </div>
+
+      {dayView === "notes" ? (
+        <textarea
+          value={privateNotes}
+          onChange={(e) => setPrivateNotes(e.target.value)}
+          onBlur={(e) => savePrivateNotes(e.target.value)}
+          placeholder="Jot down restaurant ideas, spending notes, or personal observations for this day... (Autosaves)"
+          className="w-full min-h-[260px] bg-card border border-border rounded-2xl p-4 font-body text-sm text-foreground outline-none focus:border-ring transition-colors resize-none"
+        />
+      ) : (
+        <div className="pt-1">
+          {day?.activities && day.activities.length > 0 ? (
+            <div>
+              {day.activities.map((activity, actIndex) => (
+                <TimelineCard
+                  key={actIndex}
+                  activity={activity}
+                  dayDate={day?.date}
+                  isLast={actIndex === day.activities.length - 1}
+                  onEdit={() => setActivityModal({ open: true, dayIndex: activeIdx, actIndex, activity })}
+                  onDelete={() => removeActivity(activeIdx, actIndex)}
+                  onAddToMemories={() => saveActivityToMemories(activeIdx, actIndex)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="bg-card border border-dashed border-border rounded-xl p-6 text-center">
+              <p className="font-body text-sm text-muted-foreground">Nothing planned yet for this day.</p>
+            </div>
+          )}
+
+          <button
+            onClick={() => setAddItemOpen(true)}
+            className="mt-3 w-full flex items-center justify-center gap-1.5 py-3 rounded-xl border border-border text-foreground text-sm font-medium hover:bg-secondary/60 transition-colors"
+          >
+            <Plus className="w-4 h-4" /> Add Item
+          </button>
+        </div>
+      )}
 
       <AddItemSheet open={addItemOpen} onClose={() => setAddItemOpen(false)} onPick={pickAddType} onImport={handleImport} importing={importing} />
 
