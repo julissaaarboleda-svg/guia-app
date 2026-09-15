@@ -2,6 +2,8 @@ import { useRef } from "react";
 import { Folder as FolderIcon } from "lucide-react";
 import { accentHex } from "./collectionAccents";
 
+export const COLLECTION_CATEGORIES = ["Personal", "Home", "Work", "Travel", "Other"];
+
 export default function CollectionCard({ folder, count, onOpen, onLongPress }) {
   const pressTimer = useRef(null);
   const color = accentHex(folder.accent_color);
@@ -22,7 +24,7 @@ export default function CollectionCard({ folder, count, onOpen, onLongPress }) {
       onTouchEnd={cancelPress}
       onTouchMove={cancelPress}
       onContextMenu={(e) => { e.preventDefault(); onLongPress(folder); }}
-      className="group relative w-full h-[96px] flex flex-col items-center justify-center text-center bg-card border border-border/50 rounded-2xl p-2 transition-all hover:shadow-[0_4px_16px_-10px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 active:translate-y-0"
+      className="group relative w-full h-[108px] flex flex-col items-center justify-center text-center bg-card border border-border/50 rounded-2xl p-2 transition-all hover:shadow-[0_4px_16px_-10px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 active:translate-y-0"
     >
       {folder.pinned && (
         <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />
@@ -41,6 +43,14 @@ export default function CollectionCard({ folder, count, onOpen, onLongPress }) {
       <p className="font-body text-[11px] text-[#8E8A84] mt-0.5 truncate max-w-full">
         {count} {count === 1 ? "note" : "notes"}
       </p>
+      {folder.category && (
+        <span
+          className="font-body text-[9px] font-medium mt-1 px-2 py-[2px] rounded-full truncate max-w-full"
+          style={{ backgroundColor: `${color}18`, color }}
+        >
+          {folder.category}
+        </span>
+      )}
     </button>
   );
 }
