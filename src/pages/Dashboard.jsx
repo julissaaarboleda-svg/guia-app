@@ -6,24 +6,9 @@ import Greeting from "@/components/home/Greeting";
 import TodaysFocus from "@/components/home/TodaysFocus";
 import UpNext from "@/components/home/UpNext";
 import LifeProgress from "@/components/home/LifeProgress";
-import TodaysInsight from "@/components/home/TodaysInsight";
 import RecentActivity from "@/components/home/RecentActivity";
 import Reveal from "@/components/home/Reveal";
-import { buildFocusItems, buildUpNext, buildProgress, buildActivity, buildDigest, buildDailyStatus } from "@/lib/homeData";
-// Rotating, always-instant invitation instead of an AI call — cycles
-// through in order by day, so it's not the same message every visit, but
-// never requires waiting on anything.
-const HOME_INVITATIONS = [
-  "Need help organizing your day? Ask away.",
-  "Feeling stuck on where to start? I'm here — just ask.",
-  "Want a few quick wins for today? Let's find them together.",
-  "Not sure what to prioritize? Ask and I'll help sort it out.",
-  "Have a question about your goals or tasks? I'm always listening.",
-];
-function getHomeInvitation() {
-  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
-  return HOME_INVITATIONS[dayOfYear % HOME_INVITATIONS.length];
-}
+import { buildFocusItems, buildUpNext, buildProgress, buildActivity, buildDailyStatus } from "@/lib/homeData";
 
 const HERO_IMAGES = [
   "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
@@ -60,7 +45,6 @@ export default function Dashboard() {
   const [projects, setProjects] = useState([]);
   const [businessGoals, setBusinessGoals] = useState([]);
   const [careerEntries, setCareerEntries] = useState([]);
-  const [ai, setAi] = useState({ summary: null, insight: getHomeInvitation() });
   const [loaded, setLoaded] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
 
@@ -92,10 +76,6 @@ export default function Dashboard() {
       const p = await base44.entities.UserPreferences.filter({ user_email: u.email });
       if (p.length > 0) {
         setPrefs(p[0]);
-        // Hero photo/mode are account settings, not just browser state — sync
-        // from the real saved data once it loads, so they survive logging
-        // out and back in (or switching devices), instead of only ever
-        // living in this browser's localStorage.
         if (p[0].hero_mode) setHeroMode(p[0].hero_mode);
         if (Array.isArray(p[0].hero_images) && p[0].hero_images.length > 0) setUserHeroImages(p[0].hero_images);
       }
@@ -117,12 +97,6 @@ export default function Dashboard() {
     };
     load();
   }, []);
-
-  useEffect(() => {
-    if (!loaded) return;
-    const digest = buildDigest({ goals, projects, trips, finItems, tasks, businessGoals });
-    setAi({ summary: null, insight: getHomeInvitation() });
-  }, [loaded, goals, projects, trips, finItems, tasks, businessGoals]);
 
   const focus = useMemo(
     () => buildFocusItems({ tasks, goals, projects, finItems, trips, businessGoals, careerEntries }),
@@ -198,10 +172,6 @@ export default function Dashboard() {
       />
 
       <Greeting dateStr={dateStr} greeting={greeting} firstName={firstName} status={dailyStatus} />
-
-      <Reveal delay={0.05}>
-        <TodaysInsight insight={ai.insight} />
-      </Reveal>
 
       <Reveal delay={0.06}>
         {loaded ? (
