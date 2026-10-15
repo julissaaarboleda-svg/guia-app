@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { Check, Save, Camera, ChevronDown, Target, FileText, Briefcase, Building2, CreditCard, Plane, FolderOpen, CheckCircle, Sparkles, X } from "lucide-react";
+import { Check, Save, Camera, ChevronDown, Target, FileText, Briefcase, Building2, CreditCard, Plane, FolderOpen, CheckCircle, X } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import SectionOrderEditor from "@/components/settings/SectionOrderEditor";
 
@@ -13,7 +13,6 @@ const ALL_SECTIONS = [
   { id: "travel",   label: "Journeys", icon: Plane, description: "Trips and itineraries" },
   { id: "projects", label: "Projects", icon: FolderOpen, description: "Personal projects and phases" },
   { id: "notes",    label: "Notes",    icon: FileText, description: "Free-form writing and logs" },
-  { id: "ai",       label: "AI Assistant", icon: Sparkles, description: "Ask about your finances" },
 ];
 
 const AVATAR_COLORS = [
@@ -93,7 +92,7 @@ export default function Settings() {
         setAvatarColor(pref.avatar_color || "#1C1C1A");
         setSelected(new Set(pref.enabled_sections || []));
         setAvatarPhoto(pref.avatar_url || null);
-        setSectionOrder(pref.section_order || ["goals", "notes", "career", "business", "finance", "travel", "projects", "ai"]);
+        setSectionOrder(pref.section_order || ["goals", "notes", "career", "business", "finance", "travel", "projects"]);
       }
     };
     load();

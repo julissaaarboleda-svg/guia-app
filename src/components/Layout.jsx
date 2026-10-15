@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Settings, LogOut, Home, Target, Briefcase, Building2, CreditCard, Plane, FolderOpen, FileText, HelpCircle, MessageCircle, Sparkles } from "lucide-react";
+import { Settings, LogOut, Home, Target, Briefcase, Building2, CreditCard, Plane, FolderOpen, FileText, HelpCircle, MessageCircle } from "lucide-react";
 import FeedbackModal from "@/components/feedback/FeedbackModal";
 import BottomNav from "@/components/BottomNav";
 import GuiaHeader from "@/components/GuiaHeader";
 import { useAuth } from "@/lib/AuthContext";
 
-const DEFAULT_SECTION_ORDER = ["goals", "notes", "career", "business", "finance", "travel", "projects", "ai"];
+const DEFAULT_SECTION_ORDER = ["goals", "notes", "career", "business", "finance", "travel", "projects"];
 
 const SECTION_META = {
   goals:    { label: "Goals",    Icon: Target, path: "/goals" },
@@ -17,7 +17,6 @@ const SECTION_META = {
   finance:  { label: "Finance",  Icon: CreditCard,  path: "/finance" },
   travel:   { label: "Journeys", Icon: Plane,       path: "/travel" },
   projects: { label: "Projects", Icon: FolderOpen,  path: "/projects" },
-  ai:       { label: "AI",       Icon: Sparkles,    path: "/ai" },
 };
 
 export default function Layout() {

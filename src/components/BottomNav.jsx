@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Target, FileText, Briefcase, Building2, CreditCard, Plane, FolderOpen, Settings, MessageCircle, MoreHorizontal, X, Sparkles, LogOut } from "lucide-react";
+import { Home, Target, FileText, Briefcase, Building2, CreditCard, Plane, FolderOpen, Settings, MessageCircle, MoreHorizontal, X, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 
 const SECTION_META = {
@@ -11,10 +11,9 @@ const SECTION_META = {
   finance:  { label: "Finance",  Icon: CreditCard, path: "/finance" },
   travel:   { label: "Journeys", Icon: Plane,      path: "/travel" },
   projects: { label: "Projects", Icon: FolderOpen, path: "/projects" },
-  ai:       { label: "AI",       Icon: Sparkles,   path: "/ai" },
 };
 
-const DEFAULT_SECTION_ORDER = ["goals", "notes", "career", "business", "finance", "travel", "projects", "ai"];
+const DEFAULT_SECTION_ORDER = ["goals", "notes", "career", "business", "finance", "travel", "projects"];
 
 export default function BottomNav({ prefs, onFeedback }) {
   const { user, logout } = useAuth();

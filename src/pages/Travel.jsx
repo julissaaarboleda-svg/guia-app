@@ -5,7 +5,6 @@ import TripDetail from "@/components/travel/TripDetail";
 import JourneyHero from "@/components/journeys/JourneyHero";
 import JourneyCard from "@/components/journeys/JourneyCard";
 import JourneyProgress from "@/components/journeys/JourneyProgress";
-import TravelAssistant from "@/components/journeys/TravelAssistant";
 import UpcomingEvent from "@/components/journeys/UpcomingEvent";
 import PastJourneyCard from "@/components/journeys/PastJourneyCard";
 import NewJourneySheet from "@/components/journeys/NewJourneySheet";
@@ -269,7 +268,6 @@ export default function Travel() {
                     onEditTrip={() => editTrip(current)}
                   />
                   <JourneyProgress trip={current} onNavigate={(tab) => openTrip(current, tab)} />
-                  <TravelAssistant trip={current} onNavigate={(tab) => openTrip(current, tab)} />
                   <UpcomingEvent trip={current} onNavigate={(tab) => openTrip(current, tab)} />
                   <KnowBeforeYouGo trip={current} know={knowData} loading={knowLoading} error={knowError} />
                 </>

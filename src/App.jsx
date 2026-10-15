@@ -18,7 +18,6 @@ import SectionPlaceholder from './pages/SectionPlaceholder';
 import Travel from './pages/Travel';
 import Business from './pages/Business';
 import Finance from './pages/Finance';
-import AIAssistant from './pages/AIAssistant';
 import OnboardingDemo from './pages/OnboardingDemo';
 import Projects from './pages/Projects';
 import AdminFeedback from './pages/AdminFeedback';
@@ -86,7 +85,6 @@ const AuthenticatedApp = () => {
         <Route path="/career" element={<Career />} />
         <Route path="/business" element={<Business />} />
         <Route path="/finance" element={<Finance />} />
-        <Route path="/ai" element={<AIAssistant />} />
         <Route path="/travel" element={<Travel />} />
         <Route path="/projects" element={<Projects />} />
         <Route path="/admin/feedback" element={<AdminFeedback />} />
