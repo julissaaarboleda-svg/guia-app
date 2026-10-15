@@ -20,6 +20,7 @@ export default function Travel() {
   const [trips, setTrips] = useState([]);
   const [selected, setSelected] = useState(null);
   const [selectedTab, setSelectedTab] = useState("Overview");
+  const [selectedDate, setSelectedDate] = useState(null);
   const [autoEditTrip, setAutoEditTrip] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [showCover, setShowCover] = useState(null);
@@ -76,9 +77,10 @@ export default function Travel() {
     await load();
   };
 
-  const openTrip = (trip, tab = "Itinerary") => {
+  const openTrip = (trip, tab = "Itinerary", date = null) => {
     setSelected(trip);
     setSelectedTab(tab);
+    setSelectedDate(date);
   };
 
   const editTrip = (trip) => {
@@ -151,9 +153,11 @@ export default function Travel() {
       <TripDetail
         trip={selected}
         initialTab={selectedTab}
+        initialDate={selectedDate}
         initialEditOpen={autoEditTrip}
         onBack={() => {
           setSelected(null);
+          setSelectedDate(null);
           setAutoEditTrip(false);
           load();
         }}
@@ -268,7 +272,7 @@ export default function Travel() {
                     onEditTrip={() => editTrip(current)}
                   />
                   <JourneyProgress trip={current} onNavigate={(tab) => openTrip(current, tab)} />
-                  <UpcomingEvent trip={current} onNavigate={(tab) => openTrip(current, tab)} />
+                  <UpcomingEvent trip={current} onNavigate={(tab, date) => openTrip(current, tab, date)} />
                   <KnowBeforeYouGo trip={current} know={knowData} loading={knowLoading} error={knowError} />
                 </>
               ) : (

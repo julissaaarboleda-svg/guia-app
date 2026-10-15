@@ -62,15 +62,22 @@ function dayCity(day, trip, cityOrder) {
 // Finds today's date within the itinerary so the tab opens there instead of
 // always defaulting to day 1 — coming back to check a trip already in
 // progress means you almost always want "where am I now", not the start.
-function todayIndex(itinerary) {
-  const todayStr = new Date().toISOString().slice(0, 10);
+function todayIndex(itinerary, preferredDate) {
+  // Local date (toISOString is UTC and flips to "tomorrow" in the evening).
+  if (preferredDate) {
+    const p = itinerary.findIndex((d) => d.date === preferredDate);
+    if (p >= 0) return p;
+  }
+  const t = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const todayStr = `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`;
   const idx = itinerary.findIndex((d) => d.date === todayStr);
   return idx >= 0 ? idx : 0;
 }
 
-export default function ItineraryTab({ trip, onUpdate, cityOrder }) {
+export default function ItineraryTab({ trip, onUpdate, cityOrder, initialDate }) {
   const [itinerary, setItinerary] = useState(trip.itinerary || []);
-  const [activeIdx, setActiveIdx] = useState(() => todayIndex(trip.itinerary || []));
+  const [activeIdx, setActiveIdx] = useState(() => todayIndex(trip.itinerary || [], initialDate));
   const [dayView, setDayView] = useState("schedule"); // "schedule" | "notes"
   const [privateNotes, setPrivateNotes] = useState("");
   const [activityModal, setActivityModal] = useState({ open: false, dayIndex: null, actIndex: null, activity: null });

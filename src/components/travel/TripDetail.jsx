@@ -31,7 +31,7 @@ const statusColors = {
   completed: "bg-stone-100 text-stone-500 border-stone-200",
 };
 
-export default function TripDetail({ trip, onBack, onUpdate, initialTab, initialEditOpen }) {
+export default function TripDetail({ trip, onBack, onUpdate, initialTab, initialEditOpen, initialDate }) {
   const [tab, setTab] = useState(initialTab && TABS.some(t => t.id === initialTab) ? initialTab : "Itinerary");
   const [editing, setEditing] = useState(!!initialEditOpen);
   const [citySuggestions, setCitySuggestions] = useState([]);
@@ -499,7 +499,7 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
 
         {/* Tab content */}
         <div className="pt-5">
-          {tab === "Itinerary" && <ItineraryTab trip={trip} onUpdate={onUpdate} cityOrder={orderedCities} />}
+          {tab === "Itinerary" && <ItineraryTab trip={trip} onUpdate={onUpdate} cityOrder={orderedCities} initialDate={initialDate} />}
 
           {tab === "Packing" && <PackingTab trip={trip} onUpdate={onUpdate} />}
 

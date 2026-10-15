@@ -31,11 +31,12 @@ function formatTime12(t) {
 export default function UpcomingEvent({ trip, onNavigate }) {
   const [expanded, setExpanded] = useState(false);
   const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
   const upcomingDays = (trip.itinerary || [])
     .filter((d) => d.date)
     .map((d) => ({ ...d, _d: parseISO(d.date) }))
-    .filter((d) => d._d >= now)
+    .filter((d) => d._d >= startOfToday)
     .sort((a, b) => a._d - b._d);
 
   const events = [];
@@ -50,6 +51,7 @@ export default function UpcomingEvent({ trip, onNavigate }) {
         if (isFlight) {
           events.push({
             date: day._d,
+            dateStr: day.date,
             isFlight: true,
             title: [act.airline, act.flightNumber].filter(Boolean).join(" · ") || "Flight",
             route: [shortLocation(act.departure?.city), shortLocation(act.arrival?.city)].filter(Boolean).join(" → "),
@@ -59,19 +61,20 @@ export default function UpcomingEvent({ trip, onNavigate }) {
         } else {
           events.push({
             date: day._d,
+            dateStr: day.date,
             title: act.name || act.activity || day.title || trip.title,
             subtitle: shortLocation(act.location) || (trip.cities || [])[0] || trip.country,
           });
         }
       });
     } else if (day.title) {
-      events.push({ date: day._d, title: day.title, subtitle: (trip.cities || [])[0] || trip.country });
+      events.push({ date: day._d, dateStr: day.date, title: day.title, subtitle: (trip.cities || [])[0] || trip.country });
     }
     if (events.length >= 3) break;
   }
   if (events.length === 0 && trip.start_date) {
     const d = parseISO(trip.start_date);
-    if (d >= now) events.push({ date: d, title: trip.title, subtitle: (trip.cities || [])[0] || trip.country });
+    if (d >= startOfToday) events.push({ date: d, dateStr: trip.start_date, title: trip.title, subtitle: (trip.cities || [])[0] || trip.country });
   }
 
   if (events.length === 0) return null;
@@ -94,7 +97,7 @@ export default function UpcomingEvent({ trip, onNavigate }) {
 
       <div className="bg-card border border-border/50 rounded-[18px] overflow-hidden">
         {shown.map((ev, i) => {
-          const daysUntil = Math.ceil((ev.date - now) / (1000 * 60 * 60 * 24));
+          const daysUntil = Math.round((ev.date - startOfToday) / (1000 * 60 * 60 * 24));
           const Icon = ev.isFlight ? Plane : iconForEvent(ev.title);
           const isLast = i === shown.length - 1;
           return (
@@ -131,7 +134,7 @@ export default function UpcomingEvent({ trip, onNavigate }) {
                 </span>
               </div>
               <button
-                onClick={() => onNavigate("Itinerary")}
+                onClick={() => onNavigate("Itinerary", ev.dateStr)}
                 className="font-body text-[12px] text-foreground hover:text-olive inline-flex items-center gap-0.5 transition-colors flex-shrink-0"
               >
                 View Details <ArrowRight className="w-3 h-3" />

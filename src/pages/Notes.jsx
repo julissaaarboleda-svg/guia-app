@@ -491,6 +491,7 @@ export default function Notes() {
           onClose={() => setNoteMenu(null)}
           onDelete={remove}
           onMove={moveNoteToFolder}
+          onEdit={(n) => { setNoteMenu(null); setSelected(n); }}
         />
       </div>
     );
@@ -529,6 +530,7 @@ export default function Notes() {
         onClose={() => setNoteMenu(null)}
         onDelete={remove}
         onMove={moveNoteToFolder}
+        onEdit={(n) => { setNoteMenu(null); setSelected(n); }}
       />
       <PlaceFormSheet
         form={placeForm}
@@ -546,7 +548,7 @@ export default function Notes() {
   );
 }
 
-function NoteMenuSheet({ note, folders, onClose, onDelete, onMove }) {
+function NoteMenuSheet({ note, folders, onClose, onDelete, onMove, onEdit }) {
   if (!note) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
@@ -559,6 +561,10 @@ function NoteMenuSheet({ note, folders, onClose, onDelete, onMove }) {
         </div>
         <div className="h-1 w-10 rounded-full bg-border mx-auto mb-1" />
         <div className="px-2 pb-6 pt-2">
+          <button onClick={() => onEdit(note)} className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left text-foreground hover:bg-secondary transition-colors">
+            <Pencil className="w-4 h-4" /> Edit note
+          </button>
+          <div className="border-t border-border my-2" />
           <div className="px-3 pb-2">
             <p className="font-body text-[11px] uppercase tracking-wider text-muted-foreground">Move to</p>
           </div>
