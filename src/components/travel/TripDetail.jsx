@@ -18,7 +18,7 @@ import DateInput from "@/components/DateInput";
 
 const TABS = [
   { id: "Itinerary", label: "Itinerary" },
-  { id: "About", label: "Saved" },
+  { id: "About", label: "Explore" },
   { id: "Packing", label: "Packing" },
   { id: "Budget", label: "Budget" },
   { id: "Recap", label: "Memories" },

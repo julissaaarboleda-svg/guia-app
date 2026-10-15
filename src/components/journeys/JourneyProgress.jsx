@@ -62,8 +62,8 @@ export default function JourneyProgress({ trip, onNavigate }) {
         <RingStat
           value={savedPlaces}
           pct={0}
-          label="Saved"
-          sublabel="places"
+          label="Explore"
+          sublabel="saved places"
           onClick={() => onNavigate("About")}
         />
         <RingStat
