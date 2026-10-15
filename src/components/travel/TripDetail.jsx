@@ -199,44 +199,41 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
               title, and trip stats. Showing both was redundant. */}
           {!onMemoriesTab && (
             <>
-              <div className="flex gap-4 items-start pt-2">
-                <button
-                  onClick={() => { setPhotoUrl(trip.hero_image_url || ""); setShowPhotoModal(true); }}
-                  className="w-[72px] h-[72px] rounded-2xl overflow-hidden flex-shrink-0 bg-secondary flex items-center justify-center"
-                >
-                  {trip.hero_image_url ? (
-                    <img src={trip.hero_image_url} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <ImageIcon className="w-6 h-6 text-muted-foreground" strokeWidth={1.6} />
-                  )}
-                </button>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h1 className="font-heading text-[26px] leading-tight text-foreground font-semibold truncate">
-                      {trip.flag_emoji && <span className="text-xl leading-none mr-1">{trip.flag_emoji}</span>}
-                      {trip.title}
-                    </h1>
-                    <button
-                      onClick={() => setEditing(true)}
-                      className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-foreground rounded-full hover:bg-secondary transition-colors flex-shrink-0"
-                    >
-                      <Pencil className="w-3.5 h-3.5" strokeWidth={1.8} />
-                    </button>
+              <button
+                onClick={() => { setPhotoUrl(trip.hero_image_url || ""); setShowPhotoModal(true); }}
+                className="relative block w-full h-[210px] rounded-2xl overflow-hidden mt-2 text-left"
+                aria-label="Change cover photo"
+              >
+                {trip.hero_image_url ? (
+                  <img src={trip.hero_image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-br from-charcoal via-olive/40 to-forest/60 flex items-center justify-center">
+                    <ImageIcon className="w-8 h-8 text-white/40" strokeWidth={1.4} />
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap mt-1.5">
-                    <span className={`inline-flex font-body text-[11px] px-2.5 py-0.5 rounded-full border ${statusColors[trip.status || "planning"]}`}>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-black/5" />
+                <div className="absolute left-4 right-4 bottom-4">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    {trip.start_date && (
+                      <span className="inline-block font-body text-[9px] px-2.5 py-1 rounded-full" style={{ background: "#A7773F", color: "#F7F3EC" }}>
+                        {format(parseISO(trip.start_date), "MMM d")}{trip.end_date ? ` – ${format(parseISO(trip.end_date), "d")}` : ""}
+                      </span>
+                    )}
+                    <span className="inline-block font-body text-[9px] px-2.5 py-1 rounded-full bg-white/20 text-white capitalize backdrop-blur-sm">
                       {trip.status || "planning"}
                     </span>
                   </div>
+                  <p className="font-heading text-xl text-white font-semibold leading-tight truncate">
+                    {trip.flag_emoji && <span className="mr-1">{trip.flag_emoji}</span>}
+                    {trip.title}
+                  </p>
                   {(orderedCities.length > 0 || trip.country) && (
-                    <div className="flex items-center gap-1 font-body text-[13px] text-muted-foreground min-w-0 mt-1.5">
-                      <MapPin className="w-3 h-3 flex-shrink-0" strokeWidth={1.8} />
-                      <span className="truncate">{(orderedCities.length > 0 ? orderedCities : [trip.country]).filter(Boolean).join(" → ")}</span>
-                      <MapPin className="w-3 h-3 flex-shrink-0" strokeWidth={1.8} />
-                    </div>
+                    <p className="font-body text-[11px] text-white/75 mt-1 truncate">
+                      {(orderedCities.length > 0 ? orderedCities : [trip.country]).filter(Boolean).join(" → ")}
+                    </p>
                   )}
                 </div>
-              </div>
+              </button>
 
               <div className="flex items-center gap-2 flex-wrap mt-3">
                 <span className="inline-flex items-center gap-1.5 font-body text-[12px] text-foreground bg-secondary px-3 py-1.5 rounded-full">
