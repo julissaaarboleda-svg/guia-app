@@ -68,13 +68,18 @@ export default function Travel() {
   }, [trips, searchParams]);
 
   const createJourney = async (formData) => {
-    await base44.entities.Trip.create({
+    // Throws on failure so the sheet stays open (with the user's input
+    // intact) and can tell them, instead of silently doing nothing.
+    const created = await base44.entities.Trip.create({
       ...formData,
       description: "",
       flag_emoji: "",
     });
     setShowAdd(false);
     await load();
+    // Jump straight into the new journey — otherwise it can land on the
+    // "Upcoming" tab (or nowhere, with no dates) and look like nothing happened.
+    if (created && created.id) openTrip(created, "Itinerary");
   };
 
   const openTrip = (trip, tab = "Itinerary", date = null) => {
@@ -177,7 +182,8 @@ export default function Travel() {
     .filter((t) => t.start_date && parseISO(t.start_date) >= now)
     .sort((a, b) => parseISO(a.start_date) - parseISO(b.start_date));
   const current = inProgress || upcomingSorted[0] || active[0] || null;
-  const upcoming = upcomingSorted.filter((t) => t.id !== current?.id).slice(0, 6);
+  const undated = active.filter((t) => !t.start_date && t.id !== current?.id);
+  const upcoming = [...upcomingSorted.filter((t) => t.id !== current?.id), ...undated].slice(0, 6);
   const past = trips.filter((t) => t.status === "completed").slice(0, 8);
 
   const q = query.trim().toLowerCase();

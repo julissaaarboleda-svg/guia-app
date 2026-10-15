@@ -9,6 +9,8 @@ export default function NewJourneySheet({ open, onClose, onCreate }) {
   const [cityInput, setCityInput] = useState("");
   const [countrySugs, setCountrySugs] = useState([]);
   const [citySugs, setCitySugs] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   if (!open) return null;
 
@@ -19,8 +21,8 @@ export default function NewJourneySheet({ open, onClose, onCreate }) {
     setCountryInput(""); setCityInput(""); setCountrySugs([]); setCitySugs([]);
   };
 
-  const submit = () => {
-    if (!form.title.trim()) return;
+  const submit = async () => {
+    if (!form.title.trim() || saving) return;
     // Capture any text still sitting in the inputs that was typed but never
     // explicitly confirmed with Enter/a suggestion click — otherwise it's
     // silently lost on submit, which is the actual "cities won't save" bug.
@@ -33,15 +35,24 @@ export default function NewJourneySheet({ open, onClose, onCreate }) {
       ? [...existingCountries, countryInput.trim()]
       : existingCountries;
 
-    onCreate({
+    setSaving(true);
+    setError("");
+    try {
+      await onCreate({
       title: form.title.trim(),
       country: finalCountries.join(", "),
       cities: finalCities,
       start_date: form.start_date || "",
       end_date: form.end_date || "",
       budget_target: form.budget_target ? Number(form.budget_target) : null,
-    });
-    reset();
+      });
+      reset();
+    } catch (e) {
+      console.error("Create journey failed:", e);
+      setError("Couldn't create the journey. Check your connection and try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -198,8 +209,9 @@ export default function NewJourneySheet({ open, onClose, onCreate }) {
         </div>
 
         <div className="px-5 py-4 border-t border-border">
-          <button onClick={submit} disabled={!form.title.trim()} className="w-full flex items-center justify-center gap-1.5 bg-foreground text-background py-3 rounded-xl text-[15px] font-medium hover:opacity-90 transition-colors disabled:opacity-40">
-            <Plus className="w-4 h-4" /> Create Journey
+          {error && <p className="font-body text-[12px] text-destructive mb-2 text-center">{error}</p>}
+          <button onClick={submit} disabled={!form.title.trim() || saving} className="w-full flex items-center justify-center gap-1.5 bg-foreground text-background py-3 rounded-xl text-[15px] font-medium hover:opacity-90 transition-colors disabled:opacity-40">
+            <Plus className="w-4 h-4" /> {saving ? "Creating…" : "Create Journey"}
           </button>
         </div>
       </div>
