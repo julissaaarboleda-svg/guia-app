@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { Trash2, Edit2, MapPin, Calendar, Plus, Upload } from "lucide-react";
+import { Plus, Upload } from "lucide-react";
 
 // "Event" is a broad bucket — market shows, product launches, pop-ups,
 // vendor fairs, etc. all go here as the category, with the specific type
@@ -15,6 +15,7 @@ import PageHeader from "@/components/PageHeader";
 import DateInput from "@/components/DateInput";
 import StatementImportSheet from "@/components/business/StatementImportSheet";
 import BusinessDocuments from "@/components/business/BusinessDocuments";
+import BusinessLog from "@/components/business/BusinessLog";
 import GoalsOverview, { goalIsDone } from "@/components/business/GoalsOverview";
 
 export default function Business() {
@@ -248,6 +249,35 @@ export default function Business() {
     </>
   );
 
+  const renderEntryEditor = () => (
+    <div className="space-y-3">
+      <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} autoFocus
+        className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring appearance-none">
+        <option value="" disabled>Select a category</option>
+        {BUSINESS_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+      </select>
+      <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={form.category === "Event" ? "What's the event?" : "Name"}
+        className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+      <div className="grid grid-cols-2 gap-2">
+        <input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="Location"
+          className="bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+        <DateInput value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+          className="bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+        <input type="number" step="0.01" value={form.revenue} onChange={e => setForm(f => ({ ...f, revenue: e.target.value }))} placeholder="Revenue"
+          className="bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+        <input type="number" step="0.01" value={form.expense} onChange={e => setForm(f => ({ ...f, expense: e.target.value }))} placeholder="Expense"
+          className="bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+      </div>
+      <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Description"
+        className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+      <ReactQuill value={form.notes} onChange={(value) => setForm(f => ({ ...f, notes: value }))} placeholder="Notes" className="bg-secondary rounded-lg quill-business" theme="snow" />
+      <div className="flex gap-2">
+        <button onClick={updateEntry} className="flex-1 bg-[#A7773F] text-[#F7F3EC] py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">Save</button>
+        <button onClick={cancelEditEntry} className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors">Cancel</button>
+      </div>
+    </div>
+  );
+
   const renderGoalEditor = () => (
     <div className="space-y-3">
       <input value={goalForm.title} onChange={e => setGoalForm(f => ({ ...f, title: e.target.value }))} placeholder="Goal title" autoFocus
@@ -393,89 +423,15 @@ export default function Business() {
 
       <StatementImportSheet open={importing} onClose={() => setImporting(false)} existing={entries} onDone={loadEntries} />
 
-      {/* Entries Log */}
-      <h2 className="font-heading text-[18px] text-foreground mb-3">Business log</h2>
-      <div className="bg-card border border-border rounded-2xl overflow-hidden">
-        {entries.length === 0 ? (
-          <div className="text-center py-10 px-4">
-            <p className="font-heading text-base text-foreground">Start your business log</p>
-            <p className="text-xs text-muted-foreground mt-1 mb-4">Events, sales and notes live here.</p>
-            <button onClick={() => { setAddTab("entry"); setAdding(true); }} className="bg-[#A7773F] text-[#F7F3EC] rounded-full text-xs px-4 py-2">Add first entry</button>
-          </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {entries.map(e => (
-              <div key={e.id} className="flex items-start gap-3 px-4 py-3 group">
-                {editingEntry === e.id ? (
-                  <div className="flex-1 space-y-3">
-                    <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} autoFocus
-                      className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring appearance-none">
-                      <option value="" disabled>Select a category</option>
-                      {BUSINESS_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                    <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={form.category === "Event" ? "What's the event?" : "Name"}
-                      className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
-                    <div className="grid grid-cols-2 gap-2">
-                      <input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="Location"
-                        className="bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
-                      <DateInput value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-                        className="bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
-                      <input type="number" step="0.01" value={form.revenue} onChange={e => setForm(f => ({ ...f, revenue: e.target.value }))} placeholder="Revenue"
-                        className="bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
-                      <input type="number" step="0.01" value={form.expense} onChange={e => setForm(f => ({ ...f, expense: e.target.value }))} placeholder="Expense"
-                        className="bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
-                    </div>
-                    <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Description"
-                      className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
-                    <ReactQuill value={form.notes} onChange={(value) => setForm(f => ({ ...f, notes: value }))} placeholder="Notes" className="bg-secondary rounded-lg quill-business" theme="snow" />
-                    <div className="flex gap-2">
-                      <button onClick={updateEntry} className="flex-1 bg-[#A7773F] text-[#F7F3EC] py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">Save</button>
-                      <button onClick={cancelEditEntry} className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors">Cancel</button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{e.category}</span>
-                        {e.location && (
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <MapPin className="w-3 h-3" /> {e.location}
-                          </span>
-                        )}
-                      </div>
-                      <p className="font-heading text-[15px] text-foreground truncate">{e.name}</p>
-                      {e.description && <p className="text-xs text-muted-foreground mt-0.5">{e.description}</p>}
-                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                        {e.date && (
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" /> {new Date(e.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                          </span>
-                        )}
-                        {(e.revenue || e.expense) && (
-                          <span className="flex gap-2">
-                            {e.revenue && <span className="text-foreground font-medium">+${e.revenue.toLocaleString()}</span>}
-                            {e.expense && <span className="text-destructive font-medium">-${e.expense.toLocaleString()}</span>}
-                          </span>
-                        )}
-                      </div>
-                      {e.notes && <p className="text-xs text-muted-foreground mt-1" dangerouslySetInnerHTML={{ __html: e.notes }} />}
-                    </div>
-                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 flex-shrink-0">
-                      <button onClick={() => startEditEntry(e)} className="text-muted-foreground hover:text-foreground transition-colors">
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => remove(e.id)} className="text-muted-foreground hover:text-rose-400 transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <BusinessLog
+        entries={entries}
+        categories={BUSINESS_CATEGORIES}
+        editingEntry={editingEntry}
+        renderEditor={renderEntryEditor}
+        onEdit={startEditEntry}
+        onDelete={remove}
+        onNew={() => { setAddTab("entry"); setAdding(true); }}
+      />
     </div>
     </div>
     </>
