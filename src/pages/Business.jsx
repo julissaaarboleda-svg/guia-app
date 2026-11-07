@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { Trash2, Edit2, X, Check, MapPin, Calendar, Target, Plus, Upload } from "lucide-react";
+import { Trash2, Edit2, MapPin, Calendar, Plus, Upload } from "lucide-react";
 
 // "Event" is a broad bucket — market shows, product launches, pop-ups,
 // vendor fairs, etc. all go here as the category, with the specific type
@@ -15,6 +15,7 @@ import PageHeader from "@/components/PageHeader";
 import DateInput from "@/components/DateInput";
 import StatementImportSheet from "@/components/business/StatementImportSheet";
 import BusinessDocuments from "@/components/business/BusinessDocuments";
+import GoalsOverview, { goalIsDone } from "@/components/business/GoalsOverview";
 
 export default function Business() {
   const [entries, setEntries] = useState([]);
@@ -102,13 +103,6 @@ export default function Business() {
     loadEntries();
   };
 
-  const updateGoalProgress = async (id, value) => {
-    const goal = goals.find(g => g.id === id);
-    if (!goal) return;
-    await ent.BusinessGoal.update(id, { ...goal, current_value: value ? Number(value) : 0 });
-    loadEntries();
-  };
-
   const remove = async (id) => {
     await ent.BusinessEntry.delete(id);
     loadEntries();
@@ -191,10 +185,16 @@ export default function Business() {
     setEditingGoal(false);
   };
 
+  const patchGoal = async (id, patch) => {
+    const goal = goals.find((g) => g.id === id);
+    if (!goal) return;
+    setGoals((gs) => gs.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+    await ent.BusinessGoal.update(id, { ...goal, ...patch });
+  };
+
   const totalRevenue = entries.reduce((s, e) => s + (e.revenue || 0), 0);
   const totalExpenses = entries.reduce((s, e) => s + (e.expense || 0), 0);
   const profit = totalRevenue - totalExpenses;
-  const goalProgress = revenueGoal ? Math.min((totalRevenue / Number(revenueGoal)) * 100, 100) : 0;
 
   const GoalTypeInputs = ({ type, setType, form: gForm, setForm: setGForm }) => (
     <>
@@ -248,6 +248,26 @@ export default function Business() {
     </>
   );
 
+  const renderGoalEditor = () => (
+    <div className="space-y-3">
+      <input value={goalForm.title} onChange={e => setGoalForm(f => ({ ...f, title: e.target.value }))} placeholder="Goal title" autoFocus
+        className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+      <input value={goalForm.description} onChange={e => setGoalForm(f => ({ ...f, description: e.target.value }))} placeholder="Description (optional)"
+        className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+      {GoalTypeInputs({ type: editGoalType, setType: setEditGoalType, form: goalForm, setForm: setGoalForm })}
+      <div>
+        <label className="flex items-center gap-1 text-xs font-medium text-foreground mb-1">Target date (optional)</label>
+        <DateInput value={goalForm.target_date} onChange={e => setGoalForm(f => ({ ...f, target_date: e.target.value }))}
+          className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+      </div>
+      <ReactQuill value={goalForm.notes} onChange={(value) => setGoalForm(f => ({ ...f, notes: value }))} placeholder="Notes" className="bg-secondary rounded-lg quill-business" theme="snow" />
+      <div className="flex gap-2">
+        <button onClick={updateGoal} className="flex-1 bg-[#A7773F] text-[#F7F3EC] py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">Save</button>
+        <button onClick={cancelEditGoal} className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors">Cancel</button>
+      </div>
+    </div>
+  );
+
   return (
     <>
       <div className="max-w-[1200px] 2xl:max-w-[1400px] mx-auto w-full">
@@ -274,7 +294,7 @@ export default function Business() {
         <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-xs text-muted-foreground">
           <span>Revenue <b className="text-foreground font-medium">${totalRevenue.toLocaleString()}</b></span>
           <span>Expenses <b className="text-destructive font-medium">${totalExpenses.toLocaleString()}</b></span>
-          <span>Active goals <b className="text-foreground font-medium">{goals.filter(g => (g.status || "active") === "active").length}</b></span>
+          <span>Active goals <b className="text-foreground font-medium">{goals.filter(g => (g.status || "active") === "active" && !goalIsDone(g)).length}</b></span>
         </div>
       </div>
 
@@ -285,112 +305,23 @@ export default function Business() {
         </button>
       </div>
 
-      {/* Business Goals */}
-      {goals.length > 0 && (
-        <div className="mb-6">
-          <h2 className="font-heading text-[18px] text-foreground mb-3">Business goals</h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 [&>*:only-child]:col-span-full">
-            {goals.filter(g => (g.status || "active") === "active").map(g => {
-              const progress = g.target_value ? Math.min((g.current_value / g.target_value) * 100, 100) : 0;
-              const daysLeft = g.target_date ? Math.ceil((new Date(g.target_date) - new Date()) / (1000 * 60 * 60 * 24)) : null;
-              return (
-                <div key={g.id} className="bg-card border border-border rounded-2xl p-5">
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Target className="w-4 h-4 text-[#A7773F]" strokeWidth={1.5} />
-                        <p className="font-heading text-[17px] text-foreground leading-tight">{g.title}</p>
-                      </div>
-                      {g.description && <p className="text-xs text-muted-foreground">{g.description}</p>}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => startEditGoal(g)} className="text-muted-foreground hover:text-foreground transition-colors">
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => removeGoal(g.id)} className="text-muted-foreground hover:text-rose-400 transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                  {editingGoalId === g.id ? (
-                    <div className="space-y-3 mb-3">
-                      <input value={goalForm.title} onChange={e => setGoalForm(f => ({ ...f, title: e.target.value }))} placeholder="Goal title" autoFocus
-                        className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
-                      <input value={goalForm.description} onChange={e => setGoalForm(f => ({ ...f, description: e.target.value }))} placeholder="Description (optional)"
-                        className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
-                      {GoalTypeInputs({ type: editGoalType, setType: setEditGoalType, form: goalForm, setForm: setGoalForm })}
-                      <div>
-                        <label className="flex items-center gap-1 text-xs font-medium text-foreground mb-1">
-                          Target date (optional)
-                        </label>
-                        <DateInput value={goalForm.target_date} onChange={e => setGoalForm(f => ({ ...f, target_date: e.target.value }))}
-                          className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
-                      </div>
-                      <ReactQuill value={goalForm.notes} onChange={(value) => setGoalForm(f => ({ ...f, notes: value }))} placeholder="Notes" className="bg-secondary rounded-lg quill-business" theme="snow" />
-                      <div className="flex gap-2">
-                        <button onClick={updateGoal} className="flex-1 bg-[#A7773F] text-[#F7F3EC] py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">Save</button>
-                        <button onClick={cancelEditGoal} className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors">Cancel</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      {g.unit !== "milestone" && g.target_value ? (
-                        <div className="flex items-center gap-3 mb-2">
-                          <input type="number" value={g.current_value} onChange={(e) => updateGoalProgress(g.id, e.target.value)}
-                            className="w-16 bg-secondary border border-input rounded-lg px-2.5 py-1 text-sm font-medium text-foreground text-center outline-none focus:border-ring" />
-                          <span className="text-[13px] text-muted-foreground">of {g.target_value} {g.unit}</span>
-                          {daysLeft !== null && <span className="text-xs text-muted-foreground">{daysLeft > 0 ? `${daysLeft} days left` : 'Overdue'}</span>}
-                        </div>
-                      ) : (
-                        daysLeft !== null && <p className="text-xs text-muted-foreground mb-2">{daysLeft > 0 ? `${daysLeft} days until target` : 'Target date passed'}</p>
-                      )}
-                      {g.unit !== "milestone" && g.target_value && (
-                        <div className="w-full h-1.5 bg-[#A7773F26] rounded-full overflow-hidden">
-                          <div className="h-full bg-[#A7773F] rounded-full transition-all" style={{ width: `${progress}%` }} />
-                        </div>
-                      )}
-                      {g.notes && <p className="text-xs text-muted-foreground mt-2" dangerouslySetInnerHTML={{ __html: g.notes }} />}
-                    </>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Revenue Goal */}
-      <div className="bg-card border border-border rounded-2xl p-5 mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-heading text-[17px] text-foreground leading-tight">Revenue goal</h2>
-          {!editingGoal ? (
-            !revenueGoal ? null : <button onClick={() => { setGoalInput(revenueGoal); setEditingGoal(true); }} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-              <Edit2 className="w-3 h-3" /> Edit
-            </button>
-          ) : (
-            <div className="flex items-center gap-2">
-              <input type="number" value={goalInput} onChange={e => setGoalInput(e.target.value)} placeholder="Target ($)" autoFocus
-                className="w-28 bg-secondary border border-input rounded-lg px-2 py-1 text-foreground text-xs outline-none focus:border-ring" />
-              <button onClick={saveGoal} className="text-foreground hover:text-foreground"><Check className="w-4 h-4" /></button>
-              <button onClick={() => setEditingGoal(false)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
-            </div>
-          )}
-        </div>
-        {!revenueGoal && !editingGoal ? (
-          <div>
-            <p className="text-xs text-muted-foreground mb-3">Pick a number to aim for and watch it fill in.</p>
-            <button onClick={() => { setGoalInput(""); setEditingGoal(true); }} className="border border-[#A7773F] text-[#A7773F] rounded-full text-xs px-4 py-1.5">Set goal</button>
-          </div>
-        ) : (<>
-        <div className="flex items-baseline justify-between mb-2.5">
-          <p className="font-heading text-[26px] text-foreground leading-none">${totalRevenue.toLocaleString()} <span className="font-body text-[13px] text-muted-foreground">of {revenueGoal ? `$${Number(revenueGoal).toLocaleString()}` : "—"}</span></p>
-          <span className="text-xs text-muted-foreground">{Math.round(goalProgress)}%</span>
-        </div>
-        <div className="w-full h-1.5 bg-[#A7773F26] rounded-full overflow-hidden">
-          <div className="h-full bg-[#A7773F] rounded-full transition-all" style={{ width: `${goalProgress}%` }} />
-        </div>
-        </>)}
-      </div>
+      <GoalsOverview
+        goals={goals}
+        totalRevenue={totalRevenue}
+        revenueGoal={revenueGoal}
+        editingRevenue={editingGoal}
+        revenueInput={goalInput}
+        setRevenueInput={setGoalInput}
+        onEditRevenue={() => { setGoalInput(revenueGoal || ""); setEditingGoal(true); }}
+        onSaveRevenue={saveGoal}
+        onCancelRevenue={() => setEditingGoal(false)}
+        onNew={() => { setAddTab("goal"); setAdding(true); }}
+        onEdit={startEditGoal}
+        onDelete={removeGoal}
+        onPatch={patchGoal}
+        editingGoalId={editingGoalId}
+        renderEditor={renderGoalEditor}
+      />
 
       {/* Add form */}
       {adding && (
