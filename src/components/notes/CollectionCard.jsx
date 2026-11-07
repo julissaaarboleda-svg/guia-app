@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { Folder as FolderIcon } from "lucide-react";
+import { Folder as FolderIcon, ChevronRight } from "lucide-react";
 import { accentHex } from "./collectionAccents";
 
 export const COLLECTION_CATEGORIES = ["Personal", "Home", "Work", "Travel", "Other"];
@@ -7,7 +7,6 @@ export const COLLECTION_CATEGORIES = ["Personal", "Home", "Work", "Travel", "Oth
 export default function CollectionCard({ folder, count, onOpen, onLongPress }) {
   const pressTimer = useRef(null);
   const color = accentHex(folder.accent_color);
-  const useEmoji = folder.icon_type === "emoji" && folder.emoji;
 
   const startPress = () => {
     pressTimer.current = setTimeout(() => {
@@ -24,33 +23,21 @@ export default function CollectionCard({ folder, count, onOpen, onLongPress }) {
       onTouchEnd={cancelPress}
       onTouchMove={cancelPress}
       onContextMenu={(e) => { e.preventDefault(); onLongPress(folder); }}
-      className="group relative w-full min-h-[108px] flex flex-col items-center justify-center text-center bg-card border border-border/50 rounded-2xl p-2 transition-all hover:shadow-[0_4px_16px_-10px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 active:translate-y-0"
+      className="group relative w-full min-h-[76px] flex items-center gap-3 text-left bg-card border border-border/60 rounded-2xl px-3 py-3 transition-all hover:-translate-y-0.5 active:translate-y-0"
     >
-      {folder.pinned && (
-        <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />
-      )}
       <span
-        className="w-11 h-11 rounded-[11px] flex items-center justify-center mb-2 flex-shrink-0"
+        className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
         style={{ backgroundColor: `${color}1F` }}
       >
-        {useEmoji ? (
-          <span className="text-[22px] leading-none">{folder.emoji}</span>
-        ) : (
-          <FolderIcon className="w-[23px] h-[23px]" style={{ color }} strokeWidth={1.6} />
-        )}
+        <FolderIcon className="w-[22px] h-[22px]" style={{ color }} strokeWidth={1.5} />
       </span>
-      <p className="font-body text-[13px] font-medium text-foreground leading-tight line-clamp-2 break-words max-w-full px-1">{folder.name}</p>
-      <p className="font-body text-[11px] text-[#8E8A84] mt-0.5 truncate max-w-full">
-        {count} {count === 1 ? "note" : "notes"}
-      </p>
-      {folder.category && (
-        <span
-          className="font-body text-[9px] font-medium mt-1 px-2 py-[2px] rounded-full truncate max-w-full"
-          style={{ backgroundColor: `${color}18`, color }}
-        >
-          {folder.category}
-        </span>
-      )}
+      <span className="flex-1 min-w-0">
+        <p className="font-heading text-[15px] text-foreground leading-tight line-clamp-2 break-words">{folder.name}</p>
+        <p className="font-body text-[12px] text-muted-foreground mt-0.5 truncate">
+          {count} {count === 1 ? "note" : "notes"}
+        </p>
+      </span>
+      <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" strokeWidth={1.6} />
     </button>
   );
 }
