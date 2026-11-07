@@ -1,6 +1,6 @@
 import { ArrowLeft, Trash2 } from "lucide-react";
 import { visiblePlaces } from "@/lib/memoryUtils";
-import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 
 export default function FavoritePlacesPage({ trip, onUpdate, onBack }) {
   const places = visiblePlaces(trip);
@@ -8,7 +8,7 @@ export default function FavoritePlacesPage({ trip, onUpdate, onBack }) {
   const removePlace = async (id) => {
     const updated = (trip.memory_places || []).filter((p) => p.id !== id);
     try {
-      const result = await base44.entities.Trip.update(trip.id, { memory_places: updated });
+      const result = await ent.Trip.update(trip.id, { memory_places: updated });
       onUpdate(result);
     } catch (err) {
       console.error("Failed to remove place:", err);

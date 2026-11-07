@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { X, Plus, Trash2 } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 
 // Props confirmed from Career.jsx. Manages PerformanceCalibration entities
 // (name + scale_max, based on cal.name / cal.scale_max usage in Career.jsx).
@@ -12,13 +12,13 @@ export default function CalibrationManager({ isOpen, onClose, calibrations, onRe
 
   const add = async () => {
     if (!name.trim()) return;
-    await base44.entities.PerformanceCalibration.create({ name: name.trim(), scale_max: Number(scaleMax) || 10 });
+    await ent.PerformanceCalibration.create({ name: name.trim(), scale_max: Number(scaleMax) || 10 });
     setName("");
     onRefresh();
   };
 
   const remove = async (id) => {
-    await base44.entities.PerformanceCalibration.delete(id);
+    await ent.PerformanceCalibration.delete(id);
     onRefresh();
   };
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 import { MessageCircle } from "lucide-react";
 
 // Not linked from any nav — reachable only by typing /admin/feedback directly.
@@ -10,7 +10,7 @@ export default function AdminFeedback() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    base44.entities.Feedback.filter({})
+    ent.Feedback.filter({})
       .then(setItems)
       .catch((err) => setError(err.message || "Failed to load feedback"));
   }, []);

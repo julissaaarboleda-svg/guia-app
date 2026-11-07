@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ArrowLeft, Upload, Trash2, Plus, X } from "lucide-react";
 import { visibleMedia } from "@/lib/memoryUtils";
 import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 
 export default function PhotosVideosPage({ trip, onUpdate, onBack }) {
   const media = visibleMedia(trip);
@@ -21,7 +22,7 @@ export default function PhotosVideosPage({ trip, onUpdate, onBack }) {
   const albums = [...new Set([...(trip.memory_albums || []), ...media.map((m) => m.album).filter(Boolean)])];
 
   const persist = async (updated) => {
-    const result = await base44.entities.Trip.update(trip.id, { memory_media: updated });
+    const result = await ent.Trip.update(trip.id, { memory_media: updated });
     onUpdate(result);
   };
 
@@ -83,7 +84,7 @@ export default function PhotosVideosPage({ trip, onUpdate, onBack }) {
         const existingAlbums = trip.memory_albums || [];
         if (!existingAlbums.includes(trimmed)) {
           try {
-            const result = await base44.entities.Trip.update(trip.id, { memory_albums: [...existingAlbums, trimmed] });
+            const result = await ent.Trip.update(trip.id, { memory_albums: [...existingAlbums, trimmed] });
             onUpdate(result);
           } catch (err) {
             console.error("Failed to create album:", err);
@@ -106,7 +107,7 @@ export default function PhotosVideosPage({ trip, onUpdate, onBack }) {
         const nextAlbums = existingAlbums.includes(trimmed) ? existingAlbums : [...existingAlbums, trimmed];
         const updatedMedia = media.map((m, i) => (i === idx ? { ...m, album: trimmed } : m));
         try {
-          const result = await base44.entities.Trip.update(trip.id, { memory_media: updatedMedia, memory_albums: nextAlbums });
+          const result = await ent.Trip.update(trip.id, { memory_media: updatedMedia, memory_albums: nextAlbums });
           onUpdate(result);
         } catch (err) {
           console.error("Failed to create album:", err);

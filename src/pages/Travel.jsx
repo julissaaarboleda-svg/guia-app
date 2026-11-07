@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 import TripDetail from "@/components/travel/TripDetail";
 import JourneyHero from "@/components/journeys/JourneyHero";
 import JourneyCard from "@/components/journeys/JourneyCard";
@@ -34,13 +34,13 @@ export default function Travel() {
   const [knowError, setKnowError] = useState(false);
 
   const load = async () => {
-    const data = await base44.entities.Trip.list("-start_date");
+    const data = await ent.Trip.list("-start_date");
     setTrips(data);
     setLoading(false);
     const now = new Date();
     const toComplete = data.filter((t) => t.status !== "completed" && t.end_date && new Date(t.end_date + "T23:59:59") < now);
     if (toComplete.length > 0) {
-      Promise.all(toComplete.map((t) => base44.entities.Trip.update(t.id, { status: "completed" })))
+      Promise.all(toComplete.map((t) => ent.Trip.update(t.id, { status: "completed" })))
         .then(() => load())
         .catch(() => {});
     }
@@ -70,7 +70,7 @@ export default function Travel() {
   const createJourney = async (formData) => {
     // Throws on failure so the sheet stays open (with the user's input
     // intact) and can tell them, instead of silently doing nothing.
-    const created = await base44.entities.Trip.create({
+    const created = await ent.Trip.create({
       ...formData,
       description: "",
       flag_emoji: "",
@@ -134,7 +134,7 @@ export default function Travel() {
         setKnowLoading(false);
         setCachedExplore(cur.id, city, { know });
         const payload = { city, know, generatedAt: Date.now() };
-        base44.entities.Trip.update(cur.id, { explore_know: payload })
+        ent.Trip.update(cur.id, { explore_know: payload })
           .then((updated) => {
             setTrips((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
           })

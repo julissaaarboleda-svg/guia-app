@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
+import { ent } from '@/lib/freshEntities';
 import Layout from './components/Layout';
 import Onboarding from './pages/Onboarding';
 import Dashboard from './pages/Dashboard';
@@ -32,7 +33,7 @@ const AuthenticatedApp = () => {
     const check = async () => {
       try {
         const u = await base44.auth.me();
-        const p = await base44.entities.UserPreferences.filter({ user_email: u.email });
+        const p = await ent.UserPreferences.filter({ user_email: u.email });
         setOnboardingDone(p.length > 0 && p[0].onboarding_complete);
       } catch {
         setOnboardingDone(false);

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 import { toast } from "sonner";
 import { Sparkles, MapPin } from "lucide-react";
 import { parseISO, format } from "date-fns";
@@ -70,7 +70,7 @@ export default function SavedTab({ trip, onUpdate, cityOrder }) {
   };
 
   const persistWish = async (items) => {
-    const updated = await base44.entities.Trip.update(trip.id, { wish_list: { ...(trip.wish_list || {}), items } });
+    const updated = await ent.Trip.update(trip.id, { wish_list: { ...(trip.wish_list || {}), items } });
     onUpdate(updated);
   };
   const addToWishlist = (pick) => {
@@ -116,11 +116,11 @@ export default function SavedTab({ trip, onUpdate, cityOrder }) {
     const { dayDate, ...rest } = activity;
     let updated;
     if (it.length === 0) {
-      updated = await base44.entities.Trip.update(trip.id, { itinerary: [{ day: 1, date: dayDate || trip.start_date || "", title: "", description: "", activities: [rest] }] });
+      updated = await ent.Trip.update(trip.id, { itinerary: [{ day: 1, date: dayDate || trip.start_date || "", title: "", description: "", activities: [rest] }] });
     } else {
       let idx = it.findIndex((d) => d.date && d.date === dayDate);
       if (idx < 0) idx = 0;
-      updated = await base44.entities.Trip.update(trip.id, {
+      updated = await ent.Trip.update(trip.id, {
         itinerary: it.map((d, i) => (i === idx ? { ...d, activities: [...(d.activities || []), rest].sort((a, b) => (a.time || "99").localeCompare(b.time || "99")) } : d)),
       });
     }

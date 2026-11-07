@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 import { Mic, Sparkles, X, Loader2, RefreshCw } from "lucide-react";
 
 export default function BrainDump({ trip, onOrganized }) {
@@ -87,7 +88,7 @@ Be faithful to the traveler's content. Polish but don't fabricate.`,
         places_to_visit: [...(res.places_to_visit || []), ...(existing.places_to_visit || [])],
         prep_checklist: [...(res.prep_checklist || []), ...(existing.prep_checklist || []), ...(existing.return_todo || [])],
       };
-      const updated = await base44.entities.Trip.update(trip.id, { recap: merged });
+      const updated = await ent.Trip.update(trip.id, { recap: merged });
       onOrganized(updated);
       setText("");
     } catch (e) {
@@ -133,7 +134,7 @@ If a category has nothing in the text, return an empty array. Do not fabricate.`
         places_to_visit: [...(res.places_to_visit || []), ...(existing.places_to_visit || [])],
         prep_checklist: [...(res.prep_checklist || []), ...(existing.prep_checklist || []), ...(existing.return_todo || [])],
       };
-      const updated = await base44.entities.Trip.update(trip.id, { recap: merged });
+      const updated = await ent.Trip.update(trip.id, { recap: merged });
       onOrganized(updated);
     } catch (e) {
       console.error(e);

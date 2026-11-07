@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { X, Check } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 
 // Real source was never sent — reconstructed to match the Feedback entity schema
 // reviewed earlier in the project (message/category/created_date fields).
@@ -13,7 +13,7 @@ export default function FeedbackModal({ onClose }) {
     if (!message.trim()) return;
     setSending(true);
     try {
-      await base44.entities.Feedback.create({ message: message.trim() });
+      await ent.Feedback.create({ message: message.trim() });
       setSent(true);
       setTimeout(onClose, 1200);
     } catch (err) {

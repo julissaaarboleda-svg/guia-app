@@ -1,4 +1,4 @@
-import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 import { parseISO, format, differenceInCalendarDays } from "date-fns";
 
 // Real source was never sent — every function here is reconstructed from how it's
@@ -18,7 +18,7 @@ export async function savePlaceToMemories(trip, place) {
     favorited: false,
     ...place,
   };
-  const updated = await base44.entities.Trip.update(trip.id, {
+  const updated = await ent.Trip.update(trip.id, {
     memory_places: [...existing, record],
   });
   return { added: true, trip: updated };

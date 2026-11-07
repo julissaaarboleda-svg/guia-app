@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 import { parseISO } from "date-fns";
 import { Plus, Trash2, CheckCircle2, Circle, X, Calendar, ArrowLeft, Target } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -39,8 +39,8 @@ export default function Goals() {
 
   const load = async () => {
     const [g, t] = await Promise.all([
-      base44.entities.Goal.list("-created_date"),
-      base44.entities.Task.list("-created_date"),
+      ent.Goal.list("-created_date"),
+      ent.Task.list("-created_date"),
     ]);
     setGoals(g);
     setTasks(t);
@@ -67,7 +67,7 @@ export default function Goals() {
     setGoals(g => [optimistic, ...g]);
     setAdding(false); setTitle(""); setCategory("personal"); setTargetDate("");
     try {
-      const real = await base44.entities.Goal.create({ title: optimistic.title, category: optimistic.category, status: "in_progress", target_date: optimistic.target_date });
+      const real = await ent.Goal.create({ title: optimistic.title, category: optimistic.category, status: "in_progress", target_date: optimistic.target_date });
       setGoals(g => g.map(x => x.id === tempId ? real : x));
     } catch {
       setGoals(g => g.filter(x => x.id !== tempId));
@@ -81,7 +81,7 @@ export default function Goals() {
     setTasks(t => [optimistic, ...t]);
     setAdding(false); setTitle(""); setTaskNotes(""); setTaskPriority("normal"); setTaskDueDate("");
     try {
-      const real = await base44.entities.Task.create({ title: optimistic.title, notes: optimistic.notes, priority: optimistic.priority, due_date: optimistic.due_date, completed: false });
+      const real = await ent.Task.create({ title: optimistic.title, notes: optimistic.notes, priority: optimistic.priority, due_date: optimistic.due_date, completed: false });
       setTasks(t => t.map(x => x.id === tempId ? real : x));
     } catch {
       setTasks(t => t.filter(x => x.id !== tempId));
@@ -90,29 +90,29 @@ export default function Goals() {
 
   const saveGoal = async (data) => {
     setGoals(g => g.map(x => x.id === data.id ? { ...x, ...data } : x));
-    await base44.entities.Goal.update(data.id, { title: data.title, category: data.category, target_date: data.target_date, status: data.status });
+    await ent.Goal.update(data.id, { title: data.title, category: data.category, target_date: data.target_date, status: data.status });
   };
 
   const saveTask = async (data) => {
     setTasks(t => t.map(x => x.id === data.id ? { ...x, ...data } : x));
-    await base44.entities.Task.update(data.id, { title: data.title, notes: data.notes, priority: data.priority, due_date: data.due_date });
+    await ent.Task.update(data.id, { title: data.title, notes: data.notes, priority: data.priority, due_date: data.due_date });
   };
 
   const removeGoal = async (id) => {
     setGoals(g => g.filter(x => x.id !== id));
     if (selected?.id === id) setSelected(null);
-    await base44.entities.Goal.delete(id);
+    await ent.Goal.delete(id);
   };
 
   const removeTask = async (id) => {
     setTasks(t => t.filter(x => x.id !== id));
     if (selected?.id === id) setSelected(null);
-    await base44.entities.Task.delete(id);
+    await ent.Task.delete(id);
   };
 
   const toggleTask = async (task) => {
     setTasks(t => t.map(x => x.id === task.id ? { ...x, completed: !x.completed } : x));
-    await base44.entities.Task.update(task.id, { completed: !task.completed });
+    await ent.Task.update(task.id, { completed: !task.completed });
   };
 
   const addSubTask = async (goal, text) => {
@@ -120,19 +120,19 @@ export default function Goals() {
     const updated = [...(goal.sub_tasks || []), { text: text.trim(), completed: false }];
     setGoals(g => g.map(x => x.id === goal.id ? { ...x, sub_tasks: updated } : x));
     setSubTaskInputs(prev => ({ ...prev, [goal.id]: "" }));
-    await base44.entities.Goal.update(goal.id, { sub_tasks: updated });
+    await ent.Goal.update(goal.id, { sub_tasks: updated });
   };
 
   const toggleSubTask = async (goal, idx) => {
     const updated = (goal.sub_tasks || []).map((t, i) => i === idx ? { ...t, completed: !t.completed } : t);
     setGoals(g => g.map(x => x.id === goal.id ? { ...x, sub_tasks: updated } : x));
-    await base44.entities.Goal.update(goal.id, { sub_tasks: updated });
+    await ent.Goal.update(goal.id, { sub_tasks: updated });
   };
 
   const deleteSubTask = async (goal, idx) => {
     const updated = (goal.sub_tasks || []).filter((_, i) => i !== idx);
     setGoals(g => g.map(x => x.id === goal.id ? { ...x, sub_tasks: updated } : x));
-    await base44.entities.Goal.update(goal.id, { sub_tasks: updated });
+    await ent.Goal.update(goal.id, { sub_tasks: updated });
   };
 
   const activeGoals = goals.filter(g => g.status !== "done");
@@ -209,7 +209,7 @@ export default function Goals() {
               {completedTasks.length > 0 && (
                 <div className="flex justify-end px-2 pt-1">
                   <button
-                    onClick={async () => { const ids = completedTasks.map(t => t.id); setTasks(t => t.filter(x => !ids.includes(x.id))); await Promise.all(ids.map(id => base44.entities.Task.delete(id))); }}
+                    onClick={async () => { const ids = completedTasks.map(t => t.id); setTasks(t => t.filter(x => !ids.includes(x.id))); await Promise.all(ids.map(id => ent.Task.delete(id))); }}
                     className="text-xs text-muted-foreground hover:text-rose-400 transition-colors"
                   >
                     Clear completed

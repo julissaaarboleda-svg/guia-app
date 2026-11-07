@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 import { Check, Save, Camera, ChevronDown, Target, FileText, Briefcase, Building2, CreditCard, Plane, FolderOpen, CheckCircle, X } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import SectionOrderEditor from "@/components/settings/SectionOrderEditor";
@@ -46,14 +47,14 @@ export default function Settings() {
     setUploadingPhoto(true);
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
     setAvatarPhoto(file_url);
-    await base44.entities.UserPreferences.update(prefs.id, { avatar_url: file_url });
+    await ent.UserPreferences.update(prefs.id, { avatar_url: file_url });
     setUploadingPhoto(false);
   };
 
   const removePhoto = async () => {
     if (!prefs?.id) return;
     try {
-      await base44.entities.UserPreferences.update(prefs.id, { avatar_url: null });
+      await ent.UserPreferences.update(prefs.id, { avatar_url: null });
       setAvatarPhoto(null);
       setPrefs(prev => ({ ...prev, avatar_url: null }));
       toast({ title: "Photo removed — using your color" });
@@ -69,7 +70,7 @@ export default function Settings() {
       return;
     }
     try {
-      await base44.entities.UserPreferences.update(prefs.id, { avatar_color: hex });
+      await ent.UserPreferences.update(prefs.id, { avatar_color: hex });
       setPrefs(prev => ({ ...prev, avatar_color: hex }));
       toast({ title: "Avatar color updated" });
     } catch (err) {
@@ -81,7 +82,7 @@ export default function Settings() {
   useEffect(() => {
     const load = async () => {
       const u = await base44.auth.me();
-      const p = await base44.entities.UserPreferences.filter({ user_email: u.email });
+      const p = await ent.UserPreferences.filter({ user_email: u.email });
       if (p.length > 0) {
         const pref = p[0];
         setPrefs(pref);
@@ -118,7 +119,7 @@ export default function Settings() {
       section_order: sectionOrder,
     };
     if (prefs?.id) {
-      await base44.entities.UserPreferences.update(prefs.id, data);
+      await ent.UserPreferences.update(prefs.id, data);
     }
     toast({ title: "Settings saved! Refreshing..." });
     setTimeout(() => window.location.reload(), 500);

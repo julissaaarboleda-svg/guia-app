@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 import { Plus, Trash2, DollarSign, Edit2, Check, X, ChevronDown } from "lucide-react";
 import DateInput from "@/components/DateInput";
 
@@ -129,7 +129,7 @@ export default function BudgetTab({ trip, onUpdate }) {
   };
 
   const saveBudget = async () => {
-    const updated = await base44.entities.Trip.update(trip.id, { budget_target: budgetInput ? Number(budgetInput) : null });
+    const updated = await ent.Trip.update(trip.id, { budget_target: budgetInput ? Number(budgetInput) : null });
     onUpdate(updated);
     setEditingBudget(false);
   };
@@ -137,14 +137,14 @@ export default function BudgetTab({ trip, onUpdate }) {
   const addExpense = async () => {
     if (!form.name.trim() || !form.amount) return;
     const updated = [...expenses, { ...form, amount: Number(form.amount) }];
-    const result = await base44.entities.Trip.update(trip.id, { expense_items: updated });
+    const result = await ent.Trip.update(trip.id, { expense_items: updated });
     onUpdate(result);
     setForm({ name: "", category: "Food", amount: "", date: "" });
   };
 
   const removeExpense = async (idx) => {
     const updated = expenses.filter((_, i) => i !== idx);
-    const result = await base44.entities.Trip.update(trip.id, { expense_items: updated });
+    const result = await ent.Trip.update(trip.id, { expense_items: updated });
     onUpdate(result);
   };
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 import { Settings, LogOut, Home, Target, Briefcase, Building2, CreditCard, Plane, FolderOpen, FileText, HelpCircle, MessageCircle } from "lucide-react";
 import FeedbackModal from "@/components/feedback/FeedbackModal";
 import BottomNav from "@/components/BottomNav";
@@ -35,12 +36,12 @@ export default function Layout() {
         const u = await base44.auth.me();
         if (!alive) return;
         setUser(u);
-        const p = await base44.entities.UserPreferences.filter({ user_email: u.email });
+        const p = await ent.UserPreferences.filter({ user_email: u.email });
         if (!alive) return;
         if (p.length > 0) {
           let pref = p[0];
           if (!pref.enabled_sections || pref.enabled_sections.length === 0) {
-            await base44.entities.UserPreferences.update(pref.id, { enabled_sections: DEFAULT_SECTION_ORDER });
+            await ent.UserPreferences.update(pref.id, { enabled_sections: DEFAULT_SECTION_ORDER });
             pref = { ...pref, enabled_sections: DEFAULT_SECTION_ORDER };
           }
           setPrefs(pref);

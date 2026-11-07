@@ -3,6 +3,7 @@ import { ArrowLeft, ImageIcon } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { pickCoverImage, visiblePlaces, visibleMedia, tripDuration } from "@/lib/memoryUtils";
 import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 import { loadLeaflet, geocodeCity } from "./TripRouteMap";
 import ScrapbookEditor from "./ScrapbookEditor";
 
@@ -374,7 +375,7 @@ export default function StoryPreviewPage({ trip, onUpdate, onBack }) {
     setUploading(true);
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      const updated = await base44.entities.Trip.update(trip.id, { story_cover_url: file_url });
+      const updated = await ent.Trip.update(trip.id, { story_cover_url: file_url });
       onUpdate(updated);
     } catch (err) {
       console.error("Cover change failed:", err);
@@ -386,7 +387,7 @@ export default function StoryPreviewPage({ trip, onUpdate, onBack }) {
 
   const saveScrapbookLayout = async (layout) => {
     try {
-      const updated = await base44.entities.Trip.update(trip.id, { scrapbook_layout: layout });
+      const updated = await ent.Trip.update(trip.id, { scrapbook_layout: layout });
       onUpdate(updated);
     } catch (err) {
       console.error("Failed to save scrapbook layout:", err);

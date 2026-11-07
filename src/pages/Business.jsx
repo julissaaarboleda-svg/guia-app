@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 import { Trash2, Edit2, X, Check, MapPin, Calendar, Target, Plus } from "lucide-react";
 
 // "Event" is a broad bucket — market shows, product launches, pop-ups,
@@ -32,13 +33,13 @@ export default function Business() {
   useEffect(() => {
     const load = async () => {
       const [e, g, u] = await Promise.all([
-        base44.entities.BusinessEntry.list("-date"),
-        base44.entities.BusinessGoal.list("-created_date"),
+        ent.BusinessEntry.list("-date"),
+        ent.BusinessGoal.list("-created_date"),
         base44.auth.me(),
       ]);
       setEntries(e);
       setGoals(g);
-      const p = await base44.entities.UserPreferences.filter({ user_email: u.email });
+      const p = await ent.UserPreferences.filter({ user_email: u.email });
       if (p.length > 0) {
         setPrefsId(p[0].id);
         setRevenueGoal(p[0].business_revenue_goal || "");
@@ -49,8 +50,8 @@ export default function Business() {
 
   const loadEntries = async () => {
     const [e, g] = await Promise.all([
-      base44.entities.BusinessEntry.list("-date"),
-      base44.entities.BusinessGoal.list("-created_date"),
+      ent.BusinessEntry.list("-date"),
+      ent.BusinessGoal.list("-created_date"),
     ]);
     setEntries(e);
     setGoals(g);
@@ -58,7 +59,7 @@ export default function Business() {
 
   const add = async () => {
     if (!form.category || !form.name) return;
-    await base44.entities.BusinessEntry.create({
+    await ent.BusinessEntry.create({
       ...form,
       revenue: form.revenue ? Number(form.revenue) : null,
       expense: form.expense ? Number(form.expense) : null,
@@ -76,7 +77,7 @@ export default function Business() {
     if (goalType === "revenue") { unit = "$"; target_value = goalForm.target_value ? Number(goalForm.target_value) : null; }
     else if (goalType === "quantity") { unit = goalForm.unit || "units"; target_value = goalForm.target_value ? Number(goalForm.target_value) : null; }
     else { unit = "milestone"; target_value = null; }
-    await base44.entities.BusinessGoal.create({
+    await ent.BusinessGoal.create({
       ...goalForm,
       target_value,
       unit,
@@ -89,19 +90,19 @@ export default function Business() {
   };
 
   const removeGoal = async (id) => {
-    await base44.entities.BusinessGoal.delete(id);
+    await ent.BusinessGoal.delete(id);
     loadEntries();
   };
 
   const updateGoalProgress = async (id, value) => {
     const goal = goals.find(g => g.id === id);
     if (!goal) return;
-    await base44.entities.BusinessGoal.update(id, { ...goal, current_value: value ? Number(value) : 0 });
+    await ent.BusinessGoal.update(id, { ...goal, current_value: value ? Number(value) : 0 });
     loadEntries();
   };
 
   const remove = async (id) => {
-    await base44.entities.BusinessEntry.delete(id);
+    await ent.BusinessEntry.delete(id);
     loadEntries();
   };
 
@@ -126,7 +127,7 @@ export default function Business() {
 
   const updateEntry = async () => {
     if (!form.category || !form.name) return;
-    await base44.entities.BusinessEntry.update(editingEntry, {
+    await ent.BusinessEntry.update(editingEntry, {
       ...form,
       revenue: form.revenue ? Number(form.revenue) : null,
       expense: form.expense ? Number(form.expense) : null,
@@ -164,7 +165,7 @@ export default function Business() {
     if (editGoalType === "revenue") { unit = "$"; target_value = goalForm.target_value ? Number(goalForm.target_value) : null; }
     else if (editGoalType === "quantity") { unit = goalForm.unit || "units"; target_value = goalForm.target_value ? Number(goalForm.target_value) : null; }
     else { unit = "milestone"; target_value = null; }
-    await base44.entities.BusinessGoal.update(editingGoalId, {
+    await ent.BusinessGoal.update(editingGoalId, {
       ...goalForm,
       target_value,
       unit,
@@ -176,7 +177,7 @@ export default function Business() {
 
   const saveGoal = async () => {
     if (prefsId) {
-      await base44.entities.UserPreferences.update(prefsId, { business_revenue_goal: Number(goalInput) || null });
+      await ent.UserPreferences.update(prefsId, { business_revenue_goal: Number(goalInput) || null });
       setRevenueGoal(goalInput);
     }
     setEditingGoal(false);

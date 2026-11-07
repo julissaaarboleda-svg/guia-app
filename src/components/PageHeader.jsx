@@ -1,6 +1,6 @@
 import { ArrowLeft } from "lucide-react";
 
-export default function PageHeader({ title, subtitle, onBack, actions, serifSubtitle }) {
+export default function PageHeader({ title, subtitle, onBack, actions }) {
   return (
     <div className="sticky top-0 z-30 bg-background/90 backdrop-blur-md">
       <div className="flex items-center justify-between px-4 md:px-8 pt-3 pb-3">

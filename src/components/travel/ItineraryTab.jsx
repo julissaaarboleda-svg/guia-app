@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 import { Edit2, Check, X, Plus, Trash, Calendar, MapPin, Star } from "lucide-react";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
@@ -106,7 +107,7 @@ export default function ItineraryTab({ trip, onUpdate, cityOrder, initialDate })
   );
 
   const persist = async (next) => {
-    const saved = await base44.entities.Trip.update(trip.id, { itinerary: next });
+    const saved = await ent.Trip.update(trip.id, { itinerary: next });
     onUpdate(saved);
     return saved;
   };
@@ -662,7 +663,7 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
                   const toAdd = confirmCities.cities.filter((c) => confirmCities.checked.has(c));
                   if (toAdd.length > 0) {
                     try {
-                      const updatedTrip = await base44.entities.Trip.update(trip.id, { cities: [...(trip.cities || []), ...toAdd] });
+                      const updatedTrip = await ent.Trip.update(trip.id, { cities: [...(trip.cities || []), ...toAdd] });
                       onUpdate(updatedTrip);
                     } catch {}
                   }
@@ -773,14 +774,14 @@ function WishListSection({ trip, onUpdate }) {
   useEffect(() => { setContent(trip.wish_list?.content || ""); }, [trip.wish_list]);
 
   const save = async () => {
-    const updated = await base44.entities.Trip.update(trip.id, { wish_list: { format: "rich_text", content } });
+    const updated = await ent.Trip.update(trip.id, { wish_list: { format: "rich_text", content } });
     onUpdate(updated);
     setEditing(false);
   };
 
   const clear = async () => {
     if (!confirm("Clear wish list?")) return;
-    const updated = await base44.entities.Trip.update(trip.id, { wish_list: { format: "rich_text", content: "" } });
+    const updated = await ent.Trip.update(trip.id, { wish_list: { format: "rich_text", content: "" } });
     setContent("");
     onUpdate(updated);
   };

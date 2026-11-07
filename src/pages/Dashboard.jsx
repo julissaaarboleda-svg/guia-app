@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 import WelcomeModal from "@/components/WelcomeModal";
 import EditorialHero from "@/components/home/EditorialHero";
 import Greeting from "@/components/home/Greeting";
@@ -60,10 +61,10 @@ export default function Dashboard() {
   useEffect(() => {
     const checkWelcome = async () => {
       const u = await base44.auth.me();
-      const p = await base44.entities.UserPreferences.filter({ user_email: u.email });
+      const p = await ent.UserPreferences.filter({ user_email: u.email });
       if (p.length > 0 && !p[0].welcome_shown) {
         setShowWelcome(true);
-        await base44.entities.UserPreferences.update(p[0].id, { welcome_shown: true });
+        await ent.UserPreferences.update(p[0].id, { welcome_shown: true });
       }
     };
     checkWelcome();
@@ -73,22 +74,22 @@ export default function Dashboard() {
     const load = async () => {
       const u = await base44.auth.me();
       setUser(u);
-      const p = await base44.entities.UserPreferences.filter({ user_email: u.email });
+      const p = await ent.UserPreferences.filter({ user_email: u.email });
       if (p.length > 0) {
         setPrefs(p[0]);
         if (p[0].hero_mode) setHeroMode(p[0].hero_mode);
         if (Array.isArray(p[0].hero_images) && p[0].hero_images.length > 0) setUserHeroImages(p[0].hero_images);
       }
       const [g, n, tr, biz, fin, tsk, proj, bg, career] = await Promise.all([
-        base44.entities.Goal.list("-created_date", 20),
-        base44.entities.Note.list("-updated_date", 5),
-        base44.entities.Trip.list("-start_date", 8),
-        base44.entities.BusinessEntry.list("-date", 30),
-        base44.entities.FinanceItem.list("-created_date", 30),
-        base44.entities.Task.list("-due_date", 40),
-        base44.entities.Project.list("-updated_date", 20),
-        base44.entities.BusinessGoal.list("-created_date", 10),
-        base44.entities.CareerEntry.list("-updated_date", 10),
+        ent.Goal.list("-created_date", 20),
+        ent.Note.list("-updated_date", 5),
+        ent.Trip.list("-start_date", 8),
+        ent.BusinessEntry.list("-date", 30),
+        ent.FinanceItem.list("-created_date", 30),
+        ent.Task.list("-due_date", 40),
+        ent.Project.list("-updated_date", 20),
+        ent.BusinessGoal.list("-created_date", 10),
+        ent.CareerEntry.list("-updated_date", 10),
       ]);
       setGoals(g); setNotes(n); setTrips(tr); setBizEntries(biz);
       setFinItems(fin); setTasks(tsk); setProjects(proj);
@@ -119,7 +120,7 @@ export default function Dashboard() {
   const persistMode = async (m) => {
     setHeroMode(m);
     localStorage.setItem("guia-hero-mode", m);
-    if (prefs?.id) await base44.entities.UserPreferences.update(prefs.id, { hero_mode: m });
+    if (prefs?.id) await ent.UserPreferences.update(prefs.id, { hero_mode: m });
   };
 
   const onHeroUpload = async (file) => {
@@ -127,37 +128,37 @@ export default function Dashboard() {
     const next = [...userHeroImages, file_url];
     setUserHeroImages(next);
     localStorage.setItem("guia-hero-images", JSON.stringify(next));
-    if (prefs?.id) await base44.entities.UserPreferences.update(prefs.id, { hero_images: next });
+    if (prefs?.id) await ent.UserPreferences.update(prefs.id, { hero_images: next });
   };
 
   const completeFocus = async (item) => {
     if (item.kind === "task") {
       setTasks((prev) => prev.filter((t) => t.id !== item.refId));
-      await base44.entities.Task.update(item.refId, { completed: true });
+      await ent.Task.update(item.refId, { completed: true });
     } else if (item.kind === "goal") {
       const g = goals.find((x) => x.id === item.refId);
       if (!g) return;
       const subs = [...(g.sub_tasks || [])];
       subs[item.subIndex] = { ...subs[item.subIndex], completed: true };
       setGoals((prev) => prev.map((x) => (x.id === item.refId ? { ...x, sub_tasks: subs } : x)));
-      await base44.entities.Goal.update(item.refId, { sub_tasks: subs });
+      await ent.Goal.update(item.refId, { sub_tasks: subs });
     } else if (item.kind === "project") {
       const p = projects.find((x) => x.id === item.refId);
       if (!p) return;
       const tks = [...(p.tasks || [])];
       tks[item.subIndex] = { ...tks[item.subIndex], completed: true };
       setProjects((prev) => prev.map((x) => (x.id === item.refId ? { ...x, tasks: tks } : x)));
-      await base44.entities.Project.update(item.refId, { tasks: tks });
+      await ent.Project.update(item.refId, { tasks: tks });
     } else if (item.kind === "bill") {
       setFinItems((prev) => prev.map((f) => (f.id === item.refId ? { ...f, paid: true } : f)));
-      await base44.entities.FinanceItem.update(item.refId, { paid: true });
+      await ent.FinanceItem.update(item.refId, { paid: true });
     } else if (item.kind === "pack") {
       const t = trips.find((x) => x.id === item.refId);
       if (!t) return;
       const pk = [...(t.packing_items || [])];
       pk[item.subIndex] = { ...pk[item.subIndex], packed: true };
       setTrips((prev) => prev.map((x) => (x.id === item.refId ? { ...x, packing_items: pk } : x)));
-      await base44.entities.Trip.update(item.refId, { packing_items: pk });
+      await ent.Trip.update(item.refId, { packing_items: pk });
     }
   };
 

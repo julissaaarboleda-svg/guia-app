@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 import { parseISO } from "date-fns";
 import DateInput from "@/components/DateInput";
 import {
@@ -102,16 +103,16 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
   }, [project.created_by_id]);
 
   useEffect(() => {
-    const unsub = base44.entities.Project.subscribe((event) => {
+    const unsub = ent.Project.subscribe((event) => {
       if (event.id === project.id) {
-        base44.entities.Project.get(project.id).then(onUpdate).catch(() => {});
+        ent.Project.get(project.id).then(onUpdate).catch(() => {});
       }
     });
     return unsub;
   }, [project.id]);
 
   const save = async () => {
-    const updated = await base44.entities.Project.update(project.id, {
+    const updated = await ent.Project.update(project.id, {
       ...form,
       description: form.description || "",
       target_date: form.date_type === "ongoing" ? "" : form.target_date || "",
@@ -123,7 +124,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
 
   const deleteProject = async () => {
     if (!confirm("Delete this project?")) return;
-    await base44.entities.Project.delete(project.id);
+    await ent.Project.delete(project.id);
     onBack();
   };
 
@@ -142,41 +143,41 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
 
   const addTask = async (taskInput) => {
     const newTasks = [...tasks, { ...taskInput, completed: false }];
-    const updated = await base44.entities.Project.update(project.id, { tasks: newTasks });
+    const updated = await ent.Project.update(project.id, { tasks: newTasks });
     onUpdate(updated);
   };
 
   const toggleTask = async (index) => {
     const updated = [...tasks];
     updated[index] = { ...updated[index], completed: !updated[index].completed };
-    const result = await base44.entities.Project.update(project.id, { tasks: updated });
+    const result = await ent.Project.update(project.id, { tasks: updated });
     onUpdate(result);
   };
 
   const reassignTask = async (index, assignees) => {
     const updated = [...tasks];
     updated[index] = { ...updated[index], assignees, assignee: undefined };
-    const result = await base44.entities.Project.update(project.id, { tasks: updated });
+    const result = await ent.Project.update(project.id, { tasks: updated });
     onUpdate(result);
   };
 
   const removeTask = async (index) => {
     const updated = tasks.filter((_, i) => i !== index);
-    const result = await base44.entities.Project.update(project.id, { tasks: updated });
+    const result = await ent.Project.update(project.id, { tasks: updated });
     onUpdate(result);
   };
 
   const updateTask = async (index, patch) => {
     const updated = [...tasks];
     updated[index] = { ...updated[index], ...patch };
-    const result = await base44.entities.Project.update(project.id, { tasks: updated });
+    const result = await ent.Project.update(project.id, { tasks: updated });
     onUpdate(result);
   };
 
   const updateAccentColor = async (hex) => {
     setAccentColor(hex);
     setCoverImage(null);
-    const updated = await base44.entities.Project.update(project.id, { accent_color: hex, cover_image_url: null });
+    const updated = await ent.Project.update(project.id, { accent_color: hex, cover_image_url: null });
     onUpdate(updated);
   };
 
@@ -188,7 +189,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       setCoverImage(file_url);
-      const updated = await base44.entities.Project.update(project.id, { cover_image_url: file_url });
+      const updated = await ent.Project.update(project.id, { cover_image_url: file_url });
       onUpdate(updated);
     } catch (err) {
       console.error("Cover photo upload failed:", err);
@@ -206,7 +207,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
     const normalized = (email || "").trim().toLowerCase();
     if (!normalized) return;
     if (collaborators.some((c) => c.toLowerCase() === normalized)) return;
-    const updated = await base44.entities.Project.update(project.id, {
+    const updated = await ent.Project.update(project.id, {
       collaborators: [...collaborators, normalized],
     });
     onUpdate(updated);
@@ -214,19 +215,19 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
 
   const removeCollaborator = async (email) => {
     const normalized = (email || "").trim().toLowerCase();
-    const updated = await base44.entities.Project.update(project.id, {
+    const updated = await ent.Project.update(project.id, {
       collaborators: collaborators.filter((c) => c.toLowerCase() !== normalized),
     });
     onUpdate(updated);
   };
 
   const setAttachments = async (attachments) => {
-    const updated = await base44.entities.Project.update(project.id, { attachments });
+    const updated = await ent.Project.update(project.id, { attachments });
     onUpdate(updated);
   };
 
   const setNotes = async (notes) => {
-    const updated = await base44.entities.Project.update(project.id, { notes });
+    const updated = await ent.Project.update(project.id, { notes });
     onUpdate(updated);
   };
 
@@ -235,40 +236,40 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
   const totalSpent = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
 
   const setBudgetTarget = async (target) => {
-    const updated = await base44.entities.Project.update(project.id, { budget_target: target });
+    const updated = await ent.Project.update(project.id, { budget_target: target });
     onUpdate(updated);
   };
 
   const addExpense = async (expense) => {
     const updatedExpenses = [...expenses, expense];
-    const updated = await base44.entities.Project.update(project.id, { expenses: updatedExpenses });
+    const updated = await ent.Project.update(project.id, { expenses: updatedExpenses });
     onUpdate(updated);
   };
 
   const removeExpense = async (idx) => {
     const updatedExpenses = expenses.filter((_, i) => i !== idx);
-    const updated = await base44.entities.Project.update(project.id, { expenses: updatedExpenses });
+    const updated = await ent.Project.update(project.id, { expenses: updatedExpenses });
     onUpdate(updated);
   };
 
   const updateExpense = async (idx, patch) => {
     const updatedExpenses = [...expenses];
     updatedExpenses[idx] = { ...updatedExpenses[idx], ...patch };
-    const updated = await base44.entities.Project.update(project.id, { expenses: updatedExpenses });
+    const updated = await ent.Project.update(project.id, { expenses: updatedExpenses });
     onUpdate(updated);
   };
 
   const reassignExpense = async (idx, paidBy) => {
     const updatedExpenses = [...expenses];
     updatedExpenses[idx] = { ...updatedExpenses[idx], paid_by: paidBy };
-    const updated = await base44.entities.Project.update(project.id, { expenses: updatedExpenses });
+    const updated = await ent.Project.update(project.id, { expenses: updatedExpenses });
     onUpdate(updated);
   };
 
   const contributions = project.contributions || [];
 
   const addContribution = async (contribution) => {
-    const updated = await base44.entities.Project.update(project.id, {
+    const updated = await ent.Project.update(project.id, {
       contributions: [...contributions, contribution],
     });
     onUpdate(updated);
@@ -277,13 +278,13 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
   const updateContribution = async (idx, patch) => {
     const updatedContributions = [...contributions];
     updatedContributions[idx] = { ...updatedContributions[idx], ...patch };
-    const updated = await base44.entities.Project.update(project.id, { contributions: updatedContributions });
+    const updated = await ent.Project.update(project.id, { contributions: updatedContributions });
     onUpdate(updated);
   };
 
   const removeContribution = async (idx) => {
     const updatedContributions = contributions.filter((_, i) => i !== idx);
-    const updated = await base44.entities.Project.update(project.id, { contributions: updatedContributions });
+    const updated = await ent.Project.update(project.id, { contributions: updatedContributions });
     onUpdate(updated);
   };
 

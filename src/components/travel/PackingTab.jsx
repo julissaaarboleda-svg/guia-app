@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 import { toast } from "sonner";
 import { RefreshCw, AlertCircle } from "lucide-react";
 import PackingProgress from "./packing/PackingProgress";
@@ -55,7 +55,7 @@ export default function PackingTab({ trip, onUpdate }) {
   const persist = async (packingItems, packingMeta) => {
     const updateData = { packing_items: packingItems };
     if (packingMeta !== undefined) updateData.packing_meta = packingMeta;
-    const updated = await base44.entities.Trip.update(trip.id, updateData);
+    const updated = await ent.Trip.update(trip.id, updateData);
     setItems(packingItems);
     if (packingMeta !== undefined) setMeta(packingMeta);
     onUpdate(updated);

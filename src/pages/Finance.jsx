@@ -1,5 +1,5 @@
 import { useState, useEffect, Fragment } from "react";
-import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 import { Trash2, ChevronDown, ChevronUp, ChevronRight, Pencil, X } from "lucide-react";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
@@ -52,8 +52,8 @@ export default function Finance() {
 
   const load = async () => {
     const [i, b] = await Promise.all([
-      base44.entities.FinanceItem.list("-created_date"),
-      base44.entities.BudgetBucket.list("-created_date"),
+      ent.FinanceItem.list("-created_date"),
+      ent.BudgetBucket.list("-created_date"),
     ]);
     setItems(i);
     setBuckets(b);
@@ -121,10 +121,10 @@ export default function Finance() {
         }
       }
     }
-    await base44.entities.FinanceItem.create(data);
+    await ent.FinanceItem.create(data);
     if (formType === "bill" && form.recurrence === "one_time" && form.addToBudget && data.amount) {
       const mk = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
-      await base44.entities.BudgetBucket.create({
+      await ent.BudgetBucket.create({
         name: data.name,
         allocated_amount: data.amount,
         spent_amount: 0,
@@ -138,12 +138,12 @@ export default function Finance() {
   };
 
   const remove = async (id) => {
-    await base44.entities.FinanceItem.delete(id);
+    await ent.FinanceItem.delete(id);
     load();
   };
 
   const togglePaid = async (item) => {
-    await base44.entities.FinanceItem.update(item.id, { paid: !item.paid });
+    await ent.FinanceItem.update(item.id, { paid: !item.paid });
     load();
   };
 
@@ -159,7 +159,7 @@ export default function Finance() {
   };
 
   const saveNotes = async (item) => {
-    await base44.entities.FinanceItem.update(item.id, { notes: notesContent });
+    await ent.FinanceItem.update(item.id, { notes: notesContent });
     setEditingNotes(null);
     load();
   };
@@ -221,7 +221,7 @@ export default function Finance() {
       data.billing_cycle = editItemForm.billing_cycle || "monthly";
       data.renewal_date = editItemForm.renewal_date || null;
     }
-    await base44.entities.FinanceItem.update(item.id, data);
+    await ent.FinanceItem.update(item.id, data);
     setEditingItemId(null);
     load();
   };

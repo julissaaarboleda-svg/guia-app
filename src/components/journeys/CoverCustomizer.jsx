@@ -1,6 +1,7 @@
 import { X, Upload } from "lucide-react";
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 
 export default function CoverCustomizer({ trip, onClose, onUpdate }) {
   const [uploading, setUploading] = useState(false);
@@ -13,7 +14,7 @@ export default function CoverCustomizer({ trip, onClose, onUpdate }) {
     setUploading(true);
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      const updated = await base44.entities.Trip.update(trip.id, { hero_image_url: file_url });
+      const updated = await ent.Trip.update(trip.id, { hero_image_url: file_url });
       onUpdate(updated);
     } catch (err) {
       console.error(err);

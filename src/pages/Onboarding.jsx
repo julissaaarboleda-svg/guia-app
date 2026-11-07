@@ -1,6 +1,7 @@
 import { useState } from "react";
 import ViaIntro from "../components/ViaIntro";
 import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check } from "lucide-react";
 
@@ -38,7 +39,7 @@ export default function Onboarding() {
     setError(null);
     try {
       const user = await base44.auth.me();
-      const existing = await base44.entities.UserPreferences.filter({ user_email: user.email });
+      const existing = await ent.UserPreferences.filter({ user_email: user.email });
       const data = {
         user_email: user.email,
         display_name: name || user.full_name || "Friend",
@@ -47,9 +48,9 @@ export default function Onboarding() {
         enabled_sections: Array.from(selected),
       };
       if (existing.length > 0) {
-        await base44.entities.UserPreferences.update(existing[0].id, data);
+        await ent.UserPreferences.update(existing[0].id, data);
       } else {
-        await base44.entities.UserPreferences.create(data);
+        await ent.UserPreferences.create(data);
       }
       window.location.href = "/";
     } catch (err) {

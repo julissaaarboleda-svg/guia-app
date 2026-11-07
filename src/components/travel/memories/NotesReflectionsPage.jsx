@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ArrowLeft, Plus, X, Check } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 
@@ -53,7 +54,7 @@ export default function NotesReflectionsPage({ trip, onUpdate, onBack }) {
     };
     const updated = [...(trip.journal_entries || []), newEntry];
     try {
-      const result = await base44.entities.Trip.update(trip.id, { journal_entries: updated });
+      const result = await ent.Trip.update(trip.id, { journal_entries: updated });
       onUpdate(result);
       setOpen(false);
     } catch (err) {
@@ -64,7 +65,7 @@ export default function NotesReflectionsPage({ trip, onUpdate, onBack }) {
   const removeEntry = async (id) => {
     const updated = (trip.journal_entries || []).filter((e) => e.id !== id);
     try {
-      const result = await base44.entities.Trip.update(trip.id, { journal_entries: updated });
+      const result = await ent.Trip.update(trip.id, { journal_entries: updated });
       onUpdate(result);
     } catch (err) {
       console.error("Failed to remove journal entry:", err);

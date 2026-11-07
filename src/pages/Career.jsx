@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 import DateRangePicker from "@/components/DateRangePicker";
 import { Trash2, Pencil, Briefcase, Star, Award, BookOpen, BadgeCheck, TrendingUp, FileText, Settings, Plus } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -47,8 +47,8 @@ export default function Career() {
 
   const load = async () => {
     const [e, cal] = await Promise.all([
-      base44.entities.CareerEntry.list("-start_date"),
-      base44.entities.PerformanceCalibration.list("-created_date"),
+      ent.CareerEntry.list("-start_date"),
+      ent.PerformanceCalibration.list("-created_date"),
     ]);
     setEntries(e);
     setCalibrations(cal);
@@ -57,7 +57,7 @@ export default function Career() {
   useEffect(() => { load(); }, []);
 
   const loadJobRatings = async (jobId) => {
-    const ratings = await base44.entities.JobRating.filter({ job_entry_id: jobId });
+    const ratings = await ent.JobRating.filter({ job_entry_id: jobId });
     setJobRatings(ratings);
   };
 
@@ -72,7 +72,7 @@ export default function Career() {
   const add = async () => {
     if (!title.trim()) return;
     const actualType = entryType === "achievement" ? achievementSubtype : entryType;
-    const entry = await base44.entities.CareerEntry.create({
+    const entry = await ent.CareerEntry.create({
       entry_type: actualType,
       title: title.trim(),
       company: company.trim() || undefined,
@@ -88,7 +88,7 @@ export default function Career() {
     });
     if (actualType === "job" && jobRatings.length > 0) {
       await Promise.all(jobRatings.map(r => 
-        base44.entities.JobRating.create({
+        ent.JobRating.create({
           job_entry_id: entry.id,
           calibration_name: r.calibration_name,
           rating: r.rating,
@@ -122,7 +122,7 @@ export default function Career() {
 
   const saveEdit = async () => {
     const actualType = entryType === "achievement" ? achievementSubtype : entryType;
-    await base44.entities.CareerEntry.update(editing, {
+    await ent.CareerEntry.update(editing, {
       entry_type: actualType,
       title: title.trim(),
       company: company.trim() || undefined,
@@ -137,11 +137,11 @@ export default function Career() {
       current,
     });
     if (actualType === "job") {
-      const existingRatings = await base44.entities.JobRating.filter({ job_entry_id: editing });
-      await Promise.all(existingRatings.map(r => base44.entities.JobRating.delete(r.id)));
+      const existingRatings = await ent.JobRating.filter({ job_entry_id: editing });
+      await Promise.all(existingRatings.map(r => ent.JobRating.delete(r.id)));
       if (jobRatings.length > 0) {
         await Promise.all(jobRatings.map(r => 
-          base44.entities.JobRating.create({
+          ent.JobRating.create({
             job_entry_id: editing,
             calibration_name: r.calibration_name,
             rating: r.rating,
@@ -157,7 +157,7 @@ export default function Career() {
   const cancelEdit = () => { resetForm(); setEditing(null); };
 
   const remove = async (id) => {
-    await base44.entities.CareerEntry.delete(id);
+    await ent.CareerEntry.delete(id);
     load();
   };
 

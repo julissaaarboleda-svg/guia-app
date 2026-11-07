@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 import { parseISO } from "date-fns";
 import ProjectDetail from "@/components/projects/ProjectDetail";
 import { Plus, ChevronRight, Briefcase, Trash2, Calendar } from "lucide-react";
@@ -51,7 +52,7 @@ export default function Projects() {
   const load = async () => {
     setLoading(true);
     try {
-      const data = await base44.entities.Project.list("-created_date");
+      const data = await ent.Project.list("-created_date");
       setProjects(data);
     } catch (err) {
       console.error("Failed to load projects:", err);
@@ -67,7 +68,7 @@ export default function Projects() {
 
   const addProject = async () => {
     if (!form.title) return;
-    const created = await base44.entities.Project.create({
+    const created = await ent.Project.create({
       ...form,
       description: form.description || "",
       target_date: form.target_date || "",
@@ -230,7 +231,7 @@ export default function Projects() {
                           const previous = projects;
                           setProjects((prev) => prev.filter((p) => p.id !== project.id));
                           try {
-                            await base44.entities.Project.delete(project.id);
+                            await ent.Project.delete(project.id);
                           } catch (err) {
                             console.error("Failed to delete project:", err);
                             setProjects(previous);

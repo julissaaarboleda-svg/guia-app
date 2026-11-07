@@ -6,6 +6,7 @@ const Size = ReactQuill.Quill.import("attributors/style/size");
 Size.whitelist = ["small", "12px", "14px", "16px", "18px", "large", "huge"];
 ReactQuill.Quill.register(Size, true);
 import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 import {
   Plus, Trash2, List, FileText, Check, ArrowLeft, Paperclip, Pencil,
   Folder as FolderIcon, Share2, Download, MoreHorizontal, MapPin, Navigation, X,
@@ -55,9 +56,9 @@ export default function Notes() {
   const load = async () => {
     setLoading(true);
     const [n, f, p] = await Promise.all([
-      base44.entities.Note.list("-updated_date"),
-      base44.entities.Folder.list("-created_date"),
-      base44.entities.SavedPlace.list("-updated_date"),
+      ent.Note.list("-updated_date"),
+      ent.Folder.list("-created_date"),
+      ent.SavedPlace.list("-updated_date"),
     ]);
     setNotes(n);
     setFolders(f);
@@ -68,7 +69,7 @@ export default function Notes() {
   useEffect(() => { load(); }, []);
 
   const createCollection = async (data) => {
-    const created = await base44.entities.Folder.create({
+    const created = await ent.Folder.create({
       name: data.name,
       icon_type: data.icon_type || "folder",
       emoji: data.emoji,
@@ -79,7 +80,7 @@ export default function Notes() {
   };
 
   const updateCollection = async (id, patch) => {
-    await base44.entities.Folder.update(id, patch);
+    await ent.Folder.update(id, patch);
     setFolders((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
     if (openCollection?.id === id) setOpenCollection((prev) => (prev ? { ...prev, ...patch } : prev));
   };
@@ -88,9 +89,9 @@ export default function Notes() {
     try {
       const folderNotes = notes.filter((n) => n.folder_id === id);
       await Promise.all(
-        folderNotes.map((n) => base44.entities.Note.update(n.id, { folder_id: null }))
+        folderNotes.map((n) => ent.Note.update(n.id, { folder_id: null }))
       );
-      await base44.entities.Folder.delete(id);
+      await ent.Folder.delete(id);
 
       setNotes((prev) => prev.map((n) => (n.folder_id === id ? { ...n, folder_id: null } : n)));
       setFolders((prev) => prev.filter((f) => f.id !== id));
@@ -106,7 +107,7 @@ export default function Notes() {
   const startNewNote = async (folderId, type) => {
     const note_type = type === "list" ? "list" : "text";
     const extra = note_type === "list" ? { list_items: [] } : {};
-    const n = await base44.entities.Note.create({ title: "", content: "", note_type, folder_id: folderId || null, ...extra });
+    const n = await ent.Note.create({ title: "", content: "", note_type, folder_id: folderId || null, ...extra });
     setNotes(prev => [n, ...prev]);
     setSelected(n);
     setEditingId(n.id);
@@ -117,13 +118,13 @@ export default function Notes() {
     const patch = type === "list" ? { note_type: "list", list_items: [], content: "" } : { note_type: "text", content: "", list_items: [] };
     setSelected({ ...selected, ...patch });
     setNotes(prev => prev.map(n => n.id === selected.id ? { ...n, ...patch } : n));
-    await base44.entities.Note.update(selected.id, patch);
+    await ent.Note.update(selected.id, patch);
   };
 
   const persistNote = async (note, showToast = false) => {
     const patch = { title: note.title, content: note.content, list_items: note.list_items, attachments: note.attachments || [] };
     setNotes(prev => prev.map(n => n.id === note.id ? { ...n, ...patch } : n));
-    await base44.entities.Note.update(note.id, patch);
+    await ent.Note.update(note.id, patch);
     if (showToast) toast({ title: "Note saved" });
   };
 
@@ -144,7 +145,7 @@ export default function Notes() {
     setNotes(prev => prev.filter(n => n.id !== id));
     if (selected?.id === id) setSelected(null);
     if (noteMenu?.id === id) setNoteMenu(null);
-    await base44.entities.Note.delete(id);
+    await ent.Note.delete(id);
   };
 
   const addListItem = async () => {
@@ -154,7 +155,7 @@ export default function Notes() {
     setSelected(updated);
     setNotes(prev => prev.map(n => n.id === selected.id ? { ...n, list_items: items } : n));
     setNewItemText("");
-    await base44.entities.Note.update(selected.id, { list_items: items });
+    await ent.Note.update(selected.id, { list_items: items });
     newItemRef.current?.focus();
   };
 
@@ -164,14 +165,14 @@ export default function Notes() {
     );
     setSelected({ ...selected, list_items: items });
     setNotes(prev => prev.map(n => n.id === selected.id ? { ...n, list_items: items } : n));
-    await base44.entities.Note.update(selected.id, { list_items: items });
+    await ent.Note.update(selected.id, { list_items: items });
   };
 
   const removeItem = async (idx) => {
     const items = (selected.list_items || []).filter((_, i) => i !== idx);
     setSelected({ ...selected, list_items: items });
     setNotes(prev => prev.map(n => n.id === selected.id ? { ...n, list_items: items } : n));
-    await base44.entities.Note.update(selected.id, { list_items: items });
+    await ent.Note.update(selected.id, { list_items: items });
   };
 
   const handleUpload = async (newAttachments) => {
@@ -179,7 +180,7 @@ export default function Notes() {
     const updated = [...(selected.attachments || []), ...newAttachments];
     setSelected({ ...selected, attachments: updated });
     setNotes(prev => prev.map(n => n.id === selected.id ? { ...n, attachments: updated } : n));
-    await base44.entities.Note.update(selected.id, { attachments: updated });
+    await ent.Note.update(selected.id, { attachments: updated });
     toast({ title: "Attachment saved", description: `${newAttachments.length} file${newAttachments.length > 1 ? "s" : ""} uploaded.` });
   };
 
@@ -187,21 +188,21 @@ export default function Notes() {
     const updated = (selected.attachments || []).filter((_, i) => i !== idx);
     setSelected({ ...selected, attachments: updated });
     setNotes(prev => prev.map(n => n.id === selected.id ? { ...n, attachments: updated } : n));
-    await base44.entities.Note.update(selected.id, { attachments: updated });
+    await ent.Note.update(selected.id, { attachments: updated });
   };
 
   const changeFolder = async (folderId) => {
     if (!selected) return;
     setSelected({ ...selected, folder_id: folderId || null });
     setNotes(prev => prev.map(n => n.id === selected.id ? { ...n, folder_id: folderId || null } : n));
-    await base44.entities.Note.update(selected.id, { folder_id: folderId || null });
+    await ent.Note.update(selected.id, { folder_id: folderId || null });
     setMoveNote(null);
     toast({ title: folderId ? "Moved to collection" : "Removed from collection" });
   };
 
   const moveNoteToFolder = async (noteId, folderId) => {
     setNotes(prev => prev.map(n => n.id === noteId ? { ...n, folder_id: folderId || null } : n));
-    await base44.entities.Note.update(noteId, { folder_id: folderId || null });
+    await ent.Note.update(noteId, { folder_id: folderId || null });
     setNoteMenu(null);
     toast({ title: folderId ? "Moved to collection" : "Removed from collection" });
   };
@@ -259,10 +260,10 @@ export default function Notes() {
     if (!placeForm?.name?.trim()) return;
     const patch = { name: placeForm.name.trim(), type: placeForm.type.trim(), address: placeForm.address.trim() };
     if (placeForm.id) {
-      await base44.entities.SavedPlace.update(placeForm.id, patch);
+      await ent.SavedPlace.update(placeForm.id, patch);
       setSavedPlaces(prev => prev.map(p => p.id === placeForm.id ? { ...p, ...patch } : p));
     } else {
-      const created = await base44.entities.SavedPlace.create(patch);
+      const created = await ent.SavedPlace.create(patch);
       setSavedPlaces(prev => [created, ...prev]);
     }
     setPlaceForm(null);
@@ -271,7 +272,7 @@ export default function Notes() {
   const deletePlace = async (id) => {
     setSavedPlaces(prev => prev.filter(p => p.id !== id));
     setPlaceMenu(null);
-    await base44.entities.SavedPlace.delete(id);
+    await ent.SavedPlace.delete(id);
   };
 
   const isList = selected?.note_type === "list";
@@ -291,7 +292,7 @@ export default function Notes() {
         (!selected.attachments || selected.attachments.length === 0);
       if (isBlank) {
         setNotes(prev => prev.filter(n => n.id !== selected.id));
-        base44.entities.Note.delete(selected.id).catch(() => {});
+        ent.Note.delete(selected.id).catch(() => {});
       } else if (!adding) {
         persistNote(selected, false);
       }
@@ -398,7 +399,7 @@ export default function Notes() {
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-muted-foreground">{checkedCount}/{totalCount} done</p>
                     {checkedCount > 0 && (
-                      <button onClick={async () => { const items = (selected.list_items || []).filter((i) => !i.checked); setSelected({ ...selected, list_items: items }); await base44.entities.Note.update(selected.id, { list_items: items }); }} className="text-xs text-muted-foreground hover:text-destructive transition-colors">Clear completed</button>
+                      <button onClick={async () => { const items = (selected.list_items || []).filter((i) => !i.checked); setSelected({ ...selected, list_items: items }); await ent.Note.update(selected.id, { list_items: items }); }} className="text-xs text-muted-foreground hover:text-destructive transition-colors">Clear completed</button>
                     )}
                   </div>
                 )}

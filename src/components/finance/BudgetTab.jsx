@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 import { ChevronLeft, ChevronRight, ChevronDown, Pencil, Trash2, X } from "lucide-react";
 import BudgetChart from "@/components/finance/BudgetChart";
 
@@ -33,10 +33,10 @@ export default function BudgetTab() {
 
   const load = async () => {
     const [allBuckets, allIncome, allBills, allSubs] = await Promise.all([
-      base44.entities.BudgetBucket.list("-created_date"),
-      base44.entities.MonthlyIncome.list("-created_date"),
-      base44.entities.FinanceItem.filter({ type: "bill" }),
-      base44.entities.FinanceItem.filter({ type: "subscription" }),
+      ent.BudgetBucket.list("-created_date"),
+      ent.MonthlyIncome.list("-created_date"),
+      ent.FinanceItem.filter({ type: "bill" }),
+      ent.FinanceItem.filter({ type: "subscription" }),
     ]);
     const manualBuckets = allBuckets.filter(b => b.month === mk);
     const manualNames = manualBuckets.map(b => b.name?.toLowerCase().trim());
@@ -91,9 +91,9 @@ export default function BudgetTab() {
   const saveIncome = async () => {
     const amt = Number(incomeInput) || 0;
     if (income?.id) {
-      await base44.entities.MonthlyIncome.update(income.id, { amount: amt });
+      await ent.MonthlyIncome.update(income.id, { amount: amt });
     } else {
-      await base44.entities.MonthlyIncome.create({ amount: amt, month: mk });
+      await ent.MonthlyIncome.create({ amount: amt, month: mk });
     }
     setEditingIncome(false);
     load();
@@ -131,9 +131,9 @@ export default function BudgetTab() {
       month: mk,
     };
     if (editingId) {
-      await base44.entities.BudgetBucket.update(editingId, data);
+      await ent.BudgetBucket.update(editingId, data);
     } else {
-      await base44.entities.BudgetBucket.create(data);
+      await ent.BudgetBucket.create(data);
     }
     setShowForm(false);
     setEditingId(null);
@@ -141,7 +141,7 @@ export default function BudgetTab() {
   };
 
   const removeBucket = async (id) => {
-    await base44.entities.BudgetBucket.delete(id);
+    await ent.BudgetBucket.delete(id);
     load();
   };
 

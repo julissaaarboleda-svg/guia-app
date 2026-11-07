@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { searchCities, searchCountries } from "@/lib/cityData";
 import { parseISO, eachDayOfInterval, format } from "date-fns";
 import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 import { ArrowLeft, Edit2, Check, X, Trash2, Plane, Home, MapPin, DollarSign, Calendar, Heart, List, Info, Download, Plus, Trash, Clock, Upload, ImageIcon, Pencil, MoreVertical } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import FlightTimeline from "./FlightTimeline";
@@ -62,7 +63,7 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
     const load = async () => {
       try {
         const u = await base44.auth.me();
-        const p = await base44.entities.UserPreferences.filter({ user_email: u.email });
+        const p = await ent.UserPreferences.filter({ user_email: u.email });
         if (p.length > 0) setPrefs(p[0]);
       } catch {}
     };
@@ -105,7 +106,7 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
       }
     }
 
-    const updated = await base44.entities.Trip.update(trip.id, updateData);
+    const updated = await ent.Trip.update(trip.id, updateData);
     onUpdate(updated);
     setEditing(false);
   };
@@ -114,7 +115,7 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
     if (!confirm("Delete this trip?")) return;
     setDeletingTrip(true);
     try {
-      await base44.entities.Trip.delete(trip.id);
+      await ent.Trip.delete(trip.id);
       onBack();
     } catch (err) {
       console.error("Delete trip failed:", err);
@@ -469,7 +470,7 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
               </div>
               <div className="flex gap-2 mt-5">
                 <button onClick={async () => {
-                  const updated = await base44.entities.Trip.update(trip.id, { hero_image_url: photoUrl || "" });
+                  const updated = await ent.Trip.update(trip.id, { hero_image_url: photoUrl || "" });
                   onUpdate(updated);
                   setShowPhotoModal(false);
                 }} className="flex-1 flex items-center justify-center gap-1.5 bg-accent text-accent-foreground px-4 py-2.5 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">
@@ -576,27 +577,27 @@ export function DetailsTab({ trip, onUpdate }) {
       }
     }
 
-    const updated = await base44.entities.Trip.update(trip.id, updateData);
+    const updated = await ent.Trip.update(trip.id, updateData);
     onUpdate(updated);
     setEditingFlights(false);
   };
 
   const saveStays = async () => {
-    const updated = await base44.entities.Trip.update(trip.id, { stay_info: stayList });
+    const updated = await ent.Trip.update(trip.id, { stay_info: stayList });
     onUpdate(updated);
     setEditingStays(false);
   };
 
   const deleteStay = async (index) => {
     const updated = stayList.filter((_, i) => i !== index);
-    const saved = await base44.entities.Trip.update(trip.id, { stay_info: updated });
+    const saved = await ent.Trip.update(trip.id, { stay_info: updated });
     setStayList(updated);
     onUpdate(saved);
   };
 
   const clearFlights = async () => {
     if (!confirm("Clear all flight info?")) return;
-    const saved = await base44.entities.Trip.update(trip.id, { flights: [], flight_info: {} });
+    const saved = await ent.Trip.update(trip.id, { flights: [], flight_info: {} });
     onUpdate(saved);
   };
 

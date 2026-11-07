@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { ent } from "@/lib/freshEntities";
 import { Receipt, RefreshCw, PiggyBank, Landmark, TrendingUp, Sparkles, Lightbulb, Banknote } from "lucide-react";
 
 function monthKey(date) {
@@ -16,7 +17,7 @@ export default function FinanceSummary({ items, buckets, onNavigate, onAddFirst 
   const [retry, setRetry] = useState(0);
 
   useEffect(() => {
-    base44.entities.MonthlyIncome.filter({ month: monthKey(new Date()) }).then(res => {
+    ent.MonthlyIncome.filter({ month: monthKey(new Date()) }).then(res => {
       setIncome(res[0]?.amount || 0);
     }).catch(() => setIncome(0));
   }, []);
