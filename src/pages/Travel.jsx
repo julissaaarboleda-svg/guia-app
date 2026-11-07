@@ -201,7 +201,7 @@ export default function Travel() {
   const searchResults = q ? trips.filter(matches) : [];
 
   return (
-    <div className="max-w-[900px] mx-auto w-full">
+    <div className="max-w-[1200px] mx-auto w-full">
       {/* Page header — sticky, sized to match every other page's header */}
       <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm px-6 md:px-10 lg:px-14 pb-3 border-b border-border" style={{ paddingTop: "1rem" }}>
         <div className="flex items-center justify-between">
@@ -249,7 +249,7 @@ export default function Travel() {
             </button>
           </div>
         ) : q ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {searchResults.map((trip) => (
               <JourneyCard
                 key={trip.id}
@@ -283,8 +283,10 @@ export default function Travel() {
                     onCustomize={() => setShowCover(current)}
                     onEditTrip={() => editTrip(current)}
                   />
-                  <UpcomingEvent trip={current} onNavigate={(tab, date, add) => openTrip(current, tab, date, add)} />
-                  <JourneyProgress trip={current} onNavigate={(tab) => openTrip(current, tab)} />
+                  <div className="space-y-4 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-4 lg:items-stretch">
+                    <UpcomingEvent trip={current} onNavigate={(tab, date, add) => openTrip(current, tab, date, add)} />
+                    <JourneyProgress trip={current} onNavigate={(tab) => openTrip(current, tab)} />
+                  </div>
                   <KnowBeforeYouGo trip={current} know={knowData} loading={knowLoading} error={knowError} />
                 </>
               ) : (
@@ -294,7 +296,7 @@ export default function Travel() {
               )
             ) : (
               upcoming.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                   {upcoming.map((trip) => (
                     <JourneyCard
                       key={trip.id}
@@ -322,7 +324,7 @@ export default function Travel() {
                     </button>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {past.map((trip) => (
                     <PastJourneyCard
                       key={trip.id}

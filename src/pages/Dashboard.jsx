@@ -163,7 +163,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="px-6 md:px-10 lg:px-14 pb-5 md:pb-7 max-w-[900px] mx-auto w-full space-y-5" style={{ paddingTop: "1.25rem" }}>
+    <div className="px-6 md:px-10 lg:px-12 pb-5 md:pb-7 max-w-[1180px] mx-auto w-full space-y-5" style={{ paddingTop: "1.25rem" }}>
       <EditorialHero
         image={dailyImage}
         quote={dailyQuote}
@@ -174,7 +174,8 @@ export default function Dashboard() {
 
       <Greeting dateStr={dateStr} greeting={greeting} firstName={firstName} status={dailyStatus} />
 
-      <Reveal delay={0.06}>
+      <div className="space-y-5 lg:space-y-0 lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-x-8 lg:gap-y-6 lg:items-start">
+      <Reveal delay={0.06} className="lg:col-start-1 lg:row-start-1 min-w-0">
         {loaded ? (
           <TodaysFocus items={focus.items} total={focus.total} onComplete={completeFocus} />
         ) : (
@@ -199,18 +200,19 @@ export default function Dashboard() {
       </Reveal>
 
       {progress.length > 0 && (
-        <Reveal delay={0.08}>
+        <Reveal delay={0.08} className="lg:col-start-2 lg:row-start-1 min-w-0">
           <LifeProgress circles={progress} />
         </Reveal>
       )}
 
-      <Reveal delay={0.1}>
+      <Reveal delay={0.1} className={`lg:col-start-2 min-w-0 ${progress.length > 0 ? "lg:row-start-2" : "lg:row-start-1"}`}>
         <UpNext items={upNext} />
       </Reveal>
 
-      <Reveal delay={0.12}>
+      <Reveal delay={0.12} className="lg:col-start-1 lg:row-start-2 min-w-0">
         <RecentActivity items={activity} />
       </Reveal>
+      </div>
 
       {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
     </div>

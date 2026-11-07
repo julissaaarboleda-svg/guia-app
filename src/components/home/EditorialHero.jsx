@@ -18,7 +18,7 @@ export default function EditorialHero({ image, quote, mode, setMode, onUpload })
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-      className="relative w-full h-[210px] rounded-[24px]"
+      className="relative w-full h-[210px] lg:h-[240px] rounded-[24px]"
     >
       <div className="absolute inset-0 rounded-[24px] overflow-hidden bg-charcoal">
         {showPhoto && image && (

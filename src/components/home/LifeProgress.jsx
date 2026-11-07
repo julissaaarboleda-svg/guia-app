@@ -9,7 +9,7 @@ export default function LifeProgress({ circles }) {
   return (
     <section>
       <h2 className="font-heading text-[22px] text-foreground mb-2.5">Life Progress</h2>
-      <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+      <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 md:grid md:grid-cols-3 md:overflow-visible">
         {circles.map((c, i) => {
           const r = 24;
           const circ = 2 * Math.PI * r;
@@ -18,7 +18,7 @@ export default function LifeProgress({ circles }) {
             <button
               key={i}
               onClick={() => navigate(c.path)}
-              className="flex-shrink-0 w-[86px] flex flex-col items-center gap-1.5 py-2.5 px-1.5 rounded-xl border border-border/50 bg-card hover:border-olive/40 transition-colors"
+              className="flex-shrink-0 w-[86px] md:w-auto flex flex-col items-center gap-1.5 py-2.5 px-1.5 rounded-xl border border-border/50 bg-card hover:border-olive/40 transition-colors"
             >
               <div className="relative w-[60px] h-[60px]">
                 <svg width="60" height="60" className="-rotate-90">

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { Settings, LogOut, Home, Target, Briefcase, Building2, CreditCard, Plane, FolderOpen, FileText, HelpCircle, MessageCircle } from "lucide-react";
+import { Settings, LogOut, Home, Target, Briefcase, Building2, CreditCard, Plane, FolderOpen, FileText, MessageCircle } from "lucide-react";
 import FeedbackModal from "@/components/feedback/FeedbackModal";
 import BottomNav from "@/components/BottomNav";
 import GuiaHeader from "@/components/GuiaHeader";
@@ -136,7 +136,7 @@ export default function Layout() {
   return (
     <div className="flex h-screen bg-background">
       {/* Desktop sidebar */}
-      <div className="hidden md:flex flex-shrink-0">
+      <div className="hidden lg:flex flex-shrink-0">
         <SidebarContent />
       </div>
 
@@ -148,7 +148,7 @@ export default function Layout() {
         <GuiaHeader />
 
         <main className="flex-1 overflow-y-auto flex flex-col min-w-0">
-          <div className="flex flex-col shrink-0 min-h-full min-w-0 pb-36 md:pb-0">
+          <div className="flex flex-col shrink-0 min-h-full min-w-0 pb-36 lg:pb-0">
             <Outlet />
           </div>
         </main>
