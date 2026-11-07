@@ -163,7 +163,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="px-6 md:px-10 lg:px-12 pb-5 md:pb-7 max-w-[1180px] mx-auto w-full space-y-5" style={{ paddingTop: "1.25rem" }}>
+    <div className="px-6 md:px-10 lg:px-12 pb-5 md:pb-7 max-w-[1180px] 2xl:max-w-[1400px] mx-auto w-full space-y-5" style={{ paddingTop: "1.25rem" }}>
       <EditorialHero
         image={dailyImage}
         quote={dailyQuote}
@@ -174,7 +174,7 @@ export default function Dashboard() {
 
       <Greeting dateStr={dateStr} greeting={greeting} firstName={firstName} status={dailyStatus} />
 
-      <div className="space-y-5 lg:space-y-0 lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-x-8 lg:gap-y-6 lg:items-start">
+      <div className="space-y-5 lg:space-y-0 lg:grid lg:grid-cols-[minmax(0,1fr)_400px] 2xl:grid-cols-[minmax(0,1fr)_460px] lg:gap-x-8 lg:gap-y-6 lg:items-start">
       <Reveal delay={0.06} className="lg:col-start-1 lg:row-start-1 min-w-0">
         {loaded ? (
           <TodaysFocus items={focus.items} total={focus.total} onComplete={completeFocus} />

@@ -175,7 +175,7 @@ export default function Career() {
 
   return (
     <>
-      <div className="max-w-[1200px] mx-auto w-full">
+      <div className="max-w-[1200px] 2xl:max-w-[1400px] mx-auto w-full">
       <PageHeader
         title="Career"
         subtitle="Where you've been, where you're going."

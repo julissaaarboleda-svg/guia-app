@@ -463,7 +463,7 @@ export default function Goals() {
           const dueSoon = openTasks.filter(t => t.due_date).sort((a, b) => a.due_date.localeCompare(b.due_date)).slice(0, 4);
           const openGoalCount = activeGoals.length;
           return (
-            <div className="w-full max-w-2xl mx-auto px-8 py-10">
+            <div className="w-full max-w-3xl mx-auto px-8 py-10">
               <h2 className="font-heading text-[26px] text-foreground leading-tight">Overview</h2>
               <p className="font-heading italic text-[15px] text-muted-foreground mt-0.5">Pick a {activeTab === "goals" ? "goal" : "task"} on the left to see its details.</p>
               <div className="grid grid-cols-3 gap-3 mt-6">

@@ -15,7 +15,7 @@ export default function UpNext({ items }) {
       {items.length === 0 ? (
         <p className="text-[12px] text-muted-foreground font-body py-4 text-center flex-1 flex items-center justify-center">No upcoming commitments.</p>
       ) : (
-        <div className="flex gap-2.5 overflow-x-auto no-scrollbar snap-x snap-mandatory flex-1">
+        <div className="flex gap-2.5 overflow-x-auto no-scrollbar snap-x snap-mandatory flex-1 lg:grid lg:grid-cols-2 lg:overflow-visible lg:content-start [&>*:only-child]:lg:col-span-2">
           {items.map((it) => {
             const mod = getModule(it.module);
             const Icon = mod.Icon;
@@ -33,15 +33,15 @@ export default function UpNext({ items }) {
               <Link
                 key={it.id}
                 to={it.path}
-                className="snap-start flex-shrink-0 w-[170px] flex flex-col rounded-xl border border-border/40 bg-background/40 overflow-hidden hover:border-olive/40 transition-colors"
+                className="snap-start flex-shrink-0 w-[170px] lg:w-auto flex flex-col rounded-xl border border-border/40 bg-background/40 overflow-hidden hover:border-olive/40 transition-colors"
               >
                 {it.image ? (
-                  <div className="w-full h-[90px] flex-shrink-0">
+                  <div className="w-full h-[90px] lg:h-[120px] flex-shrink-0">
                     <img src={it.image} alt="" className="w-full h-full object-cover" />
                   </div>
                 ) : (
                   <div
-                    className="w-full h-[90px] flex-shrink-0 flex items-center justify-center"
+                    className="w-full h-[90px] lg:h-[120px] flex-shrink-0 flex items-center justify-center"
                     style={{ backgroundColor: it.accentColor ? `${it.accentColor}1F` : `${mod.color}14` }}
                   >
                     <Icon className="w-11 h-11" style={{ color: it.accentColor || mod.color }} strokeWidth={1.5} />

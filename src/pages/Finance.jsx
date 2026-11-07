@@ -254,7 +254,7 @@ export default function Finance() {
 
   return (
     <>
-      <div className="max-w-[1200px] mx-auto w-full">
+      <div className="max-w-[1200px] 2xl:max-w-[1400px] mx-auto w-full">
       <PageHeader
         title="Finance"
         subtitle="Your financial picture, at a glance."

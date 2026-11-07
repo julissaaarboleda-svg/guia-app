@@ -201,9 +201,10 @@ export default function Travel() {
   const searchResults = q ? trips.filter(matches) : [];
 
   return (
-    <div className="max-w-[1200px] mx-auto w-full">
+    <div className="max-w-[1200px] 2xl:max-w-[1400px] mx-auto w-full">
       {/* Page header — sticky, sized to match every other page's header */}
-      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm px-6 md:px-10 lg:px-14 pb-3 border-b border-border" style={{ paddingTop: "1rem" }}>
+      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm" style={{ paddingTop: "1rem" }}>
+       <div className="px-6 md:px-10 lg:px-14 pb-3">
         <div className="flex items-center justify-between">
           <h1 className="font-heading text-[30px] leading-tight text-foreground font-bold truncate">Journeys</h1>
           <div className="flex items-center gap-1">
@@ -232,9 +233,11 @@ export default function Travel() {
             />
           </div>
         )}
+       </div>
+       <div className="px-6 md:px-10 lg:px-14"><div className="h-px bg-border" /></div>
       </div>
 
-      <div className="px-6 md:px-10 lg:px-14 pb-10 space-y-4">
+      <div className="px-6 md:px-10 lg:px-14 pt-4 pb-10 space-y-4">
         {trips.length === 0 ? (
           <div className="text-center py-20">
             <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mx-auto mb-4">
