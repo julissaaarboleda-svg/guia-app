@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { ArrowLeft, Upload, Trash2, Plus, X } from "lucide-react";
+import { format, parseISO } from "date-fns";
 import { visibleMedia } from "@/lib/memoryUtils";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
 
-export default function PhotosVideosPage({ trip, onUpdate, onBack }) {
+export default function PhotosVideosPage({ trip, onUpdate, onBack, embedded, defaultDate }) {
   const media = visibleMedia(trip);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
@@ -20,6 +21,14 @@ export default function PhotosVideosPage({ trip, onUpdate, onBack }) {
   // That's what let a newly-created empty album disappear before — nothing
   // was actually saved until a photo happened to use that name.
   const albums = [...new Set([...(trip.memory_albums || []), ...media.map((m) => m.album).filter(Boolean)])];
+
+  const dayOptions = (trip.itinerary || [])
+    .filter((d) => d.date)
+    .map((d) => ({ date: d.date, label: format(parseISO(d.date), "EEE, MMM d") }));
+  const setDateFor = async (idx, date) => {
+    const updated = media.map((m, i) => (i === idx ? { ...m, date } : m));
+    try { await persist(updated); } catch (err) { console.error("Failed to set day:", err); }
+  };
 
   const persist = async (updated) => {
     const result = await ent.Trip.update(trip.id, { memory_media: updated });
@@ -56,6 +65,7 @@ export default function PhotosVideosPage({ trip, onUpdate, onBack }) {
           favorited: false,
           album: filterAlbum !== "all" ? filterAlbum : null,
           tags: [],
+          date: defaultDate || "",
         },
       ];
       await persist(updated);
@@ -147,12 +157,14 @@ export default function PhotosVideosPage({ trip, onUpdate, onBack }) {
 
   return (
     <div className="p-4 space-y-3">
-      <button onClick={onBack} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="w-4 h-4" /> Back
-      </button>
+      {!embedded && (
+        <button onClick={onBack} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="w-4 h-4" /> Back
+        </button>
+      )}
       <div className="flex items-center justify-between">
-        <h2 className="font-heading text-lg text-foreground">Photos & Videos</h2>
-        <label className={`flex items-center gap-1.5 text-xs font-medium bg-accent text-accent-foreground px-3 py-1.5 rounded-full transition-opacity ${uploading ? "opacity-60 cursor-wait" : "cursor-pointer hover:opacity-90"}`}>
+        <h2 className={embedded ? "hidden" : "font-heading text-lg text-foreground"}>Photos & Videos</h2>
+        <label className={`ml-auto flex items-center gap-1.5 text-xs font-medium bg-accent text-accent-foreground px-3 py-1.5 rounded-full transition-opacity ${uploading ? "opacity-60 cursor-wait" : "cursor-pointer hover:opacity-90"}`}>
           <Upload className="w-3.5 h-3.5" /> {uploading ? "Uploading…" : "Add photo"}
           <input type="file" accept="image/*,image/heic,image/heif,.heic,.heif" className="hidden" onChange={upload} disabled={uploading} />
         </label>
@@ -235,6 +247,20 @@ export default function PhotosVideosPage({ trip, onUpdate, onBack }) {
                 <video src={editing.url} className="w-full h-full object-cover" controls />
               )}
             </div>
+
+            {dayOptions.length > 0 && (
+              <>
+                <p className="text-xs text-muted-foreground mb-1.5">Day</p>
+                <select
+                  value={editing.date || ""}
+                  onChange={(e) => setDateFor(editingIdx, e.target.value)}
+                  className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:border-accent mb-4"
+                >
+                  <option value="">No day</option>
+                  {dayOptions.map((o) => <option key={o.date} value={o.date}>{o.label}</option>)}
+                </select>
+              </>
+            )}
 
             <p className="text-xs text-muted-foreground mb-1.5">Album</p>
             <div className="flex flex-wrap gap-1.5 mb-4">

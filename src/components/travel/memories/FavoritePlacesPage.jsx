@@ -2,7 +2,7 @@ import { ArrowLeft, Trash2 } from "lucide-react";
 import { visiblePlaces } from "@/lib/memoryUtils";
 import { ent } from "@/lib/freshEntities";
 
-export default function FavoritePlacesPage({ trip, onUpdate, onBack }) {
+export default function FavoritePlacesPage({ trip, onUpdate, onBack, embedded }) {
   const places = visiblePlaces(trip);
 
   const removePlace = async (id) => {
@@ -17,12 +17,14 @@ export default function FavoritePlacesPage({ trip, onUpdate, onBack }) {
 
   return (
     <div className="p-4 space-y-3">
-      <button onClick={onBack} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="w-4 h-4" /> Back
-      </button>
-      <h2 className="font-heading text-lg text-foreground">Favorite Places</h2>
+      {!embedded && (
+        <button onClick={onBack} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="w-4 h-4" /> Back
+        </button>
+      )}
+      {!embedded && <h2 className="font-heading text-lg text-foreground">Favorite Places</h2>}
       {places.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">No places saved yet.</p>
+        <p className="text-sm text-muted-foreground py-8 text-center">No places saved yet. Tap “Save to memories” on a place in Explore.</p>
       ) : (
         <div className="space-y-2">
           {places.map((p) => (

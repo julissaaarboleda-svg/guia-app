@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowLeft, Plus, X, Check } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { base44 } from "@/api/base44Client";
@@ -10,7 +10,7 @@ function stripHtml(html) {
   return (html || "").replace(/<[^>]*>/g, "").trim();
 }
 
-export default function NotesReflectionsPage({ trip, onUpdate, onBack }) {
+export default function NotesReflectionsPage({ trip, onUpdate, onBack, embedded, autoOpen, initialDay }) {
   const entries = (trip.journal_entries || []).slice().sort((a, b) => (a.date || "").localeCompare(b.date || ""));
   const [open, setOpen] = useState(false);
   const [day, setDay] = useState("");
@@ -23,11 +23,16 @@ export default function NotesReflectionsPage({ trip, onUpdate, onBack }) {
     .filter((o) => o.date);
 
   const openForm = () => {
-    setDay(dayOptions[0]?.date || "");
+    setDay(dayOptions.find((o) => o.date === initialDay)?.date || dayOptions[0]?.date || "");
     setNote("");
     setPhotoUrl("");
     setOpen(true);
   };
+
+  useEffect(() => {
+    if (autoOpen && dayOptions.length > 0) openForm();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const uploadPhoto = async (e) => {
     const file = e.target.files?.[0];
@@ -74,17 +79,19 @@ export default function NotesReflectionsPage({ trip, onUpdate, onBack }) {
 
   return (
     <div className="p-4 space-y-4">
-      <button onClick={onBack} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="w-4 h-4" /> Back
-      </button>
+      {!embedded && (
+        <button onClick={onBack} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="w-4 h-4" /> Back
+        </button>
+      )}
       <div className="flex items-center justify-between">
-        <h2 className="font-heading text-lg text-foreground">Notes & Reflections</h2>
+        <h2 className={embedded ? "hidden" : "font-heading text-lg text-foreground"}>Notes & Reflections</h2>
         {dayOptions.length > 0 && (
           <button
             onClick={openForm}
-            className="inline-flex items-center gap-1 text-xs font-medium bg-accent text-accent-foreground px-3 py-1.5 rounded-full hover:opacity-90 transition-opacity"
+            className="ml-auto inline-flex items-center gap-1 text-xs font-medium bg-accent text-accent-foreground px-3 py-1.5 rounded-full hover:opacity-90 transition-opacity"
           >
-            <Plus className="w-3.5 h-3.5" /> Add entry
+            <Plus className="w-3.5 h-3.5" /> Add note
           </button>
         )}
       </div>

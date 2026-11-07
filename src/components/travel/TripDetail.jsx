@@ -151,8 +151,6 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
 
   const orderedCities = trip.cities || [];
 
-  const onMemoriesTab = tab === "Recap";
-
   return (
     <div className="min-h-screen bg-background">
       {deletingTrip && (
@@ -168,7 +166,6 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
           <div className="flex items-center justify-between" style={{ paddingTop: '8px' }}>
             <button onClick={onBack} className="flex items-center gap-1.5 p-2 -ml-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors">
               <ArrowLeft className="w-5 h-5" />
-              {onMemoriesTab && <span className="font-body text-sm">Back</span>}
             </button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -193,7 +190,7 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
           {/* Cover photo + title + status + route + metadata pills — hidden on
               the Memories tab, since MemoriesCover already shows the photo,
               title, and trip stats. Showing both was redundant. */}
-          {!onMemoriesTab && (
+          {(
             <>
               <button
                 onClick={() => { setPhotoUrl(trip.hero_image_url || ""); setShowPhotoModal(true); }}
