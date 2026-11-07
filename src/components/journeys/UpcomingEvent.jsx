@@ -35,9 +35,9 @@ function nextStep(trip) {
   const acts = (trip.itinerary || []).flatMap((d) => d.activities || []);
   const hasFlight = (trip.flights || []).length > 0 || acts.some((a) => a.departure?.city || a.arrival?.city || getActivityType(a).key === "flight");
   const hasStay = (trip.stay_info || []).length > 0 || acts.some((a) => getActivityType(a).key === "hotel");
-  if (!hasFlight) return { Icon: Plane, title: "Add your flights", sub: "Then stays and activities", cta: "Add flight", tab: "Itinerary" };
-  if (!hasStay) return { Icon: BedDouble, title: "Add where you're staying", sub: "Check-in and check-out", cta: "Add stay", tab: "Itinerary" };
-  if (acts.filter((a) => getActivityType(a).key === "activity" || getActivityType(a).key === "restaurant").length === 0) return { Icon: CalendarClock, title: "Plan your first day", sub: "Activities and reservations", cta: "Open itinerary", tab: "Itinerary" };
+  if (!hasFlight) return { Icon: Plane, title: "Add your flights", sub: "Then stays and activities", cta: "Add flight", tab: "Itinerary", add: "flight" };
+  if (!hasStay) return { Icon: BedDouble, title: "Add where you're staying", sub: "Check-in and check-out", cta: "Add stay", tab: "Itinerary", add: "hotel" };
+  if (acts.filter((a) => getActivityType(a).key === "activity" || getActivityType(a).key === "restaurant").length === 0) return { Icon: CalendarClock, title: "Plan your first day", sub: "Activities and reservations", cta: "Add activity", tab: "Itinerary", add: "activity" };
   if (!trip.budget_target) return { Icon: Wallet, title: "Set a budget", sub: "Know what you're aiming for", cta: "Set budget", tab: "Budget" };
   if (!(trip.packing_items || []).length) return { Icon: Luggage, title: "Build your packing list", sub: "Based on the forecast", cta: "Open packing", tab: "Packing" };
   return null;
@@ -90,7 +90,7 @@ export default function UpcomingEvent({ trip, onNavigate }) {
   if (events.length === 0) {
     const step = nextStep(trip);
     if (!step) return null;
-    const { Icon, title, sub, cta, tab } = step;
+    const { Icon, title, sub, cta, tab, add } = step;
     return (
       <section>
         <h2 className="font-heading text-lg text-foreground font-semibold leading-tight mb-3">Next up</h2>
@@ -102,7 +102,7 @@ export default function UpcomingEvent({ trip, onNavigate }) {
             <p className="font-body text-[14px] text-foreground font-medium leading-tight">{title}</p>
             <p className="font-body text-[12px] text-muted-foreground mt-0.5">{sub}</p>
           </div>
-          <button onClick={() => onNavigate(tab)} className="bg-[#A7773F] text-[#F7F3EC] font-body text-[12px] font-medium rounded-full px-4 py-2 flex-shrink-0">{cta}</button>
+          <button onClick={() => onNavigate(tab, null, add)} className="bg-[#A7773F] text-[#F7F3EC] font-body text-[12px] font-medium rounded-full px-4 py-2 flex-shrink-0">{cta}</button>
         </div>
       </section>
     );

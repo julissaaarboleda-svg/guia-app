@@ -30,10 +30,10 @@ export default function DateStrip({ days, activeIndex, onSelect, onAddDay }) {
       {onAddDay && (
         <button
           onClick={onAddDay}
-          className="flex-shrink-0 w-[58px] py-2 rounded-xl border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-ring/40 transition-colors flex flex-col items-center justify-center"
+          className="flex-shrink-0 px-3 py-2 rounded-xl border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-ring/40 transition-colors flex items-center justify-center gap-1 font-body text-[13px] font-medium"
           aria-label="Add day"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-3.5 h-3.5" /> Day
         </button>
       )}
       <div className="flex-shrink-0 w-9 flex items-center justify-center text-muted-foreground/50">

@@ -3,7 +3,7 @@ import { searchCities, searchCountries } from "@/lib/cityData";
 import { parseISO, eachDayOfInterval, format } from "date-fns";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { ArrowLeft, Edit2, Check, X, Trash2, MapPin, Calendar, Download, Plus, Clock, Upload, ImageIcon, MoreVertical } from "lucide-react";
+import { ArrowLeft, Edit2, Check, X, Trash2, Download, Plus, Upload, ImageIcon, MoreVertical } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import SavedTab from "./saved/SavedTab";
 import PackingTab from "./PackingTab";
@@ -30,7 +30,7 @@ const statusColors = {
   completed: "bg-secondary text-muted-foreground border-border",
 };
 
-export default function TripDetail({ trip, onBack, onUpdate, initialTab, initialEditOpen, initialDate }) {
+export default function TripDetail({ trip, onBack, onUpdate, initialTab, initialEditOpen, initialDate, initialAdd }) {
   const [tab, setTab] = useState(initialTab && TABS.some(t => t.id === initialTab) ? initialTab : "Itinerary");
   const [editing, setEditing] = useState(!!initialEditOpen);
   const [citySuggestions, setCitySuggestions] = useState([]);
@@ -197,7 +197,7 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
             <>
               <button
                 onClick={() => { setPhotoUrl(trip.hero_image_url || ""); setShowPhotoModal(true); }}
-                className="relative block w-full h-[210px] rounded-2xl overflow-hidden mt-2 text-left"
+                className="relative block w-full h-[130px] rounded-2xl overflow-hidden mt-2 text-left"
                 aria-label="Change cover photo"
               >
                 {trip.hero_image_url ? (
@@ -208,51 +208,22 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
                   </div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-black/5" />
-                <div className="absolute left-4 right-4 bottom-4">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    {trip.start_date && (
-                      <span className="inline-block font-body text-[9px] px-2.5 py-1 rounded-full" style={{ background: "#A7773F", color: "#F7F3EC" }}>
-                        {format(parseISO(trip.start_date), "MMM d")}{trip.end_date ? ` – ${format(parseISO(trip.end_date), "d")}` : ""}
-                      </span>
-                    )}
-                    <span className="inline-block font-body text-[9px] px-2.5 py-1 rounded-full bg-white/20 text-white capitalize backdrop-blur-sm">
-                      {trip.status || "planning"}
-                    </span>
-                  </div>
+                <div className="absolute left-4 right-4 bottom-3">
                   <p className="font-heading text-xl text-white font-semibold leading-tight truncate">
                     {trip.flag_emoji && <span className="mr-1">{trip.flag_emoji}</span>}
                     {trip.title}
                   </p>
-                  {(orderedCities.length > 0 || trip.country) && (
-                    <p className="font-body text-[11px] text-white/75 mt-1 truncate">
-                      {(orderedCities.length > 0 ? orderedCities : [trip.country]).filter(Boolean).join(" → ")}
-                    </p>
-                  )}
+                  <p className="font-body text-[11px] text-white/80 mt-0.5 truncate">
+                    {[
+                      (orderedCities.length > 0 ? orderedCities : [trip.country]).filter(Boolean).join(" → "),
+                      trip.start_date && `${format(parseISO(trip.start_date), "MMM d")}${trip.end_date ? ` – ${format(parseISO(trip.end_date), "d")}` : ""}`,
+                      tripDays && `${tripDays} days`,
+                      daysUntil > 0 && `${daysUntil} days away`,
+                    ].filter(Boolean).join(" · ")}
+                  </p>
                 </div>
               </button>
 
-              {(daysUntil > 0 || tripDays || trip.cities?.length > 0) && (
-                <div className="flex items-center gap-2 flex-wrap mt-3">
-                  {daysUntil > 0 && (
-                    <span className="inline-flex items-center gap-1.5 font-body text-[12px] text-foreground bg-secondary px-3 py-1.5 rounded-full">
-                      <Calendar className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.8} />
-                      {daysUntil} days away
-                    </span>
-                  )}
-                  {tripDays && (
-                    <span className="inline-flex items-center gap-1.5 font-body text-[12px] text-foreground bg-secondary px-3 py-1.5 rounded-full">
-                      <Clock className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.8} />
-                      {tripDays} days long
-                    </span>
-                  )}
-                  {trip.cities?.length > 0 && (
-                    <span className="inline-flex items-center gap-1.5 font-body text-[12px] text-foreground bg-secondary px-3 py-1.5 rounded-full">
-                      <MapPin className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.8} />
-                      {trip.cities.length} {trip.cities.length === 1 ? "city" : "cities"}
-                    </span>
-                  )}
-                </div>
-              )}
             </>
           )}
         </div>
@@ -500,7 +471,7 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
 
         {/* Tab content */}
         <div className="pt-5">
-          {tab === "Itinerary" && <ItineraryTab trip={trip} onUpdate={onUpdate} cityOrder={orderedCities} initialDate={initialDate} />}
+          {tab === "Itinerary" && <ItineraryTab trip={trip} onUpdate={onUpdate} cityOrder={orderedCities} initialDate={initialDate} initialAdd={initialAdd} />}
 
           {tab === "Packing" && <PackingTab trip={trip} onUpdate={onUpdate} />}
 

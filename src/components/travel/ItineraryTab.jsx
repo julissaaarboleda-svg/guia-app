@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { Edit2, Check, X, Plus, Trash, Calendar, MapPin, Star } from "lucide-react";
+import { Edit2, Check, X, Plus, Trash, Calendar, MapPin, Star, MoreVertical, FileText } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import { parseISO, format, addDays } from "date-fns";
@@ -9,7 +10,7 @@ import ActivityModal from "./ActivityModal";
 import DateStrip from "./itinerary/DateStrip";
 import TimelineCard from "./itinerary/TimelineCard";
 import AddItemSheet from "./itinerary/AddItemSheet";
-import { ADD_TYPE_BY_KEY, formatTime } from "./itinerary/activityTypes";
+import { ADD_TYPES, ADD_TYPE_BY_KEY, formatTime } from "./itinerary/activityTypes";
 import { toast } from "sonner";
 import { savePlaceToMemories, categoryFromActivity } from "@/lib/memoryUtils";
 import DateInput from "@/components/DateInput";
@@ -74,7 +75,7 @@ function todayIndex(itinerary, preferredDate) {
   return idx >= 0 ? idx : 0;
 }
 
-export default function ItineraryTab({ trip, onUpdate, cityOrder, initialDate }) {
+export default function ItineraryTab({ trip, onUpdate, cityOrder, initialDate, initialAdd }) {
   const [itinerary, setItinerary] = useState(trip.itinerary || []);
   const [activeIdx, setActiveIdx] = useState(() => todayIndex(trip.itinerary || [], initialDate));
   const [dayView, setDayView] = useState("schedule"); // "schedule" | "notes"
@@ -295,6 +296,11 @@ export default function ItineraryTab({ trip, onUpdate, cityOrder, initialDate })
     setActivityModal({ open: true, dayIndex: activeIdx, actIndex: null, activity: preset });
   };
 
+  useEffect(() => {
+    if (initialAdd && ADD_TYPE_BY_KEY[initialAdd] && (itinerary || []).length > 0) pickAddType(initialAdd);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleImport = async (file) => {
     setImporting(true);
     try {
@@ -508,13 +514,6 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="font-heading text-lg text-foreground">Itinerary</h3>
-        <button onClick={addDay} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
-          <Plus className="w-3.5 h-3.5" /> Day
-        </button>
-      </div>
-
       <DateStrip days={itinerary} activeIndex={activeIdx} onSelect={setActiveIdx} onAddDay={addDay} />
 
       <div className="pt-1">
@@ -529,22 +528,21 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
               </p>
             )}
           </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <button
-              onClick={() => setDayEdit({ open: true, index: activeIdx, title: day?.title || "", description: day?.description || "", date: day?.date || "", city: day?.city || "" })}
-              className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
-              aria-label="Edit day"
-            >
-              <Edit2 className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => deleteDay(activeIdx)}
-              className="p-2 text-muted-foreground/60 hover:text-destructive hover:bg-secondary rounded-lg transition-colors"
-              aria-label="Delete day"
-            >
-              <Trash className="w-4 h-4" />
-            </button>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-full transition-colors flex-shrink-0" aria-label="Day actions">
+                <MoreVertical className="w-5 h-5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44 rounded-lg">
+              <DropdownMenuItem onClick={() => setDayEdit({ open: true, index: activeIdx, title: day?.title || "", description: day?.description || "", date: day?.date || "", city: day?.city || "" })} className="gap-2 cursor-pointer">
+                <Edit2 className="w-4 h-4" /> Edit day
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => deleteDay(activeIdx)} className="gap-2 cursor-pointer text-destructive focus:text-destructive">
+                <Trash className="w-4 h-4" /> Delete day
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         {day?.title && (
           <span className="inline-block font-body text-[11px] font-semibold tracking-wide uppercase px-2.5 py-1 rounded-full bg-accent/15 text-accent mt-1.5">
@@ -602,17 +600,31 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
               ))}
             </div>
           ) : (
-            <div className="bg-card border border-dashed border-border rounded-xl p-6 text-center">
-              <p className="font-body text-sm text-muted-foreground">Nothing planned yet for this day.</p>
+            <div className="bg-card border border-dashed border-border rounded-2xl p-5 text-center">
+              <p className="font-heading text-base text-foreground mb-3">Start this day</p>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {ADD_TYPES.filter((t) => t.key !== "note").map(({ key, label, Icon }) => (
+                  <button key={key} onClick={() => pickAddType(key)} className="inline-flex items-center gap-1.5 bg-[#F0E6D6] text-[#8B6B3E] rounded-full px-3.5 py-2 text-[13px] font-medium">
+                    <Icon className="w-3.5 h-3.5" strokeWidth={1.8} /> {label}
+                  </button>
+                ))}
+              </div>
+              <label className={`inline-flex items-center gap-1.5 mt-3 text-[12px] text-muted-foreground ${importing ? "opacity-60" : "cursor-pointer hover:text-foreground"}`}>
+                <FileText className="w-3.5 h-3.5" /> {importing ? "Reading your file…" : "or import from an email or PDF"}
+                <input type="file" className="hidden" disabled={importing} accept=".pdf,.txt,.doc,.docx,.html,.htm,.csv,.json,image/*"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImport(f); e.target.value = ""; }} />
+              </label>
             </div>
           )}
 
-          <button
-            onClick={() => setAddItemOpen(true)}
-            className="mt-3 w-full flex items-center justify-center gap-1.5 py-3 rounded-xl border border-border text-foreground text-sm font-medium hover:bg-secondary/60 transition-colors"
-          >
-            <Plus className="w-4 h-4" /> Add Item
-          </button>
+          {day?.activities && day.activities.length > 0 && (
+            <button
+              onClick={() => setAddItemOpen(true)}
+              className="mt-3 w-full flex items-center justify-center gap-1.5 py-3 rounded-xl border border-border text-foreground text-sm font-medium hover:bg-secondary/60 transition-colors"
+            >
+              <Plus className="w-4 h-4" /> Add item
+            </button>
+          )}
         </div>
       )}
 

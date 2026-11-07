@@ -21,6 +21,7 @@ export default function Travel() {
   const [selected, setSelected] = useState(null);
   const [selectedTab, setSelectedTab] = useState("Overview");
   const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedAdd, setSelectedAdd] = useState(null);
   const [autoEditTrip, setAutoEditTrip] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [showCover, setShowCover] = useState(null);
@@ -83,8 +84,9 @@ export default function Travel() {
     if (created && created.id) openTrip(created, "Itinerary");
   };
 
-  const openTrip = (trip, tab = "Itinerary", date = null) => {
+  const openTrip = (trip, tab = "Itinerary", date = null, add = null) => {
     setSelected(trip);
+    setSelectedAdd(add);
     setSelectedTab(tab);
     setSelectedDate(date);
   };
@@ -160,10 +162,12 @@ export default function Travel() {
         trip={selected}
         initialTab={selectedTab}
         initialDate={selectedDate}
+        initialAdd={selectedAdd}
         initialEditOpen={autoEditTrip}
         onBack={() => {
           setSelected(null);
           setSelectedDate(null);
+          setSelectedAdd(null);
           setAutoEditTrip(false);
           load();
         }}
@@ -279,7 +283,7 @@ export default function Travel() {
                     onCustomize={() => setShowCover(current)}
                     onEditTrip={() => editTrip(current)}
                   />
-                  <UpcomingEvent trip={current} onNavigate={(tab, date) => openTrip(current, tab, date)} />
+                  <UpcomingEvent trip={current} onNavigate={(tab, date, add) => openTrip(current, tab, date, add)} />
                   <JourneyProgress trip={current} onNavigate={(tab) => openTrip(current, tab)} />
                   <KnowBeforeYouGo trip={current} know={knowData} loading={knowLoading} error={knowError} />
                 </>
