@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { ChevronLeft, ChevronRight, ChevronDown, Wallet, Pencil, Trash2, X, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Pencil, Trash2, X } from "lucide-react";
 import BudgetChart from "@/components/finance/BudgetChart";
 
 function monthKey(date) {
@@ -163,8 +163,8 @@ export default function BudgetTab() {
         <div className="flex items-start justify-between gap-2 mb-2">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <p className="font-medium text-foreground">{b.name}</p>
-              {b._auto && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-foreground text-background font-body">From bill</span>}
+              <p className="font-heading text-base text-foreground">{b.name}</p>
+              {b._auto && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#F0E6D6] text-[#8B6B3E] font-body">From bill</span>}
             </div>
             {b.category && (
               <p className="text-xs text-muted-foreground">
@@ -173,7 +173,7 @@ export default function BudgetTab() {
             )}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="text-foreground font-semibold text-sm">{fmt(b.allocated_amount)}</span>
+            <span className="font-heading text-base text-foreground">{fmt(b.allocated_amount)}</span>
             {!b._auto && (
               <>
                 <button onClick={() => openEdit(b)} className="text-muted-foreground/60 hover:text-foreground transition-colors">
@@ -192,11 +192,11 @@ export default function BudgetTab() {
               <span className="text-sm text-foreground">{fmt(b.spent_amount)} of {fmt(b.allocated_amount)}</span>
             </div>
             <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-1.5">
-              <div className="h-full bg-accent rounded-full transition-all duration-300" style={{ width: `${pct}%` }} />
+              <div className={`h-full rounded-full transition-all duration-300 ${left < 0 ? "bg-destructive" : "bg-[#A7773F]"}`} style={{ width: `${pct}%` }} />
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">{Math.round(pct)}% used</span>
-              <span className="text-xs text-muted-foreground">{fmt(left)} left</span>
+              <span className={`text-xs ${left < 0 ? "text-destructive" : "text-[#A7773F]"}`}>{left < 0 ? `${fmt(-left)} over` : `${fmt(left)} left`}</span>
             </div>
           </>
         )}
@@ -206,6 +206,11 @@ export default function BudgetTab() {
 
   return (
     <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <h2 className="font-heading text-xl text-foreground">Budget</h2>
+        <button onClick={openAdd} className="bg-[#A7773F] text-[#F7F3EC] rounded-full font-heading text-[13px] px-4 py-1.5 hover:opacity-90 transition-opacity">+ Add bucket</button>
+      </div>
+
       {/* Month navigator */}
       <div className="flex items-center justify-center gap-4">
         <button onClick={() => changeMonth(-1)} className="p-2 text-muted-foreground hover:text-foreground transition-colors">
@@ -217,44 +222,32 @@ export default function BudgetTab() {
         </button>
       </div>
 
-      {/* Income card */}
+      {/* Income + allocation */}
       <div className="bg-card border border-border rounded-2xl p-4">
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Monthly Income</p>
-            {editingIncome ? (
-              <div className="flex items-center gap-2">
-                <input type="number" value={incomeInput} onChange={e => setIncomeInput(e.target.value)} autoFocus
-                  className="bg-secondary border border-input rounded-lg px-2 py-1 text-foreground text-lg font-bold outline-none focus:border-ring w-32" />
-                <button onClick={saveIncome} className="text-xs bg-[#A7773F] text-[#F7F3EC] px-3 py-1 rounded-full">Save</button>
-                <button onClick={() => { setEditingIncome(false); setIncomeInput(income?.amount?.toString() || ""); }} className="text-xs text-muted-foreground">Cancel</button>
-              </div>
-            ) : (
-              <p className="text-2xl font-bold text-foreground">{fmt(incomeAmount)}</p>
-            )}
-          </div>
+          <p className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground">Monthly income</p>
           {!editingIncome && (
-            <button onClick={() => setEditingIncome(true)} className="text-xs text-muted-foreground hover:text-foreground transition-colors">Edit</button>
+            <button onClick={() => setEditingIncome(true)} className="text-xs text-[#A7773F]">Edit</button>
           )}
         </div>
-      </div>
-
-      {/* Allocation summary */}
-      <div className="bg-card border border-border rounded-2xl p-4">
-        <div className="grid grid-cols-2 gap-4 mb-3">
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Allocated</p>
-            <p className="text-xl font-bold text-foreground">{fmt(allocated)}</p>
+        {editingIncome ? (
+          <div className="flex items-center gap-2 mt-1">
+            <input type="number" value={incomeInput} onChange={e => setIncomeInput(e.target.value)} autoFocus
+              className="bg-secondary border border-input rounded-lg px-2 py-1 text-foreground text-lg outline-none focus:border-ring w-32" />
+            <button onClick={saveIncome} className="text-xs bg-[#A7773F] text-[#F7F3EC] px-3 py-1 rounded-full">Save</button>
+            <button onClick={() => { setEditingIncome(false); setIncomeInput(income?.amount?.toString() || ""); }} className="text-xs text-muted-foreground">Cancel</button>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Remaining</p>
-            <p className={`text-xl font-bold ${remaining < 0 ? "text-destructive" : "text-foreground"}`}>{fmt(remaining)}</p>
-          </div>
+        ) : (
+          <p className="font-heading text-[30px] leading-tight text-foreground mt-0.5">{fmt(incomeAmount)}</p>
+        )}
+        <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-3 mb-2.5">
+          <div className="h-full bg-[#A7773F] rounded-full transition-all duration-300" style={{ width: `${allocPct}%` }} />
         </div>
-        <div className="h-2 bg-muted rounded-full overflow-hidden mb-2">
-          <div className="h-full bg-accent rounded-full transition-all duration-300" style={{ width: `${allocPct}%` }} />
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span><span className="font-heading text-[15px] text-foreground">{fmt(allocated)}</span> allocated</span>
+          <span><span className={`font-heading text-[15px] ${remaining < 0 ? "text-destructive" : "text-foreground"}`}>{fmt(remaining)}</span> {remaining < 0 ? "over" : "left"}</span>
         </div>
-        {fixedAllocated > 0 && <p className="text-xs text-muted-foreground">incl. {fmt(fixedAllocated)} fixed</p>}
+        {fixedAllocated > 0 && <p className="text-xs text-muted-foreground mt-1">incl. {fmt(fixedAllocated)} fixed</p>}
       </div>
 
       {/* Chart */}
@@ -265,7 +258,7 @@ export default function BudgetTab() {
         <div>
           <button type="button" onClick={() => setFixedCollapsed(c => !c)} className="flex items-center gap-1.5 w-full mb-2">
             {fixedCollapsed ? <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
-            <h3 className="font-heading text-sm text-foreground">Fixed Expenses</h3>
+            <h3 className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground">Fixed expenses</h3>
             <span className="text-xs text-muted-foreground ml-auto">{fmt(fixedAllocated)}</span>
           </button>
           {!fixedCollapsed && (
@@ -279,7 +272,7 @@ export default function BudgetTab() {
       {/* Variable expenses */}
       {variableBuckets.length > 0 && (
         <div>
-          <h3 className="font-heading text-sm text-foreground mb-3">Variable Expenses</h3>
+          <h3 className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground mb-3">Variable expenses</h3>
           <div className="space-y-3">
             {variableBuckets.map(b => <BucketCard key={b.id} b={b} />)}
           </div>
@@ -289,16 +282,10 @@ export default function BudgetTab() {
       {/* Empty state */}
       {buckets.length === 0 && (
         <div className="text-center py-10 text-muted-foreground bg-card border border-border rounded-2xl">
-          <Wallet className="w-8 h-8 mx-auto mb-2 text-muted-foreground/40" />
-          <p className="text-sm">No budget buckets yet.</p>
-          <p className="text-xs mt-1 px-6">Mark a bill as fixed + recurring to auto-populate your budget.</p>
+          <p className="font-heading text-base text-foreground">No budget buckets yet.</p>
+          <p className="text-xs mt-1 px-6">Mark a bill as fixed and recurring to fill your budget automatically, or add a bucket.</p>
         </div>
       )}
-
-      {/* Add bucket button */}
-      <button onClick={openAdd} className="w-full flex items-center justify-center gap-2 bg-[#A7773F] text-[#F7F3EC] py-2.5 rounded-full font-heading text-sm hover:opacity-90 transition-opacity">
-        <Plus className="w-4 h-4" /> Add budget bucket
-      </button>
 
       {/* Add/Edit form modal */}
       {showForm && (

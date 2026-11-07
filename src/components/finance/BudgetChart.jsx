@@ -2,14 +2,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
 const fmt = (n) => `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
-const SHADES = [
-  "hsl(var(--foreground))",
-  "hsl(var(--chart-2))",
-  "hsl(var(--chart-3))",
-  "hsl(var(--chart-4))",
-  "hsl(var(--chart-5))",
-  "hsl(var(--muted-foreground))",
-];
+const SHADES = ["#A7773F", "#D2B48C", "#3B2F27", "#8B6B3E", "#E3CDA4", "#6B5A4A"];
 const UNALLOCATED_COLOR = "hsl(var(--muted))";
 
 export default function BudgetChart({ buckets, income = 0 }) {
@@ -35,9 +28,9 @@ export default function BudgetChart({ buckets, income = 0 }) {
   if (chartData.length === 0) return null;
 
   return (
-    <div className="bg-card border border-border rounded-xl p-4">
+    <div className="bg-card border border-border rounded-2xl p-4">
       <div className="mb-3">
-        <p className="text-xs text-muted-foreground mb-0.5">Where your money goes</p>
+        <p className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground mb-0.5">Where your money goes</p>
         <p className="font-heading text-lg text-foreground">
           {fmt(totalAllocated)}
           {income > 0 && <span className="text-muted-foreground text-sm font-body"> of {fmt(income)}</span>}
@@ -68,19 +61,19 @@ export default function BudgetChart({ buckets, income = 0 }) {
             const pct = base > 0 ? Math.round((d.value / base) * 100) : 0;
             return (
               <div key={d.name} className="flex items-center gap-2 text-xs">
-                <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: SHADES[i % SHADES.length] }} />
+                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: SHADES[i % SHADES.length] }} />
                 <span className="text-foreground flex-1 truncate">{d.name}</span>
                 <span className="text-muted-foreground">{pct}%</span>
-                <span className="text-muted-foreground w-14 text-right">{fmt(d.value)}</span>
+                <span className="font-heading text-sm text-foreground w-14 text-right">{fmt(d.value)}</span>
               </div>
             );
           })}
           {unallocated > 0 && (
             <div className="flex items-center gap-2 text-xs">
-              <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: UNALLOCATED_COLOR }} />
+              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 border border-dashed border-muted-foreground/50" />
               <span className="text-muted-foreground flex-1">Unallocated</span>
               <span className="text-muted-foreground">{Math.round((unallocated / income) * 100)}%</span>
-              <span className="text-muted-foreground w-14 text-right">{fmt(unallocated)}</span>
+              <span className="font-heading text-sm text-muted-foreground w-14 text-right">{fmt(unallocated)}</span>
             </div>
           )}
         </div>
