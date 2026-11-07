@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment } from "react";
 import { base44 } from "@/api/base44Client";
-import { Trash2, Check, ChevronDown, ChevronUp, ChevronRight, Pencil, X } from "lucide-react";
+import { Trash2, ChevronDown, ChevronUp, ChevronRight, Pencil, X } from "lucide-react";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import ActionCircle from "@/components/ActionCircle";
@@ -36,7 +36,6 @@ function fmtDate(s) {
   return d ? d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
 }
 const TAB_LABELS = { summary: "Summary", credit_score: "Credit Scores", savings_goal: "Savings Goals", bill: "Bills", loan: "Loans", subscription: "Subscriptions", budget: "Budget" };
-const TAB_EMOJIS = { summary: "📈", credit_score: "📊", savings_goal: "🏦", bill: "📋", loan: "💳", subscription: "🔄", budget: "💰" };
 
 export default function Finance() {
   const [items, setItems] = useState([]);
