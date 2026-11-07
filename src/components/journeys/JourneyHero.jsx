@@ -1,5 +1,5 @@
-import { parseISO, differenceInCalendarDays } from "date-fns";
-import { Edit2, Calendar, MapPin, ImageIcon } from "lucide-react";
+import { parseISO, differenceInCalendarDays, format } from "date-fns";
+import { Edit2, MapPin, ImageIcon } from "lucide-react";
 
 export default function JourneyHero({ trip, onOpen, onCustomize, onEditTrip, generating }) {
   const daysRemaining = trip.start_date
@@ -17,7 +17,7 @@ export default function JourneyHero({ trip, onOpen, onCustomize, onEditTrip, gen
   return (
     <div
       onClick={onOpen}
-      className="relative w-full min-h-[280px] rounded-[24px] overflow-hidden cursor-pointer shadow-[0_20px_50px_-28px_rgba(0,0,0,0.4)]"
+      className="relative w-full min-h-[200px] rounded-[24px] overflow-hidden cursor-pointer shadow-[0_20px_50px_-28px_rgba(0,0,0,0.4)]"
     >
       {trip.hero_image_url ? (
         <img src={trip.hero_image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
@@ -75,36 +75,18 @@ export default function JourneyHero({ trip, onOpen, onCustomize, onEditTrip, gen
           </div>
         )}
 
-        {/* Days remaining line */}
-        <div className="flex items-center gap-1.5 mt-3">
-          <Calendar className="w-3.5 h-3.5 text-white/80 flex-shrink-0" strokeWidth={1.8} />
-          <span className="font-heading text-[17px] text-white font-semibold leading-none">
-            {daysRemaining !== null && daysRemaining > 0 ? daysRemaining : "—"}
-          </span>
-          <span className="font-body text-[12px] text-white/80">days remaining</span>
-        </div>
-
-        {/* Duration + cities summary */}
-        <p className="font-body text-[11.5px] text-white/70 mt-1">
-          {tripDuration ? `${tripDuration} day${tripDuration !== 1 ? "s" : ""}` : "—"}
-          {citiesCount > 0 && ` • ${citiesCount} cit${citiesCount !== 1 ? "ies" : "y"}`}
+        <p className="font-body text-[12px] text-white/80 mt-2">
+          {trip.start_date && format(parseISO(trip.start_date), "MMM d")}
+          {daysRemaining !== null && daysRemaining > 0 && ` · ${daysRemaining} days away`}
+          {tripDuration ? `${trip.start_date ? " · " : ""}${tripDuration} day${tripDuration !== 1 ? "s" : ""}` : ""}
         </p>
 
-        {/* Actions */}
-        <div className="flex items-center justify-between mt-3.5">
-          <span
-            onClick={(e) => { e.stopPropagation(); onOpen(); }}
-            className="bg-white text-foreground px-4 py-1.5 rounded-full text-[12px] font-medium hover:bg-white/90 transition-colors cursor-pointer shadow-sm"
-          >
-            Continue Planning
-          </span>
-          <span
-            onClick={(e) => { e.stopPropagation(); onOpen(); }}
-            className="font-body text-[12px] text-white/90 hover:text-white inline-flex items-center gap-1 cursor-pointer"
-          >
-            View Journey →
-          </span>
-        </div>
+        <span
+          onClick={(e) => { e.stopPropagation(); onOpen(); }}
+          className="inline-block mt-3 bg-white text-foreground px-4 py-1.5 rounded-full text-[12px] font-medium hover:bg-white/90 transition-colors cursor-pointer shadow-sm"
+        >
+          Continue planning
+        </span>
       </div>
     </div>
   );

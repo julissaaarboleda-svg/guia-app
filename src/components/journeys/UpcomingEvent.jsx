@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { parseISO, format } from "date-fns";
-import { ArrowRight, Plane, BedDouble, CalendarClock } from "lucide-react";
+import { ArrowRight, Plane, BedDouble, CalendarClock, Wallet, Luggage } from "lucide-react";
+import { getActivityType } from "@/components/travel/itinerary/activityTypes";
 
 function iconForEvent(text) {
   const t = (text || "").toLowerCase();
@@ -26,6 +27,20 @@ function formatTime12(t) {
   const period = h >= 12 ? "PM" : "AM";
   const hour12 = h % 12 === 0 ? 12 : h % 12;
   return `${hour12}:${String(m || 0).padStart(2, "0")} ${period}`;
+}
+
+
+// When nothing is scheduled yet, Next up suggests the next thing to do for the trip.
+function nextStep(trip) {
+  const acts = (trip.itinerary || []).flatMap((d) => d.activities || []);
+  const hasFlight = (trip.flights || []).length > 0 || acts.some((a) => a.departure?.city || a.arrival?.city || getActivityType(a).key === "flight");
+  const hasStay = (trip.stay_info || []).length > 0 || acts.some((a) => getActivityType(a).key === "hotel");
+  if (!hasFlight) return { Icon: Plane, title: "Add your flights", sub: "Then stays and activities", cta: "Add flight", tab: "Itinerary" };
+  if (!hasStay) return { Icon: BedDouble, title: "Add where you're staying", sub: "Check-in and check-out", cta: "Add stay", tab: "Itinerary" };
+  if (acts.filter((a) => getActivityType(a).key === "activity" || getActivityType(a).key === "restaurant").length === 0) return { Icon: CalendarClock, title: "Plan your first day", sub: "Activities and reservations", cta: "Open itinerary", tab: "Itinerary" };
+  if (!trip.budget_target) return { Icon: Wallet, title: "Set a budget", sub: "Know what you're aiming for", cta: "Set budget", tab: "Budget" };
+  if (!(trip.packing_items || []).length) return { Icon: Luggage, title: "Build your packing list", sub: "Based on the forecast", cta: "Open packing", tab: "Packing" };
+  return null;
 }
 
 export default function UpcomingEvent({ trip, onNavigate }) {
@@ -72,12 +87,27 @@ export default function UpcomingEvent({ trip, onNavigate }) {
     }
     if (events.length >= 3) break;
   }
-  if (events.length === 0 && trip.start_date) {
-    const d = parseISO(trip.start_date);
-    if (d >= startOfToday) events.push({ date: d, dateStr: trip.start_date, title: trip.title, subtitle: (trip.cities || [])[0] || trip.country });
+  if (events.length === 0) {
+    const step = nextStep(trip);
+    if (!step) return null;
+    const { Icon, title, sub, cta, tab } = step;
+    return (
+      <section>
+        <h2 className="font-heading text-lg text-foreground font-semibold leading-tight mb-3">Next up</h2>
+        <div className="bg-card border border-border/50 rounded-[18px] p-4 flex items-center gap-3">
+          <span className="w-10 h-10 rounded-full bg-[#F0E6D6] flex items-center justify-center flex-shrink-0">
+            <Icon className="w-4 h-4 text-[#8B6B3E]" strokeWidth={1.6} />
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="font-body text-[14px] text-foreground font-medium leading-tight">{title}</p>
+            <p className="font-body text-[12px] text-muted-foreground mt-0.5">{sub}</p>
+          </div>
+          <button onClick={() => onNavigate(tab)} className="bg-[#A7773F] text-[#F7F3EC] font-body text-[12px] font-medium rounded-full px-4 py-2 flex-shrink-0">{cta}</button>
+        </div>
+      </section>
+    );
   }
 
-  if (events.length === 0) return null;
 
   const shown = expanded ? events.slice(0, 3) : events.slice(0, 1);
 
