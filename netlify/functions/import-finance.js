@@ -4,7 +4,7 @@
 // a list of finance items sorted into Guía's categories. The file is sent to
 // Gemini for this one request and is NOT stored anywhere.
 //
-// Body: { filename, contentType, base64Data }
+// Body: { filename, contentType, base64Data, existing?: [{ name, amount, type }] }
 
 const { GoogleGenAI } = require("@google/genai");
 const { getStore, connectLambda } = require("@netlify/blobs");
@@ -29,13 +29,14 @@ Return ONLY JSON in this exact shape:
     {
       "name": "short, human name, e.g. Rent, Netflix, CenterPoint Energy",
       "amount": number or null,
-      "kind": "bill" | "subscription" | "loan" | "savings_goal" | "skip",
+      "kind": "bill" | "subscription" | "loan" | "credit_card" | "savings_goal" | "skip",
       "alternatives": ["other kinds that are plausible, from the same list, excluding kind"],
       "confidence": number between 0 and 1,
       "is_fixed": true if the amount is the same every period, else false,
       "billing_cycle": "monthly" | "weekly" | "quarterly" | "yearly" | "one_time",
       "due_day": day of month as a number or null,
       "category": "Housing" | "Utilities" | "Groceries" | "Dining" | "Transportation" | "Insurance" | "Healthcare" | "Personal" | "Entertainment" | "Other",
+      "matches_existing": "the exact name of an item from EXISTING ITEMS below if this is clearly the same obligation (for example a landlord or property-management payment matches an existing Rent item), otherwise null",
       "reason": "one short sentence on why you chose this kind"
     }
   ]
@@ -44,7 +45,8 @@ Return ONLY JSON in this exact shape:
 Rules:
 - "bill" = utilities, rent, insurance, phone, anything paid on a due date that is not a streaming or app subscription.
 - "subscription" = streaming, apps, memberships, software, anything that renews automatically.
-- "loan" = car, student, personal loans, credit card payments, mortgages. Use the monthly payment as amount.
+- "credit_card" = payments to credit card issuers or store cards. Use the payment amount.
+- "loan" = installment debt only: car, student, personal loans, mortgages, buy-now-pay-later. Use the monthly payment as amount.
 - "savings_goal" = transfers to savings or investment accounts.
 - Use "skip" for purchases that are not worth tracking (one-off groceries, restaurants, fuel, ATM cash, refunds) and for income/deposits.
 - Combine repeat charges from the same merchant into ONE item.
@@ -52,7 +54,7 @@ Rules:
 - When unsure, lower the confidence and fill alternatives rather than guessing.
 - Return at most 40 items. If nothing relevant is found, return {"items": []}.`;
 
-const KINDS = ["bill", "subscription", "loan", "savings_goal", "skip"];
+const KINDS = ["bill", "subscription", "loan", "credit_card", "savings_goal", "skip"];
 
 function parseJson(text) {
   try { return JSON.parse(text); } catch { /* fall through */ }
@@ -73,8 +75,8 @@ exports.handler = async (event, context) => {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return reply(500, { error: "The AI key isn't set up on the server (GEMINI_API_KEY)." });
 
-  let filename, contentType, base64Data;
-  try { ({ filename, contentType, base64Data } = JSON.parse(event.body || "{}")); }
+  let filename, contentType, base64Data, existing;
+  try { ({ filename, contentType, base64Data, existing } = JSON.parse(event.body || "{}")); }
   catch { return reply(400, { error: "That upload couldn't be read." }); }
   if (!base64Data) return reply(400, { error: "No file received." });
 
@@ -108,7 +110,9 @@ exports.handler = async (event, context) => {
 
   try {
     const ai = new GoogleGenAI({ apiKey });
-    const parts = [{ text: PROMPT }];
+    const existingList = (Array.isArray(existing) ? existing : []).slice(0, 80)
+      .map((e) => `- ${String(e.name || "").slice(0, 60)} (${e.type}, ${e.amount != null ? "$" + e.amount : "no amount"})`).join("\n");
+    const parts = [{ text: PROMPT + `\n\nEXISTING ITEMS:\n${existingList || "(none)"}` }];
     if (isText) parts.push({ text: `\n\nDocument (${filename || "text"}):\n` + bytes.toString("utf8").slice(0, 120000) });
     else parts.push({ inlineData: { mimeType: isPdf ? "application/pdf" : (type || "image/jpeg"), data: base64Data } });
 
@@ -133,6 +137,7 @@ exports.handler = async (event, context) => {
         billing_cycle: ["monthly", "weekly", "quarterly", "yearly", "one_time"].includes(it.billing_cycle) ? it.billing_cycle : "monthly",
         due_day: Number.isInteger(Number(it.due_day)) && Number(it.due_day) >= 1 && Number(it.due_day) <= 31 ? Number(it.due_day) : null,
         category: String(it.category || "").slice(0, 40),
+        matches_existing: it.matches_existing ? String(it.matches_existing).slice(0, 80) : null,
         reason: String(it.reason || "").slice(0, 160),
       };
     }).filter((it) => it.name);

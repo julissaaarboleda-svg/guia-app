@@ -218,7 +218,7 @@ async function UploadFile({ file }) {
 
 // Reads a statement/bill/receipt and returns suggested finance items.
 // The file is processed for this request only and isn't stored.
-async function ImportFinanceFile({ file }) {
+async function ImportFinanceFile({ file, existing = [] }) {
   const uploadFile = await compressImageIfNeeded(file);
   const base64Data = await new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -231,7 +231,7 @@ async function ImportFinanceFile({ file }) {
     await fetch(`${API_BASE}/import-finance`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ filename: uploadFile.name, contentType: uploadFile.type, base64Data }),
+      body: JSON.stringify({ filename: uploadFile.name, contentType: uploadFile.type, base64Data, existing }),
     })
   );
   return res.json(); // { items }

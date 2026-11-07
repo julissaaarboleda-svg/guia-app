@@ -747,6 +747,7 @@ export default function Finance() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-heading text-base text-foreground">{item.name}</p>
+                      {item.type === "loan" && item.subtype === "credit_card" && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#F0E6D6] text-[#8B6B3E] font-body">Credit card</span>}
                       {item.type === "credit_score" && (
                         <span className="text-muted-foreground">
                           {expandedItem?.id === item.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
