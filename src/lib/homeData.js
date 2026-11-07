@@ -158,7 +158,8 @@ export function buildProgress({ goals = [], businessGoals = [], trips = [], proj
   const circles = [];
   const activeGoal = goals.find((g) => g.status === "in_progress") || goals[0];
   if (activeGoal) {
-    const pct = Math.round(activeGoal.progress || 0);
+    const st = activeGoal.sub_tasks || [];
+    const pct = st.length ? Math.round((st.filter((t) => t.completed).length / st.length) * 100) : Math.round(activeGoal.progress || 0);
     circles.push({ label: activeGoal.title, value: pct, display: `${pct}%`, action: "Continue", path: "/goals" });
   }
   const bg = businessGoals.find((g) => g.status === "active") || businessGoals[0];

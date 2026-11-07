@@ -505,7 +505,7 @@ export default function Finance() {
                 <button type="button" onClick={() => setCollapsed(c => ({ ...c, fixed: !c.fixed }))} className="flex items-center gap-1.5 w-full py-1">
                   {collapsed.fixed ? <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
                   <h3 className="font-heading text-sm text-foreground">Fixed Expenses</h3>
-                  <span className="text-xs text-muted-foreground ml-auto">{tabItems.filter(i => i.type === "bill" && i.is_fixed).length} items</span>
+                  <span className="text-xs text-muted-foreground ml-auto">{tabItems.filter(i => i.type === "bill" && i.is_fixed).length} {tabItems.filter(i => i.type === "bill" && i.is_fixed).length === 1 ? "item" : "items"}</span>
                 </button>
               </div>
             )}
@@ -514,7 +514,7 @@ export default function Finance() {
                 <button type="button" onClick={() => setCollapsed(c => ({ ...c, variable: !c.variable }))} className="flex items-center gap-1.5 w-full py-1">
                   {collapsed.variable ? <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
                   <h3 className="font-heading text-sm text-foreground">Variable Expenses</h3>
-                  <span className="text-xs text-muted-foreground ml-auto">{tabItems.filter(i => i.type === "bill" && !i.is_fixed).length} items</span>
+                  <span className="text-xs text-muted-foreground ml-auto">{tabItems.filter(i => i.type === "bill" && !i.is_fixed).length} {tabItems.filter(i => i.type === "bill" && !i.is_fixed).length === 1 ? "item" : "items"}</span>
                 </button>
               </div>
             )}
@@ -772,7 +772,6 @@ export default function Finance() {
                         <div className="flex items-center gap-3">
                           {item.amount && <span className="text-foreground font-semibold">${Number(item.amount).toLocaleString()}</span>}
                           {item.is_fixed && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-foreground text-background font-body">Fixed</span>}
-                          {item.billing_cycle && item.billing_cycle !== "one_time" && <span className="text-[10px] text-muted-foreground capitalize">{item.billing_cycle}</span>}
                           {item.billing_cycle && item.billing_cycle !== "one_time" && item.due_day
                             ? <span className="text-xs text-muted-foreground">Day {item.due_day}</span>
                             : item.due_date && <span className="text-xs text-muted-foreground">Due {fmtDate(item.due_date)}</span>}

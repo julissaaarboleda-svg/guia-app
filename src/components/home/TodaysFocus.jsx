@@ -3,8 +3,8 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Check } from "lucide-react";
 import { getModule } from "@/lib/homeModules";
 const PRIORITY_CHIP = {
-  high: "bg-forest/10 text-forest",
-  urgent: "bg-forest/15 text-forest",
+  high: "bg-amber-100 text-amber-700",
+  urgent: "bg-rose-100 text-rose-700",
   normal: "bg-olive/10 text-olive",
   low: "bg-muted text-muted-foreground",
 };

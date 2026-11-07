@@ -51,7 +51,7 @@ export default function FinanceSummary({ items, buckets, onNavigate }) {
   const budgetUtil = totalAllocated > 0 ? Math.min((totalSpent / totalAllocated) * 100, 100) : 0;
 
   const stats = [
-    { tab: "bill", label: "Bills", value: unpaidBills.length > 0 ? fmt(billsTotal) : "$0", Icon: Receipt },
+    { tab: "bill", label: "Bills due", value: unpaidBills.length > 0 ? fmt(billsTotal) : "$0", Icon: Receipt },
     { tab: "budget", label: "Income", value: income > 0 ? fmt(income) : "—", Icon: Banknote },
     { tab: "bill", label: "Subs", value: subs.length > 0 ? fmt(subMonthly) : "—", Icon: RefreshCw },
     { tab: "savings_goal", label: "Savings", value: savings.length > 0 ? fmt(savingsCurrent) : "—", Icon: PiggyBank },
