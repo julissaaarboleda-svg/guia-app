@@ -162,7 +162,7 @@ export function buildProgress({ goals = [], businessGoals = [], trips = [], proj
     const pct = st.length ? Math.round((st.filter((t) => t.completed).length / st.length) * 100) : Math.round(activeGoal.progress || 0);
     circles.push({ label: activeGoal.title, value: pct, display: `${pct}%`, action: "Continue", path: "/goals" });
   }
-  const bg = businessGoals.find((g) => g.status === "active") || businessGoals[0];
+  const bg = businessGoals.find((g) => (g.status || "active") === "active") || businessGoals[0];
   if (bg) {
     const pct = bg.target_value ? Math.min(100, Math.round(((bg.current_value || 0) / bg.target_value) * 100)) : 0;
     circles.push({ label: bg.title, value: pct, display: `${bg.current_value || 0} / ${bg.target_value || 0}`, action: "Continue", path: "/business" });
@@ -273,7 +273,7 @@ export function buildDigest({ goals = [], projects = [], trips = [], finItems = 
   if (nextTrip) lines.push(`Next trip: ${nextTrip.t.title} in ${Math.ceil(nextTrip.d)} days`);
   const unpaidBills = (finItems || []).filter((f) => f.type === "bill" && !f.paid);
   if (unpaidBills.length) lines.push(`Unpaid bills: ${unpaidBills.length}`);
-  const bg = (businessGoals || []).find((g) => g.status === "active");
+  const bg = (businessGoals || []).find((g) => (g.status || "active") === "active");
   if (bg && bg.target_value) lines.push(`Business goal ${bg.title}: ${bg.current_value || 0}/${bg.target_value}`);
   const activeProjects = (projects || []).filter((p) => p.status === "active").length;
   lines.push(`Active projects: ${activeProjects}`);

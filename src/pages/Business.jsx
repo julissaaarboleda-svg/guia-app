@@ -86,6 +86,7 @@ export default function Business() {
     else { unit = "milestone"; target_value = null; }
     await ent.BusinessGoal.create({
       ...goalForm,
+      status: "active",
       target_value,
       unit,
       current_value: goalForm.current_value ? Number(goalForm.current_value) : 0,
@@ -271,7 +272,7 @@ export default function Business() {
         <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-xs text-muted-foreground">
           <span>Revenue <b className="text-foreground font-medium">${totalRevenue.toLocaleString()}</b></span>
           <span>Expenses <b className="text-destructive font-medium">${totalExpenses.toLocaleString()}</b></span>
-          <span>Active goals <b className="text-foreground font-medium">{goals.filter(g => g.status === "active").length}</b></span>
+          <span>Active goals <b className="text-foreground font-medium">{goals.filter(g => (g.status || "active") === "active").length}</b></span>
         </div>
       </div>
 
@@ -287,7 +288,7 @@ export default function Business() {
         <div className="mb-5">
           <h2 className="font-heading text-sm text-foreground mb-3">Business goals</h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 [&>*:only-child]:col-span-full">
-            {goals.filter(g => g.status === "active").map(g => {
+            {goals.filter(g => (g.status || "active") === "active").map(g => {
               const progress = g.target_value ? Math.min((g.current_value / g.target_value) * 100, 100) : 0;
               const daysLeft = g.target_date ? Math.ceil((new Date(g.target_date) - new Date()) / (1000 * 60 * 60 * 24)) : null;
               return (
