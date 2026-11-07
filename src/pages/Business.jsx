@@ -242,11 +242,11 @@ export default function Business() {
       <div className="max-w-[1200px] mx-auto w-full">
       <PageHeader
         title="Business"
-        subtitle="Track any business activity"
+        subtitle="Your numbers, in one place."
         actions={
           <button
             onClick={() => setAdding(true)}
-            className="w-9 h-9 flex items-center justify-center rounded-full bg-foreground text-background hover:opacity-90 transition-opacity"
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-[#A7773F] text-[#F7F3EC] hover:opacity-90 transition-opacity"
             aria-label="Add entry"
             title="Add entry"
           >
@@ -254,21 +254,17 @@ export default function Business() {
           </button>
         }
       />
-      <div className="p-6 md:p-8">
+      <div className="p-4 md:p-8">
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-        {[
-          { label: "Revenue",  val: `$${totalRevenue.toLocaleString()}`,  color: "text-foreground" },
-          { label: "Expenses", val: `$${totalExpenses.toLocaleString()}`, color: "text-destructive" },
-          { label: "Profit",   val: `$${profit.toLocaleString()}`,        color: profit >= 0 ? "text-foreground" : "text-destructive" },
-          { label: "Goals",    val: goals.filter(g => g.status === "active").length, color: "text-foreground" },
-        ].map(s => (
-          <div key={s.label} className="bg-card border border-border rounded-xl p-4">
-            <p className="text-xs text-muted-foreground mb-1">{s.label}</p>
-            <p className={`text-xl font-bold ${s.color}`}>{s.val}</p>
-          </div>
-        ))}
+      <div className="bg-card border border-border rounded-2xl p-4 mb-5">
+        <p className="text-[9px] font-bold tracking-[0.14em] uppercase text-muted-foreground">So far</p>
+        <p className={`font-heading text-[26px] mt-0.5 ${profit >= 0 ? "text-foreground" : "text-destructive"}`}>${profit.toLocaleString()} <span className="font-body text-xs text-muted-foreground">profit</span></p>
+        <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-xs text-muted-foreground">
+          <span>Revenue <b className="text-foreground font-medium">${totalRevenue.toLocaleString()}</b></span>
+          <span>Expenses <b className="text-destructive font-medium">${totalExpenses.toLocaleString()}</b></span>
+          <span>Active goals <b className="text-foreground font-medium">{goals.filter(g => g.status === "active").length}</b></span>
+        </div>
       </div>
 
       {/* Business Goals */}
@@ -314,7 +310,7 @@ export default function Business() {
                       </div>
                       <ReactQuill value={goalForm.notes} onChange={(value) => setGoalForm(f => ({ ...f, notes: value }))} placeholder="Notes" className="bg-secondary rounded-lg quill-business" theme="snow" />
                       <div className="flex gap-2">
-                        <button onClick={updateGoal} className="flex-1 bg-foreground text-background py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">Save</button>
+                        <button onClick={updateGoal} className="flex-1 bg-[#A7773F] text-[#F7F3EC] py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">Save</button>
                         <button onClick={cancelEditGoal} className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors">Cancel</button>
                       </div>
                     </div>
@@ -350,7 +346,7 @@ export default function Business() {
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-heading text-sm text-foreground">Revenue goal</h2>
           {!editingGoal ? (
-            <button onClick={() => { setGoalInput(revenueGoal); setEditingGoal(true); }} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+            !revenueGoal ? null : <button onClick={() => { setGoalInput(revenueGoal); setEditingGoal(true); }} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
               <Edit2 className="w-3 h-3" /> Edit
             </button>
           ) : (
@@ -362,21 +358,28 @@ export default function Business() {
             </div>
           )}
         </div>
+        {!revenueGoal && !editingGoal ? (
+          <div>
+            <p className="text-xs text-muted-foreground mb-3">Pick a number to aim for and watch it fill in.</p>
+            <button onClick={() => { setGoalInput(""); setEditingGoal(true); }} className="border border-[#A7773F] text-[#A7773F] rounded-full text-xs px-4 py-1.5">Set goal</button>
+          </div>
+        ) : (<>
         <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
           <span>Progress</span>
           <span>${totalRevenue.toLocaleString()} of {revenueGoal ? `$${Number(revenueGoal).toLocaleString()}` : "—"}</span>
         </div>
         <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-          <div className="h-full bg-foreground rounded-full transition-all" style={{ width: `${goalProgress}%` }} />
+          <div className="h-full bg-[#A7773F] rounded-full transition-all" style={{ width: `${goalProgress}%` }} />
         </div>
+        </>)}
       </div>
 
       {/* Add form */}
       {adding && (
         <div className="bg-card border border-border rounded-2xl p-4 mb-5">
           <div className="flex gap-2 mb-4">
-            <button onClick={() => setAddTab("entry")} className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${addTab === "entry" ? "bg-foreground text-background" : "bg-muted text-foreground hover:bg-muted"}`}>Business Entry</button>
-            <button onClick={() => setAddTab("goal")} className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${addTab === "goal" ? "bg-foreground text-background" : "bg-muted text-foreground hover:bg-muted"}`}>Goal</button>
+            <button onClick={() => setAddTab("entry")} className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${addTab === "entry" ? "bg-[#A7773F] text-[#F7F3EC]" : "bg-muted text-foreground hover:bg-muted"}`}>Business Entry</button>
+            <button onClick={() => setAddTab("goal")} className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${addTab === "goal" ? "bg-[#A7773F] text-[#F7F3EC]" : "bg-muted text-foreground hover:bg-muted"}`}>Goal</button>
           </div>
 
           {addTab === "entry" && (
@@ -433,7 +436,7 @@ export default function Business() {
           )}
 
           <div className="flex gap-2 mt-4">
-            <button onClick={addTab === "entry" ? add : addGoal} className="flex-1 bg-foreground text-background py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">
+            <button onClick={addTab === "entry" ? add : addGoal} className="flex-1 bg-[#A7773F] text-[#F7F3EC] py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">
               Add {addTab === "entry" ? "Entry" : "Goal"}
             </button>
             <button onClick={() => setAdding(false)} className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors">Cancel</button>
@@ -447,9 +450,10 @@ export default function Business() {
           <h2 className="font-heading text-sm text-foreground">Business log</h2>
         </div>
         {entries.length === 0 ? (
-          <div className="text-center py-10 text-muted-foreground">
-            <p className="text-2xl mb-2">🏢</p>
-            <p className="text-sm">No entries yet. Add your first business activity.</p>
+          <div className="text-center py-10 px-4">
+            <p className="font-heading text-base text-foreground">Start your business log</p>
+            <p className="text-xs text-muted-foreground mt-1 mb-4">Events, sales and notes live here.</p>
+            <button onClick={() => { setAddTab("entry"); setAdding(true); }} className="bg-[#A7773F] text-[#F7F3EC] rounded-full text-xs px-4 py-2">Add first entry</button>
           </div>
         ) : (
           <div className="divide-y divide-border">
@@ -478,7 +482,7 @@ export default function Business() {
                       className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
                     <ReactQuill value={form.notes} onChange={(value) => setForm(f => ({ ...f, notes: value }))} placeholder="Notes" className="bg-secondary rounded-lg quill-business" theme="snow" />
                     <div className="flex gap-2">
-                      <button onClick={updateEntry} className="flex-1 bg-foreground text-background py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">Save</button>
+                      <button onClick={updateEntry} className="flex-1 bg-[#A7773F] text-[#F7F3EC] py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">Save</button>
                       <button onClick={cancelEditEntry} className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors">Cancel</button>
                     </div>
                   </div>
