@@ -88,7 +88,7 @@ export default function NotesLanding({
     <div className="px-6 md:px-10 lg:px-14 pb-8 max-w-[900px] mx-auto w-full space-y-3" style={{ paddingTop: "1rem" }}>
       {/* Header */}
       <header className="pb-1">
-        <h1 className="font-heading text-[34px] leading-tight font-bold text-foreground">Notes</h1>
+        <h1 className="font-heading text-[30px] leading-tight font-bold text-foreground">Notes</h1>
         <p className="font-heading italic text-[15px] text-muted-foreground mt-0.5">{subtitle}</p>
       </header>
 

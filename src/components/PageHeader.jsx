@@ -11,8 +11,8 @@ export default function PageHeader({ title, subtitle, onBack, actions, serifSubt
             </button>
           )}
           <div className="min-w-0">
-            <h1 className="font-heading text-xl md:text-2xl text-foreground font-bold truncate">{title}</h1>
-            {subtitle && <p className={serifSubtitle ? "font-heading italic text-sm text-muted-foreground mt-0.5" : "text-xs text-muted-foreground mt-0.5"}>{subtitle}</p>}
+            <h1 className="font-heading text-[30px] leading-tight text-foreground font-bold truncate">{title}</h1>
+            {subtitle && <p className="font-heading italic text-[15px] text-muted-foreground mt-0.5">{subtitle}</p>}
           </div>
         </div>
         {actions && <div className="flex items-center gap-2 flex-shrink-0 ml-4">{actions}</div>}

@@ -104,20 +104,20 @@ export default function NewCollectionSheet({ open, onClose, onCreate }) {
           <div className="flex-1 flex items-center gap-2">
             <button
               onClick={(e) => { e.stopPropagation(); setIconType("folder"); }}
-              className={`px-3 py-1 rounded-full text-[12px] font-body transition-colors ${iconType === "folder" ? "bg-foreground text-background" : "bg-secondary text-muted-foreground"}`}
+              className={`px-3 py-1 rounded-full text-[12px] font-body transition-colors ${iconType === "folder" ? "bg-[#A7773F] text-[#F7F3EC]" : "bg-secondary text-muted-foreground"}`}
             >
               Folder
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); setIconType("emoji"); setSection("icon"); }}
-              className={`px-3 py-1 rounded-full text-[12px] font-body transition-colors ${iconType === "emoji" ? "bg-foreground text-background" : "bg-secondary text-muted-foreground"}`}
+              className={`px-3 py-1 rounded-full text-[12px] font-body transition-colors ${iconType === "emoji" ? "bg-[#A7773F] text-[#F7F3EC]" : "bg-secondary text-muted-foreground"}`}
             >
               Emoji
             </button>
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => pickPhoto(e.target.files?.[0])} />
             <button
               onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}
-              className={`px-3 py-1 rounded-full text-[12px] font-body transition-colors ${iconType === "image" ? "bg-foreground text-background" : "bg-secondary text-muted-foreground"}`}
+              className={`px-3 py-1 rounded-full text-[12px] font-body transition-colors ${iconType === "image" ? "bg-[#A7773F] text-[#F7F3EC]" : "bg-secondary text-muted-foreground"}`}
             >
               {uploading ? "Uploading…" : "Photo"}
             </button>
@@ -165,7 +165,7 @@ export default function NewCollectionSheet({ open, onClose, onCreate }) {
           <button
             onClick={submit}
             disabled={!canCreate}
-            className="w-full py-2.5 rounded-xl bg-foreground text-background text-[14px] font-medium flex items-center justify-center gap-1.5 disabled:opacity-40 transition-opacity"
+            className="w-full py-2.5 rounded-full bg-[#A7773F] text-[#F7F3EC] text-[14px] font-medium flex items-center justify-center gap-1.5 disabled:opacity-40 transition-opacity"
           >
             <Check className="w-4 h-4" /> Create Collection
           </button>

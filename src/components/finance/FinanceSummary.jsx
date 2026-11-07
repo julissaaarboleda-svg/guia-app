@@ -109,7 +109,7 @@ Format your response as JSON with this structure:
   }, [items.length, buckets.length, budgetUtil, retry]);
 
   const utilColor = budgetUtil > 100 ? "text-destructive" : budgetUtil > 80 ? "text-foreground" : "text-muted-foreground";
-  const utilBarColor = budgetUtil > 100 ? "bg-destructive" : budgetUtil > 80 ? "bg-foreground" : "bg-accent";
+  const utilBarColor = budgetUtil > 100 ? "bg-destructive" : budgetUtil > 80 ? "bg-[#8B6B3E]" : "bg-[#A7773F]";
 
   return (
     <div>

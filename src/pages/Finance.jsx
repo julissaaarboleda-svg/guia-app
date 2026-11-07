@@ -229,18 +229,18 @@ export default function Finance() {
   const getScoreColor = (score) => {
     if (!score) return "text-muted-foreground";
     if (score >= 750) return "text-foreground";
-    if (score >= 670) return "text-muted-foreground";
+    if (score >= 670) return "text-foreground";
     return "text-destructive";
   };
 
   return (
     <>
       <div className="max-w-[1200px] mx-auto w-full">
-      <PageHeader title="Finance" subtitle="Your financial picture, at a glance." serifSubtitle />
+      <PageHeader title="Finance" subtitle="Your financial picture, at a glance." />
       <div className="p-6 md:p-8 pb-12">
 
       {/* Tabs */}
-      <div className="sticky top-[71px] md:top-[75px] z-20 bg-background -mx-6 md:-mx-8 px-6 md:px-8 py-2 flex gap-1.5 overflow-x-auto no-scrollbar mb-5">
+      <div className="sticky top-[87px] z-20 bg-background -mx-6 md:-mx-8 px-6 md:px-8 py-2 flex gap-1.5 overflow-x-auto no-scrollbar mb-5">
         {TABS.map(t => (
           <button key={t} onClick={() => { setActiveTab(t); setAdding(false); setEditingItemId(null); }}
             className={`px-3.5 py-1.5 rounded-full font-heading text-[13px] whitespace-nowrap flex-shrink-0 transition-colors ${
@@ -331,8 +331,8 @@ export default function Finance() {
 
           {activeTab === "bill" && (
             <div className="flex gap-2">
-              <button onClick={() => setForm(f => ({ ...f, subType: "bill" }))} className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-colors ${form.subType !== "subscription" ? "bg-foreground text-background" : "bg-secondary text-muted-foreground"}`}>Bill</button>
-              <button onClick={() => setForm(f => ({ ...f, subType: "subscription" }))} className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-colors ${form.subType === "subscription" ? "bg-foreground text-background" : "bg-secondary text-muted-foreground"}`}>Subscription</button>
+              <button onClick={() => setForm(f => ({ ...f, subType: "bill" }))} className={`flex-1 py-1.5 text-xs font-medium rounded-full transition-colors ${form.subType !== "subscription" ? "bg-[#A7773F] text-[#F7F3EC]" : "bg-secondary text-muted-foreground"}`}>Bill</button>
+              <button onClick={() => setForm(f => ({ ...f, subType: "subscription" }))} className={`flex-1 py-1.5 text-xs font-medium rounded-full transition-colors ${form.subType === "subscription" ? "bg-[#A7773F] text-[#F7F3EC]" : "bg-secondary text-muted-foreground"}`}>Subscription</button>
             </div>
           )}
 
@@ -734,7 +734,7 @@ export default function Finance() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="font-medium text-foreground">{item.name}</p>
+                      <p className="font-heading text-base text-foreground">{item.name}</p>
                       {item.type === "credit_score" && (
                         <span className="text-muted-foreground">
                           {expandedItem?.id === item.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -746,12 +746,12 @@ export default function Finance() {
                       <div className="mt-2">
                         {item.bureau && <p className="text-xs text-muted-foreground mb-1">{item.bureau}</p>}
                         <div className="flex items-baseline gap-2">
-                          <span className={`text-2xl font-bold ${getScoreColor(item.score)}`}>{item.score || "—"}</span>
+                          <span className={`font-heading text-[28px] leading-none ${getScoreColor(item.score)}`}>{item.score || "—"}</span>
                           {item.target_score && <span className="text-xs text-muted-foreground">target: {item.target_score}</span>}
                         </div>
                         {item.score && item.target_score && (
                           <div className="mt-2 w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div className="h-full bg-foreground rounded-full" style={{ width: `${Math.min((item.score / item.target_score) * 100, 100)}%` }} />
+                            <div className="h-full bg-[#A7773F] rounded-full" style={{ width: `${Math.min((item.score / item.target_score) * 100, 100)}%` }} />
                           </div>
                         )}
                       </div>
@@ -760,7 +760,7 @@ export default function Finance() {
                     {item.type === "savings_goal" && (
                       <div className="mt-2">
                         <div className="flex items-baseline gap-2 mb-1">
-                          <span className="text-lg font-bold text-foreground">${(item.current_amount || 0).toLocaleString()}</span>
+                          <span className="font-heading text-xl text-foreground">${(item.current_amount || 0).toLocaleString()}</span>
                           {item.target_amount && <span className="text-xs text-muted-foreground">of ${Number(item.target_amount).toLocaleString()}</span>}
                         </div>
                         {item.target_amount && (
@@ -768,26 +768,25 @@ export default function Finance() {
                             <div className="h-full bg-accent rounded-full" style={{ width: `${Math.min(((item.current_amount || 0) / item.target_amount) * 100, 100)}%` }} />
                           </div>
                         )}
-                        <p className="text-xs text-muted-foreground mt-1.5">Tap to edit</p>
                       </div>
                     )}
 
                     {item.type === "bill" && (
                       <div className="mt-1">
                         <div className="flex items-center gap-3">
-                          {item.amount && <span className="text-foreground font-semibold">${Number(item.amount).toLocaleString()}</span>}
-                          {item.is_fixed && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-foreground text-background font-body">Fixed</span>}
+                          {item.amount && <span className="font-heading text-lg text-foreground">${Number(item.amount).toLocaleString()}</span>}
+                          {item.is_fixed && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#F0E6D6] text-[#8B6B3E] font-body">Fixed</span>}
                           {item.billing_cycle && item.billing_cycle !== "one_time" && item.due_day
                             ? <span className="text-xs text-muted-foreground">Day {item.due_day}</span>
                             : item.due_date && <span className="text-xs text-muted-foreground">Due {fmtDate(item.due_date)}</span>}
                           <button
                             onClick={(e) => { e.stopPropagation(); togglePaid(item); }}
-                            className={`ml-auto text-xs px-2 py-0.5 rounded-full border transition-colors ${item.paid ? "bg-muted text-foreground border-border" : "bg-secondary text-muted-foreground border-input hover:border-ring"}`}
+                            className={`ml-auto text-xs px-2.5 py-1 rounded-full border transition-colors ${item.paid ? "bg-[#F0E6D6] text-[#8B6B3E] border-[#E3D2B6]" : "bg-transparent text-muted-foreground border-border hover:border-[#A7773F]"}`}
                           >
                             {item.paid ? "✓ Paid" : "Mark paid"}
                           </button>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">{item.billing_cycle && item.billing_cycle !== "one_time" ? <span className="capitalize">{item.billing_cycle}{item.due_day ? ` · Day ${item.due_day}` : ""}</span> : "Tap to edit"}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{item.billing_cycle && item.billing_cycle !== "one_time" ? <span className="capitalize">{item.billing_cycle}{item.due_day ? ` · Day ${item.due_day}` : ""}</span> : null}</p>
                       </div>
                     )}
 
@@ -797,7 +796,7 @@ export default function Finance() {
                         <div className="mt-2">
                           {item.monthly_payment && <p className="text-xs text-muted-foreground mb-1">Monthly: ${Number(item.monthly_payment).toLocaleString()}</p>}
                           <div className="flex items-baseline gap-2 mb-1">
-                            <span className="text-lg font-bold text-foreground">${Number(item.amount_paid || 0).toLocaleString()}</span>
+                            <span className="font-heading text-xl text-foreground">${Number(item.amount_paid || 0).toLocaleString()}</span>
                             {item.total_amount && <span className="text-xs text-muted-foreground">of ${Number(item.total_amount).toLocaleString()}</span>}
                           </div>
                           {item.total_amount && (
@@ -811,7 +810,7 @@ export default function Finance() {
                           </div>
                           <button
                             onClick={(e) => { e.stopPropagation(); togglePaid(item); }}
-                            className={`mt-2 text-xs px-2 py-0.5 rounded-full border transition-colors ${item.paid ? "bg-muted text-foreground border-border" : "bg-secondary text-muted-foreground border-input hover:border-ring"}`}
+                            className={`mt-2 text-xs px-2.5 py-1 rounded-full border transition-colors ${item.paid ? "bg-[#F0E6D6] text-[#8B6B3E] border-[#E3D2B6]" : "bg-transparent text-muted-foreground border-border hover:border-[#A7773F]"}`}
                           >
                             {item.paid ? "✓ Paid" : "Mark paid"}
                           </button>
@@ -821,7 +820,7 @@ export default function Finance() {
 
                     {item.type === "subscription" && (
                       <div className="mt-1">
-                        {item.amount && <p className="text-lg font-bold text-foreground">${Number(item.amount).toLocaleString()}</p>}
+                        {item.amount && <p className="font-heading text-xl text-foreground">${Number(item.amount).toLocaleString()}</p>}
                         <p className="text-xs text-muted-foreground capitalize">{item.billing_cycle || "monthly"}{item.renewal_date ? ` · Renews ${fmtDate(item.renewal_date)}` : ""}</p>
                       </div>
                     )}
@@ -843,7 +842,7 @@ export default function Finance() {
             {item.type === "credit_score" && expandedItem?.id === item.id && editingItemId !== item.id && (
               <div className="border-t border-border bg-secondary p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-medium text-foreground">Notes</h3>
+                  <h3 className="font-heading text-sm text-foreground">Notes</h3>
                   {editingNotes !== item.id && (
                     <button onClick={() => setEditingNotes(item.id)} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
                       <Pencil className="w-3 h-3" /> Edit

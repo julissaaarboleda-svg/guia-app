@@ -165,7 +165,7 @@ export default function PhotosVideosPage({ trip, onUpdate, onBack }) {
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
           <button
             onClick={() => setFilterAlbum("all")}
-            className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full transition-colors ${filterAlbum === "all" ? "bg-foreground text-background" : "bg-card border border-border text-muted-foreground"}`}
+            className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full transition-colors ${filterAlbum === "all" ? "bg-[#A7773F] text-[#F7F3EC]" : "bg-card border border-border text-muted-foreground"}`}
           >
             All
           </button>
@@ -173,7 +173,7 @@ export default function PhotosVideosPage({ trip, onUpdate, onBack }) {
             <button
               key={a}
               onClick={() => setFilterAlbum(a)}
-              className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full transition-colors ${filterAlbum === a ? "bg-foreground text-background" : "bg-card border border-border text-muted-foreground"}`}
+              className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full transition-colors ${filterAlbum === a ? "bg-[#A7773F] text-[#F7F3EC]" : "bg-card border border-border text-muted-foreground"}`}
             >
               {a}
             </button>
@@ -241,7 +241,7 @@ export default function PhotosVideosPage({ trip, onUpdate, onBack }) {
                 <button
                   key={a}
                   onClick={() => setAlbumFor(editingIdx, a)}
-                  className={`text-xs px-3 py-1.5 rounded-full transition-colors ${editing.album === a ? "bg-foreground text-background" : "bg-muted text-muted-foreground"}`}
+                  className={`text-xs px-3 py-1.5 rounded-full transition-colors ${editing.album === a ? "bg-[#A7773F] text-[#F7F3EC]" : "bg-muted text-muted-foreground"}`}
                 >
                   {a}
                 </button>

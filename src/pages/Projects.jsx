@@ -103,11 +103,11 @@ export default function Projects() {
       <div className="max-w-[1200px] mx-auto w-full">
       <PageHeader
         title="Projects"
-        subtitle="Track personal projects and milestones"
+        subtitle="Everything you’re building."
         actions={
           <button
             onClick={() => setShowAdd(true)}
-            className="w-9 h-9 flex items-center justify-center rounded-full bg-foreground text-background hover:opacity-90 transition-opacity"
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-[#A7773F] text-[#F7F3EC] hover:opacity-90 transition-opacity"
             aria-label="Add project"
             title="Add project"
           >
@@ -345,7 +345,7 @@ export default function Projects() {
                   ))}
                 </div>
               </div>
-              <button onClick={addProject} className="w-full bg-foreground text-background py-2.5 rounded-xl text-sm font-medium hover:opacity-90 transition-colors flex items-center justify-center gap-2">
+              <button onClick={addProject} className="w-full bg-[#A7773F] text-[#F7F3EC] py-2.5 rounded-full text-sm font-medium hover:opacity-90 transition-colors flex items-center justify-center gap-2">
                 <Plus className="w-4 h-4" /> Add Project
               </button>
             </div>

@@ -101,7 +101,7 @@ export default function CollectionSheet({ folder, onClose, onUpdate, onDelete })
               <button onClick={() => setStep("menu")} className="flex-1 py-2.5 rounded-xl border border-border text-[14px] text-muted-foreground hover:text-foreground transition-colors">Back</button>
               <button
                 onClick={() => name.trim() && commit({ name: name.trim() })}
-                className="flex-1 py-2.5 rounded-xl bg-foreground text-background text-[14px] font-medium flex items-center justify-center gap-1.5"
+                className="flex-1 py-2.5 rounded-full bg-[#A7773F] text-[#F7F3EC] text-[14px] font-medium flex items-center justify-center gap-1.5"
               >
                 <Check className="w-4 h-4" /> Save
               </button>
@@ -127,7 +127,7 @@ export default function CollectionSheet({ folder, onClose, onUpdate, onDelete })
               <button onClick={() => setStep("menu")} className="flex-1 py-2.5 rounded-xl border border-border text-[14px] text-muted-foreground hover:text-foreground transition-colors">Back</button>
               <button
                 onClick={() => commit({ icon_type: "emoji", emoji })}
-                className="flex-1 py-2.5 rounded-xl bg-foreground text-background text-[14px] font-medium flex items-center justify-center gap-1.5"
+                className="flex-1 py-2.5 rounded-full bg-[#A7773F] text-[#F7F3EC] text-[14px] font-medium flex items-center justify-center gap-1.5"
               >
                 <Check className="w-4 h-4" /> Set Icon
               </button>
@@ -167,7 +167,7 @@ export default function CollectionSheet({ folder, onClose, onUpdate, onDelete })
                   key={cat}
                   onClick={() => commit({ category: folder.category === cat ? "" : cat })}
                   className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[13px] font-medium transition-colors ${
-                    folder.category === cat ? "bg-foreground text-background" : "bg-secondary text-foreground hover:bg-secondary/70"
+                    folder.category === cat ? "bg-[#A7773F] text-[#F7F3EC]" : "bg-secondary text-foreground hover:bg-secondary/70"
                   }`}
                 >
                   {folder.category === cat && <Check className="w-3.5 h-3.5" />}

@@ -310,7 +310,7 @@ export default function Goals() {
               </>
             )}
             <div className="flex gap-2">
-              <button onClick={activeTab === "goals" ? addGoal : addTask} className="bg-foreground text-background px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">Create</button>
+              <button onClick={activeTab === "goals" ? addGoal : addTask} className="bg-[#A7773F] text-[#F7F3EC] px-4 py-2 rounded-full text-sm font-medium hover:opacity-90 transition-colors">Create</button>
               <button onClick={() => setAdding(false)} className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors">Cancel</button>
             </div>
             </div>
@@ -390,13 +390,13 @@ export default function Goals() {
                     placeholder="Add a sub-task..."
                     className="flex-1 bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-ring transition-colors"
                   />
-                  <button onClick={() => addSubTask(selectedGoal, subTaskInputs[selectedGoal.id] || "")} className="bg-foreground text-background p-2 rounded-xl hover:opacity-90 transition-colors">
+                  <button onClick={() => addSubTask(selectedGoal, subTaskInputs[selectedGoal.id] || "")} className="bg-[#A7773F] text-[#F7F3EC] p-2 rounded-xl hover:opacity-90 transition-colors">
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
               </div>
 
-              <button onClick={() => saveGoal(gd)} className="self-start bg-foreground text-background px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">Save</button>
+              <button onClick={() => saveGoal(gd)} className="self-start bg-[#A7773F] text-[#F7F3EC] px-4 py-2 rounded-full text-sm font-medium hover:opacity-90 transition-colors">Save</button>
               </div>
             </div>
           );
@@ -452,7 +452,7 @@ export default function Goals() {
                   style={{ minHeight: "200px" }} />
               </div>
 
-              <button onClick={() => saveTask(td)} className="self-start bg-foreground text-background px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">Save</button>
+              <button onClick={() => saveTask(td)} className="self-start bg-[#A7773F] text-[#F7F3EC] px-4 py-2 rounded-full text-sm font-medium hover:opacity-90 transition-colors">Save</button>
               </div>
             </div>
           );

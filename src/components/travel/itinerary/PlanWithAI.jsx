@@ -126,7 +126,7 @@ Reply in 1-3 short sentences ("reply"). If concrete additions make sense, includ
               )}
               {messages.map((m, i) => m.role === "user" ? (
                 <div key={i} className="flex justify-end">
-                  <div className="bg-foreground text-background rounded-2xl px-3.5 py-2 font-body text-[13px] max-w-[85%]">{m.text}</div>
+                  <div className="bg-[#A7773F] text-[#F7F3EC] rounded-2xl px-3.5 py-2 font-body text-[13px] max-w-[85%]">{m.text}</div>
                 </div>
               ) : (
                 <div key={i} className="bg-card border border-border rounded-2xl px-3.5 py-3 font-body text-[13px] text-foreground leading-relaxed">

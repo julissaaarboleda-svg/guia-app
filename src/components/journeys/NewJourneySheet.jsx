@@ -107,7 +107,7 @@ export default function NewJourneySheet({ open, onClose, onCreate }) {
                   setCountrySugs([]);
                 }}
                 disabled={!countryInput.trim()}
-                className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-xl bg-foreground text-background disabled:opacity-30 disabled:cursor-not-allowed"
+                className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-xl bg-[#A7773F] text-[#F7F3EC] disabled:opacity-30 disabled:cursor-not-allowed"
                 aria-label="Add country"
               >
                 <Plus className="w-4 h-4" />
@@ -168,7 +168,7 @@ export default function NewJourneySheet({ open, onClose, onCreate }) {
                   setCitySugs([]);
                 }}
                 disabled={!cityInput.trim() || selectedCountries.length === 0}
-                className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-xl bg-foreground text-background disabled:opacity-30 disabled:cursor-not-allowed"
+                className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-xl bg-[#A7773F] text-[#F7F3EC] disabled:opacity-30 disabled:cursor-not-allowed"
                 aria-label="Add city"
               >
                 <Plus className="w-4 h-4" />
@@ -210,7 +210,7 @@ export default function NewJourneySheet({ open, onClose, onCreate }) {
 
         <div className="px-5 py-4 border-t border-border">
           {error && <p className="font-body text-[12px] text-destructive mb-2 text-center">{error}</p>}
-          <button onClick={submit} disabled={!form.title.trim() || saving} className="w-full flex items-center justify-center gap-1.5 bg-foreground text-background py-3 rounded-xl text-[15px] font-medium hover:opacity-90 transition-colors disabled:opacity-40">
+          <button onClick={submit} disabled={!form.title.trim() || saving} className="w-full flex items-center justify-center gap-1.5 bg-[#A7773F] text-[#F7F3EC] py-3 rounded-full text-[15px] font-medium hover:opacity-90 transition-colors disabled:opacity-40">
             <Plus className="w-4 h-4" /> {saving ? "Creating…" : "Create Journey"}
           </button>
         </div>

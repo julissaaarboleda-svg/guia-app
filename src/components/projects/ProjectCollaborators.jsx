@@ -65,7 +65,7 @@ export default function ProjectCollaborators({ open, onClose, collaborators, onA
                 placeholder="their@email.com"
                 className="flex-1 bg-muted border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring"
               />
-              <button onClick={submit} className="px-4 bg-foreground text-background rounded-lg text-sm font-medium">Add</button>
+              <button onClick={submit} className="px-4 bg-[#A7773F] text-[#F7F3EC] rounded-full text-sm font-medium">Add</button>
             </div>
           </>
         )}

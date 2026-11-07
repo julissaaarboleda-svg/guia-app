@@ -222,7 +222,7 @@ export default function ActivityModal({ open, initialActivity, tripLocations, da
               type="button"
               onClick={() => setCategory(t.key)}
               className={`flex-1 py-1.5 rounded-lg text-[12px] font-medium transition-colors ${
-                category === t.key ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"
+                category === t.key ? "bg-[#A7773F] text-[#F7F3EC]" : "bg-muted text-muted-foreground hover:text-foreground"
               }`}
             >
               {t.label}

@@ -439,7 +439,7 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
           <Calendar className="w-8 h-8 text-muted-foreground/30 mx-auto mb-3" />
           <p className="font-body text-sm text-foreground">No itinerary yet</p>
           <p className="font-body text-xs text-muted-foreground mt-1 mb-4">Add your day-by-day plans or set trip dates to build a timeline.</p>
-          <button onClick={addDay} className="inline-flex items-center gap-1.5 bg-foreground text-background px-4 py-2.5 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity">
+          <button onClick={addDay} className="inline-flex items-center gap-1.5 bg-[#A7773F] text-[#F7F3EC] px-4 py-2.5 rounded-full text-sm font-medium hover:opacity-90 transition-opacity">
             <Plus className="w-4 h-4" /> Add a day
           </button>
         </div>
@@ -668,7 +668,7 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
                   }
                   setConfirmCities(null);
                 }}
-                className="flex-1 bg-foreground text-background px-4 py-2.5 rounded-lg text-sm font-medium hover:opacity-90 transition-colors"
+                className="flex-1 bg-[#A7773F] text-[#F7F3EC] px-4 py-2.5 rounded-full text-sm font-medium hover:opacity-90 transition-colors"
               >
                 Confirm
               </button>
@@ -807,7 +807,7 @@ function WishListSection({ trip, onUpdate }) {
           </div>
         ) : (
           <div className="flex gap-2">
-            <button onClick={save} className="flex items-center gap-1 bg-foreground text-background px-3 py-1.5 rounded-lg text-xs font-medium hover:opacity-90 transition-colors">
+            <button onClick={save} className="flex items-center gap-1 bg-[#A7773F] text-[#F7F3EC] px-3 py-1.5 rounded-full text-xs font-medium hover:opacity-90 transition-colors">
               <Check className="w-3 h-3" /> Save
             </button>
             <button onClick={() => setEditing(false)} className="text-muted-foreground hover:text-foreground text-xs px-2 transition-colors">Cancel</button>

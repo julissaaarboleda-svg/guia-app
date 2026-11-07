@@ -199,7 +199,7 @@ export default function Travel() {
       {/* Page header — sticky, sized to match every other page's header */}
       <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm px-6 md:px-10 lg:px-14 pb-3 border-b border-border" style={{ paddingTop: "1rem" }}>
         <div className="flex items-center justify-between">
-          <h1 className="font-heading text-xl md:text-2xl text-foreground font-bold truncate">Journeys</h1>
+          <h1 className="font-heading text-[30px] leading-tight text-foreground font-bold truncate">Journeys</h1>
           <div className="flex items-center gap-1">
             <button
               onClick={() => setShowSearch((s) => !s)}
@@ -209,7 +209,7 @@ export default function Travel() {
             </button>
             <button
               onClick={() => setShowAdd(true)}
-              className="w-9 h-9 flex items-center justify-center rounded-full bg-foreground text-background hover:opacity-90 transition-opacity"
+              className="w-9 h-9 flex items-center justify-center rounded-full bg-[#A7773F] text-[#F7F3EC] hover:opacity-90 transition-opacity"
             >
               <Plus className="w-[18px] h-[18px]" strokeWidth={1.8} />
             </button>
@@ -238,7 +238,7 @@ export default function Travel() {
             <p className="font-body text-[14px] text-muted-foreground max-w-xs mx-auto">
               Create your first journey and we'll compose a cover worthy of it.
             </p>
-            <button onClick={() => setShowAdd(true)} className="mt-5 inline-flex items-center gap-1.5 bg-foreground text-background px-5 py-2.5 rounded-full text-[14px] font-medium hover:opacity-90 transition-opacity">
+            <button onClick={() => setShowAdd(true)} className="mt-5 inline-flex items-center gap-1.5 bg-[#A7773F] text-[#F7F3EC] px-5 py-2.5 rounded-full text-[14px] font-medium hover:opacity-90 transition-opacity">
               <Plus className="w-4 h-4" /> New Journey
             </button>
           </div>

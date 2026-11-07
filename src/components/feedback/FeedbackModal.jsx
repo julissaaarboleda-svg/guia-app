@@ -45,7 +45,7 @@ export default function FeedbackModal({ onClose }) {
             <button
               onClick={submit}
               disabled={!message.trim() || sending}
-              className="w-full mt-3 bg-foreground text-background py-2.5 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-colors"
+              className="w-full mt-3 bg-[#A7773F] text-[#F7F3EC] py-2.5 rounded-full text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-colors"
             >
               {sending ? "Sending..." : "Send"}
             </button>

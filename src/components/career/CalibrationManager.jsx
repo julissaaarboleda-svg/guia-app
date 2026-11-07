@@ -32,7 +32,7 @@ export default function CalibrationManager({ isOpen, onClose, calibrations, onRe
         <div className="flex gap-2 mb-3">
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Communication" className="flex-1 bg-muted border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring" />
           <input type="number" value={scaleMax} onChange={(e) => setScaleMax(e.target.value)} className="w-16 bg-muted border border-input rounded-lg px-2 text-sm" />
-          <button onClick={add} className="px-3 bg-foreground text-background rounded-lg"><Plus className="w-4 h-4" /></button>
+          <button onClick={add} className="px-3 bg-[#A7773F] text-[#F7F3EC] rounded-lg"><Plus className="w-4 h-4" /></button>
         </div>
         <div className="space-y-1">
           {calibrations.map((cal, i) => (

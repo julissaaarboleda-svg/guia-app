@@ -65,7 +65,7 @@ html, body { overflow-x: hidden; max-width: 100vw; }
     --secondary-foreground: 0 0% 12%;
     --muted: 37 22% 88%;            /* #E8E3DB off-white */
     --muted-foreground: 0 0% 40%;   /* #666666 dark grey */
-    --accent: 34 38% 40%;           /* #8B6A3F brown */
+    --accent: 32 45% 45%;           /* #8B6A3F brown */
     --accent-foreground: 40 30% 96%;
 
     /* Semantic */

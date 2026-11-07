@@ -371,10 +371,10 @@ export default function Notes() {
           <div className="flex flex-col gap-4">
             {isBlank && (
               <div className="flex gap-2">
-                <button onClick={() => switchNoteType("text")} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm border transition-all ${!isList ? "bg-foreground text-background border-foreground" : "bg-card text-muted-foreground border-border hover:border-muted-foreground/30"}`}>
+                <button onClick={() => switchNoteType("text")} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm border transition-all ${!isList ? "bg-[#A7773F] text-[#F7F3EC] border-[#A7773F]" : "bg-card text-muted-foreground border-border hover:border-muted-foreground/30"}`}>
                   <FileText className="w-4 h-4" /> Note
                 </button>
-                <button onClick={() => switchNoteType("list")} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm border transition-all ${isList ? "bg-foreground text-background border-foreground" : "bg-card text-muted-foreground border-border hover:border-muted-foreground/30"}`}>
+                <button onClick={() => switchNoteType("list")} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm border transition-all ${isList ? "bg-[#A7773F] text-[#F7F3EC] border-[#A7773F]" : "bg-card text-muted-foreground border-border hover:border-muted-foreground/30"}`}>
                   <List className="w-4 h-4" /> List
                 </button>
               </div>
@@ -427,7 +427,7 @@ export default function Notes() {
                 })()}
                 <div className="flex items-center gap-2 mt-2">
                   <input ref={newItemRef} value={newItemText} onChange={(e) => setNewItemText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addListItem()} placeholder="Add item…" className="flex-1 bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-ring transition-colors" />
-                  <button onClick={addListItem} className="bg-foreground text-background p-2 rounded-xl hover:opacity-90 transition-colors"><Plus className="w-4 h-4" /></button>
+                  <button onClick={addListItem} className="bg-[#A7773F] text-[#F7F3EC] p-2 rounded-xl hover:opacity-90 transition-colors"><Plus className="w-4 h-4" /></button>
                 </div>
                 <NoteAttachments attachments={selected.attachments} onRemove={removeAttachment} onPreview={setViewerAttachment} />
                 <div className="flex items-center gap-2 mt-2">
@@ -672,7 +672,7 @@ function PlaceFormSheet({ form, onChange, onClose, onSave }) {
                   type="button"
                   onClick={() => onChange({ ...form, type: form.type === t ? "" : t })}
                   className={`py-2 rounded-lg text-[12px] font-medium transition-colors ${
-                    form.type === t ? "bg-foreground text-background" : "bg-secondary text-foreground hover:bg-secondary/70"
+                    form.type === t ? "bg-[#A7773F] text-[#F7F3EC]" : "bg-secondary text-foreground hover:bg-secondary/70"
                   }`}
                 >
                   {t}
@@ -710,7 +710,7 @@ function PlaceFormSheet({ form, onChange, onClose, onSave }) {
           <button
             onClick={onSave}
             disabled={!form.name.trim()}
-            className="w-full py-2.5 rounded-xl bg-foreground text-background text-[14px] font-medium flex items-center justify-center gap-1.5 disabled:opacity-40"
+            className="w-full py-2.5 rounded-full bg-[#A7773F] text-[#F7F3EC] text-[14px] font-medium flex items-center justify-center gap-1.5 disabled:opacity-40"
           >
             <Check className="w-4 h-4" /> Save
           </button>

@@ -290,7 +290,7 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
                             className="flex-1 min-w-0 bg-muted border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors"
                             placeholder="e.g. Colombia — search, or type and tap +" />
                           <button type="button" onClick={() => addCountry(countryInput.trim())} disabled={!countryInput.trim()}
-                            className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-lg bg-foreground text-background disabled:opacity-30 disabled:cursor-not-allowed">
+                            className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-lg bg-[#A7773F] text-[#F7F3EC] disabled:opacity-30 disabled:cursor-not-allowed">
                             <Plus className="w-4 h-4" />
                           </button>
                         </div>
@@ -345,7 +345,7 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
                           onBlur={() => setTimeout(() => setCitySuggestions([]), 200)}
                           className="flex-1 min-w-0 bg-muted border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors disabled:opacity-50 disabled:cursor-not-allowed" />
                         <button type="button" onClick={() => addCity(cityInput)} disabled={!cityInput.trim() || selectedCountries.length === 0}
-                          className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-lg bg-foreground text-background disabled:opacity-30 disabled:cursor-not-allowed">
+                          className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-lg bg-[#A7773F] text-[#F7F3EC] disabled:opacity-30 disabled:cursor-not-allowed">
                           <Plus className="w-4 h-4" />
                         </button>
                         </div>

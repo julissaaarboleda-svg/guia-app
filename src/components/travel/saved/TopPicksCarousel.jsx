@@ -210,7 +210,7 @@ export default function TopPicksCarousel({ trip, city, picks, loading, refreshin
               href={`https://www.google.com/search?q=${encodeURIComponent(`${expanded.name} ${city}`)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 text-center py-3 rounded-xl bg-foreground text-background font-body text-[14px] font-medium hover:opacity-90 transition-opacity"
+              className="flex-1 text-center py-3 rounded-full bg-[#A7773F] text-[#F7F3EC] font-body text-[14px] font-medium hover:opacity-90 transition-opacity"
             >
               Search for {expanded.name}
             </a>
