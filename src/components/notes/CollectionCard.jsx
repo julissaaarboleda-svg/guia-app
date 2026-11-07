@@ -1,5 +1,7 @@
 import { useRef } from "react";
 import { Folder as FolderIcon, ChevronRight } from "lucide-react";
+
+const isUrl = (v) => typeof v === "string" && /^https?:\/\//.test(v);
 import { accentHex } from "./collectionAccents";
 
 export const COLLECTION_CATEGORIES = ["Personal", "Home", "Work", "Travel", "Other"];
@@ -29,7 +31,13 @@ export default function CollectionCard({ folder, count, onOpen, onLongPress }) {
         className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
         style={{ backgroundColor: `${color}1F` }}
       >
-        <FolderIcon className="w-[22px] h-[22px]" style={{ color }} strokeWidth={1.5} />
+        {folder.icon_type === "image" && isUrl(folder.emoji) ? (
+          <img src={folder.emoji} alt="" className="w-11 h-11 rounded-xl object-cover" />
+        ) : folder.icon_type === "emoji" && folder.emoji ? (
+          <span className="text-[22px] leading-none">{folder.emoji}</span>
+        ) : (
+          <FolderIcon className="w-[22px] h-[22px]" style={{ color }} strokeWidth={1.5} />
+        )}
       </span>
       <span className="flex-1 min-w-0">
         <p className="font-heading text-[15px] text-foreground leading-tight line-clamp-2 break-words">{folder.name}</p>

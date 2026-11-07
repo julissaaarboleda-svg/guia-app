@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { base44 } from "@/api/base44Client";
 import { Folder as FolderIcon, Smile, Palette, Check, X } from "lucide-react";
 import { COLLECTION_ACCENTS, accentHex } from "./collectionAccents";
 
@@ -10,21 +11,38 @@ export default function NewCollectionSheet({ open, onClose, onCreate }) {
   const [emoji, setEmoji] = useState("📁");
   const [accent, setAccent] = useState("sage");
   const [section, setSection] = useState("name");
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
+
+  const pickPhoto = async (file) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      setPhotoUrl(file_url);
+      setIconType("image");
+    } catch (err) {
+      console.error("Upload failed:", err);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   useEffect(() => {
-    if (open) { setName(""); setIconType("folder"); setEmoji("📁"); setAccent("sage"); setSection("name"); }
+    if (open) { setName(""); setIconType("folder"); setEmoji("📁"); setAccent("sage"); setSection("name"); setPhotoUrl(""); }
   }, [open]);
 
   if (!open) return null;
   const accentColor = accentHex(accent);
-  const canCreate = name.trim().length > 0;
+  const canCreate = name.trim().length > 0 && !uploading && (iconType !== "image" || !!photoUrl);
 
   const submit = () => {
     if (!canCreate) return;
     onCreate({
       name: name.trim(),
       icon_type: iconType,
-      emoji: iconType === "emoji" ? emoji : undefined,
+      emoji: iconType === "emoji" ? emoji : iconType === "image" ? photoUrl : undefined,
       accent_color: accent,
     });
   };
@@ -52,7 +70,9 @@ export default function NewCollectionSheet({ open, onClose, onCreate }) {
 
         {/* Live preview */}
         <div className="flex flex-col items-center pt-3 pb-2">
-          {iconType === "emoji" ? (
+          {iconType === "image" && photoUrl ? (
+            <img src={photoUrl} alt="" className="w-14 h-14 rounded-xl object-cover mb-2" />
+          ) : iconType === "emoji" ? (
             <span className="text-[26px] leading-none mb-2">{emoji}</span>
           ) : (
             <FolderIcon className="w-6 h-6 mb-2" style={{ color: accentColor }} strokeWidth={1.6} />
@@ -93,6 +113,13 @@ export default function NewCollectionSheet({ open, onClose, onCreate }) {
               className={`px-3 py-1 rounded-full text-[12px] font-body transition-colors ${iconType === "emoji" ? "bg-foreground text-background" : "bg-secondary text-muted-foreground"}`}
             >
               Emoji
+            </button>
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => pickPhoto(e.target.files?.[0])} />
+            <button
+              onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}
+              className={`px-3 py-1 rounded-full text-[12px] font-body transition-colors ${iconType === "image" ? "bg-foreground text-background" : "bg-secondary text-muted-foreground"}`}
+            >
+              {uploading ? "Uploading…" : "Photo"}
             </button>
             {iconType === "emoji" && <span className="text-lg leading-none">{emoji}</span>}
           </div>

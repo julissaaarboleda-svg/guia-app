@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { base44 } from "@/api/base44Client";
 import {
-  Pencil, Smile, RefreshCw, Palette, Tag, Pin, Archive, Trash2, X, Check,
+  Pencil, Smile, RefreshCw, ImagePlus, Palette, Tag, Pin, Archive, Trash2, X, Check,
 } from "lucide-react";
 import { COLLECTION_ACCENTS } from "./collectionAccents";
 import { COLLECTION_CATEGORIES } from "./CollectionCard";
@@ -11,6 +12,8 @@ export default function CollectionSheet({ folder, onClose, onUpdate, onDelete })
   const [step, setStep] = useState("menu");
   const [name, setName] = useState(folder?.name || "");
   const [emoji, setEmoji] = useState(folder?.emoji || "📁");
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
 
   useEffect(() => {
     setName(folder?.name || "");
@@ -20,14 +23,30 @@ export default function CollectionSheet({ folder, onClose, onUpdate, onDelete })
 
   if (!folder) return null;
 
+  const uploadPhoto = async (file) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      onUpdate(folder.id, { icon_type: "image", emoji: file_url });
+      onClose();
+    } catch (err) {
+      console.error("Upload failed:", err);
+      setUploading(false);
+    }
+  };
+
   const commit = (patch, msg) => { onUpdate(folder.id, patch); if (msg) {} onClose(); };
 
   const MENU = [
     { icon: Pencil, label: "Rename", action: () => setStep("rename") },
     { icon: Smile, label: "Change Icon", action: () => setStep("icon") },
+    { icon: ImagePlus, label: uploading ? "Uploading…" : "Add Photo", action: () => fileRef.current?.click() },
     {
-      icon: RefreshCw, label: folder.icon_type === "emoji" ? "Use Folder Icon" : "Use Emoji",
-      action: () => commit({ icon_type: folder.icon_type === "emoji" ? "folder" : "emoji" }),
+      icon: RefreshCw, label: folder.icon_type === "folder" || !folder.icon_type ? "Use Emoji" : "Use Folder Icon",
+      action: () => (folder.icon_type === "folder" || !folder.icon_type)
+        ? commit({ icon_type: "emoji", emoji: /^https?:/.test(folder.emoji || "") ? "📁" : (folder.emoji || "📁") })
+        : commit({ icon_type: "folder" }),
     },
     { icon: Palette, label: "Accent Color", action: () => setStep("color") },
     { icon: Tag, label: "Category", action: () => setStep("category") },
@@ -51,6 +70,7 @@ export default function CollectionSheet({ folder, onClose, onUpdate, onDelete })
 
         {step === "menu" && (
           <div className="px-2 pb-6 pt-2">
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => uploadPhoto(e.target.files?.[0])} />
             {MENU.map((m) => (
               <button
                 key={m.label}
