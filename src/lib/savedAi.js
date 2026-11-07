@@ -61,7 +61,20 @@ export function setCachedPickImage(tripId, city, name, url, attribution) {
 //   filtering down to the single pick that category had in the mixed set.
 // excludeNames should be the traveler's already-saved place names for this
 // trip/city, so a saved place never resurfaces in the picks.
+let lastPicksError = "";
+export const getLastPicksError = () => lastPicksError;
+
 export async function generateTopPicks(trip, city, { category = "all", excludeNames = [] } = {}) {
+  try {
+    return await generateTopPicksInner(trip, city, { category, excludeNames });
+  } catch (err) {
+    lastPicksError = err?.message || "";
+    throw err;
+  }
+}
+
+async function generateTopPicksInner(trip, city, { category = "all", excludeNames = [] } = {}) {
+  lastPicksError = "";
   const categories = category === "all" ? DEFAULT_CATEGORIES : [category];
   const perCategory = category === "all" ? 1 : 6;
 
@@ -76,8 +89,8 @@ export async function generateTopPicks(trip, city, { category = "all", excludeNa
       excludeNames,
     }),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data?.error || "Places search failed");
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || `Places search failed (${res.status})`);
 
   const picks = categories.flatMap((cat) => data.results?.[cat] || []);
   return { picks };

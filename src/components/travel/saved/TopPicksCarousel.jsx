@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Star, Heart, Sparkles, MapPin, X, RefreshCw } from "lucide-react";
-import { generatePickImage } from "@/lib/savedAi";
+import { generatePickImage, getLastPicksError } from "@/lib/savedAi";
 import { categoryMeta } from "./categoryMeta";
 
 export default function TopPicksCarousel({ trip, city, picks, loading, refreshing, failed, onRefresh, onWishlist, isSaved }) {
@@ -144,6 +144,7 @@ export default function TopPicksCarousel({ trip, city, picks, loading, refreshin
             <p className="font-body text-[13px] text-muted-foreground flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5" /> Couldn't load picks for {city}.
             </p>
+            {getLastPicksError() && <p className="font-body text-[11px] text-muted-foreground/80 break-words">{getLastPicksError().slice(0, 220)}</p>}
             <button
               onClick={onRefresh}
               className="inline-flex items-center gap-1 px-3 h-7 rounded-full border border-accent text-accent font-body text-[12px] font-medium hover:bg-accent/10 transition-colors"

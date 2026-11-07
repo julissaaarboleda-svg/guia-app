@@ -120,6 +120,7 @@ exports.handler = async (event, context) => {
     // places doesn't leave a category short.
     const fetchCount = Math.min((perCategory || 1) + excludeSet.size + 3, 20);
 
+    const errors = [];
     const entries = await Promise.all(
       categories.map(async (cat) => {
         try {
@@ -128,11 +129,16 @@ exports.handler = async (event, context) => {
           return [cat, filtered.slice(0, perCategory || 1)];
         } catch (err) {
           console.error(err);
+          errors.push(err.message);
           return [cat, []];
         }
       })
     );
 
+    // If every category failed, say why instead of returning an empty list.
+    if (errors.length === categories.length) {
+      return { statusCode: 502, headers: CORS, body: JSON.stringify({ error: errors[0] }) };
+    }
     return { statusCode: 200, headers: CORS, body: JSON.stringify({ results: Object.fromEntries(entries) }) };
   } catch (err) {
     console.error("places-search.js error:", err);
