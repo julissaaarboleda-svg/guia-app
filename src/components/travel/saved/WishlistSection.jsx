@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Heart, Star, Plus, Bookmark } from "lucide-react";
+import { Heart, Star, Plus, Bookmark, MoreVertical, Trash2 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { categoryMeta, WISHLIST_FILTERS } from "./categoryMeta";
 import PillDropdown from "./PillDropdown";
 import AddOwnItem from "./AddOwnItem";
@@ -13,7 +14,7 @@ export default function WishlistSection({ items, city, empty, onRemove, onAddToI
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-1.5">
           <Heart className="w-4 h-4 text-accent" />
-          <h2 className="font-heading text-[18px] text-foreground font-semibold">Wishlist</h2>
+          <h2 className="font-heading text-[18px] text-foreground font-semibold">Wishlist{items.length > 0 ? ` · ${items.length}` : ""}</h2>
         </div>
         <PillDropdown label="Filter " value={filter} onChange={setFilter} options={WISHLIST_FILTERS} />
       </div>
@@ -28,7 +29,7 @@ export default function WishlistSection({ items, city, empty, onRemove, onAddToI
           {shown.map((it) => {
             const meta = categoryMeta(it.category);
             return (
-              <div key={it.id} className="flex gap-3 rounded-xl border border-border bg-card p-2.5">
+              <div key={it.id} className="flex gap-3 rounded-xl border border-border bg-card p-2.5 relative">
                 <div className="w-16 h-16 rounded-lg flex-shrink-0 overflow-hidden bg-muted">
                   {it.image ? (
                     <img src={it.image} alt={it.name} className="w-full h-full object-cover" />
@@ -38,7 +39,7 @@ export default function WishlistSection({ items, city, empty, onRemove, onAddToI
                     </div>
                   )}
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 pr-6">
                   <span className="font-body text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{it.categoryLabel || meta.label}</span>
                   {it.website ? (
                     <a href={it.website} target="_blank" rel="noopener noreferrer" className="font-heading text-[14px] text-foreground font-semibold leading-tight mt-0.5 truncate block hover:text-accent transition-colors">{it.name}</a>
@@ -57,27 +58,30 @@ export default function WishlistSection({ items, city, empty, onRemove, onAddToI
                   </p>
                   <div className="flex items-center gap-2 mt-1.5">
                     <button
-                      onClick={() => onRemove(it.id)}
-                      className="px-2.5 h-6 rounded-full border border-border text-foreground font-body text-[10.5px] hover:bg-secondary transition-colors"
-                    >
-                      Remove
-                    </button>
-                    <button
                       onClick={() => onAddToItinerary(it)}
-                      className="inline-flex items-center gap-1 px-2.5 h-6 rounded-full bg-accent text-accent-foreground font-body text-[10.5px] font-medium hover:opacity-90 transition-opacity"
+                      className="inline-flex items-center gap-1 px-3 h-7 rounded-full bg-accent text-accent-foreground font-body text-[11px] font-medium hover:opacity-90 transition-opacity"
                     >
                       <Plus className="w-3 h-3" /> Add to itinerary
                     </button>
-                    {onAddToMemories && (
-                      <button
-                        onClick={() => onAddToMemories(it)}
-                        className="inline-flex items-center gap-1 px-2.5 h-6 rounded-full border border-border text-foreground font-body text-[10.5px] hover:bg-secondary transition-colors"
-                      >
-                        <Bookmark className="w-3 h-3" /> Memories
-                      </button>
-                    )}
                   </div>
                 </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="absolute top-1.5 right-1.5 p-1.5 text-muted-foreground hover:text-foreground rounded-full" aria-label="More">
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44 rounded-lg">
+                    {onAddToMemories && (
+                      <DropdownMenuItem onClick={() => onAddToMemories(it)} className="gap-2 cursor-pointer">
+                        <Bookmark className="w-4 h-4" /> Save to memories
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onClick={() => onRemove(it.id)} className="gap-2 cursor-pointer text-destructive focus:text-destructive">
+                      <Trash2 className="w-4 h-4" /> Remove
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             );
           })}

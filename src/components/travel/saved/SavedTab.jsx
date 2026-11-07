@@ -1,12 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { ent } from "@/lib/freshEntities";
 import { toast } from "sonner";
-import { Sparkles, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { parseISO, format } from "date-fns";
 import CitySelector from "../CitySelector";
 import TopPicksCarousel from "./TopPicksCarousel";
 import WishlistSection from "./WishlistSection";
-import AddOwnItem from "./AddOwnItem";
 
 import ManualItemModal from "./ManualItemModal";
 import ActivityModal from "../ActivityModal";
@@ -161,24 +160,16 @@ export default function SavedTab({ trip, onUpdate, cityOrder }) {
     <div className="space-y-5 pt-1">
       <div>
         <CitySelector cities={cities} value={city} onChange={setCity} />
-        <p className="font-body text-[12px] text-muted-foreground mt-2">Personalized picks for your trip.</p>
+        <p className="font-body text-[12px] text-muted-foreground mt-2">Picks for your trip</p>
       </div>
 
       {/* AI Controls */}
       <div className="flex items-center gap-1.5">
-        <button
-          onClick={refreshPicks}
-          disabled={loading || refreshing}
-          className="inline-flex items-center gap-1 bg-card border border-border rounded-full px-2.5 h-6 font-body text-[10px] leading-none whitespace-nowrap text-foreground hover:border-foreground/25 transition-colors disabled:opacity-50"
-        >
-          <Sparkles className={`w-3 h-3 text-accent ${refreshing ? "animate-pulse" : ""}`} />
-          {refreshing ? "Refreshing…" : "Refresh Picks"}
-        </button>
         <PillDropdown label="Category " value={category} onChange={setCategory} options={CATEGORY_CHIPS} />
         <PillDropdown label="Price " value={price} onChange={setPrice} options={PRICE_OPTIONS} />
         <button
           onClick={() => setNearItin((v) => !v)}
-          className={`ml-auto inline-flex items-center gap-1 rounded-full px-2.5 h-6 font-body text-[10px] leading-none whitespace-nowrap border transition-colors ${nearItin ? "bg-accent text-accent-foreground border-accent" : "bg-card text-foreground border-border hover:border-foreground/25"}`}
+          className={`inline-flex items-center gap-1 rounded-full px-2.5 h-6 font-body text-[10px] leading-none whitespace-nowrap border transition-colors ${nearItin ? "bg-accent text-accent-foreground border-accent" : "bg-card text-foreground border-border hover:border-foreground/25"}`}
         >
           <MapPin className="w-3 h-3" strokeWidth={1.8} />
           Near itinerary

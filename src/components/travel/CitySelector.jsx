@@ -6,7 +6,6 @@ export default function CitySelector({ cities, value, onChange }) {
 
   return (
     <div>
-      <p className="font-body text-[11px] text-muted-foreground uppercase tracking-[0.12em] mb-2">Currently exploring</p>
       <button
         onClick={() => setOpen(true)}
         className="inline-flex items-center gap-2 bg-card border border-border rounded-full pl-3.5 pr-2.5 py-2 hover:border-foreground/25 transition-colors"

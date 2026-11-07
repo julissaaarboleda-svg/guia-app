@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Star, Heart, Plus, Sparkles, MapPin, X } from "lucide-react";
+import { Star, Heart, Sparkles, MapPin, X, RefreshCw } from "lucide-react";
 import { generatePickImage } from "@/lib/savedAi";
 import { categoryMeta } from "./categoryMeta";
 
@@ -57,7 +57,14 @@ export default function TopPicksCarousel({ trip, city, picks, loading, refreshin
           <Sparkles className="w-4 h-4 text-accent" />
           <h2 className="font-heading text-[18px] text-foreground font-semibold">Top Picks</h2>
         </div>
-        <span className="font-body text-[11px] text-muted-foreground">AI recommendations for you</span>
+        <button
+          onClick={onRefresh}
+          disabled={loading || refreshing}
+          className="inline-flex items-center gap-1 font-body text-[12px] text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} strokeWidth={1.8} />
+          {refreshing ? "Refreshing…" : "Refresh"}
+        </button>
       </div>
 
       <div className="flex gap-2.5 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
@@ -86,11 +93,6 @@ export default function TopPicksCarousel({ trip, city, picks, loading, refreshin
                   {p.aiBadge && (
                     <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-0.5 font-body text-[8px] font-medium px-1.5 py-0.5 rounded-full bg-black/55 text-white">
                       <Sparkles className="w-2.5 h-2.5" /> {p.aiBadge}
-                    </span>
-                  )}
-                  {img && imgData?.attribution && (
-                    <span className="absolute bottom-1.5 right-1.5 font-body text-[7px] px-1 py-0.5 rounded bg-black/45 text-white/80">
-                      Photo: {imgData.attribution}
                     </span>
                   )}
                 </div>
@@ -170,6 +172,11 @@ export default function TopPicksCarousel({ trip, city, picks, loading, refreshin
               >
                 {(() => { const Icon = categoryMeta(expanded.category).Icon; return <Icon className="w-12 h-12 text-white/80" strokeWidth={1.4} />; })()}
               </div>
+            )}
+            {images[expanded.name]?.attribution && (
+              <span className="absolute bottom-2 right-3 font-body text-[10px] px-1.5 py-0.5 rounded bg-black/45 text-white/85">
+                Photo: {images[expanded.name].attribution}
+              </span>
             )}
             <button
               onClick={() => setExpanded(null)}
