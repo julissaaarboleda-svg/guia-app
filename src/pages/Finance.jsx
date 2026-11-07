@@ -519,7 +519,7 @@ export default function Finance() {
 
       {/* Items */}
       {activeTab !== "budget" && (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 [&>*:only-child]:col-span-full">
         {tabItems.length === 0 && !adding && activeTab !== "summary" && (
           <div className="text-center py-10 text-muted-foreground bg-card border border-border rounded-2xl">
             <p className="font-heading text-base text-foreground">No {TAB_LABELS[activeTab].toLowerCase()} yet.</p>

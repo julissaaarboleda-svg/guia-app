@@ -405,7 +405,7 @@ export default function Career() {
                   <button onClick={() => setShowPay(v => !v)} className="ml-auto text-[11px] text-[#A7773F] border border-[#A7773F] rounded-full px-2.5 py-0.5">{showPay ? "Hide pay" : "Show pay"}</button>
                 )}
               </h2>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 [&>*:only-child]:col-span-full">
                 {typeEntries.map(e => (
                   <div key={e.id} className="bg-card border border-border rounded-xl p-4 group">
                     <div className="flex items-start justify-between gap-3">

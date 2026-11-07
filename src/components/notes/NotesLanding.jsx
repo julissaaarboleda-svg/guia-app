@@ -82,10 +82,10 @@ export default function NotesLanding({
   const subtitle = { notes: "Capture, plan and keep what matters.", checklists: "Track what needs doing.", places: "Somewhere you want to check out." }[view];
   const addLabel = { notes: "Note", checklists: "Checklist", places: "Place" }[view];
   const onAdd = () => (view === "notes" ? onQuickCapture() : view === "checklists" ? onQuickCapture("list") : onAddPlace());
-  const shownFolders = showAllCollections ? visibleFolders : visibleFolders.slice(0, 4);
+  const shownFolders = showAllCollections ? visibleFolders : visibleFolders.slice(0, 6);
 
   return (
-    <div className="px-6 md:px-10 lg:px-14 pb-8 max-w-[900px] mx-auto w-full space-y-3" style={{ paddingTop: "1rem" }}>
+    <div className="px-6 md:px-10 lg:px-14 pb-8 max-w-[1200px] mx-auto w-full space-y-3" style={{ paddingTop: "1rem" }}>
       {/* Header */}
       <header className="pb-1">
         <h1 className="font-heading text-[30px] leading-tight font-bold text-foreground">Notes</h1>
@@ -151,13 +151,13 @@ export default function NotesLanding({
               )}
             </div>
             {loading ? (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                 {[0, 1, 2, 3].map((i) => (
                   <div key={i} className="h-[76px] rounded-2xl bg-card border border-border/50 animate-pulse" />
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                 {shownFolders.map((f) => (
                   <CollectionCard
                     key={f.id}

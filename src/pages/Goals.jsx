@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { ent } from "@/lib/freshEntities";
 import { parseISO } from "date-fns";
-import { Plus, Trash2, CheckCircle2, Circle, X, Calendar, ArrowLeft, Target } from "lucide-react";
+import { Plus, Trash2, CheckCircle2, Circle, Calendar, ArrowLeft } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
@@ -146,7 +146,7 @@ export default function Goals() {
     <>
       <div className="flex flex-1 min-h-0 h-full">
       {/* Sidebar */}
-      <div className={`w-full md:w-64 lg:w-72 flex-shrink-0 bg-background border-r border-border flex-col ${showingDetail ? "hidden" : "flex"}`}>
+      <div className={`w-full md:w-64 lg:w-[380px] flex-shrink-0 bg-background border-r border-border flex-col ${showingDetail ? "hidden" : "flex"}`}>
         <PageHeader
           title="Goals & Tasks"
           subtitle="Where you're headed."
@@ -458,13 +458,42 @@ export default function Goals() {
           );
         })()}
 
-        {/* Empty state */}
-        {!adding && !selected && (
-          <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
-            <Target className="w-12 h-12 mb-3 text-muted-foreground/40" />
-            <p className="mb-3 text-sm">Select a {activeTab === "goals" ? "goal" : "task"} or create a new one</p>
-          </div>
-        )}
+        {/* Empty state: overview */}
+        {!adding && !selected && (() => {
+          const dueSoon = openTasks.filter(t => t.due_date).sort((a, b) => a.due_date.localeCompare(b.due_date)).slice(0, 4);
+          const openGoalCount = activeGoals.length;
+          return (
+            <div className="w-full max-w-2xl mx-auto px-8 py-10">
+              <h2 className="font-heading text-[26px] text-foreground leading-tight">Overview</h2>
+              <p className="font-heading italic text-[15px] text-muted-foreground mt-0.5">Pick a {activeTab === "goals" ? "goal" : "task"} on the left to see its details.</p>
+              <div className="grid grid-cols-3 gap-3 mt-6">
+                {[["Active goals", openGoalCount], ["Goals done", doneGoals.length], ["Open tasks", openTasks.length]].map(([label, n]) => (
+                  <div key={label} className="bg-card border border-border rounded-2xl p-4">
+                    <p className="font-heading text-[28px] text-foreground leading-none">{n}</p>
+                    <p className="text-xs text-muted-foreground mt-1.5">{label}</p>
+                  </div>
+                ))}
+              </div>
+              <h3 className="font-heading text-[18px] text-foreground mt-8 mb-2.5">Due soon</h3>
+              {dueSoon.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nothing with a due date yet.</p>
+              ) : (
+                <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                  {dueSoon.map((t, i) => (
+                    <button key={t.id} onClick={() => { setActiveTab("tasks"); setSelected({ type: "task", id: t.id }); setEditTaskData({ ...t }); setAdding(false); }}
+                      className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-secondary/50 transition-colors ${i !== 0 ? "border-t border-border/40" : ""}`}>
+                      <span className="text-sm text-foreground truncate">{t.title}</span>
+                      <span className="text-xs text-muted-foreground flex-shrink-0">{parseISO(t.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <button onClick={openAdd} className="mt-6 inline-flex items-center gap-1.5 bg-[#A7773F] text-[#F7F3EC] px-5 py-2.5 rounded-full text-sm font-medium hover:opacity-90 transition-opacity">
+                <Plus className="w-4 h-4" /> New {activeTab === "goals" ? "goal" : "task"}
+              </button>
+            </div>
+          );
+        })()}
       </div>
     </div>
     </>

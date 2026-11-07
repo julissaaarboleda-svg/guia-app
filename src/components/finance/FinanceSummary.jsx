@@ -131,6 +131,8 @@ Format your response as JSON with this structure:
         ))}
       </div>
 
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-4 lg:items-start">
+      <div className="min-w-0">
       {/* Budget utilization bar */}
       {totalAllocated > 0 && (
         <div className="bg-card border border-border rounded-xl p-4 mb-4">
@@ -195,6 +197,32 @@ Format your response as JSON with this structure:
             </div>
           </>
         )}
+      </div>
+
+      </div>
+
+      {unpaidBills.length > 0 && (
+        <div className="bg-card border border-border rounded-2xl p-4 mb-3">
+          <div className="flex items-center justify-between mb-2.5">
+            <h3 className="font-heading text-base font-bold text-foreground">Bills due</h3>
+            <button onClick={() => onNavigate("bill")} className="text-xs text-[#A7773F]">View all</button>
+          </div>
+          <div className="divide-y divide-border/50">
+            {[...unpaidBills]
+              .sort((a, b) => String(a.due_date || `9999-${String(a.due_day || 99).padStart(2, "0")}`).localeCompare(String(b.due_date || `9999-${String(b.due_day || 99).padStart(2, "0")}`)))
+              .slice(0, 6)
+              .map((b) => (
+                <div key={b.id} className="flex items-center justify-between gap-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-sm text-foreground truncate">{b.name}</p>
+                    <p className="text-[11px] text-muted-foreground">{b.due_date ? new Date(`${b.due_date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : b.due_day ? `Day ${b.due_day}` : "No date"}</p>
+                  </div>
+                  <span className="font-heading text-sm text-foreground flex-shrink-0">{fmt(b.amount)}</span>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
       </div>
 
       {items.length === 0 && buckets.length === 0 && (

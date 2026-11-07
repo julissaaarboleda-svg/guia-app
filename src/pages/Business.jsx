@@ -272,7 +272,7 @@ export default function Business() {
       {goals.length > 0 && (
         <div className="mb-5">
           <h2 className="font-heading text-sm text-foreground mb-3">Business goals</h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 [&>*:only-child]:col-span-full">
             {goals.filter(g => g.status === "active").map(g => {
               const progress = g.target_value ? Math.min((g.current_value / g.target_value) * 100, 100) : 0;
               const daysLeft = g.target_date ? Math.ceil((new Date(g.target_date) - new Date()) / (1000 * 60 * 60 * 24)) : null;

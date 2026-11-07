@@ -17,7 +17,7 @@ export default function PageHeader({ title, subtitle, onBack, actions }) {
         </div>
         {actions && <div className="flex items-center gap-2 flex-shrink-0 ml-4">{actions}</div>}
       </div>
-      <div className="h-px bg-border w-full" />
+      <div className="px-4 md:px-8"><div className="h-px bg-border w-full" /></div>
     </div>
   );
 }
