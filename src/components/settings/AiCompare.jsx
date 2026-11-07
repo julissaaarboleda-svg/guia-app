@@ -4,6 +4,7 @@ import { ent } from "@/lib/freshEntities";
 
 const TASKS = {
   finance: { label: "Finance insights", note: "Uses your real Finance data" },
+  picks: { label: "Top picks (live search)", note: "Both models search the web" },
   packing: { label: "Packing list", prompt: "Make a packing list for a 5-day trip to Lisbon in November. Rain is likely, the days are walking-heavy, and it's carry-on only. Group by category and keep each line short." },
   travel: { label: "Travel tips", prompt: "Give 5 specific, practical tips for a first-time visitor to Kyoto in autumn. One or two sentences each. Avoid generic advice." },
   custom: { label: "My own prompt", note: "Type anything" },
@@ -17,6 +18,13 @@ async function financePrompt() {
   const inc = income.find((i) => i.month === mk)?.amount || 0;
   const lines = items.map((i) => `- ${i.type}${i.subtype ? ` (${i.subtype})` : ""}: ${i.name} ${money(i.amount ?? i.monthly_payment ?? i.target_amount)}${i.billing_cycle ? ` ${i.billing_cycle}` : ""}${i.payoff_amount ? `, payoff ${money(i.payoff_amount)}` : ""}`);
   return `You are a personal finance advisor. Based on this snapshot, give a 1-2 sentence summary of their financial health, then 2-3 specific, actionable recommendations. Be concise and practical.\n\nMonthly income: ${money(inc)}\nItems:\n${lines.join("\n") || "(none)"}\nBudget buckets: ${buckets.filter((b) => b.month === mk).map((b) => `${b.name} ${money(b.allocated_amount)}`).join(", ") || "none"}`;
+}
+
+async function picksPrompt() {
+  const trips = await ent.Trip.list("-start_date");
+  const t = trips.find((x) => x.status !== "completed" && (x.cities || [])[0]) || trips.find((x) => (x.cities || [])[0]);
+  const city = t ? t.cities[0] : "Lisbon";
+  return `List the 5 best places to visit in ${city} right now: a mix of restaurants, a cafe, a museum or landmark, and one local favorite. Use live information. For each give the name, category, current rating with review count, and one sentence on why it's worth it. Only include places that are real and currently open.`;
 }
 
 export default function AiCompare() {
@@ -33,10 +41,10 @@ export default function AiCompare() {
   const run = async () => {
     setRunning(true); setResult(null); setVoted(null);
     try {
-      const prompt = task === "finance" ? await financePrompt() : task === "custom" ? custom.trim() : TASKS[task].prompt;
+      const prompt = task === "finance" ? await financePrompt() : task === "picks" ? await picksPrompt() : task === "custom" ? custom.trim() : TASKS[task].prompt;
       if (!prompt) { setRunning(false); return; }
       const order = Math.random() < 0.5 ? ["claude", "gemini"] : ["gemini", "claude"];
-      const settle = (provider) => base44.integrations.Core.CompareAI({ prompt, provider })
+      const settle = (provider) => base44.integrations.Core.CompareAI({ prompt, provider, search: task === "picks" })
         .then((r) => ({ provider, text: r.text, ms: r.ms }))
         .catch((e) => ({ provider, error: e.message || "Failed" }));
       const [a, b] = await Promise.all(order.map(settle));

@@ -23,24 +23,29 @@ const CORS = {
 };
 const reply = (statusCode, body) => ({ statusCode, headers: CORS, body: JSON.stringify(body) });
 
-async function runClaude(prompt) {
+async function runClaude(prompt, search) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw Object.assign(new Error("ANTHROPIC_API_KEY isn't set in Netlify yet."), { status: 500 });
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 1500, messages: [{ role: "user", content: prompt }] }),
+    body: JSON.stringify({
+      model: CLAUDE_MODEL,
+      max_tokens: search ? 3000 : 1500,
+      messages: [{ role: "user", content: prompt }],
+      ...(search ? { tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }] } : {}),
+    }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw Object.assign(new Error(data?.error?.message || `Claude request failed (${res.status})`), { status: 502 });
   return (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
 }
 
-async function runGemini(prompt) {
+async function runGemini(prompt, search) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw Object.assign(new Error("GEMINI_API_KEY isn't set in Netlify."), { status: 500 });
   const ai = new GoogleGenAI({ apiKey });
-  const response = await ai.models.generateContent({ model: GEMINI_MODEL, contents: prompt });
+  const response = await ai.models.generateContent({ model: GEMINI_MODEL, contents: prompt, ...(search ? { config: { tools: [{ googleSearch: {} }] } } : {}) });
   return (response.text || "").trim();
 }
 
@@ -52,8 +57,8 @@ exports.handler = async (event, context) => {
   const user = context.clientContext && context.clientContext.user;
   if (!user) return reply(401, { error: "Not authenticated" });
 
-  let prompt, provider;
-  try { ({ prompt, provider } = JSON.parse(event.body || "{}")); } catch { return reply(400, { error: "Bad request" }); }
+  let prompt, provider, search;
+  try { ({ prompt, provider, search } = JSON.parse(event.body || "{}")); } catch { return reply(400, { error: "Bad request" }); }
   if (!prompt || !["gemini", "claude"].includes(provider)) return reply(400, { error: "Missing prompt or provider" });
   if (prompt.length > 20000) return reply(400, { error: "That prompt is too long." });
 
@@ -70,7 +75,7 @@ exports.handler = async (event, context) => {
 
   const started = Date.now();
   try {
-    const text = provider === "claude" ? await runClaude(prompt) : await runGemini(prompt);
+    const text = provider === "claude" ? await runClaude(prompt, !!search) : await runGemini(prompt, !!search);
     return reply(200, { text, ms: Date.now() - started, model: provider === "claude" ? CLAUDE_MODEL : GEMINI_MODEL });
   } catch (err) {
     console.error("compare-ai error:", provider, err);
