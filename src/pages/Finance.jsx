@@ -3,7 +3,6 @@ import { base44 } from "@/api/base44Client";
 import { Trash2, ChevronDown, ChevronUp, ChevronRight, Pencil, X } from "lucide-react";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
-import ActionCircle from "@/components/ActionCircle";
 import PageHeader from "@/components/PageHeader";
 import DateInput from "@/components/DateInput";
 
@@ -35,6 +34,7 @@ function fmtDate(s) {
   const d = safeDate(s);
   return d ? d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
 }
+const ADD_LABELS = { credit_score: "score", savings_goal: "goal", bill: "bill", loan: "loan", subscription: "subscription", budget: "bucket" };
 const TAB_LABELS = { summary: "Summary", credit_score: "Credit Scores", savings_goal: "Savings Goals", bill: "Bills", loan: "Loans", subscription: "Subscriptions", budget: "Budget" };
 
 export default function Finance() {
@@ -237,7 +237,7 @@ export default function Finance() {
     <>
       <div className="max-w-[1200px] mx-auto w-full">
       <PageHeader title="Finance" subtitle="Your financial picture, at a glance." serifSubtitle />
-      <div className="p-6 md:p-8 pb-28">
+      <div className="p-6 md:p-8 pb-12">
 
       {/* Tabs */}
       <div className="sticky top-[71px] md:top-[75px] z-20 bg-background -mx-6 md:-mx-8 px-6 md:px-8 py-2 flex gap-1.5 overflow-x-auto no-scrollbar mb-5">
@@ -265,7 +265,12 @@ export default function Finance() {
       {/* Add button */}
       {activeTab !== "budget" && activeTab !== "summary" && (
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-heading text-foreground">{TAB_LABELS[activeTab]}</h2>
+        <h2 className="font-heading text-xl text-foreground">{TAB_LABELS[activeTab]}</h2>
+        {!adding && (
+          <button onClick={() => openAdd()} className="bg-[#A7773F] text-[#F7F3EC] rounded-full font-heading text-[13px] px-4 py-1.5 hover:opacity-90 transition-opacity">
+            + Add {ADD_LABELS[activeTab]}
+          </button>
+        )}
       </div>
       )}
 
@@ -475,7 +480,7 @@ export default function Finance() {
           )}
 
           <div className="flex gap-2">
-            <button onClick={add} className="flex-1 bg-foreground text-background py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">Add</button>
+            <button onClick={add} className="flex-1 bg-[#A7773F] text-[#F7F3EC] py-2 rounded-full font-heading text-sm hover:opacity-90 transition-opacity">Add {ADD_LABELS[activeTab]}</button>
             <button onClick={() => setAdding(false)} className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors">Cancel</button>
           </div>
         </div>
@@ -487,7 +492,8 @@ export default function Finance() {
         {tabItems.length === 0 && !adding && activeTab !== "summary" && (
           <div className="text-center py-10 text-muted-foreground bg-card border border-border rounded-2xl">
             <p className="font-heading text-base text-foreground">No {TAB_LABELS[activeTab].toLowerCase()} yet.</p>
-            <p className="text-xs mt-1">Tap + to add your first one.</p>
+            <p className="text-xs mt-1 mb-4">Add your first one to get started.</p>
+            <button onClick={() => openAdd()} className="bg-[#A7773F] text-[#F7F3EC] rounded-full font-heading text-[13px] px-4 py-1.5">+ Add {ADD_LABELS[activeTab]}</button>
           </div>
         )}
 
@@ -503,7 +509,7 @@ export default function Finance() {
               <div className="col-span-full">
                 <button type="button" onClick={() => setCollapsed(c => ({ ...c, fixed: !c.fixed }))} className="flex items-center gap-1.5 w-full py-1">
                   {collapsed.fixed ? <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
-                  <h3 className="font-heading text-sm text-foreground">Fixed Expenses</h3>
+                  <h3 className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground">Fixed expenses</h3>
                   <span className="text-xs text-muted-foreground ml-auto">{tabItems.filter(i => i.type === "bill" && i.is_fixed).length} {tabItems.filter(i => i.type === "bill" && i.is_fixed).length === 1 ? "item" : "items"}</span>
                 </button>
               </div>
@@ -512,7 +518,7 @@ export default function Finance() {
               <div className="col-span-full">
                 <button type="button" onClick={() => setCollapsed(c => ({ ...c, variable: !c.variable }))} className="flex items-center gap-1.5 w-full py-1">
                   {collapsed.variable ? <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
-                  <h3 className="font-heading text-sm text-foreground">Variable Expenses</h3>
+                  <h3 className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground">Variable expenses</h3>
                   <span className="text-xs text-muted-foreground ml-auto">{tabItems.filter(i => i.type === "bill" && !i.is_fixed).length} {tabItems.filter(i => i.type === "bill" && !i.is_fixed).length === 1 ? "item" : "items"}</span>
                 </button>
               </div>
@@ -521,13 +527,13 @@ export default function Finance() {
               <div className="col-span-full">
                 <button type="button" onClick={() => setCollapsed(c => ({ ...c, subs: !c.subs }))} className="flex items-center gap-1.5 w-full py-1">
                   {collapsed.subs ? <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
-                  <h3 className="font-heading text-sm text-foreground">Subscriptions</h3>
+                  <h3 className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground">Subscriptions</h3>
                   <span className="text-xs text-muted-foreground ml-auto">${subMonthlyEquivalent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo</span>
                 </button>
               </div>
             )}
           {!isCollapsed && (
-          <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="bg-card border border-border rounded-2xl overflow-hidden">
             {editingItemId === item.id ? (
               <div className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
@@ -713,7 +719,7 @@ export default function Finance() {
                 )}
 
                 <div className="flex gap-2">
-                  <button onClick={() => saveEditItem(item)} className="flex-1 bg-foreground text-background py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">Save</button>
+                  <button onClick={() => saveEditItem(item)} className="flex-1 bg-[#A7773F] text-[#F7F3EC] py-2 rounded-full font-heading text-sm hover:opacity-90 transition-opacity">Save</button>
                   <button onClick={() => setEditingItemId(null)} className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors">Cancel</button>
                 </div>
               </div>
@@ -848,7 +854,7 @@ export default function Finance() {
                   <div className="space-y-2">
                     <ReactQuill value={notesContent} onChange={setNotesContent} className="bg-card rounded-lg quill-notes" theme="snow" />
                     <div className="flex gap-2">
-                      <button onClick={() => saveNotes(item)} className="bg-foreground text-background px-3 py-1.5 rounded-lg text-xs font-medium hover:opacity-90 transition-colors">Save</button>
+                      <button onClick={() => saveNotes(item)} className="bg-[#A7773F] text-[#F7F3EC] px-3.5 py-1.5 rounded-full text-xs hover:opacity-90 transition-colors">Save</button>
                       <button onClick={() => { setEditingNotes(null); setNotesContent(item.notes || ""); }} className="px-3 py-1.5 text-muted-foreground text-xs hover:text-foreground transition-colors">Cancel</button>
                     </div>
                   </div>
@@ -866,7 +872,6 @@ export default function Finance() {
       )}
     </div>
     </div>
-      {activeTab !== "budget" && activeTab !== "summary" && <ActionCircle onClick={() => openAdd()} label="Add item" />}
     </>
   );
 }

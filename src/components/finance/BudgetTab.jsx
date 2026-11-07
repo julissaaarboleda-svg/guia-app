@@ -159,7 +159,7 @@ export default function BudgetTab() {
       : 0;
     const left = (b.allocated_amount || 0) - (b.spent_amount || 0);
     return (
-      <div className="bg-card border border-border rounded-xl p-4">
+      <div className="bg-card border border-border rounded-2xl p-4">
         <div className="flex items-start justify-between gap-2 mb-2">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
@@ -218,7 +218,7 @@ export default function BudgetTab() {
       </div>
 
       {/* Income card */}
-      <div className="bg-card border border-border rounded-xl p-4">
+      <div className="bg-card border border-border rounded-2xl p-4">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-muted-foreground mb-1">Monthly Income</p>
@@ -226,7 +226,7 @@ export default function BudgetTab() {
               <div className="flex items-center gap-2">
                 <input type="number" value={incomeInput} onChange={e => setIncomeInput(e.target.value)} autoFocus
                   className="bg-secondary border border-input rounded-lg px-2 py-1 text-foreground text-lg font-bold outline-none focus:border-ring w-32" />
-                <button onClick={saveIncome} className="text-xs bg-foreground text-background px-2 py-1 rounded-lg">Save</button>
+                <button onClick={saveIncome} className="text-xs bg-[#A7773F] text-[#F7F3EC] px-3 py-1 rounded-full">Save</button>
                 <button onClick={() => { setEditingIncome(false); setIncomeInput(income?.amount?.toString() || ""); }} className="text-xs text-muted-foreground">Cancel</button>
               </div>
             ) : (
@@ -240,7 +240,7 @@ export default function BudgetTab() {
       </div>
 
       {/* Allocation summary */}
-      <div className="bg-card border border-border rounded-xl p-4">
+      <div className="bg-card border border-border rounded-2xl p-4">
         <div className="grid grid-cols-2 gap-4 mb-3">
           <div>
             <p className="text-xs text-muted-foreground mb-1">Allocated</p>
@@ -296,7 +296,7 @@ export default function BudgetTab() {
       )}
 
       {/* Add bucket button */}
-      <button onClick={openAdd} className="w-full flex items-center justify-center gap-2 bg-foreground text-background py-2.5 rounded-xl text-sm font-medium hover:opacity-90 transition-colors">
+      <button onClick={openAdd} className="w-full flex items-center justify-center gap-2 bg-[#A7773F] text-[#F7F3EC] py-2.5 rounded-full font-heading text-sm hover:opacity-90 transition-opacity">
         <Plus className="w-4 h-4" /> Add budget bucket
       </button>
 
@@ -368,7 +368,7 @@ export default function BudgetTab() {
               Fixed expense
             </label>
             <div className="flex gap-2">
-              <button onClick={saveBucket} className="flex-1 bg-foreground text-background py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">
+              <button onClick={saveBucket} className="flex-1 bg-[#A7773F] text-[#F7F3EC] py-2 rounded-full font-heading text-sm hover:opacity-90 transition-opacity">
                 {editingId ? "Save" : "Add"}
               </button>
               <button onClick={() => setShowForm(false)} className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors">Cancel</button>
