@@ -4,6 +4,7 @@ import { ent } from "@/lib/freshEntities";
 import { Check, Save, Camera, ChevronDown, Target, FileText, Briefcase, Building2, CreditCard, Plane, FolderOpen, CheckCircle, X } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import SectionOrderEditor from "@/components/settings/SectionOrderEditor";
+import AiCompare from "@/components/settings/AiCompare";
 
 const ALL_SECTIONS = [
   { id: "tasks",    label: "Tasks",    icon: CheckCircle, description: "Daily to-dos and reminders" },
@@ -106,6 +107,8 @@ export default function Settings() {
       return next;
     });
   };
+
+  const [showCompare, setShowCompare] = useState(false);
 
   const save = async () => {
     setSaving(true);
@@ -247,6 +250,14 @@ export default function Settings() {
             onReorder={setSectionOrder}
           />
         )}
+      </section>
+
+      <section className="bg-card border border-border rounded-2xl p-5 mb-6">
+        <button onClick={() => setShowCompare((v) => !v)} className="w-full flex items-center justify-between">
+          <h2 className="font-heading text-lg text-foreground">AI comparison</h2>
+          <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showCompare ? "rotate-180" : ""}`} />
+        </button>
+        {showCompare && <div className="mt-3"><AiCompare /></div>}
       </section>
 
       <button onClick={save} disabled={saving}

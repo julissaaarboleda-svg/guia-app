@@ -5,12 +5,10 @@ import { Edit2, Check, X, Plus, Trash, Calendar, MapPin, Star } from "lucide-rea
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import { parseISO, format, addDays } from "date-fns";
-import ActivityModal, { ACTIVITY_PRESETS } from "./ActivityModal";
-import DropdownInput from "./DropdownInput";
+import ActivityModal from "./ActivityModal";
 import DateStrip from "./itinerary/DateStrip";
 import TimelineCard from "./itinerary/TimelineCard";
 import AddItemSheet from "./itinerary/AddItemSheet";
-import PlanWithAI from "./itinerary/PlanWithAI";
 import { ADD_TYPE_BY_KEY, formatTime } from "./itinerary/activityTypes";
 import { toast } from "sonner";
 import { savePlaceToMemories, categoryFromActivity } from "@/lib/memoryUtils";
@@ -182,17 +180,6 @@ export default function ItineraryTab({ trip, onUpdate, cityOrder, initialDate })
     setActiveIdx(next.indexOf(editedDay));
     setDayEdit({ open: false, index: null, title: "", description: "", date: "", city: "" });
     persist(next);
-  };
-
-  // Adds an AI suggestion to the matching day (falls back to the day being viewed).
-  const addSuggestion = (s) => {
-    let idx = itinerary.findIndex((d) => d.date && d.date === s.date);
-    if (idx < 0) idx = activeIdx;
-    const act = { time: s.time || "", activity: s.activity || "Activity", name: s.name || "", location: s.location || "", notes: s.why || "" };
-    const next = itinerary.map((d, i) => i === idx ? { ...d, activities: [...(d.activities || []), act].sort((a, b) => (a.time || "99").localeCompare(b.time || "99")) } : d);
-    setItinerary(next);
-    persist(next);
-    toast.success("Added to itinerary");
   };
 
   const saveActivity = async (activity) => {
@@ -589,8 +576,6 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
           My Notes
         </button>
       </div>
-
-      <PlanWithAI trip={trip} itinerary={itinerary} activeIdx={activeIdx} onAddSuggestion={addSuggestion} />
 
       {dayView === "notes" ? (
         <textarea
