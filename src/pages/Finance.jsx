@@ -82,8 +82,8 @@ export default function Finance() {
       return sum + amt;
     }, 0);
 
-  const openAdd = () => {
-    setForm({ type: activeTab, subType: "bill", name: "", score: "", target_score: "", bureau: "", current_amount: "", target_amount: "", amount: "", due_date: "", paid: false, monthly_payment: "", total_amount: "", amount_paid: "", billing_cycle: "monthly", renewal_date: "",       is_fixed: false, category: "", customCategory: "", recurrence: "one_time", due_day: "", addToBudget: false });
+  const openAdd = (tab = activeTab) => {
+    setForm({ type: tab, subType: "bill", name: "", score: "", target_score: "", bureau: "", current_amount: "", target_amount: "", amount: "", due_date: "", paid: false, monthly_payment: "", total_amount: "", amount_paid: "", billing_cycle: "monthly", renewal_date: "",       is_fixed: false, category: "", customCategory: "", recurrence: "one_time", due_day: "", addToBudget: false });
     setAdding(true);
   };
 
@@ -237,17 +237,17 @@ export default function Finance() {
   return (
     <>
       <div className="max-w-[1200px] mx-auto w-full">
-      <PageHeader title="Finance" subtitle="Your financial picture" />
+      <PageHeader title="Finance" subtitle="Your financial picture, at a glance." serifSubtitle />
       <div className="p-6 md:p-8 pb-28">
 
       {/* Tabs */}
-      <div className="sticky top-[71px] md:top-[75px] z-20 bg-background -mx-6 md:-mx-8 px-6 md:px-8 flex flex-wrap gap-x-5 gap-y-1 border-b border-border mb-6">
+      <div className="sticky top-[71px] md:top-[75px] z-20 bg-background -mx-6 md:-mx-8 px-6 md:px-8 py-2 flex gap-1.5 overflow-x-auto no-scrollbar mb-5">
         {TABS.map(t => (
           <button key={t} onClick={() => { setActiveTab(t); setAdding(false); setEditingItemId(null); }}
-            className={`pb-2.5 text-sm transition-colors border-b-2 -mb-[1px] whitespace-nowrap ${
+            className={`px-3.5 py-1.5 rounded-full font-heading text-[13px] whitespace-nowrap flex-shrink-0 transition-colors ${
               activeTab === t
-                ? "border-foreground text-foreground font-medium"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                ? "bg-[#A7773F] text-[#F7F3EC]"
+                : "border border-border text-muted-foreground hover:text-foreground"
             }`}
           >
             {TAB_LABELS[t]}
@@ -257,7 +257,7 @@ export default function Finance() {
 
       {/* Summary tab */}
       {activeTab === "summary" && (
-        <FinanceSummary items={items} buckets={buckets} onNavigate={(t) => { setActiveTab(t); setAdding(false); setEditingItemId(null); }} />
+        <FinanceSummary items={items} buckets={buckets} onNavigate={(t) => { setActiveTab(t); setAdding(false); setEditingItemId(null); }} onAddFirst={() => { setActiveTab("bill"); openAdd("bill"); }} />
       )}
 
       {/* Budget tab — self-contained */}
@@ -485,10 +485,10 @@ export default function Finance() {
       {/* Items */}
       {activeTab !== "budget" && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        {tabItems.length === 0 && !adding && (
+        {tabItems.length === 0 && !adding && activeTab !== "summary" && (
           <div className="text-center py-10 text-muted-foreground bg-card border border-border rounded-2xl">
-            <p className="text-2xl mb-2">{TAB_EMOJIS[activeTab]}</p>
-            <p className="text-sm">No {TAB_LABELS[activeTab].toLowerCase()} yet.</p>
+            <p className="font-heading text-base text-foreground">No {TAB_LABELS[activeTab].toLowerCase()} yet.</p>
+            <p className="text-xs mt-1">Tap + to add your first one.</p>
           </div>
         )}
 
@@ -867,7 +867,7 @@ export default function Finance() {
       )}
     </div>
     </div>
-      {activeTab !== "budget" && activeTab !== "summary" && <ActionCircle onClick={openAdd} label="Add item" />}
+      {activeTab !== "budget" && activeTab !== "summary" && <ActionCircle onClick={() => openAdd()} label="Add item" />}
     </>
   );
 }

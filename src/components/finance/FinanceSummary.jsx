@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Receipt, Wallet, RefreshCw, PiggyBank, Landmark, TrendingUp, Sparkles, Lightbulb, Banknote } from "lucide-react";
+import { Receipt, RefreshCw, PiggyBank, Landmark, TrendingUp, Sparkles, Lightbulb, Banknote } from "lucide-react";
 
 function monthKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
@@ -8,10 +8,12 @@ function monthKey(date) {
 
 const fmt = (n) => `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
-export default function FinanceSummary({ items, buckets, onNavigate }) {
+export default function FinanceSummary({ items, buckets, onNavigate, onAddFirst }) {
   const [insights, setInsights] = useState(null);
   const [loading, setLoading] = useState(true);
   const [income, setIncome] = useState(0);
+  const [failed, setFailed] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     base44.entities.MonthlyIncome.filter({ month: monthKey(new Date()) }).then(res => {
@@ -62,6 +64,7 @@ export default function FinanceSummary({ items, buckets, onNavigate }) {
   useEffect(() => {
     if (!items.length && !buckets.length) { setLoading(false); return; }
     setLoading(true);
+    setFailed(false);
     base44.integrations.Core.InvokeLLM({
       prompt: `You are a personal finance advisor. Based on the following financial snapshot, provide a brief 1-2 sentence summary of their financial health, then 2-3 actionable recommendations. Be concise, practical, and specific to the data.
 
@@ -102,8 +105,8 @@ Format your response as JSON with this structure:
     }).then(res => {
       setInsights(res);
       setLoading(false);
-    }).catch(() => setLoading(false));
-  }, [items.length, buckets.length, budgetUtil]);
+    }).catch(() => { setFailed(true); setLoading(false); });
+  }, [items.length, buckets.length, budgetUtil, retry]);
 
   const utilColor = budgetUtil > 100 ? "text-destructive" : budgetUtil > 80 ? "text-foreground" : "text-muted-foreground";
   const utilBarColor = budgetUtil > 100 ? "bg-destructive" : budgetUtil > 80 ? "bg-foreground" : "bg-accent";
@@ -111,16 +114,16 @@ Format your response as JSON with this structure:
   return (
     <div>
       {/* Stat tiles */}
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mb-4">
+      <div className="grid grid-cols-3 md:grid-cols-6 gap-2.5 mb-5">
         {stats.map(({ tab, label, value, Icon }) => (
           <button
             key={tab}
             onClick={() => onNavigate(tab)}
-            className="flex flex-col items-center gap-1 bg-card border border-border rounded-xl py-3 px-1 hover:border-foreground/30 transition-colors"
+            className="flex flex-col items-center gap-1.5 bg-card border border-border rounded-2xl py-4 px-1 hover:border-[#A7773F]/40 transition-colors"
           >
-            <Icon className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-sm font-bold text-foreground leading-none">{value}</span>
-            <span className="text-[10px] text-muted-foreground leading-none">{label}</span>
+            <Icon className="w-5 h-5 text-foreground" strokeWidth={1.5} />
+            <span className="font-heading text-[13px] text-foreground leading-none mt-0.5">{label}</span>
+            <span className="font-heading text-[15px] font-bold text-foreground leading-none">{value}</span>
           </button>
         ))}
       </div>
@@ -129,7 +132,7 @@ Format your response as JSON with this structure:
       {totalAllocated > 0 && (
         <div className="bg-card border border-border rounded-xl p-4 mb-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-muted-foreground">Budget Utilization</span>
+            <span className="text-xs text-muted-foreground">Budget used</span>
             <span className={`text-sm font-bold ${utilColor}`}>{Math.round(budgetUtil)}%</span>
           </div>
           <div className="h-2 bg-muted rounded-full overflow-hidden mb-1.5">
@@ -143,25 +146,33 @@ Format your response as JSON with this structure:
       )}
 
       {/* AI insights */}
-      <div className="bg-background border border-border rounded-xl p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Sparkles className="w-3.5 h-3.5 text-foreground" />
-          <h3 className="text-xs font-medium text-foreground">AI Insights</h3>
-          {loading && <span className="w-3 h-3 border-2 border-muted border-t-foreground rounded-full animate-spin ml-1" />}
+      <div className="bg-secondary/60 border border-border rounded-2xl p-4 mb-3">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-foreground" strokeWidth={1.5} />
+            <h3 className="font-heading text-base font-bold text-foreground">AI Insights</h3>
+            {loading && <span className="w-3 h-3 border-2 border-muted border-t-foreground rounded-full animate-spin ml-1" />}
+          </div>
+          {!loading && insights && <button onClick={() => setRetry(r => r + 1)} className="text-xs text-[#A7773F]">Refresh</button>}
         </div>
         {loading ? (
           <div className="space-y-2">
             <div className="h-3 bg-muted rounded w-3/4 animate-pulse" />
             <div className="h-3 bg-muted rounded w-1/2 animate-pulse" />
           </div>
+        ) : failed ? (
+          <div>
+            <p className="font-heading text-[15px] text-foreground leading-snug">Insights aren't available right now.</p>
+            <button onClick={() => setRetry(r => r + 1)} className="mt-3 border border-[#A7773F] text-[#A7773F] rounded-full text-xs px-4 py-1.5">Try again</button>
+          </div>
         ) : insights ? (
           <>
-            <p className="text-sm text-foreground leading-relaxed mb-3">{insights.summary}</p>
+            <p className="font-heading text-[15px] text-foreground leading-snug mb-3">{insights.summary}</p>
             {insights.recommendations?.length > 0 && (
-              <div className="space-y-2">
+              <div className="space-y-2 border-t border-border pt-3">
                 {insights.recommendations.map((rec, idx) => (
                   <div key={idx} className="flex items-start gap-2">
-                    <Lightbulb className="w-3.5 h-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <Lightbulb className="w-3.5 h-3.5 text-[#A7773F] mt-0.5 flex-shrink-0" strokeWidth={1.5} />
                     <p className="text-xs text-muted-foreground leading-relaxed">{rec}</p>
                   </div>
                 ))}
@@ -169,9 +180,27 @@ Format your response as JSON with this structure:
             )}
           </>
         ) : (
-          <p className="text-xs text-muted-foreground">Add more financial data to get personalized AI insights.</p>
+          <>
+            <p className="font-heading text-[15px] text-foreground leading-snug mb-3">Take control of your finances. Add your bills, budget, and goals to get personalized insights and stay on track.</p>
+            <div className="space-y-2 border-t border-border pt-3">
+              {["Track your monthly bills and set reminders.", "Create a budget to manage your spending.", "Set savings goals for what matters most."].map((tip) => (
+                <div key={tip} className="flex items-start gap-2">
+                  <Lightbulb className="w-3.5 h-3.5 text-[#A7773F] mt-0.5 flex-shrink-0" strokeWidth={1.5} />
+                  <p className="text-xs text-muted-foreground leading-relaxed">{tip}</p>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
+
+      {items.length === 0 && buckets.length === 0 && (
+        <div className="bg-card border border-border rounded-2xl p-5 text-center">
+          <p className="font-heading text-base text-foreground">No summary yet.</p>
+          <p className="text-xs text-muted-foreground mt-1 mb-4">Start by adding your financial details.</p>
+          <button onClick={onAddFirst} className="bg-[#A7773F] text-[#F7F3EC] rounded-full font-heading text-sm px-5 py-2">+ Add Expense or Goal</button>
+        </div>
+      )}
     </div>
   );
 }

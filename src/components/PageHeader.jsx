@@ -1,6 +1,6 @@
 import { ArrowLeft } from "lucide-react";
 
-export default function PageHeader({ title, subtitle, onBack, actions }) {
+export default function PageHeader({ title, subtitle, onBack, actions, serifSubtitle }) {
   return (
     <div className="sticky top-0 z-30 bg-background/90 backdrop-blur-md">
       <div className="flex items-center justify-between px-4 md:px-8 pt-3 pb-3">
@@ -12,7 +12,7 @@ export default function PageHeader({ title, subtitle, onBack, actions }) {
           )}
           <div className="min-w-0">
             <h1 className="font-heading text-xl md:text-2xl text-foreground font-bold truncate">{title}</h1>
-            {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+            {subtitle && <p className={serifSubtitle ? "font-heading italic text-sm text-muted-foreground mt-0.5" : "text-xs text-muted-foreground mt-0.5"}>{subtitle}</p>}
           </div>
         </div>
         {actions && <div className="flex items-center gap-2 flex-shrink-0 ml-4">{actions}</div>}
