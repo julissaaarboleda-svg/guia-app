@@ -15,7 +15,7 @@ const SECTIONS = [
     label: "Home", 
     path: "/",
     desc: "Your daily hub with widgets and inspiration",
-    color: "from-stone-900 to-stone-800",
+    color: "from-[#3B2F27] to-[#2A211B]",
     actions: [
       { icon: Plus, text: "See your daily widgets at a glance" },
       { icon: Check, text: "Customize which sections appear" },
@@ -149,18 +149,18 @@ export default function Help() {
     <div className="p-6 md:p-8 max-w-2xl mx-auto help-guide-container">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-heading font-bold text-stone-900 mb-2">Help & Guide</h1>
-        <p className="text-stone-500 text-sm">Quick tour of Via&apos;s features</p>
+        <h1 className="text-2xl font-heading font-bold text-foreground mb-2">Help & Guide</h1>
+        <p className="text-muted-foreground text-sm">Quick tour of Via&apos;s features</p>
       </div>
 
       {/* Slide counter */}
       <div className="flex items-center justify-between mb-4">
-        <span className="text-sm text-stone-500">
+        <span className="text-sm text-muted-foreground">
           {currentSlide + 1} of {SECTIONS.length}
         </span>
         <button
           onClick={() => setCurrentSlide(0)}
-          className="text-xs text-stone-400 hover:text-stone-700"
+          className="text-xs text-muted-foreground hover:text-foreground"
         >
           Start over
         </button>
@@ -231,7 +231,7 @@ export default function Help() {
         <button
           onClick={prevSlide}
           disabled={currentSlide === 0}
-          className="flex items-center gap-1 text-sm text-stone-600 hover:text-stone-900 disabled:opacity-30 disabled:hover:text-stone-600 transition-colors"
+          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
           Previous
@@ -243,7 +243,7 @@ export default function Help() {
               key={i}
               onClick={() => setCurrentSlide(i)}
               className={`w-2 h-2 rounded-full transition-all ${
-                i === currentSlide ? 'bg-stone-800 w-6' : 'bg-stone-300 hover:bg-stone-400'
+                i === currentSlide ? 'bg-[#A7773F] w-6' : 'bg-border hover:bg-muted-foreground'
               }`}
             />
           ))}
@@ -252,7 +252,7 @@ export default function Help() {
         <button
           onClick={nextSlide}
           disabled={currentSlide === SECTIONS.length - 1}
-          className="flex items-center gap-1 text-sm text-stone-600 hover:text-stone-900 disabled:opacity-30 disabled:hover:text-stone-600 transition-colors"
+          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground transition-colors"
         >
           Next
           <ChevronRight className="w-4 h-4" />
@@ -263,7 +263,7 @@ export default function Help() {
       <div className="text-center mt-6">
         <Link
           to={section.path}
-          className="inline-flex items-center gap-1.5 text-sm text-stone-600 hover:text-stone-900 transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           Go to {section.label} <ExternalLink className="w-3 h-3" />
         </Link>
@@ -273,7 +273,7 @@ export default function Help() {
       <div className="mt-6 text-center">
         <button
           onClick={() => setShowFeedback(true)}
-          className="inline-flex items-center gap-2 text-sm text-stone-600 hover:text-stone-900 transition-colors"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <MessageCircle className="w-4 h-4" />
           Send feedback
@@ -281,7 +281,7 @@ export default function Help() {
       </div>
 
       {/* Keyboard hints */}
-      <div className="mt-6 text-center text-xs text-stone-400">
+      <div className="mt-6 text-center text-xs text-muted-foreground">
         <p>Use ← → arrow keys to navigate</p>
       </div>
 

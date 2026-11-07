@@ -145,18 +145,18 @@ export default function DateRangePicker({ startDate, endDate, onChange, label, p
 
   return (
     <div className="relative" ref={ref}>
-      {label && <label className="text-xs text-stone-500 mb-1 block">{label}</label>}
+      {label && <label className="text-xs text-muted-foreground mb-1 block">{label}</label>}
       <button
         type="button"
         onClick={openPicker}
-        className="w-full flex items-center gap-2 bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm text-left transition-colors hover:border-stone-400 focus:outline-none focus:border-stone-400 min-h-[44px]"
+        className="w-full flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-2.5 text-sm text-left transition-colors hover:border-[#A7773F]/60 focus:outline-none focus:border-[#A7773F]/60 min-h-[44px]"
       >
-        <CalendarDays className="w-4 h-4 text-stone-400 flex-shrink-0" />
-        <span className={hasValue ? "text-stone-900 flex-1" : "text-stone-400 flex-1"}>
+        <CalendarDays className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+        <span className={hasValue ? "text-foreground flex-1" : "text-muted-foreground flex-1"}>
           {hasValue ? displayRange(startDate, endDate) : (placeholder || "Select date range")}
         </span>
         {hasValue && (
-          <span onMouseDown={clear} className="text-stone-300 hover:text-stone-600 p-1 -mr-1 cursor-pointer">
+          <span onMouseDown={clear} className="text-muted-foreground/50 hover:text-foreground p-1 -mr-1 cursor-pointer">
             <X className="w-3.5 h-3.5" />
           </span>
         )}
@@ -165,24 +165,24 @@ export default function DateRangePicker({ startDate, endDate, onChange, label, p
       {open && coords && createPortal(
         <div
           ref={popupRef}
-          className="fixed z-[95] bg-white border border-stone-200 rounded-2xl shadow-xl w-[320px] max-h-[70vh] overflow-y-auto"
+          className="fixed z-[95] bg-white border border-border rounded-2xl shadow-xl w-[320px] max-h-[70vh] overflow-y-auto"
           style={{ left: coords.left, top: coords.top, bottom: coords.bottom, maxWidth: "calc(100vw - 24px)" }}
         >
           <div className="sticky top-0 bg-white flex items-center justify-between px-4 pt-4 pb-3 z-10">
             <button type="button" onClick={() => setMonth(subMonths(month, 1))}
-              className="p-2 rounded-lg hover:bg-stone-100 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center">
-              <ChevronLeft className="w-4 h-4 text-stone-600" />
+              className="p-2 rounded-lg hover:bg-secondary transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center">
+              <ChevronLeft className="w-4 h-4 text-muted-foreground" />
             </button>
-            <span className="text-sm font-semibold text-stone-900">{format(month, "MMMM yyyy")}</span>
+            <span className="text-sm font-semibold text-foreground">{format(month, "MMMM yyyy")}</span>
             <button type="button" onClick={() => setMonth(addMonths(month, 1))}
-              className="p-2 rounded-lg hover:bg-stone-100 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center">
-              <ChevronRight className="w-4 h-4 text-stone-600" />
+              className="p-2 rounded-lg hover:bg-secondary transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center">
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </button>
           </div>
           <div className="px-4 pb-4">
             <div className="grid grid-cols-7 mb-1">
               {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d => (
-                <div key={d} className="text-center text-xs text-stone-400 font-medium py-1">{d}</div>
+                <div key={d} className="text-center text-xs text-muted-foreground font-medium py-1">{d}</div>
               ))}
             </div>
 
@@ -200,7 +200,7 @@ export default function DateRangePicker({ startDate, endDate, onChange, label, p
                   <div
                     key={day.toISOString()}
                     className={`relative flex items-center justify-center cursor-pointer select-none
-                      ${inRange ? "bg-stone-100" : ""}
+                      ${inRange ? "bg-secondary" : ""}
                       ${rangeStart ? "rounded-l-full" : ""}
                       ${rangeEnd ? "rounded-r-full" : ""}
                       ${!rangeStart && !rangeEnd && inRange ? "rounded-none" : ""}
@@ -211,9 +211,9 @@ export default function DateRangePicker({ startDate, endDate, onChange, label, p
                     onMouseLeave={() => setHovered(null)}
                   >
                     <span className={`w-9 h-9 flex items-center justify-center rounded-full text-sm font-medium transition-colors
-                      ${isSelected ? "bg-stone-800 text-white" : ""}
-                      ${!isSelected && inRange ? "text-stone-800" : ""}
-                      ${!isSelected && !inRange ? "text-stone-700 hover:bg-stone-200" : ""}
+                      ${isSelected ? "bg-[#A7773F] text-white" : ""}
+                      ${!isSelected && inRange ? "text-foreground" : ""}
+                      ${!isSelected && !inRange ? "text-foreground hover:bg-muted" : ""}
                     `}>
                       {format(day, "d")}
                     </span>
@@ -222,7 +222,7 @@ export default function DateRangePicker({ startDate, endDate, onChange, label, p
               })}
             </div>
 
-            <p className="text-xs text-stone-400 text-center mt-3">
+            <p className="text-xs text-muted-foreground text-center mt-3">
               {selecting === "start" ? "Tap to set start date" : "Tap to set end date"}
             </p>
           </div>

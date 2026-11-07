@@ -6,7 +6,7 @@ export default function UpNext({ items }) {
   return (
     <section className="h-full flex flex-col rounded-2xl border border-border/50 bg-card p-3">
       <div className="flex items-end justify-between mb-2.5">
-        <h2 className="font-heading text-lg text-foreground font-semibold">Up Next</h2>
+        <h2 className="font-heading text-[22px] text-foreground">Up Next</h2>
         <Link to="/travel" className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
           View all <ArrowRight className="w-3 h-3" />
         </Link>

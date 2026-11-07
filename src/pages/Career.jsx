@@ -232,7 +232,7 @@ export default function Career() {
         <div className="bg-card border border-border rounded-2xl p-5 mb-6 space-y-4">
           <div className="flex items-center gap-2 mb-3">
             <SelectedIcon className="w-5 h-5 text-foreground" />
-            <h2 className="font-heading font-semibold text-stone-900">Add {ENTRY_TYPES.find(t => t.id === entryType)?.label}</h2>
+            <h2 className="font-heading font-semibold text-foreground">Add {ENTRY_TYPES.find(t => t.id === entryType)?.label}</h2>
           </div>
 
           <div className="flex flex-wrap gap-1.5">
@@ -256,15 +256,15 @@ export default function Career() {
           )}
 
           <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Title (required)" autoFocus
-            className="w-full bg-stone-50 border border-border rounded-lg px-3 py-2 text-stone-900 text-sm outline-none focus:border-ring transition-colors" />
+            className="w-full bg-card border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors" />
 
           {(entryType === "job" || entryType === "education") && (
             <input value={company} onChange={e => setCompany(e.target.value)} placeholder="Company / Institution"
-              className="w-full bg-stone-50 border border-border rounded-lg px-3 py-2 text-stone-900 text-sm outline-none focus:border-ring transition-colors" />
+              className="w-full bg-card border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors" />
           )}
 
           {entryType === "job" && (
-            <label className="flex items-center gap-2 text-xs text-foreground bg-stone-50 border border-border rounded-lg px-3 py-2 cursor-pointer w-fit">
+            <label className="flex items-center gap-2 text-xs text-foreground bg-card border border-border rounded-lg px-3 py-2 cursor-pointer w-fit">
               <input type="checkbox" checked={current} onChange={e => setCurrent(e.target.checked)} /> Current role
             </label>
           )}
@@ -279,21 +279,21 @@ export default function Career() {
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Start date</label>
               <DateInput value={startDate} onChange={e => setStartDate(e.target.value)}
-                className="w-full bg-stone-50 border border-border rounded-lg px-3 py-2 text-stone-900 text-sm outline-none focus:border-ring transition-colors" />
+                className="w-full bg-card border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors" />
             </div>
           )}
 
           {entryType === "job" && (
             <input type="number" value={salary} onChange={e => setSalary(e.target.value)} placeholder="Salary (optional)"
-              className="w-full bg-stone-50 border border-border rounded-lg px-3 py-2 text-stone-900 text-sm outline-none focus:border-ring transition-colors" />
+              className="w-full bg-card border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors" />
           )}
 
           {(entryType === "review" || entryType === "job") && (
             <div className="flex gap-2">
               <input type="number" step="0.1" min="1" max={ratingScale} value={rating} onChange={e => setRating(e.target.value)} placeholder={`Rating (1-${ratingScale})`}
-                className="flex-1 bg-stone-50 border border-border rounded-lg px-3 py-2 text-stone-900 text-sm outline-none focus:border-ring transition-colors" />
+                className="flex-1 bg-card border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors" />
               <Select value={ratingScale} onValueChange={setRatingScale}>
-                <SelectTrigger className="w-24 bg-stone-50 border-border text-stone-900 text-sm">
+                <SelectTrigger className="w-24 bg-card border-border text-foreground text-sm">
                   <SelectValue placeholder="Scale" />
                 </SelectTrigger>
                 <SelectContent>
@@ -346,7 +346,7 @@ export default function Career() {
                             }
                           }}
                           placeholder={`1-${cal.scale_max}`}
-                          className="flex-1 bg-stone-50 border border-border rounded-lg px-3 py-2 text-stone-900 text-sm outline-none focus:border-ring transition-colors"
+                          className="flex-1 bg-card border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors"
                         />
                         <span className="text-xs text-muted-foreground w-12">/ {cal.scale_max}</span>
                       </div>
@@ -361,17 +361,17 @@ export default function Career() {
             value={description}
             onChange={setDescription}
             placeholder="Description (optional)"
-            className="bg-stone-50 rounded-lg mb-20 quill-career"
+            className="bg-card rounded-lg mb-20 quill-career"
             theme="snow"
           />
 
           {(entryType === "job" || entryType === "achievement") && (
             <input value={skillsGained} onChange={e => setSkillsGained(e.target.value)} placeholder="Skills gained (comma-separated)"
-              className="w-full bg-stone-50 border border-border rounded-lg px-3 py-2 text-stone-900 text-sm outline-none focus:border-ring transition-colors" />
+              className="w-full bg-card border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors" />
           )}
 
           <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes (optional)" rows={2}
-            className="w-full bg-stone-50 border border-border rounded-lg px-3 py-2 text-stone-900 text-sm outline-none focus:border-ring transition-colors resize-none" />
+            className="w-full bg-card border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors resize-none" />
 
           <div className="flex gap-2">
             <button onClick={editing ? saveEdit : add} className="flex-1 bg-[#A7773F] text-[#F7F3EC] py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">
@@ -411,7 +411,7 @@ export default function Career() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <p className="font-medium text-stone-900 truncate">{e.title}</p>
+                          <p className="font-medium text-foreground truncate">{e.title}</p>
                           {e.current && <span className="text-xs bg-[#F0E6D6] text-[#8B6B3E] px-2 py-0.5 rounded-full">Current</span>}
                         </div>
                         {e.company && <p className="text-sm text-muted-foreground">{e.company}</p>}

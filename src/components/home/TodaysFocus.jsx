@@ -41,7 +41,7 @@ export default function TodaysFocus({ items, total = 0, onComplete }) {
   return (
     <section>
       <div className="flex items-end justify-between mb-2.5">
-        <h2 className="font-heading text-lg text-foreground font-semibold">Today’s Focus</h2>
+        <h2 className="font-heading text-[22px] text-foreground">Today’s Focus</h2>
         <Link to="/goals" className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
           {total > localItems.length ? `View All (${total})` : "View all"} <ArrowRight className="w-3 h-3" />
         </Link>

@@ -8,7 +8,7 @@ export default function LifeProgress({ circles }) {
 
   return (
     <section>
-      <h2 className="font-heading text-lg text-foreground font-semibold mb-2.5">Life Progress</h2>
+      <h2 className="font-heading text-[22px] text-foreground mb-2.5">Life Progress</h2>
       <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
         {circles.map((c, i) => {
           const r = 24;

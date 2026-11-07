@@ -133,7 +133,7 @@ export default function Projects() {
 
       {!loading && active.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Active Projects</h2>
+          <h2 className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground mb-3">Active Projects</h2>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,380px),1fr))] gap-3">
             {active.map(project => {
               const progress = calculateProgress(project.tasks);
@@ -168,7 +168,7 @@ export default function Projects() {
                     </div>
                     <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-semibold text-foreground truncate text-[15px]">{project.title}</h3>
+                        <h3 className="font-heading text-base text-foreground truncate">{project.title}</h3>
                         <span className={`text-[10px] px-2 py-0.5 rounded-full border flex-shrink-0 ${statusColors[project.status]}`}>{project.status.replace("_", " ")}</span>
                       </div>
                       {project.description && <p className="text-muted-foreground text-xs line-clamp-1">{project.description}</p>}
@@ -253,7 +253,7 @@ export default function Projects() {
 
       {!loading && completed.length > 0 && (
         <div>
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Completed Projects</h2>
+          <h2 className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground mb-3">Completed Projects</h2>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,380px),1fr))] gap-2">
             {completed.map(project => (
               <button key={project.id} onClick={() => setSelected(project)}
@@ -274,7 +274,7 @@ export default function Projects() {
       {showAdd && (
         <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center bg-black/30 backdrop-blur-sm" onClick={() => setShowAdd(false)}>
           <div className="bg-card border border-border rounded-t-3xl md:rounded-2xl p-6 w-full max-w-md shadow-lg" onClick={e => e.stopPropagation()}>
-            <h2 className="font-heading font-semibold text-foreground mb-4 flex items-center gap-2">
+            <h2 className="font-heading text-xl text-foreground mb-4 flex items-center gap-2">
               <span>✨</span> Add New Project
             </h2>
             <div className="space-y-3">
@@ -287,7 +287,7 @@ export default function Projects() {
                       type="button"
                       onClick={() => setForm((f) => ({ ...f, category: f.category === c.id ? "" : c.id }))}
                       className={`flex flex-col items-center gap-0.5 py-2 rounded-lg text-[11px] font-medium transition-colors ${
-                        form.category === c.id ? "text-white" : "bg-stone-50 text-muted-foreground border border-border"
+                        form.category === c.id ? "text-white" : "bg-card text-muted-foreground border border-border"
                       }`}
                       style={form.category === c.id ? { backgroundColor: "#A7773F" } : undefined}
                     >
@@ -300,17 +300,17 @@ export default function Projects() {
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Project name</label>
                 <input placeholder="e.g. Home Renovation 🏠" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                  className="w-full bg-stone-50 border border-border rounded-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-ring transition-colors" autoFocus />
+                  className="w-full bg-card border border-border rounded-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-ring transition-colors" autoFocus />
               </div>
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Description</label>
                 <textarea placeholder="Brief description" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2}
-                  className="w-full bg-stone-50 border border-border rounded-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-ring transition-colors resize-none" />
+                  className="w-full bg-card border border-border rounded-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-ring transition-colors resize-none" />
               </div>
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Status</label>
                 <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
-                  className="w-full bg-stone-50 border border-border rounded-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-ring transition-colors">
+                  className="w-full bg-card border border-border rounded-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-ring transition-colors">
                   <option value="planning">Planning</option>
                   <option value="active">Active</option>
                   <option value="on_hold">On Hold</option>
@@ -319,7 +319,7 @@ export default function Projects() {
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Target date</label>
                 <DateInput value={form.target_date} onChange={e => setForm(f => ({ ...f, target_date: e.target.value }))}
-                  className="w-full bg-stone-50 border border-border rounded-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-ring transition-colors" />
+                  className="w-full bg-card border border-border rounded-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-ring transition-colors" />
               </div>
               <div>
                 <label className="text-xs text-muted-foreground mb-1.5 block">Sections shown</label>
@@ -329,7 +329,7 @@ export default function Projects() {
                       key={key}
                       type="button"
                       onClick={() => setForm((f) => ({ ...f, visible_tabs: { ...f.visible_tabs, [key]: !f.visible_tabs[key] } }))}
-                      className="w-full flex items-center justify-between bg-stone-50 border border-border rounded-xl px-4 py-2.5"
+                      className="w-full flex items-center justify-between bg-card border border-border rounded-xl px-4 py-2.5"
                     >
                       <span className="text-sm text-foreground">{TAB_LABELS[key]}</span>
                       <span

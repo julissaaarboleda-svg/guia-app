@@ -20,7 +20,7 @@ export default function RecentActivity({ items }) {
   return (
     <section>
       <div className="flex items-end justify-between mb-3">
-        <h2 className="font-heading text-lg text-foreground font-semibold">Recent Updates</h2>
+        <h2 className="font-heading text-[22px] text-foreground">Recent Updates</h2>
         {items.length > 6 && (
           <Link to="/notes" className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
             View All <ArrowRight className="w-3 h-3" />

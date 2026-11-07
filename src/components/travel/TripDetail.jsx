@@ -28,7 +28,7 @@ const statusOptions = ["planning", "confirmed", "completed"];
 const statusColors = {
   planning:  "bg-amber-50 text-amber-700 border-amber-100",
   confirmed: "bg-green-50 text-green-700 border-green-100",
-  completed: "bg-stone-100 text-stone-500 border-stone-200",
+  completed: "bg-secondary text-muted-foreground border-border",
 };
 
 export default function TripDetail({ trip, onBack, onUpdate, initialTab, initialEditOpen, initialDate }) {

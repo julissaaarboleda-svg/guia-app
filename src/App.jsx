@@ -44,7 +44,7 @@ const AuthenticatedApp = () => {
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
       <div className="fixed inset-0 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-4 border-border border-t-[#A7773F] rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -61,7 +61,7 @@ const AuthenticatedApp = () => {
   if (onboardingDone === null) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-[#0f1117]">
-        <div className="w-8 h-8 border-4 border-stone-700 border-t-amber-500 rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-4 border-border border-t-[#A7773F] rounded-full animate-spin"></div>
       </div>
     );
   }

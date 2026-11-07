@@ -60,7 +60,7 @@ export default function Onboarding() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 relative" style={{ backgroundColor: "#E8E4DE" }}>
+    <div className="min-h-screen flex items-center justify-center px-4 relative" style={{ backgroundColor: "hsl(var(--background))" }}>
       <AnimatePresence>
         {showIntro && <ViaIntro onDone={() => setShowIntro(false)} />}
       </AnimatePresence>
@@ -84,32 +84,32 @@ export default function Onboarding() {
                   style={{
                     width: i === step ? 28 : 10,
                     height: 10,
-                    backgroundColor: i === step ? "#242320" : "#CAC4BA",
+                    backgroundColor: i === step ? "#A7773F" : "#CAC4BA",
                   }}
                 />
               ))}
             </div>
 
             {/* Brand */}
-            <p className="text-center text-xs font-semibold tracking-[0.2em] text-stone-400 mb-6 uppercase">Guía</p>
+            <p className="text-center text-xs font-semibold tracking-[0.2em] text-muted-foreground mb-6 uppercase">Guía</p>
 
             {/* STEP 0 */}
             {step === 0 && (
               <div>
-                <h1 className="text-4xl font-bold text-stone-900 mb-2" style={{ fontFamily: "Georgia, serif" }}>Welcome to Guía.</h1>
-                <p className="text-stone-500 text-sm leading-relaxed mb-6">Your Path. Your Pace.</p>
+                <h1 className="font-heading text-4xl font-bold text-foreground mb-2">Welcome to Guía.</h1>
+                <p className="text-muted-foreground text-sm leading-relaxed mb-6">Your Path. Your Pace.</p>
                 <input
                   value={name}
                   onChange={e => setName(e.target.value)}
                   placeholder="What's your name?"
-                  className="w-full border border-stone-200 rounded-full px-5 py-3.5 text-stone-800 text-sm placeholder:text-stone-400 outline-none focus:border-stone-400 transition-colors mb-4"
+                  className="w-full border border-border rounded-full px-5 py-3.5 text-foreground text-sm placeholder:text-muted-foreground outline-none focus:border-[#A7773F]/60 transition-colors mb-4"
                   onKeyDown={e => e.key === "Enter" && setStep(1)}
                   autoFocus
                 />
                 <button
                   onClick={() => setStep(1)}
-                  className="w-full py-3.5 rounded-full text-white text-sm font-medium transition-opacity hover:opacity-90"
-                  style={{ backgroundColor: "#242320" }}
+                  className="w-full py-3.5 rounded-full text-[#F7F3EC] text-sm font-heading transition-opacity hover:opacity-90"
+                  style={{ backgroundColor: "#A7773F" }}
                 >
                   Continue
                 </button>
@@ -119,8 +119,8 @@ export default function Onboarding() {
             {/* STEP 1 */}
             {step === 1 && (
               <div>
-                <h1 className="text-3xl font-bold text-stone-900 mb-1" style={{ fontFamily: "Georgia, serif" }}>What do you want to track?</h1>
-                <p className="text-stone-400 text-sm mb-5">Choose your sections. You can change this anytime.</p>
+                <h1 className="font-heading text-3xl font-bold text-foreground mb-1">What do you want to track?</h1>
+                <p className="text-muted-foreground text-sm mb-5">Choose your sections. You can change this anytime.</p>
                 <div className="space-y-2 max-h-[42vh] overflow-y-auto pr-1 mb-5">
                   {ALL_SECTIONS.map(s => {
                     const on = selected.has(s.id);
@@ -132,7 +132,7 @@ export default function Onboarding() {
                         style={{
                           backgroundColor: on ? "#F0EDE8" : "#FAFAF9",
                           borderColor: on ? "#4F473E" : "#E7E5E4",
-                          color: on ? "#242320" : "#4F473E",
+                          color: on ? "#A7773F" : "#4F473E",
                         }}
                       >
                         <span className="text-base">{s.emoji}</span>
@@ -146,14 +146,14 @@ export default function Onboarding() {
                   })}
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => setStep(0)} className="px-5 py-3 rounded-full text-sm text-stone-400 hover:text-stone-700 border border-stone-200 transition-colors">
+                  <button onClick={() => setStep(0)} className="px-5 py-3 rounded-full text-sm text-muted-foreground hover:text-foreground border border-border transition-colors">
                     Back
                   </button>
                   <button
                     onClick={() => setStep(2)}
                     disabled={selected.size === 0}
-                    className="flex-1 py-3 rounded-full text-white text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-40"
-                    style={{ backgroundColor: "#242320" }}
+                    className="flex-1 py-3 rounded-full text-[#F7F3EC] text-sm font-heading transition-opacity hover:opacity-90 disabled:opacity-40"
+                    style={{ backgroundColor: "#A7773F" }}
                   >
                     Continue
                   </button>
@@ -164,13 +164,13 @@ export default function Onboarding() {
             {/* STEP 2 */}
             {step === 2 && (
               <div>
-                <h1 className="text-3xl font-bold text-stone-900 mb-1" style={{ fontFamily: "Georgia, serif" }}>You're all set.</h1>
-                <p className="text-stone-400 text-sm mb-6">One last thing — your word of the year helps personalize your dashboard.</p>
+                <h1 className="font-heading text-3xl font-bold text-foreground mb-1">You're all set.</h1>
+                <p className="text-muted-foreground text-sm mb-6">One last thing — your word of the year helps personalize your dashboard.</p>
                 <input
                   value={wordOfYear}
                   onChange={e => setWordOfYear(e.target.value)}
                   placeholder="e.g. Consistency, Growth, Focus"
-                  className="w-full border border-stone-200 rounded-full px-5 py-3.5 text-stone-800 text-sm placeholder:text-stone-400 outline-none focus:border-stone-400 transition-colors mb-4"
+                  className="w-full border border-border rounded-full px-5 py-3.5 text-foreground text-sm placeholder:text-muted-foreground outline-none focus:border-[#A7773F]/60 transition-colors mb-4"
                 />
                 {error && (
                   <p className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-4 py-2.5 mb-4">
@@ -180,12 +180,12 @@ export default function Onboarding() {
                 <button
                   onClick={finish}
                   disabled={saving}
-                  className="w-full py-3.5 rounded-full text-white text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50 mb-2"
-                  style={{ backgroundColor: "#242320" }}
+                  className="w-full py-3.5 rounded-full text-[#F7F3EC] text-sm font-heading transition-opacity hover:opacity-90 disabled:opacity-50 mb-2"
+                  style={{ backgroundColor: "#A7773F" }}
                 >
                   {saving ? "Setting up..." : "Open Guía"}
                 </button>
-                <button onClick={() => setStep(1)} className="w-full py-2 text-sm text-stone-400 hover:text-stone-600 transition-colors">
+                <button onClick={() => setStep(1)} className="w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
                   Back
                 </button>
               </div>

@@ -41,7 +41,7 @@ const TAB_LABELS = { tasks: "Tasks", resources: "Resources", notes: "Notes", sup
 const statusColors = {
   planning: "bg-amber-50 text-amber-700 border-amber-100",
   active: "bg-green-50 text-green-700 border-green-100",
-  on_hold: "bg-stone-100 text-stone-500 border-stone-200",
+  on_hold: "bg-secondary text-muted-foreground border-border",
   completed: "bg-blue-50 text-blue-700 border-blue-100",
 };
 
@@ -293,7 +293,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
       : Math.round((tasks.filter((t) => t.completed).length / tasks.length) * 100);
 
   return (
-    <div className="min-h-screen bg-stone-50">
+    <div className="min-h-screen bg-card">
       <div className="p-4 md:p-8 max-w-4xl mx-auto" style={{ paddingTop: "1.25rem" }}>
         <div className="rounded-[24px] p-4 mb-5 relative overflow-hidden h-[210px] flex flex-col" style={{ background: coverImage ? undefined : accentColor }}>
           {/* Action row — consolidated into a single menu instead of four
@@ -302,14 +302,14 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
           <div className="relative z-10 flex items-center justify-between mb-2">
             <button
               onClick={onBack}
-              className="w-7 h-7 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-stone-100 transition-colors"
+              className="w-7 h-7 flex items-center justify-center text-foreground bg-white rounded-full shadow-sm hover:bg-secondary transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" strokeWidth={1.8} />
             </button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="w-7 h-7 flex items-center justify-center text-stone-700 bg-white rounded-full shadow-sm hover:bg-stone-100 transition-colors"
+                  className="w-7 h-7 flex items-center justify-center text-foreground bg-white rounded-full shadow-sm hover:bg-secondary transition-colors"
                   aria-label="Project actions"
                 >
                   <MoreVertical className="w-3.5 h-3.5" strokeWidth={1.8} />
@@ -355,7 +355,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
               {project.status?.replace("_", " ") || "planning"}
             </span>
             {project.category && CATEGORIES.find((c) => c.id === project.category) && (
-              <span className="self-start font-body text-[9px] px-2.5 py-1 rounded-full bg-white/90 text-stone-700 flex-shrink-0 flex items-center gap-1">
+              <span className="self-start font-body text-[9px] px-2.5 py-1 rounded-full bg-white/90 text-foreground flex-shrink-0 flex items-center gap-1">
                 {CATEGORIES.find((c) => c.id === project.category).emoji} {CATEGORIES.find((c) => c.id === project.category).label}
               </span>
             )}
@@ -409,16 +409,16 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
         {(visibleTabs.tasks || visibleTabs.budget) && (
           <div className={`grid gap-3 mb-5 ${visibleTabs.tasks && visibleTabs.budget ? "grid-cols-2" : "grid-cols-1"}`}>
             {visibleTabs.tasks && (
-              <div className="bg-white border border-stone-200 rounded-2xl p-3 min-w-0">
-                <p className="text-[10px] font-medium font-heading text-stone-500 mb-1">Progress</p>
-                <p className="text-base font-bold text-stone-900 mb-1.5">{progress}%</p>
-                <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden mb-1.5">
+              <div className="bg-white border border-border rounded-2xl p-3 min-w-0">
+                <p className="text-[10px] font-medium font-heading text-muted-foreground mb-1">Progress</p>
+                <p className="text-base font-bold text-foreground mb-1.5">{progress}%</p>
+                <div className="h-1.5 bg-secondary rounded-full overflow-hidden mb-1.5">
                   <div
                     className="h-full bg-green-600 rounded-full transition-all"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
-                <p className="text-[9.5px] text-stone-400 truncate">
+                <p className="text-[9.5px] text-muted-foreground truncate">
                   {tasks.filter((t) => t.completed).length} of {tasks.length} tasks
                 </p>
               </div>
@@ -427,15 +427,15 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
             {visibleTabs.budget && (
               <button
                 onClick={() => setTab("budget")}
-                className="text-left bg-white border border-stone-200 rounded-2xl p-3 min-w-0 hover:border-stone-300 transition-colors"
+                className="text-left bg-white border border-border rounded-2xl p-3 min-w-0 hover:border-border transition-colors"
               >
                 <div className="flex items-center justify-between mb-1 gap-1">
-                  <p className="text-[10px] font-medium font-heading text-stone-500 truncate">Budget</p>
+                  <p className="text-[10px] font-medium font-heading text-muted-foreground truncate">Budget</p>
                   <span className="text-[9px] font-medium flex-shrink-0" style={{ color: "#A7773F" }}>Details →</span>
                 </div>
-                <p className="text-base font-bold text-stone-900 mb-1.5 truncate">
+                <p className="text-base font-bold text-foreground mb-1.5 truncate">
                   ${totalSpent.toLocaleString()}
-                  <span className="text-[10px] text-stone-400 font-normal ml-1">
+                  <span className="text-[10px] text-muted-foreground font-normal ml-1">
                     {budgetTarget > 0 ? `/ $${budgetTarget.toLocaleString()}` : "spent"}
                   </span>
                 </p>
@@ -457,21 +457,21 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
 
         {/* Edit form */}
         {editing && (
-          <div className="bg-white border border-stone-200 rounded-2xl p-5 mb-6 space-y-3">
+          <div className="bg-white border border-border rounded-2xl p-5 mb-6 space-y-3">
             <div>
-              <label className="text-xs text-stone-500 mb-1 block">Cover</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Cover</label>
               <div className="flex items-center gap-2">
                 {["#1c1917", "#A7773F", "#7D8A53", "#A77C81", "#8A6530"].map((hex) => (
                   <button
                     key={hex}
                     onClick={() => updateAccentColor(hex)}
-                    className={`w-8 h-8 rounded-full border-2 shadow-sm transition-transform hover:scale-110 ${!coverImage && accentColor === hex ? "border-stone-800" : "border-white ring-1 ring-stone-200"}`}
+                    className={`w-8 h-8 rounded-full border-2 shadow-sm transition-transform hover:scale-110 ${!coverImage && accentColor === hex ? "border-foreground" : "border-white ring-1 ring-border"}`}
                     style={{ background: hex }}
                     aria-label={`Set cover color to ${hex}`}
                   />
                 ))}
                 <label
-                  className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer border-2 border-white shadow-sm ring-1 ring-stone-200 transition-transform hover:scale-110"
+                  className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer border-2 border-white shadow-sm ring-1 ring-border transition-transform hover:scale-110"
                   style={{ background: "linear-gradient(135deg,#6E9AC4,#B87D4E)" }}
                   title="Upload a photo"
                 >
@@ -479,33 +479,33 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
                   <input type="file" accept="image/*,image/heic,image/heif,.heic,.heif" className="hidden" onChange={uploadCoverPhoto} />
                 </label>
               </div>
-              {uploadingCover && <p className="text-xs text-stone-400 mt-1">Uploading...</p>}
+              {uploadingCover && <p className="text-xs text-muted-foreground mt-1">Uploading...</p>}
               {uploadError && <p className="text-xs text-rose-600 mt-1">{uploadError}</p>}
             </div>
             <div>
-              <label className="text-xs text-stone-500 mb-1 block">Project name</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Project name</label>
               <input
                 value={form.title}
                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-stone-900 text-sm outline-none focus:border-stone-400 transition-colors"
+                className="w-full bg-card border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-[#A7773F]/60 transition-colors"
               />
             </div>
             <div>
-              <label className="text-xs text-stone-500 mb-1 block">Description</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Description</label>
               <textarea
                 value={form.description}
                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                 rows={2}
-                className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-stone-900 text-sm outline-none focus:border-stone-400 transition-colors resize-none"
+                className="w-full bg-card border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-[#A7773F]/60 transition-colors resize-none"
               />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-xs text-stone-500 mb-1 block">Status</label>
+                <label className="text-xs text-muted-foreground mb-1 block">Status</label>
                 <select
                   value={form.status}
                   onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
-                  className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-stone-900 text-sm outline-none focus:border-stone-400 transition-colors"
+                  className="w-full bg-card border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-[#A7773F]/60 transition-colors"
                 >
                   <option value="planning">Planning</option>
                   <option value="active">Active</option>
@@ -514,11 +514,11 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
                 </select>
               </div>
               <div>
-                <label className="text-xs text-stone-500 mb-1 block">Date type</label>
+                <label className="text-xs text-muted-foreground mb-1 block">Date type</label>
                 <select
                   value={form.date_type}
                   onChange={(e) => setForm((f) => ({ ...f, date_type: e.target.value }))}
-                  className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-stone-900 text-sm outline-none focus:border-stone-400 transition-colors"
+                  className="w-full bg-card border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-[#A7773F]/60 transition-colors"
                 >
                   <option value="due">Due date</option>
                   <option value="date">Event date</option>
@@ -527,28 +527,28 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
               </div>
               {form.date_type !== "ongoing" && (
                 <div>
-                  <label className="text-xs text-stone-500 mb-1 block">
+                  <label className="text-xs text-muted-foreground mb-1 block">
                     {form.date_type === "date" ? "Date" : "Target date"}
                   </label>
                   <DateInput
                     value={form.target_date}
                     onChange={(e) => setForm((f) => ({ ...f, target_date: e.target.value }))}
-                    className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-stone-900 text-sm outline-none focus:border-stone-400 transition-colors"
+                    className="w-full bg-card border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-[#A7773F]/60 transition-colors"
                   />
                 </div>
               )}
               <div>
-                <label className="text-xs text-stone-500 mb-1 block">Budget target ($)</label>
+                <label className="text-xs text-muted-foreground mb-1 block">Budget target ($)</label>
                 <input
                   type="number"
                   value={form.budget_target}
                   onChange={(e) => setForm((f) => ({ ...f, budget_target: e.target.value }))}
                   placeholder="500"
-                  className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-stone-900 text-sm outline-none focus:border-stone-400 transition-colors"
+                  className="w-full bg-card border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-[#A7773F]/60 transition-colors"
                 />
               </div>
               <div>
-                <label className="text-xs text-stone-500 mb-1.5 block">Category</label>
+                <label className="text-xs text-muted-foreground mb-1.5 block">Category</label>
                 <div className="grid grid-cols-3 gap-1.5">
                   {CATEGORIES.map((c) => (
                     <button
@@ -556,7 +556,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
                       type="button"
                       onClick={() => setForm((f) => ({ ...f, category: f.category === c.id ? "" : c.id }))}
                       className={`flex flex-col items-center gap-0.5 py-2 rounded-lg text-[11px] font-medium transition-colors ${
-                        form.category === c.id ? "text-white" : "bg-stone-50 text-stone-500 border border-stone-200"
+                        form.category === c.id ? "text-white" : "bg-card text-muted-foreground border border-border"
                       }`}
                       style={form.category === c.id ? { backgroundColor: "#A7773F" } : undefined}
                     >
@@ -567,16 +567,16 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
                 </div>
               </div>
               <div>
-                <label className="text-xs text-stone-500 mb-1.5 block">Sections shown</label>
+                <label className="text-xs text-muted-foreground mb-1.5 block">Sections shown</label>
                 <div className="space-y-1.5">
                   {Object.keys(DEFAULT_VISIBLE_TABS).map((key) => (
                     <button
                       key={key}
                       type="button"
                       onClick={() => setForm((f) => ({ ...f, visible_tabs: { ...f.visible_tabs, [key]: !f.visible_tabs[key] } }))}
-                      className="w-full flex items-center justify-between bg-stone-50 border border-stone-200 rounded-lg px-3 py-2"
+                      className="w-full flex items-center justify-between bg-card border border-border rounded-lg px-3 py-2"
                     >
-                      <span className="text-sm text-stone-700">{TAB_LABELS[key]}</span>
+                      <span className="text-sm text-foreground">{TAB_LABELS[key]}</span>
                       <span
                         className="w-8 h-[18px] rounded-full relative transition-colors flex-shrink-0"
                         style={{ backgroundColor: form.visible_tabs[key] ? "#A7773F" : "#E7E2D8" }}
@@ -601,7 +601,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
               </button>
               <button
                 onClick={() => setEditing(false)}
-                className="px-4 py-2 text-stone-500 text-sm hover:text-stone-800 transition-colors"
+                className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors"
               >
                 <X className="w-3 h-3 inline mr-1" />
                 Cancel
@@ -611,12 +611,12 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
         )}
 
         {/* Tabs — a bit more breathing room around the labels */}
-        <div className="flex gap-1.5 mb-4 bg-white border border-stone-200 rounded-xl p-1.5">
+        <div className="flex gap-1.5 mb-4 bg-white border border-border rounded-xl p-1.5">
           {visibleTabs.tasks && (
             <button
               onClick={() => setTab("tasks")}
               className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-1 rounded-lg text-[12px] font-medium transition-colors ${
-                tab === "tasks" ? "text-white" : "text-stone-500 hover:text-stone-900"
+                tab === "tasks" ? "text-white" : "text-muted-foreground hover:text-foreground"
               }`}
               style={tab === "tasks" ? { backgroundColor: "#A7773F" } : undefined}
             >
@@ -627,7 +627,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
             <button
               onClick={() => setTab("resources")}
               className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-1 rounded-lg text-[12px] font-medium transition-colors ${
-                tab === "resources" ? "text-white" : "text-stone-500 hover:text-stone-900"
+                tab === "resources" ? "text-white" : "text-muted-foreground hover:text-foreground"
               }`}
               style={tab === "resources" ? { backgroundColor: "#A7773F" } : undefined}
             >
@@ -638,7 +638,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
             <button
               onClick={() => setTab("notes")}
               className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-1 rounded-lg text-[12px] font-medium transition-colors ${
-                tab === "notes" ? "text-white" : "text-stone-500 hover:text-stone-900"
+                tab === "notes" ? "text-white" : "text-muted-foreground hover:text-foreground"
               }`}
               style={tab === "notes" ? { backgroundColor: "#A7773F" } : undefined}
             >
@@ -649,7 +649,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
             <button
               onClick={() => setTab("support")}
               className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-1 rounded-lg text-[12px] font-medium transition-colors ${
-                tab === "support" ? "text-white" : "text-stone-500 hover:text-stone-900"
+                tab === "support" ? "text-white" : "text-muted-foreground hover:text-foreground"
               }`}
               style={tab === "support" ? { backgroundColor: "#A7773F" } : undefined}
             >
@@ -660,7 +660,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
             <button
               onClick={() => setTab("budget")}
               className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-1 rounded-lg text-[12px] font-medium transition-colors ${
-                tab === "budget" ? "text-white" : "text-stone-500 hover:text-stone-900"
+                tab === "budget" ? "text-white" : "text-muted-foreground hover:text-foreground"
               }`}
               style={tab === "budget" ? { backgroundColor: "#A7773F" } : undefined}
             >
@@ -670,7 +670,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
         </div>
 
         {/* Tab content */}
-        <div className="bg-white border border-stone-200 rounded-2xl p-5">
+        <div className="bg-white border border-border rounded-2xl p-5">
           {tab === "tasks" ? (
             <ProjectTasks
               tasks={tasks}

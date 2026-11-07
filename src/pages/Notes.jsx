@@ -417,7 +417,7 @@ export default function Notes() {
                       {checked.length > 0 && unchecked.length > 0 && <li className="border-t border-border my-1" />}
                       {checked.map(({ item, idx }) => (
                         <li key={idx} className="flex items-center gap-3 group opacity-50">
-                          <button onClick={() => toggleItem(idx)} className="w-5 h-5 rounded-full border-2 bg-muted-foreground/40 border-stone-400 flex items-center justify-center flex-shrink-0 transition-all"><Check className="w-3 h text-background" /></button>
+                          <button onClick={() => toggleItem(idx)} className="w-5 h-5 rounded-full border-2 bg-muted-foreground/40 border-muted-foreground flex items-center justify-center flex-shrink-0 transition-all"><Check className="w-3 h text-background" /></button>
                           <span className="text-sm flex-1 line-through text-muted-foreground">{item.text}</span>
                           <button onClick={() => removeItem(idx)} className="opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-destructive transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
                         </li>

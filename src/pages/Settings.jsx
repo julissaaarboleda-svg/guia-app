@@ -133,7 +133,7 @@ export default function Settings() {
 
       {/* Avatar */}
       <section className="bg-card border border-border rounded-2xl p-6 mb-5">
-        <h2 className="font-heading font-semibold text-foreground mb-4">Avatar</h2>
+        <h2 className="font-heading text-lg text-foreground mb-4">Avatar</h2>
         <div className="flex items-center gap-6">
           <div className="relative flex-shrink-0">
             <div className="w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-bold overflow-hidden"
@@ -168,7 +168,7 @@ export default function Settings() {
 
       {/* Profile */}
       <section className="bg-card border border-border rounded-2xl p-6 mb-5">
-        <h2 className="font-heading font-semibold text-foreground mb-4">Your info</h2>
+        <h2 className="font-heading text-lg text-foreground mb-4">Your info</h2>
         <div className="space-y-3">
           <div>
             <label className="text-xs text-muted-foreground font-body mb-1 block">Name</label>
@@ -185,7 +185,7 @@ export default function Settings() {
 
       {/* Your words */}
       <section className="bg-card border border-border rounded-2xl p-6 mb-5">
-        <h2 className="font-heading font-semibold text-foreground mb-1">Your words</h2>
+        <h2 className="font-heading text-lg text-foreground mb-1">Your words</h2>
         <p className="text-xs text-muted-foreground font-body mb-4">Update this each month — takes 10 seconds.</p>
         <div className="space-y-3">
           <div>
@@ -203,7 +203,7 @@ export default function Settings() {
 
       {/* Sections */}
       <section className="bg-card border border-border rounded-2xl p-6 mb-5">
-        <h2 className="font-heading font-semibold text-foreground mb-1">Active sections</h2>
+        <h2 className="font-heading text-lg text-foreground mb-1">Active sections</h2>
         <p className="text-xs text-muted-foreground font-body mb-4">Toggle sections on or off.</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {ALL_SECTIONS.map(s => {
@@ -229,7 +229,7 @@ export default function Settings() {
       {/* Section order */}
       <section className="bg-card border border-border rounded-2xl p-6 mb-6">
         <div className="flex items-center justify-between mb-1">
-          <h2 className="font-heading font-semibold text-foreground">Navigation order</h2>
+          <h2 className="font-heading text-lg text-foreground">Navigation order</h2>
           <button
             onClick={() => setShowOrderEditor(!showOrderEditor)}
             className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors font-body"

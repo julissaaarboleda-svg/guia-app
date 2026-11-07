@@ -148,7 +148,7 @@ export default function Travel() {
   if (loading) {
     return (
       <div className="fixed inset-0 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-stone-200 border-t-stone-800 rounded-full animate-spin" />
+        <div className="w-8 h-8 border-4 border-border border-t-[#A7773F] rounded-full animate-spin" />
       </div>
     );
   }
