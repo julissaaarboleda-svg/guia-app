@@ -8,7 +8,7 @@
 // mode "schedule" reads a loan payment schedule and returns { payments: [{ date, amount }], payoff_amount }.
 
 const { GoogleGenAI } = require("@google/genai");
-const { claudeEnabled, claudeText, fileBlock } = require("../lib/ai");
+const { claudeEnabled, claudeText, fileBlock } = require("../lib/ai.cjs");
 const { getStore, connectLambda } = require("@netlify/blobs");
 
 const RATE_LIMIT = 10;

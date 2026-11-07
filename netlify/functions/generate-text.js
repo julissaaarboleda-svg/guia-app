@@ -22,7 +22,7 @@ const WINDOW_MS = 60 * 60 * 1000;   // window length: 1 hour
 // someone's well within the general 30/hour limit.
 const GROUNDED_RATE_LIMIT = 8;      // max grounded requests per window, per user
 
-const { claudeEnabled, claudeText, fileBlock } = require("../lib/ai");
+const { claudeEnabled, claudeText, fileBlock } = require("../lib/ai.cjs");
 
 const CORS = {
   "Content-Type": "application/json",

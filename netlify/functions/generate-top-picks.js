@@ -7,7 +7,7 @@
 // the bottom of this file for the exact client-side replacement code.
 
 const { GoogleGenAI } = require("@google/genai");
-const { claudeEnabled, claudeText, CLAUDE_FAST_MODEL } = require("../lib/ai");
+const { claudeEnabled, claudeText, CLAUDE_FAST_MODEL } = require("../lib/ai.cjs");
 
 const CORS = {
   "Content-Type": "application/json",
