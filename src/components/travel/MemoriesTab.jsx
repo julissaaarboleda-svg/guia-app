@@ -8,7 +8,7 @@ import { visiblePlaces, visibleMedia } from "@/lib/memoryUtils";
 import FavoritePlacesPage from "./memories/FavoritePlacesPage";
 import PhotosVideosPage from "./memories/PhotosVideosPage";
 import NotesReflectionsPage from "./memories/NotesReflectionsPage";
-import StoryPreviewPage from "./memories/StoryPreviewPage";
+import TripCardsPage from "./memories/TripCardsPage";
 
 const stripHtml = (html) => (html || "").replace(/<[^>]*>/g, "").trim();
 const dayLabel = (date) => {
@@ -102,7 +102,7 @@ export default function MemoriesTab({ trip, onUpdate }) {
     }
   };
 
-  if (story) return <StoryPreviewPage trip={trip} onUpdate={onUpdate} onBack={() => setStory(false)} />;
+  if (story) return <TripCardsPage trip={trip} onBack={() => setStory(false)} />;
 
   const FILTERS = [
     { id: "all", label: "All" },
@@ -248,7 +248,7 @@ export default function MemoriesTab({ trip, onUpdate }) {
         onClick={() => setStory(true)}
         className="w-full inline-flex items-center justify-center gap-1.5 rounded-full border border-[#A7773F] text-[#8B6B3E] py-2.5 font-body text-[13px] font-semibold hover:bg-[#F0E6D6]/50 transition-colors"
       >
-        <Sparkles className="w-4 h-4" /> Make my travel story
+        <Sparkles className="w-4 h-4" /> Make my trip cards
       </button>
     </div>
   );
