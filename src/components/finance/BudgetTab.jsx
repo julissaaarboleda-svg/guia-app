@@ -245,7 +245,7 @@ export default function BudgetTab() {
         </div>
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span><span className="font-heading text-[15px] text-foreground">{fmt(allocated)}</span> allocated</span>
-          <span><span className={`font-heading text-[15px] ${remaining < 0 ? "text-destructive" : "text-foreground"}`}>{fmt(remaining)}</span> {remaining < 0 ? "over" : "left"}</span>
+          <span><span className={`font-heading text-[15px] ${remaining < 0 ? "text-destructive" : "text-foreground"}`}>{fmt(Math.abs(remaining))}</span> {remaining < 0 ? "over" : "left"}</span>
         </div>
         {fixedAllocated > 0 && <p className="text-xs text-muted-foreground mt-1">incl. {fmt(fixedAllocated)} fixed</p>}
       </div>

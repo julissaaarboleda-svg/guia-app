@@ -13,13 +13,14 @@ export default function FinanceSummary({ items, buckets, onNavigate, onAddFirst 
   const [insights, setInsights] = useState(null);
   const [loading, setLoading] = useState(true);
   const [income, setIncome] = useState(0);
+  const [incomeReady, setIncomeReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     ent.MonthlyIncome.filter({ month: monthKey(new Date()) }).then(res => {
       setIncome(res[0]?.amount || 0);
-    }).catch(() => setIncome(0));
+    }).catch(() => setIncome(0)).finally(() => setIncomeReady(true));
   }, []);
 
   const unpaidBills = items.filter(i => i.type === "bill" && !i.paid);
@@ -44,7 +45,7 @@ export default function FinanceSummary({ items, buckets, onNavigate, onAddFirst 
   const savingsTarget = savings.reduce((s, g) => s + (g.target_amount || 0), 0);
 
   const loans = items.filter(i => i.type === "loan");
-  const loansOutstanding = loans.reduce((s, l) => s + ((l.total_amount || 0) - (l.amount_paid || 0)), 0);
+  const loansOutstanding = loans.reduce((s, l) => s + (l.payoff_amount != null ? Number(l.payoff_amount) : (l.total_amount || 0) - (l.amount_paid || 0)), 0);
 
   const credit = items.filter(i => i.type === "credit_score");
   const topScore = credit.reduce((max, c) => Math.max(max, c.score || 0), 0);
@@ -63,6 +64,7 @@ export default function FinanceSummary({ items, buckets, onNavigate, onAddFirst 
   ];
 
   useEffect(() => {
+    if (!incomeReady) return; // wait for income so the insights never see $0 by mistake
     if (!items.length && !buckets.length) { setLoading(false); return; }
     setLoading(true);
     setFailed(false);
@@ -107,7 +109,7 @@ Format your response as JSON with this structure:
       setInsights(res);
       setLoading(false);
     }).catch(() => { setFailed(true); setLoading(false); });
-  }, [items.length, buckets.length, budgetUtil, retry]);
+  }, [items.length, buckets.length, budgetUtil, retry, income, incomeReady]);
 
   const utilColor = budgetUtil > 100 ? "text-destructive" : budgetUtil > 80 ? "text-foreground" : "text-muted-foreground";
   const utilBarColor = budgetUtil > 100 ? "bg-destructive" : budgetUtil > 80 ? "bg-[#8B6B3E]" : "bg-[#A7773F]";
