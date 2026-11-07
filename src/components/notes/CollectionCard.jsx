@@ -24,7 +24,7 @@ export default function CollectionCard({ folder, count, onOpen, onLongPress }) {
       onTouchEnd={cancelPress}
       onTouchMove={cancelPress}
       onContextMenu={(e) => { e.preventDefault(); onLongPress(folder); }}
-      className="group relative w-full h-[108px] flex flex-col items-center justify-center text-center bg-card border border-border/50 rounded-2xl p-2 transition-all hover:shadow-[0_4px_16px_-10px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 active:translate-y-0"
+      className="group relative w-full min-h-[108px] flex flex-col items-center justify-center text-center bg-card border border-border/50 rounded-2xl p-2 transition-all hover:shadow-[0_4px_16px_-10px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 active:translate-y-0"
     >
       {folder.pinned && (
         <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />
@@ -39,7 +39,7 @@ export default function CollectionCard({ folder, count, onOpen, onLongPress }) {
           <FolderIcon className="w-[23px] h-[23px]" style={{ color }} strokeWidth={1.6} />
         )}
       </span>
-      <p className="font-body text-[13px] font-medium text-foreground leading-tight truncate max-w-full px-1">{folder.name}</p>
+      <p className="font-body text-[13px] font-medium text-foreground leading-tight line-clamp-2 break-words max-w-full px-1">{folder.name}</p>
       <p className="font-body text-[11px] text-[#8E8A84] mt-0.5 truncate max-w-full">
         {count} {count === 1 ? "note" : "notes"}
       </p>

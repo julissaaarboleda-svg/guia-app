@@ -24,12 +24,14 @@ export default function NoteAttachments({ attachments, onRemove, onPreview }) {
               </span>
             </button>
           )}
-          <button
-            onClick={() => onRemove(idx)}
-            className="absolute top-1.5 right-1.5 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-60 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10"
-          >
-            <X className="w-3 h-3" />
-          </button>
+          {onRemove && (
+            <button
+              onClick={() => onRemove(idx)}
+              className="absolute top-1.5 right-1.5 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-60 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
         </div>
       ))}
     </div>

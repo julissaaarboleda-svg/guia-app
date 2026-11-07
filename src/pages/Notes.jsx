@@ -35,6 +35,7 @@ export default function Notes() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [selected, setSelected] = useState(null);
+  const [editingId, setEditingId] = useState(null);
   const [newItemText, setNewItemText] = useState("");
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -108,6 +109,7 @@ export default function Notes() {
     const n = await base44.entities.Note.create({ title: "", content: "", note_type, folder_id: folderId || null, ...extra });
     setNotes(prev => [n, ...prev]);
     setSelected(n);
+    setEditingId(n.id);
   };
 
   const switchNoteType = async (type) => {
@@ -279,6 +281,8 @@ export default function Notes() {
   const checkedCount = (selected?.list_items || []).filter((i) => i.checked).length;
   const totalCount = (selected?.list_items || []).length;
   const showingDetail = !!selected;
+  const isEditing = !!selected && (isList || editingId === selected.id);
+  const stripHtml = (h) => (h || "").replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
 
   const backToList = async () => {
     if (selected) {
@@ -288,8 +292,11 @@ export default function Notes() {
       if (isBlank) {
         setNotes(prev => prev.filter(n => n.id !== selected.id));
         base44.entities.Note.delete(selected.id).catch(() => {});
+      } else if (!adding) {
+        persistNote(selected, false);
       }
     }
+    setEditingId(null);
     setSelected(null);
     setAdding(false);
     setTitle(""); setContent(""); setNewType("text");
@@ -327,6 +334,9 @@ export default function Notes() {
           )}
           {selected && (
             <div className="flex items-center gap-1 flex-shrink-0">
+              {!isList && (isEditing
+                ? <button onClick={() => { persistNote(selected, false); setEditingId(null); }} className="mr-1 bg-[#A7773F] text-[#F7F3EC] rounded-full text-xs px-3.5 py-1.5">Done</button>
+                : <button onClick={() => setEditingId(selected.id)} className="mr-1 border border-[#A7773F] text-[#A7773F] rounded-full text-xs px-3.5 py-1.5">Edit</button>)}
               <button onClick={() => shareNote(selected)} disabled={sharing} className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary rounded-full transition-colors disabled:opacity-50" title="Share">
                 <Share2 className="w-4 h-4" />
               </button>
@@ -342,7 +352,22 @@ export default function Notes() {
 
         <div className="px-6 md:px-10 lg:px-14 pt-5">
 
-        {selected && (
+        {selected && !isEditing && (
+          <div className="flex flex-col gap-4">
+            <div>
+              <h1 className="font-heading text-[24px] leading-tight text-foreground">{selected.title || "Untitled"}</h1>
+              {selected.updated_date && <p className="text-[11px] text-muted-foreground mt-1">Edited {new Date(selected.updated_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>}
+            </div>
+            <div className="ql-snow cursor-text" onClick={() => setEditingId(selected.id)}>
+              {stripHtml(selected.content)
+                ? <div className="ql-editor !p-0 !min-h-[120px] text-[15px] leading-relaxed text-foreground" dangerouslySetInnerHTML={{ __html: selected.content }} />
+                : <p className="text-sm text-muted-foreground italic min-h-[120px]">Nothing here yet. Tap to start writing.</p>}
+            </div>
+            <NoteAttachments attachments={selected.attachments} onPreview={setViewerAttachment} />
+            <p className="text-[11px] text-muted-foreground text-center pt-6">Tap Edit or the text to make changes</p>
+          </div>
+        )}
+        {selected && isEditing && (
           <div className="flex flex-col gap-4">
             {isBlank && (
               <div className="flex gap-2">
@@ -356,7 +381,7 @@ export default function Notes() {
             )}
             <div className="flex items-center gap-2">
               {isList ? <List className="w-4 h-4 text-[#B49399] flex-shrink-0" /> : <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
-              <input value={selected.title} onChange={(e) => setSelected({ ...selected, title: e.target.value })} placeholder={isList ? "List name (e.g. Grocery)" : "Title"} className="flex-1 bg-transparent border-0 border-b border-border rounded-none text-foreground text-[17px] font-semibold px-0 py-1 outline-none focus:border-ring transition-colors" autoFocus />
+              <input value={selected.title} onChange={(e) => setSelected({ ...selected, title: e.target.value })} placeholder={isList ? "List name (e.g. Grocery)" : "Title"} className="flex-1 bg-transparent border-0 border-b border-border rounded-none text-foreground text-[19px] font-heading px-0 py-1 outline-none focus:border-ring transition-colors" autoFocus />
             </div>
 
             <div className="flex items-center gap-2">
@@ -406,7 +431,7 @@ export default function Notes() {
                 </div>
                 <NoteAttachments attachments={selected.attachments} onRemove={removeAttachment} onPreview={setViewerAttachment} />
                 <div className="flex items-center gap-2 mt-2">
-                  <button onClick={save} className="bg-foreground text-background px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">Save</button>
+                  <span className="text-[11px] text-[#A7773F] px-1">Saved automatically</span>
                   <button onClick={() => setShowAttachmentSheet(true)} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground px-3 py-2 rounded-lg text-sm transition-colors"><Paperclip className="w-4 h-4" /> Attach</button>
                 </div>
               </div>
@@ -417,7 +442,7 @@ export default function Notes() {
                 </div>
                 <NoteAttachments attachments={selected.attachments} onRemove={removeAttachment} onPreview={setViewerAttachment} />
                 <div className="flex items-center gap-2">
-                  <button onClick={save} className="bg-foreground text-background px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">Save</button>
+                  <span className="text-[11px] text-[#A7773F] px-1">Saved automatically</span>
                   <button onClick={() => setShowAttachmentSheet(true)} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground px-3 py-2 rounded-lg text-sm transition-colors"><Paperclip className="w-4 h-4" /> Attach</button>
                 </div>
               </>
@@ -469,7 +494,7 @@ export default function Notes() {
                 <button onClick={() => setSelected(n)} className="flex-1 min-w-0 h-[58px] flex items-center px-4 text-left hover:bg-secondary/60 transition-colors">
                   <div className="flex-1 min-w-0">
                     <p className="font-body text-[15px] font-medium text-foreground truncate leading-snug">{n.title || "Untitled"}</p>
-                    <p className="font-body text-[12px] text-muted-foreground mt-0.5 truncate">{n.note_type === "list" ? `${(n.list_items || []).length} items` : "Text note"}</p>
+                    <p className="font-body text-[12px] text-muted-foreground mt-0.5 truncate">{n.note_type === "list" ? `${(n.list_items || []).length} items` : (stripHtml(n.content) || "Empty note")}</p>
                   </div>
                 </button>
                 <button onClick={() => setNoteMenu(n)} className="w-8 h-8 mr-3 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"><MoreHorizontal className="w-4 h-4" /></button>
@@ -491,7 +516,7 @@ export default function Notes() {
           onClose={() => setNoteMenu(null)}
           onDelete={remove}
           onMove={moveNoteToFolder}
-          onEdit={(n) => { setNoteMenu(null); setSelected(n); }}
+          onEdit={(n) => { setNoteMenu(null); setSelected(n); setEditingId(n.id); }}
         />
       </div>
     );
@@ -530,7 +555,7 @@ export default function Notes() {
         onClose={() => setNoteMenu(null)}
         onDelete={remove}
         onMove={moveNoteToFolder}
-        onEdit={(n) => { setNoteMenu(null); setSelected(n); }}
+        onEdit={(n) => { setNoteMenu(null); setSelected(n); setEditingId(n.id); }}
       />
       <PlaceFormSheet
         form={placeForm}

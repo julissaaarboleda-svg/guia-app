@@ -39,8 +39,10 @@ export default function NotesLanding({
   const checklistNotes = useMemo(() => notes.filter((n) => n.note_type === "list"), [notes]);
 
   const visibleFolders = useMemo(
-    () => folders.filter((f) => !f.archived).sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)),
-    [folders]
+    () => folders.filter((f) => !f.archived).sort((a, b) =>
+      (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) ||
+      (plainNotes.some((n) => n.folder_id === b.id) ? 1 : 0) - (plainNotes.some((n) => n.folder_id === a.id) ? 1 : 0)),
+    [folders, plainNotes]
   );
 
   const countFor = (folderId) => plainNotes.filter((n) => n.folder_id === folderId).length;
