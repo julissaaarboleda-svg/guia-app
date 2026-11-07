@@ -88,7 +88,7 @@ export default function PackingTab({ trip, onUpdate }) {
       toast.success("Packing list ready");
     } catch (err) {
       console.error(err);
-      toast.error("Couldn't build your packing list");
+      toast.error(`Couldn't build your packing list${err?.message ? ": " + String(err.message).slice(0, 140) : ""}`);
     }
     setGenerating(false);
   };

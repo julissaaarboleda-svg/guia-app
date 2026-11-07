@@ -119,18 +119,22 @@ exports.handler = async (event, context) => {
 
   try {
     let text;
+    let claudeError = null;
     if (useClaude && !grounded) {
       try {
         const instruction = wantJson ? `${prompt}\n\nReturn only valid JSON, with no commentary or code fences.` : prompt;
         text = await claudeText({
           content: attachments.length ? [...attachments.map((f) => fileBlock(f.mimeType, f.base64Data)), { type: "text", text: instruction }] : instruction,
+          timeoutMs: 20000,
         });
       } catch (claudeErr) {
         console.error("generate-text Claude failed, falling back to Gemini:", claudeErr);
+        claudeError = claudeErr;
         if (!apiKey) throw claudeErr;
       }
     }
     if (text === undefined) {
+     try {
       const ai = new GoogleGenAI({ apiKey });
       const contents = attachments.length
         ? [{ role: "user", parts: [{ text: prompt }, ...attachments.map((f) => ({ inlineData: { mimeType: f.mimeType || "image/jpeg", data: f.base64Data } }))] }]
@@ -145,6 +149,10 @@ exports.handler = async (event, context) => {
         response = await ai.models.generateContent({ model: "gemini-3.5-flash", ...request });
       }
       text = response.text;
+     } catch (geminiErr) {
+      if (claudeError) throw new Error(`Claude: ${claudeError.name === "AbortError" ? "timed out" : claudeError.message}. Gemini: ${geminiErr.message}`);
+      throw geminiErr;
+     }
     }
 
     if (wantJson) {
