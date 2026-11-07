@@ -115,7 +115,7 @@ function RouteArt({ points, loading }) {
 
 function CardView({ w, kind, data, img, logo }) {
   const year = data.year;
-  const kicker = { trip: "THE TRIP", route: "THE ROUTE", cities: "THE CITIES", moments: "THE MOMENTS" }[kind];
+  const kicker = { trip: "THE TRIP", places: "THE PLACES", route: "THE ROUTE", cities: "THE CITIES", moments: "THE MOMENTS" }[kind];
   return (
     <div
       style={{
@@ -144,6 +144,19 @@ function CardView({ w, kind, data, img, logo }) {
                 <div style={{ width: `${Math.round((r.days / data.maxDays) * 100)}%`, height: "100%", background: BAR_COLORS[i % BAR_COLORS.length], borderRadius: "0.2em" }} />
               </div>
               <span className="font-body" style={{ fontSize: "0.68em", color: MUTED, whiteSpace: "nowrap" }}>{r.days} day{r.days !== 1 ? "s" : ""}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {kind === "places" && (
+        <div style={{ flex: 1, minHeight: 0, display: "grid", gap: "0.25em",
+          gridTemplateColumns: data.places.length === 1 ? "1fr" : "1fr 1fr",
+          gridTemplateRows: data.places.length > 2 ? "1fr 1fr" : "1fr" }}>
+          {data.places.map((p, i) => (
+            <div key={i} style={{ position: "relative", overflow: "hidden", borderRadius: "0.4em", background: p.image ? `url(${img(p.image)}) center/cover no-repeat` : "#7D8A53" }}>
+              <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", padding: "0.3em 0.5em" }}>
+                <span className="font-body" style={{ fontSize: "0.65em", color: "#fff", display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}</span>
+              </div>
             </div>
           ))}
         </div>
@@ -239,20 +252,27 @@ export default function TripCardsPage({ trip, onBack }) {
         note: `Most time in ${top.city}${topPhotos ? `, with ${topPhotos} photo${topPhotos !== 1 ? "s" : ""}` : ""}.` } });
     }
 
+    if (places.length > 0) {
+      const ranked = [...places].sort((a, b) => Number(!!b.favorited) - Number(!!a.favorited)).slice(0, 4);
+            list.push({ kind: "places", chip: "Places", data: { year, lead: "Places you", accent: "kept.", places: ranked,
+        note: `${ranked[0].name}${ranked.length > 1 ? ` and ${places.length - 1} more saved` : ", saved from your trip"}.` } });
+    }
+
     if (media.length > 0 || quote) {
       const photos = media.slice(0, 3).map((m) => m.url);
       const note = quote ? `${quote.label ? `${quote.label}: ` : ""}“${quote.text}”` : `${media.length} photo${media.length !== 1 ? "s" : ""}${places.length ? `, ${places.length} place${places.length !== 1 ? "s" : ""} saved` : ""}.`;
       list.push({ kind: "moments", chip: "Moments", data: { year, lead: "What stayed", accent: "with you.", photos, note } });
     }
     return list;
-  }, [trip, year, days, cities, cover, points, routeLoading, cityDays, itinerary, media, places.length, quote]);
+  }, [trip, year, days, cities, cover, points, routeLoading, cityDays, itinerary, media, places, quote]);
 
   const imageUrls = useMemo(() => {
     const urls = new Set();
     if (cover) urls.add(cover);
     media.slice(0, 3).forEach((m) => urls.add(m.url));
+    places.slice(0, 8).forEach((p) => { if (p.image) urls.add(p.image); });
     return [...urls];
-  }, [cover, media]);
+  }, [cover, media, places]);
 
   useEffect(() => {
     let alive = true;
