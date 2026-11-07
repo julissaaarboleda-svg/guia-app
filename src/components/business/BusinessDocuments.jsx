@@ -81,9 +81,9 @@ export default function BusinessDocuments({ docs, onChange }) {
   );
 
   return (
-    <div className="mb-5">
+    <div className="mb-6">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-heading text-sm text-foreground">Documents</h2>
+        <h2 className="font-heading text-[18px] text-foreground">Documents</h2>
         <button onClick={() => { setCategory(filter !== "All" ? filter : DOC_CATEGORIES[0]); setSheet(true); }}
           className="inline-flex items-center gap-1.5 bg-[#A7773F] text-[#F7F3EC] px-3.5 py-1.5 rounded-full text-xs font-medium hover:opacity-90 transition-opacity">
           <Plus className="w-3.5 h-3.5" strokeWidth={2} /> Add document
@@ -110,7 +110,7 @@ export default function BusinessDocuments({ docs, onChange }) {
                   {img ? <ImageIcon className="w-[18px] h-[18px]" strokeWidth={1.5} /> : <FileText className="w-[18px] h-[18px]" strokeWidth={1.5} />}
                 </div>
                 <button onClick={() => open(d)} className="min-w-0 flex-1 text-left">
-                  <p className="text-sm font-medium text-foreground truncate">{d.title}</p>
+                  <p className="font-heading text-[15px] text-foreground truncate">{d.title}</p>
                   <p className="text-[11px] text-muted-foreground truncate">
                     {d.category}{d.added ? ` · ${new Date(`${d.added}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : ""}{d.size ? ` · ${sizeLabel(d.size)}` : ""}
                   </p>

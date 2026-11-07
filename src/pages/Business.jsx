@@ -278,7 +278,7 @@ export default function Business() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-5 -mt-1">
+      <div className="flex flex-wrap gap-2 mb-6 -mt-1">
         <button onClick={() => setImporting(true)}
           className="inline-flex items-center gap-1.5 border border-[#A7773F] text-[#A7773F] px-3.5 py-1.5 rounded-full text-xs font-medium hover:bg-[#A7773F]/10 transition-colors">
           <Upload className="w-3.5 h-3.5" strokeWidth={1.8} /> Import a statement
@@ -287,19 +287,19 @@ export default function Business() {
 
       {/* Business Goals */}
       {goals.length > 0 && (
-        <div className="mb-5">
-          <h2 className="font-heading text-sm text-foreground mb-3">Business goals</h2>
+        <div className="mb-6">
+          <h2 className="font-heading text-[18px] text-foreground mb-3">Business goals</h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 [&>*:only-child]:col-span-full">
             {goals.filter(g => (g.status || "active") === "active").map(g => {
               const progress = g.target_value ? Math.min((g.current_value / g.target_value) * 100, 100) : 0;
               const daysLeft = g.target_date ? Math.ceil((new Date(g.target_date) - new Date()) / (1000 * 60 * 60 * 24)) : null;
               return (
-                <div key={g.id} className="bg-card border border-border rounded-xl p-4">
+                <div key={g.id} className="bg-card border border-border rounded-2xl p-5">
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <Target className="w-4 h-4 text-muted-foreground" />
-                        <p className="font-semibold text-foreground">{g.title}</p>
+                        <Target className="w-4 h-4 text-[#A7773F]" strokeWidth={1.5} />
+                        <p className="font-heading text-[17px] text-foreground leading-tight">{g.title}</p>
                       </div>
                       {g.description && <p className="text-xs text-muted-foreground">{g.description}</p>}
                     </div>
@@ -337,16 +337,16 @@ export default function Business() {
                       {g.unit !== "milestone" && g.target_value ? (
                         <div className="flex items-center gap-3 mb-2">
                           <input type="number" value={g.current_value} onChange={(e) => updateGoalProgress(g.id, e.target.value)}
-                            className="w-28 bg-secondary border border-input rounded-lg px-3 py-1.5 text-sm font-bold text-foreground outline-none focus:border-ring" />
-                          <span className="text-sm text-muted-foreground">of {g.target_value} {g.unit}</span>
+                            className="w-16 bg-secondary border border-input rounded-lg px-2.5 py-1 text-sm font-medium text-foreground text-center outline-none focus:border-ring" />
+                          <span className="text-[13px] text-muted-foreground">of {g.target_value} {g.unit}</span>
                           {daysLeft !== null && <span className="text-xs text-muted-foreground">{daysLeft > 0 ? `${daysLeft} days left` : 'Overdue'}</span>}
                         </div>
                       ) : (
                         daysLeft !== null && <p className="text-xs text-muted-foreground mb-2">{daysLeft > 0 ? `${daysLeft} days until target` : 'Target date passed'}</p>
                       )}
                       {g.unit !== "milestone" && g.target_value && (
-                        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                          <div className="h-full bg-green-600 rounded-full transition-all" style={{ width: `${progress}%` }} />
+                        <div className="w-full h-1.5 bg-[#A7773F26] rounded-full overflow-hidden">
+                          <div className="h-full bg-[#A7773F] rounded-full transition-all" style={{ width: `${progress}%` }} />
                         </div>
                       )}
                       {g.notes && <p className="text-xs text-muted-foreground mt-2" dangerouslySetInnerHTML={{ __html: g.notes }} />}
@@ -360,9 +360,9 @@ export default function Business() {
       )}
 
       {/* Revenue Goal */}
-      <div className="bg-card border border-border rounded-2xl p-5 mb-5">
+      <div className="bg-card border border-border rounded-2xl p-5 mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-heading text-sm text-foreground">Revenue goal</h2>
+          <h2 className="font-heading text-[17px] text-foreground leading-tight">Revenue goal</h2>
           {!editingGoal ? (
             !revenueGoal ? null : <button onClick={() => { setGoalInput(revenueGoal); setEditingGoal(true); }} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
               <Edit2 className="w-3 h-3" /> Edit
@@ -382,11 +382,11 @@ export default function Business() {
             <button onClick={() => { setGoalInput(""); setEditingGoal(true); }} className="border border-[#A7773F] text-[#A7773F] rounded-full text-xs px-4 py-1.5">Set goal</button>
           </div>
         ) : (<>
-        <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-          <span>Progress</span>
-          <span>${totalRevenue.toLocaleString()} of {revenueGoal ? `$${Number(revenueGoal).toLocaleString()}` : "—"}</span>
+        <div className="flex items-baseline justify-between mb-2.5">
+          <p className="font-heading text-[26px] text-foreground leading-none">${totalRevenue.toLocaleString()} <span className="font-body text-[13px] text-muted-foreground">of {revenueGoal ? `$${Number(revenueGoal).toLocaleString()}` : "—"}</span></p>
+          <span className="text-xs text-muted-foreground">{Math.round(goalProgress)}%</span>
         </div>
-        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+        <div className="w-full h-1.5 bg-[#A7773F26] rounded-full overflow-hidden">
           <div className="h-full bg-[#A7773F] rounded-full transition-all" style={{ width: `${goalProgress}%` }} />
         </div>
         </>)}
@@ -463,10 +463,8 @@ export default function Business() {
       <StatementImportSheet open={importing} onClose={() => setImporting(false)} existing={entries} onDone={loadEntries} />
 
       {/* Entries Log */}
+      <h2 className="font-heading text-[18px] text-foreground mb-3">Business log</h2>
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
-        <div className="p-4 border-b border-border">
-          <h2 className="font-heading text-sm text-foreground">Business log</h2>
-        </div>
         {entries.length === 0 ? (
           <div className="text-center py-10 px-4">
             <p className="font-heading text-base text-foreground">Start your business log</p>
@@ -515,7 +513,7 @@ export default function Business() {
                           </span>
                         )}
                       </div>
-                      <p className="text-sm font-medium text-foreground truncate">{e.name}</p>
+                      <p className="font-heading text-[15px] text-foreground truncate">{e.name}</p>
                       {e.description && <p className="text-xs text-muted-foreground mt-0.5">{e.description}</p>}
                       <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                         {e.date && (
