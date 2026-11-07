@@ -80,35 +80,98 @@ function Pill({ children }) {
   );
 }
 
-function RouteArt({ points, loading }) {
-  const W = 300, H = 210, P = 34;
-  if (loading || points.length === 0) {
-    return (
-      <div style={{ flex: 1, background: "#EAE3D5", borderRadius: "0.5em", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <span className="font-body" style={{ fontSize: "0.7em", color: MUTED }}>{loading ? "Drawing your route…" : "Couldn't place your cities."}</span>
-      </div>
-    );
-  }
-  const midLat = points.reduce((s, p) => s + p.lat, 0) / points.length;
-  const k = Math.cos((midLat * Math.PI) / 180);
-  const xs = points.map((p) => p.lon * k);
-  const ys = points.map((p) => -p.lat);
-  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
-  const spanX = Math.max(maxX - minX, 0.4), spanY = Math.max(maxY - minY, 0.4);
-  const scale = Math.min((W - 2 * P) / spanX, (H - 2 * P) / spanY);
-  const offX = (W - spanX * scale) / 2, offY = (H - spanY * scale) / 2;
-  const pts = points.map((p, i) => ({ name: p.name, x: offX + (xs[i] - minX) * scale, y: offY + (ys[i] - minY) * scale }));
+const TILE = 256;
+const worldXY = (lat, lon, z) => {
+  const n = TILE * 2 ** z;
+  const x = ((lon + 180) / 360) * n;
+  const r = (lat * Math.PI) / 180;
+  const y = ((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * n;
+  return { x, y };
+};
+
+function RouteArt({ points, loading, pendingRef }) {
+  const boxRef = useRef(null);
+  const [box, setBox] = useState({ w: 0, h: 0 });
+
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return undefined;
+    const measure = () => setBox({ w: Math.round(el.clientWidth), h: Math.round(el.clientHeight) });
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const map = useMemo(() => {
+    if (loading || points.length === 0 || !box.w || !box.h) return null;
+    const P = 44;
+    let z = 12;
+    for (; z > 2; z -= 1) {
+      const w = points.map((p) => worldXY(p.lat, p.lon, z));
+      const sx = Math.max(...w.map((q) => q.x)) - Math.min(...w.map((q) => q.x));
+      const sy = Math.max(...w.map((q) => q.y)) - Math.min(...w.map((q) => q.y));
+      if (sx <= box.w - 2 * P && sy <= box.h - 2 * P) break;
+    }
+    const w = points.map((p) => worldXY(p.lat, p.lon, z));
+    const cx = (Math.max(...w.map((q) => q.x)) + Math.min(...w.map((q) => q.x))) / 2;
+    const cy = (Math.max(...w.map((q) => q.y)) + Math.min(...w.map((q) => q.y))) / 2;
+    const tlx = cx - box.w / 2;
+    const tly = cy - box.h / 2;
+    const max = 2 ** z;
+    const tiles = [];
+    for (let ty = Math.floor(tly / TILE); ty <= Math.floor((tly + box.h) / TILE); ty += 1) {
+      for (let tx = Math.floor(tlx / TILE); tx <= Math.floor((tlx + box.w) / TILE); tx += 1) {
+        if (ty < 0 || ty >= max) continue;
+        const wx = ((tx % max) + max) % max;
+        tiles.push({ key: `${z}/${tx}/${ty}`, url: `https://basemaps.cartocdn.com/rastertiles/voyager_nolabels/${z}/${wx}/${ty}@2x.png`, left: tx * TILE - tlx, top: ty * TILE - tly });
+      }
+    }
+    const pts = points.map((p, i) => ({ name: p.name, x: w[i].x - tlx, y: w[i].y - tly }));
+    return { tiles, pts };
+  }, [points, loading, box.w, box.h]);
+
+  useEffect(() => {
+    if (pendingRef) pendingRef.current = map ? map.tiles.length : 0;
+  }, [map, pendingRef]);
+
+  const done = () => { if (pendingRef && pendingRef.current > 0) pendingRef.current -= 1; };
+
   return (
-    <div style={{ flex: 1, minHeight: 0, background: "#EAE3D5", borderRadius: "0.5em", overflow: "hidden" }}>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
-        <polyline points={pts.map((p) => `${p.x},${p.y}`).join(" ")} fill="none" stroke={BROWN} strokeWidth="2" strokeDasharray="5 4" />
-        {pts.map((p, i) => (
-          <g key={i}>
-            <circle cx={p.x} cy={p.y} r="5" fill={BROWN} />
-            <text x={Math.min(Math.max(p.x, 36), W - 36)} y={p.y - 10} fontSize="12" textAnchor="middle" fill={INK} fontFamily="Playfair Display, Georgia, serif">{p.name}</text>
-          </g>
-        ))}
-      </svg>
+    <div ref={boxRef} style={{ flex: 1, minHeight: 0, position: "relative", background: "#EAE3D5", borderRadius: "0.5em", overflow: "hidden" }}>
+      {!map && (
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <span className="font-body" style={{ fontSize: "0.7em", color: MUTED }}>{loading ? "Drawing your route…" : "Couldn't place your cities."}</span>
+        </div>
+      )}
+      {map && (
+        <>
+          {map.tiles.map((t) => (
+            <img key={t.key} src={t.url} crossOrigin="anonymous" alt="" onLoad={done} onError={done}
+              style={{ position: "absolute", left: t.left, top: t.top, width: TILE, height: TILE, maxWidth: "none" }} />
+          ))}
+          <div style={{ position: "absolute", inset: 0, background: "rgba(244,234,214,0.28)" }} />
+          <svg width={box.w} height={box.h} viewBox={`0 0 ${box.w} ${box.h}`} style={{ position: "absolute", left: 0, top: 0 }}>
+            <polyline points={map.pts.map((p) => `${p.x},${p.y}`).join(" ")} fill="none" stroke="#fff" strokeOpacity="0.85" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+            <polyline points={map.pts.map((p) => `${p.x},${p.y}`).join(" ")} fill="none" stroke={BROWN} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="1 7" />
+            {map.pts.map((p, i) => {
+              const pw = p.name.length * 6.4 + 16;
+              const lx = Math.min(Math.max(p.x - pw / 2, 4), box.w - pw - 4);
+              const above = p.y > 40;
+              const ly = above ? p.y - 34 : p.y + 12;
+              return (
+                <g key={i}>
+                  <circle cx={p.x} cy={p.y} r="7" fill={BROWN} stroke="#fff" strokeWidth="2.5" />
+                  <text x={p.x} y={p.y + 3.5} fontSize="9" textAnchor="middle" fill="#fff" fontFamily="Plus Jakarta Sans, sans-serif" fontWeight="700">{i + 1}</text>
+                  <rect x={lx} y={ly} width={pw} height="22" rx="11" fill="#F9F8F6" stroke="#E1DACB" />
+                  <text x={lx + pw / 2} y={ly + 15} fontSize="12" textAnchor="middle" fill={INK} fontFamily="Playfair Display, Georgia, serif">{p.name}</text>
+                </g>
+              );
+            })}
+          </svg>
+          <span className="font-body" style={{ position: "absolute", right: 4, bottom: 3, fontSize: 7, color: "#5F5A52", background: "rgba(255,255,255,0.7)", padding: "1px 4px", borderRadius: 3 }}>© OpenStreetMap, CARTO</span>
+        </>
+      )}
     </div>
   );
 }
@@ -134,7 +197,7 @@ function CardView({ w, kind, data, img, logo }) {
       {kind === "trip" && (
         <div style={{ flex: 1, minHeight: 0, borderRadius: "0.5em", background: img(data.cover) ? `url(${img(data.cover)}) center/cover no-repeat` : "#7D8A53" }} />
       )}
-      {kind === "route" && <RouteArt points={data.points} loading={data.loading} />}
+      {kind === "route" && <RouteArt points={data.points} loading={data.loading} pendingRef={data.pendingRef} />}
       {kind === "cities" && (
         <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", justifyContent: "center", gap: "0.9em" }}>
           {data.rows.map((r, i) => (
@@ -187,6 +250,7 @@ export default function TripCardsPage({ trip, onBack }) {
   const scrollRef = useRef(null);
   const frameRefs = useRef([]);
   const routeLoadingRef = useRef(false);
+  const tilesPendingRef = useRef(0);
 
   const year = trip.start_date ? parseISO(trip.start_date).getFullYear() : new Date().getFullYear();
   const days = tripDuration(trip);
@@ -238,8 +302,8 @@ export default function TripCardsPage({ trip, onBack }) {
     list.push({ kind: "trip", chip: "Big picture", data: { year, lead: words.join(" "), accent: accentWord, cover, note: `${bigNote}.` } });
 
     if (cities.length >= 2) {
-      list.push({ kind: "route", chip: "Route", data: { year, lead: `${NUMBER_WORDS[cities.length] || cities.length} cities,`, accent: "one trip.", points, loading: routeLoading,
-        note: points.length >= 2 ? `About ${Math.round(points.slice(1).reduce((s, p, i) => s + haversineKm(points[i], p), 0)).toLocaleString()} km from first stop to last.` : cities.join(" → ") } });
+      list.push({ kind: "route", chip: "Route", data: { year, lead: `${NUMBER_WORDS[cities.length] || cities.length} cities,`, accent: "one trip.", points, loading: routeLoading, pendingRef: tilesPendingRef,
+        note: points.length >= 2 ? `About ${Math.round(points.slice(1).reduce((s, p, i) => s + haversineKm(points[i], p), 0)).toLocaleString()} km between your stops.` : cities.join(" → ") } });
     }
 
     if (cityDays.length >= 2) {
@@ -338,7 +402,7 @@ export default function TripCardsPage({ trip, onBack }) {
   const slug = (trip.title || "trip").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
   const render = async (i) => {
-    for (let t = 0; t < 40 && routeLoadingRef.current; t += 1) await new Promise((r) => setTimeout(r, 250));
+    for (let t = 0; t < 48 && (routeLoadingRef.current || tilesPendingRef.current > 0); t += 1) await new Promise((r) => setTimeout(r, 250));
     const { default: html2canvas } = await import("html2canvas");
     const el = frameRefs.current[i];
     const canvas = await html2canvas(el, { scale: 1080 / el.offsetWidth, useCORS: true, backgroundColor: null, logging: false });
