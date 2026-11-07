@@ -135,8 +135,9 @@ export default function Goals() {
     await ent.Goal.update(goal.id, { sub_tasks: updated });
   };
 
-  const activeGoals = goals.filter(g => g.status !== "done");
-  const doneGoals = goals.filter(g => g.status === "done");
+  const goalIsDone = g => g.status === "done" || ((g.sub_tasks || []).length > 0 && (g.sub_tasks || []).every(t => t.completed));
+  const activeGoals = goals.filter(g => !goalIsDone(g));
+  const doneGoals = goals.filter(goalIsDone);
   const openTasks = tasks.filter(t => !t.completed);
   const completedTasks = tasks.filter(t => t.completed);
 
@@ -462,19 +463,20 @@ export default function Goals() {
         {!adding && !selected && (() => {
           const dueSoon = openTasks.filter(t => t.due_date).sort((a, b) => a.due_date.localeCompare(b.due_date)).slice(0, 4);
           const openGoalCount = activeGoals.length;
+          const todayISO = new Date().toLocaleDateString("en-CA");
           return (
             <div className="w-full max-w-3xl mx-auto px-8 py-10">
               <h2 className="font-heading text-[26px] text-foreground leading-tight">Overview</h2>
-              <p className="font-heading italic text-[15px] text-muted-foreground mt-0.5">Pick a {activeTab === "goals" ? "goal" : "task"} on the left to see its details.</p>
+              <p className="font-heading italic text-[15px] text-muted-foreground mt-0.5">Your goals and tasks at a glance. Pick one on the left to open it.</p>
               <div className="grid grid-cols-3 gap-3 mt-6">
-                {[["Active goals", openGoalCount], ["Goals done", doneGoals.length], ["Open tasks", openTasks.length]].map(([label, n]) => (
+                {[["Goals in progress", openGoalCount], ["Goals completed", doneGoals.length], ["Tasks to do", openTasks.length]].map(([label, n]) => (
                   <div key={label} className="bg-card border border-border rounded-2xl p-4">
                     <p className="font-heading text-[28px] text-foreground leading-none">{n}</p>
                     <p className="text-xs text-muted-foreground mt-1.5">{label}</p>
                   </div>
                 ))}
               </div>
-              <h3 className="font-heading text-[18px] text-foreground mt-8 mb-2.5">Due soon</h3>
+              <h3 className="font-heading text-[18px] text-foreground mt-8 mb-2.5">Tasks with due dates</h3>
               {dueSoon.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nothing with a due date yet.</p>
               ) : (
@@ -483,7 +485,7 @@ export default function Goals() {
                     <button key={t.id} onClick={() => { setActiveTab("tasks"); setSelected({ type: "task", id: t.id }); setEditTaskData({ ...t }); setAdding(false); }}
                       className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-secondary/50 transition-colors ${i !== 0 ? "border-t border-border/40" : ""}`}>
                       <span className="text-sm text-foreground truncate">{t.title}</span>
-                      <span className="text-xs text-muted-foreground flex-shrink-0">{parseISO(t.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                      <span className={`text-xs flex-shrink-0 ${t.due_date < todayISO ? "text-[#8B5A44]" : "text-muted-foreground"}`}>{t.due_date < todayISO ? "Overdue · " : ""}{parseISO(t.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
                     </button>
                   ))}
                 </div>
