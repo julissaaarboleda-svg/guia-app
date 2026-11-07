@@ -167,6 +167,22 @@ export default function Finance() {
     load();
   };
 
+  const MOVE_KINDS = [["bill", "Bill"], ["subscription", "Subscription"], ["loan", "Loan"], ["credit_card", "Credit card"], ["savings_goal", "Savings goal"]];
+  const currentKind = (item) => (item.type === "loan" && item.subtype === "credit_card" ? "credit_card" : item.type);
+  const moveItem = async (item, kind) => {
+    const amt = item.type === "loan" ? item.monthly_payment : item.type === "savings_goal" ? item.target_amount : item.amount;
+    const cycle = item.billing_cycle && item.billing_cycle !== "one_time" ? item.billing_cycle : "monthly";
+    let patch;
+    if (kind === "bill") patch = { type: "bill", subtype: null, amount: amt ?? null, billing_cycle: item.billing_cycle || "one_time", paid: item.paid || false };
+    else if (kind === "subscription") patch = { type: "subscription", subtype: null, amount: amt ?? null, billing_cycle: cycle };
+    else if (kind === "loan" || kind === "credit_card") patch = { type: "loan", subtype: kind === "credit_card" ? "credit_card" : null, monthly_payment: amt ?? null, amount_paid: item.amount_paid || 0, paid: item.paid || false };
+    else patch = { type: "savings_goal", subtype: null, target_amount: amt ?? null, current_amount: item.current_amount || 0 };
+    await ent.FinanceItem.update(item.id, patch);
+    setEditingItemId(null);
+    setActiveTab(kind === "loan" || kind === "credit_card" ? "loan" : kind === "subscription" ? "bill" : kind);
+    load();
+  };
+
   const openEditItem = (item) => {
     setEditingItemId(item.id);
     setEditItemForm({
@@ -555,6 +571,20 @@ export default function Finance() {
                   <p className="text-sm font-heading text-foreground">Edit</p>
                   <button onClick={() => setEditingItemId(null)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
                 </div>
+
+                {item.type !== "credit_score" && (
+                  <div>
+                    <p className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground mb-1.5">Move to</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {MOVE_KINDS.map(([k, label]) => (
+                        <button key={k} onClick={() => currentKind(item) !== k && moveItem(item, k)}
+                          className={`px-3 py-1 rounded-full text-[11px] ${currentKind(item) === k ? "bg-[#A7773F] text-[#F7F3EC]" : "border border-border text-muted-foreground hover:border-[#A7773F]"}`}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {item.type === "credit_score" && (
                   <>

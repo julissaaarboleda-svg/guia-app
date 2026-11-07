@@ -132,11 +132,14 @@ exports.handler = async (event, context) => {
     if (isText) parts.push({ text: `\n\nDocument (${filename || "text"}):\n` + bytes.toString("utf8").slice(0, 120000) });
     else parts.push({ inlineData: { mimeType: isPdf ? "application/pdf" : (type || "image/jpeg"), data: base64Data } });
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: [{ role: "user", parts }],
-      config: { responseMimeType: "application/json" },
-    });
+    // The AI service is sometimes briefly overloaded; try once more, on a second model, before giving up.
+    let response;
+    try {
+      response = await ai.models.generateContent({ model: "gemini-3.6-flash", contents: [{ role: "user", parts }], config: { responseMimeType: "application/json" } });
+    } catch (firstErr) {
+      console.error("import-finance first attempt failed, retrying:", firstErr);
+      response = await ai.models.generateContent({ model: "gemini-3.5-flash", contents: [{ role: "user", parts }], config: { responseMimeType: "application/json" } });
+    }
     const parsed = parseJson(response.text || "");
     if (mode === "schedule") {
       if (!parsed || !Array.isArray(parsed.payments)) return reply(502, { error: "The file was read, but no schedule could be found in it." });

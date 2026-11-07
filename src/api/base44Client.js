@@ -158,10 +158,25 @@ const entities = new Proxy(
 );
 
 // ---- AI + file integrations, matches base44.integrations.Core.* ----
+// One automatic retry for AI calls: they occasionally fail for a moment and then work.
+async function fetchWithRetry(url, options) {
+  const attempt = async () => {
+    const res = await fetch(url, options);
+    if (res.status >= 500) throw Object.assign(new Error("retry"), { res });
+    return res;
+  };
+  try {
+    return await attempt();
+  } catch (err) {
+    await new Promise((r) => setTimeout(r, 1200));
+    try { return await attempt(); } catch (err2) { if (err2.res) return err2.res; throw err2; }
+  }
+}
+
 async function InvokeLLM({ prompt, add_context_from_internet, response_json_schema, model }) {
   const headers = await authHeaders();
   const res = await checkOk(
-    await fetch(`${API_BASE}/generate-text`, {
+    await fetchWithRetry(`${API_BASE}/generate-text`, {
       method: "POST",
       headers,
       body: JSON.stringify({ prompt, grounded: !!add_context_from_internet, wantJson: !!response_json_schema }),
@@ -228,7 +243,7 @@ async function ImportFinanceFile({ file, existing = [], mode = "items" }) {
   });
   const headers = await authHeaders();
   const res = await checkOk(
-    await fetch(`${API_BASE}/import-finance`, {
+    await fetchWithRetry(`${API_BASE}/import-finance`, {
       method: "POST",
       headers,
       body: JSON.stringify({ filename: uploadFile.name, contentType: uploadFile.type, base64Data, existing, mode }),

@@ -31,18 +31,23 @@ export function upcomingLoanPayments(items, days = 30) {
 
 export function UpcomingLoans({ items }) {
   const list = upcomingLoanPayments(items);
+  const [all, setAll] = useState(false);
   if (list.length === 0) return null;
+  const shown = all ? list : list.slice(0, 3);
   return (
     <div className="bg-card border border-border rounded-2xl p-4 mb-4">
       <p className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground mb-2">Due in the next 30 days</p>
       <div className="space-y-1.5">
-        {list.map((p) => (
+        {shown.map((p) => (
           <div key={p.key} className="flex items-center justify-between text-[13px]">
             <span className="text-foreground">{dayLabel(p.date)} · {p.name}</span>
             <span className="font-heading text-[15px] text-foreground">{money(p.amount)}</span>
           </div>
         ))}
       </div>
+      {list.length > 3 && (
+        <button onClick={() => setAll((v) => !v)} className="text-xs text-[#A7773F] mt-2">{all ? "Show fewer" : `Show all ${list.length} payments`}</button>
+      )}
       <div className="flex items-center justify-between border-t border-border mt-2.5 pt-2">
         <span className="text-xs text-muted-foreground">Total</span>
         <span className="font-heading text-base text-foreground">{money(sum(list))}</span>
@@ -53,6 +58,7 @@ export function UpcomingLoans({ items }) {
 
 export default function LoanDetails({ item, onChange }) {
   const schedule = Array.isArray(item.schedule) ? item.schedule : [];
+  const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [editPayoff, setEditPayoff] = useState(false);
   const [payoffInput, setPayoffInput] = useState("");
@@ -160,6 +166,13 @@ export default function LoanDetails({ item, onChange }) {
         </>
       )}
 
+      <button onClick={() => setOpen((v) => !v)} className="mt-3 w-full flex items-center justify-between text-xs text-[#A7773F]">
+        <span>{open ? "Hide details" : sorted.length ? "Schedule and details" : "Details"}</span>
+        {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+      </button>
+
+      {open && (
+        <div>
       {sorted.length === 0 && (
         <div className="mt-3">
           {item.total_amount > 0 && (
@@ -236,6 +249,8 @@ export default function LoanDetails({ item, onChange }) {
         </button>
         <button onClick={() => setAdding((v) => !v)} className="text-xs text-[#A7773F] px-2 py-1.5">+ Add payment</button>
       </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -115,11 +115,15 @@ exports.handler = async (event, context) => {
 
   try {
     const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: prompt,
-      ...(grounded ? { config: { tools: [{ googleSearch: {} }] } } : {}),
-    });
+    const request = { contents: prompt, ...(grounded ? { config: { tools: [{ googleSearch: {} }] } } : {}) };
+    // The AI service is sometimes briefly overloaded; try once more, on a second model, before giving up.
+    let response;
+    try {
+      response = await ai.models.generateContent({ model: "gemini-3.6-flash", ...request });
+    } catch (firstErr) {
+      console.error("generate-text first attempt failed, retrying:", firstErr);
+      response = await ai.models.generateContent({ model: "gemini-3.5-flash", ...request });
+    }
     const text = response.text;
 
     if (wantJson) {
