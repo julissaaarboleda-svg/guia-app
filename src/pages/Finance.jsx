@@ -8,6 +8,7 @@ import DateInput from "@/components/DateInput";
 
 import BudgetTab from "@/components/finance/BudgetTab";
 import FinanceSummary from "@/components/finance/FinanceSummary";
+import ImportSheet from "@/components/finance/ImportSheet";
 
 const TABS = ["summary", "budget", "bill", "savings_goal", "loan", "credit_score"];
 
@@ -42,6 +43,7 @@ export default function Finance() {
   const [buckets, setBuckets] = useState([]);
   const [activeTab, setActiveTab] = useState("summary");
   const [adding, setAdding] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [form, setForm] = useState({});
   const [expandedItem, setExpandedItem] = useState(null);
   const [editingNotes, setEditingNotes] = useState(null);
@@ -236,8 +238,18 @@ export default function Finance() {
   return (
     <>
       <div className="max-w-[1200px] mx-auto w-full">
-      <PageHeader title="Finance" subtitle="Your financial picture, at a glance." />
+      <PageHeader
+        title="Finance"
+        subtitle="Your financial picture, at a glance."
+        actions={
+          <button onClick={() => setImporting(true)} className="border border-[#A7773F] text-[#A7773F] rounded-full font-heading text-[13px] px-3.5 py-1.5 hover:bg-[#A7773F]/10 transition-colors">
+            Import file
+          </button>
+        }
+      />
       <div className="p-6 md:p-8 pb-12">
+
+      <ImportSheet open={importing} onClose={() => setImporting(false)} existing={items} onDone={() => { setActiveTab("bill"); load(); }} />
 
       {/* Tabs */}
       <div className="sticky top-[87px] z-20 bg-background -mx-6 md:-mx-8 px-6 md:px-8 py-2 flex gap-1.5 overflow-x-auto no-scrollbar mb-5">

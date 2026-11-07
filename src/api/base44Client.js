@@ -216,6 +216,27 @@ async function UploadFile({ file }) {
   return res.json(); // { file_url }
 }
 
+// Reads a statement/bill/receipt and returns suggested finance items.
+// The file is processed for this request only and isn't stored.
+async function ImportFinanceFile({ file }) {
+  const uploadFile = await compressImageIfNeeded(file);
+  const base64Data = await new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result.split(",")[1]);
+    r.onerror = reject;
+    r.readAsDataURL(uploadFile);
+  });
+  const headers = await authHeaders();
+  const res = await checkOk(
+    await fetch(`${API_BASE}/import-finance`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ filename: uploadFile.name, contentType: uploadFile.type, base64Data }),
+    })
+  );
+  return res.json(); // { items }
+}
+
 // ---- Public shape — matches the real base44 client's surface ----
 export const base44 = {
   auth: {
@@ -234,7 +255,7 @@ export const base44 = {
   },
   entities,
   integrations: {
-    Core: { InvokeLLM, GenerateImage, GetPlacePhoto, SearchPlacesAutocomplete, UploadFile },
+    Core: { InvokeLLM, GenerateImage, GetPlacePhoto, SearchPlacesAutocomplete, UploadFile, ImportFinanceFile },
   },
   functions: {
     // KNOWN GAP: base44.functions.invoke("exportTripPdf", ...) (used in TripDetail.jsx)
