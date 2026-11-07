@@ -199,13 +199,18 @@ export default function Business() {
   const GoalTypeInputs = ({ type, setType, form: gForm, setForm: setGForm }) => (
     <>
       <div>
-        <label className="block text-xs font-medium text-foreground mb-1">Goal type</label>
-        <select value={type} onChange={e => setType(e.target.value)}
-          className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring">
-          <option value="revenue">Revenue Amount</option>
-          <option value="quantity">Quantity</option>
-          <option value="milestone">Milestone</option>
-        </select>
+        <label className="block text-xs font-medium text-foreground mb-1.5">What kind of goal?</label>
+        <div className="flex flex-wrap gap-1.5">
+          {[["revenue", "Revenue"], ["quantity", "Count"], ["milestone", "Milestone"]].map(([v, label]) => (
+            <button key={v} type="button" onClick={() => setType(v)}
+              className={`px-3.5 py-1.5 rounded-full text-[12.5px] font-medium transition-colors ${type === v ? "bg-[#A7773F] text-[#F7F3EC]" : "border border-border text-muted-foreground hover:text-foreground"}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="text-[11px] text-muted-foreground mt-1.5">
+          {type === "revenue" ? "Track money earned toward a number." : type === "quantity" ? "Track how many, like shows, clients or orders." : "Track something you finish, like launching a shop."}
+        </p>
       </div>
       {type === "revenue" && (
         <div className="grid grid-cols-2 gap-2">
@@ -239,9 +244,6 @@ export default function Business() {
               className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
           </div>
         </div>
-      )}
-      {type === "milestone" && (
-        <p className="text-xs text-muted-foreground bg-secondary border border-input rounded-lg px-3 py-2">This goal tracks a milestone — set a target date below.</p>
       )}
     </>
   );
@@ -316,7 +318,7 @@ export default function Business() {
                         className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
                       <input value={goalForm.description} onChange={e => setGoalForm(f => ({ ...f, description: e.target.value }))} placeholder="Description (optional)"
                         className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
-                      <GoalTypeInputs type={editGoalType} setType={setEditGoalType} form={goalForm} setForm={setGoalForm} />
+                      {GoalTypeInputs({ type: editGoalType, setType: setEditGoalType, form: goalForm, setForm: setGoalForm })}
                       <div>
                         <label className="flex items-center gap-1 text-xs font-medium text-foreground mb-1">
                           Target date (optional)
@@ -392,7 +394,7 @@ export default function Business() {
 
       {/* Add form */}
       {adding && (
-        <div className="bg-card border border-border rounded-2xl p-4 mb-5">
+        <div className="bg-card border border-border rounded-2xl p-4 md:p-5 mb-5 lg:max-w-2xl">
           <div className="flex gap-2 mb-4">
             <button onClick={() => setAddTab("entry")} className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${addTab === "entry" ? "bg-[#A7773F] text-[#F7F3EC]" : "bg-muted text-foreground hover:bg-muted"}`}>Business Entry</button>
             <button onClick={() => setAddTab("goal")} className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${addTab === "goal" ? "bg-[#A7773F] text-[#F7F3EC]" : "bg-muted text-foreground hover:bg-muted"}`}>Goal</button>
@@ -430,7 +432,7 @@ export default function Business() {
                 <input value={goalForm.title} onChange={e => setGoalForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g., Attend Market Shows" autoFocus
                   className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
               </div>
-              <GoalTypeInputs type={goalType} setType={setGoalType} form={goalForm} setForm={setGoalForm} />
+              {GoalTypeInputs({ type: goalType, setType: setGoalType, form: goalForm, setForm: setGoalForm })}
               <div>
                 <label className="flex items-center gap-1 text-xs font-medium text-foreground mb-1">
                   Target date {goalType !== "milestone" ? "(optional)" : ""}
@@ -443,10 +445,6 @@ export default function Business() {
                 <label className="block text-xs font-medium text-foreground mb-1">Details (optional)</label>
                 <input value={goalForm.description} onChange={e => setGoalForm(f => ({ ...f, description: e.target.value }))} placeholder="Add more context about your goal"
                   className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-foreground mb-1">Notes (optional)</label>
-                <ReactQuill value={goalForm.notes} onChange={(value) => setGoalForm(f => ({ ...f, notes: value }))} placeholder="Additional notes" className="bg-secondary rounded-lg quill-career" theme="snow" />
               </div>
             </div>
           )}
