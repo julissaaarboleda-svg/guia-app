@@ -4,7 +4,8 @@
 // a list of finance items sorted into Guía's categories. The file is sent to
 // Gemini for this one request and is NOT stored anywhere.
 //
-// Body: { filename, contentType, base64Data, existing?: [{ name, amount, type }] }
+// Body: { filename, contentType, base64Data, existing?: [{ name, amount, type }], mode?: "items" | "schedule" }
+// mode "schedule" reads a loan payment schedule and returns { payments: [{ date, amount }], payoff_amount }.
 
 const { GoogleGenAI } = require("@google/genai");
 const { getStore, connectLambda } = require("@netlify/blobs");
@@ -54,6 +55,21 @@ Rules:
 - When unsure, lower the confidence and fill alternatives rather than guessing.
 - Return at most 40 items. If nothing relevant is found, return {"items": []}.`;
 
+const SCHEDULE_PROMPT = `Read the attached document, which shows a loan's upcoming payment schedule (for example a table of payment dates and amounts in an email, a statement or a screenshot).
+
+Return ONLY JSON in this exact shape:
+{
+  "payments": [ { "date": "YYYY-MM-DD", "amount": number } ],
+  "payoff_amount": number or null
+}
+
+Rules:
+- One entry per payment, in date order. If a row says "Number of Payments" greater than 1, repeat it that many times only if the dates are given; otherwise list it once.
+- Dates must be full ISO dates (YYYY-MM-DD).
+- Set payoff_amount only if the document states an amount to pay the whole loan off today; otherwise null.
+- Never include account numbers or personal identifiers.
+- If there is no schedule, return {"payments": [], "payoff_amount": null}.`;
+
 const KINDS = ["bill", "subscription", "loan", "credit_card", "savings_goal", "skip"];
 
 function parseJson(text) {
@@ -75,8 +91,8 @@ exports.handler = async (event, context) => {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return reply(500, { error: "The AI key isn't set up on the server (GEMINI_API_KEY)." });
 
-  let filename, contentType, base64Data, existing;
-  try { ({ filename, contentType, base64Data, existing } = JSON.parse(event.body || "{}")); }
+  let filename, contentType, base64Data, existing, mode;
+  try { ({ filename, contentType, base64Data, existing, mode } = JSON.parse(event.body || "{}")); }
   catch { return reply(400, { error: "That upload couldn't be read." }); }
   if (!base64Data) return reply(400, { error: "No file received." });
 
@@ -112,7 +128,7 @@ exports.handler = async (event, context) => {
     const ai = new GoogleGenAI({ apiKey });
     const existingList = (Array.isArray(existing) ? existing : []).slice(0, 80)
       .map((e) => `- ${String(e.name || "").slice(0, 60)} (${e.type}, ${e.amount != null ? "$" + e.amount : "no amount"})`).join("\n");
-    const parts = [{ text: PROMPT + `\n\nEXISTING ITEMS:\n${existingList || "(none)"}` }];
+    const parts = [{ text: mode === "schedule" ? SCHEDULE_PROMPT : PROMPT + `\n\nEXISTING ITEMS:\n${existingList || "(none)"}` }];
     if (isText) parts.push({ text: `\n\nDocument (${filename || "text"}):\n` + bytes.toString("utf8").slice(0, 120000) });
     else parts.push({ inlineData: { mimeType: isPdf ? "application/pdf" : (type || "image/jpeg"), data: base64Data } });
 
@@ -122,6 +138,13 @@ exports.handler = async (event, context) => {
       config: { responseMimeType: "application/json" },
     });
     const parsed = parseJson(response.text || "");
+    if (mode === "schedule") {
+      if (!parsed || !Array.isArray(parsed.payments)) return reply(502, { error: "The file was read, but no schedule could be found in it." });
+      const payments = parsed.payments.slice(0, 120).map((p) => ({ date: String(p.date || "").slice(0, 10), amount: Math.round(Number(p.amount) * 100) / 100 }))
+        .filter((p) => /^\d{4}-\d{2}-\d{2}$/.test(p.date) && Number.isFinite(p.amount) && p.amount > 0);
+      const payoff = Number(parsed.payoff_amount);
+      return reply(200, { payments, payoff_amount: Number.isFinite(payoff) && payoff > 0 ? payoff : null });
+    }
     if (!parsed || !Array.isArray(parsed.items)) return reply(502, { error: "The file was read, but the result wasn't usable. Try again, or try a clearer copy." });
 
     const items = parsed.items.slice(0, 40).map((it) => {

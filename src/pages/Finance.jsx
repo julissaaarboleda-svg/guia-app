@@ -9,6 +9,7 @@ import DateInput from "@/components/DateInput";
 import BudgetTab from "@/components/finance/BudgetTab";
 import FinanceSummary from "@/components/finance/FinanceSummary";
 import ImportSheet from "@/components/finance/ImportSheet";
+import LoanDetails, { UpcomingLoans } from "@/components/finance/LoanDetails";
 
 const TABS = ["summary", "budget", "bill", "savings_goal", "loan", "credit_score"];
 
@@ -498,6 +499,8 @@ export default function Finance() {
         </div>
       )}
 
+      {activeTab === "loan" && <UpcomingLoans items={items} />}
+
       {/* Items */}
       {activeTab !== "budget" && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -803,33 +806,7 @@ export default function Finance() {
                       </div>
                     )}
 
-                    {item.type === "loan" && (() => {
-                      const paidPct = item.total_amount > 0 ? Math.min(((item.amount_paid || 0) / item.total_amount) * 100, 100) : 0;
-                      return (
-                        <div className="mt-2">
-                          {item.monthly_payment && <p className="text-xs text-muted-foreground mb-1">Monthly: ${Number(item.monthly_payment).toLocaleString()}</p>}
-                          <div className="flex items-baseline gap-2 mb-1">
-                            <span className="font-heading text-xl text-foreground">${Number(item.amount_paid || 0).toLocaleString()}</span>
-                            {item.total_amount && <span className="text-xs text-muted-foreground">of ${Number(item.total_amount).toLocaleString()}</span>}
-                          </div>
-                          {item.total_amount && (
-                            <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                              <div className="h-full bg-accent rounded-full" style={{ width: `${paidPct}%` }} />
-                            </div>
-                          )}
-                          <div className="flex items-center justify-between mt-1.5">
-                            <span className="text-xs text-muted-foreground">{Math.round(paidPct)}% paid off</span>
-                            {item.due_date && <span className="text-xs text-muted-foreground">Due {fmtDate(item.due_date)}</span>}
-                          </div>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); togglePaid(item); }}
-                            className={`mt-2 text-xs px-2.5 py-1 rounded-full border transition-colors ${item.paid ? "bg-[#F0E6D6] text-[#8B6B3E] border-[#E3D2B6]" : "bg-transparent text-muted-foreground border-border hover:border-[#A7773F]"}`}
-                          >
-                            {item.paid ? "✓ Paid" : "Mark paid"}
-                          </button>
-                        </div>
-                      );
-                    })()}
+                    {item.type === "loan" && <LoanDetails item={item} onChange={load} />}
 
                     {item.type === "subscription" && (
                       <div className="mt-1">
