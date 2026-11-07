@@ -5,7 +5,7 @@ export const DEFAULT_CATEGORIES = ["restaurant", "cafe", "museum", "attractions"
 const picksCache = new Map();
 const imgCache = new Map();
 const LS_KEY = "guia:saved-cache:v1";
-export const STALE_MS = 5 * 60 * 1000; // refresh silently after 5 min
+export const STALE_MS = 24 * 60 * 60 * 1000; // refresh silently after a day (each load costs Google search quota)
 
 function readLs() {
   try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch { return {}; }
@@ -96,14 +96,14 @@ async function generateTopPicksInner(trip, city, { category = "all", excludeName
   return { picks };
 }
 
-export async function generatePickImage(tripId, city, name, imagePrompt) {
+export async function generatePickImage(tripId, city, name, imagePrompt, photo = {}) {
   const key = `${tripId}|${city}|${name}`;
   const lsCached = getCachedPickImage(tripId, city, name);
   if (lsCached) return lsCached; // { url, attribution } — url may legitimately be null (no photo on file)
   const cached = imgCache.get(key);
   if (cached?.promise) return cached.promise; // reuse in-flight request
 
-  const promise = base44.integrations.Core.GetPlacePhoto({ name, city })
+  const promise = base44.integrations.Core.GetPlacePhoto({ name, city, photoName: photo.photoName, photoAuthor: photo.photoAuthor })
     .then(({ url, attribution }) => {
       setCachedPickImage(tripId, city, name, url, attribution);
       return { url, attribution };

@@ -38,23 +38,27 @@ exports.handler = async (event, context) => {
   if (!apiKey) return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: "GOOGLE_PLACES_API_KEY not set" }) };
 
   try {
-    const { name, city } = JSON.parse(event.body);
-    if (!name) throw new Error("Missing 'name'");
+    const { name, city, photoName, photoAuthor } = JSON.parse(event.body);
+    if (!name && !photoName) throw new Error("Missing 'name'");
 
-    // Step 1: Text Search — find the place and ask specifically for its photos field.
-    const searchRes = await fetch("https://places.googleapis.com/v1/places:searchText", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Goog-Api-Key": apiKey,
-        "X-Goog-FieldMask": "places.id,places.displayName,places.photos",
-      },
-      body: JSON.stringify({ textQuery: city ? `${name}, ${city}` : name }),
-    });
-    if (!searchRes.ok) throw new Error(`Places search failed: ${searchRes.status}`);
-    const searchData = await searchRes.json();
-    const place = searchData.places?.[0];
-    const photoRef = place?.photos?.[0];
+    let photoRef = photoName ? { name: photoName, authorAttributions: photoAuthor ? [{ displayName: photoAuthor }] : [] } : null;
+
+    // Fallback (older saved places with no photo reference): Text Search for the place.
+    if (!photoRef) {
+      const searchRes = await fetch("https://places.googleapis.com/v1/places:searchText", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": apiKey,
+          "X-Goog-FieldMask": "places.id,places.displayName,places.photos",
+        },
+        body: JSON.stringify({ textQuery: city ? `${name}, ${city}` : name }),
+      });
+      if (!searchRes.ok) throw new Error(`Places search failed: ${searchRes.status}`);
+      const searchData = await searchRes.json();
+      const place = searchData.places?.[0];
+      photoRef = place?.photos?.[0];
+    }
     if (!photoRef?.name) {
       // No photo on file for this place — caller falls back to the category
       // gradient/icon placeholder rather than treating this as an error.

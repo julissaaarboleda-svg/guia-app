@@ -206,10 +206,10 @@ async function GenerateImage({ prompt }) {
   return res.json(); // { url }
 }
 
-async function GetPlacePhoto({ name, city }) {
+async function GetPlacePhoto({ name, city, photoName, photoAuthor }) {
   const headers = await authHeaders();
   const res = await checkOk(
-    await fetch(`${API_BASE}/places-photo`, { method: "POST", headers, body: JSON.stringify({ name, city }) })
+    await fetch(`${API_BASE}/places-photo`, { method: "POST", headers, body: JSON.stringify({ name, city, photoName, photoAuthor }) })
   );
   return res.json(); // { url, attribution }
 }

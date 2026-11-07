@@ -65,7 +65,7 @@ async function searchCategory(apiKey, city, country, category, count) {
     headers: {
       "Content-Type": "application/json",
       "X-Goog-Api-Key": apiKey,
-      "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.priceLevel,places.websiteUri,places.editorialSummary",
+      "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.priceLevel,places.websiteUri,places.editorialSummary,places.photos",
     },
     body: JSON.stringify({ textQuery, maxResultCount: Math.min(count, 20), languageCode: "en" }),
   });
@@ -96,6 +96,10 @@ async function searchCategory(apiKey, city, country, category, count) {
       ? `https://www.instagram.com/explore/search/keyword/?q=${encodeURIComponent(place.displayName.text)}`
       : "",
     place_id: place.id,
+    // Photo reference from the same search, so showing the photo later needs
+    // no second search (that doubled the daily search quota use).
+    photoName: place.photos?.[0]?.name || "",
+    photoAuthor: (place.photos?.[0]?.authorAttributions || []).map((a) => a.displayName).filter(Boolean).join(", "),
   }));
 }
 

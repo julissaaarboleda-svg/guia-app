@@ -22,7 +22,7 @@ export default function TopPicksCarousel({ trip, city, picks, loading, refreshin
   const requestImage = useCallback((p) => {
     if (!p || requestedRef.current.has(p.name)) return;
     requestedRef.current.add(p.name);
-    generatePickImage(trip.id, city, p.name, p.imagePrompt)
+    generatePickImage(trip.id, city, p.name, p.imagePrompt, { photoName: p.photoName, photoAuthor: p.photoAuthor })
       .then(({ url, attribution }) => setImages((s) => ({ ...s, [p.name]: { url, attribution } })))
       .catch(() => {});
   }, [trip.id, city]);
