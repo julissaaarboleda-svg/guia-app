@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { Trash2, Edit2, X, Check, MapPin, Calendar, Target, Plus } from "lucide-react";
+import { Trash2, Edit2, X, Check, MapPin, Calendar, Target, Plus, Upload } from "lucide-react";
 
 // "Event" is a broad bucket — market shows, product launches, pop-ups,
 // vendor fairs, etc. all go here as the category, with the specific type
@@ -13,6 +13,8 @@ import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import PageHeader from "@/components/PageHeader";
 import DateInput from "@/components/DateInput";
+import StatementImportSheet from "@/components/business/StatementImportSheet";
+import BusinessDocuments from "@/components/business/BusinessDocuments";
 
 export default function Business() {
   const [entries, setEntries] = useState([]);
@@ -29,6 +31,10 @@ export default function Business() {
   const [prefsId, setPrefsId] = useState(null);
   const [editingEntry, setEditingEntry] = useState(null);
   const [editingGoalId, setEditingGoalId] = useState(null);
+  const [docs, setDocs] = useState([]);
+  const [importing, setImporting] = useState(false);
+
+  const loadDocs = async () => setDocs((await ent.BusinessDocument.list("-created_date")) || []);
 
   useEffect(() => {
     const load = async () => {
@@ -39,6 +45,7 @@ export default function Business() {
       ]);
       setEntries(e);
       setGoals(g);
+      ent.BusinessDocument.list("-created_date").then((d) => setDocs(d || [])).catch(() => {});
       const p = await ent.UserPreferences.filter({ user_email: u.email });
       if (p.length > 0) {
         setPrefsId(p[0].id);
@@ -268,6 +275,13 @@ export default function Business() {
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-2 mb-5 -mt-1">
+        <button onClick={() => setImporting(true)}
+          className="inline-flex items-center gap-1.5 border border-[#A7773F] text-[#A7773F] px-3.5 py-1.5 rounded-full text-xs font-medium hover:bg-[#A7773F]/10 transition-colors">
+          <Upload className="w-3.5 h-3.5" strokeWidth={1.8} /> Import a statement
+        </button>
+      </div>
+
       {/* Business Goals */}
       {goals.length > 0 && (
         <div className="mb-5">
@@ -444,6 +458,10 @@ export default function Business() {
           </div>
         </div>
       )}
+
+      <BusinessDocuments docs={docs} onChange={loadDocs} />
+
+      <StatementImportSheet open={importing} onClose={() => setImporting(false)} existing={entries} onDone={loadEntries} />
 
       {/* Entries Log */}
       <div className="bg-card border border-border rounded-2xl overflow-hidden">

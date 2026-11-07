@@ -224,7 +224,7 @@ async function SearchPlacesAutocomplete({ input }) {
   return res.json(); // { predictions: [{ description, placeId }] }
 }
 
-async function UploadFile({ file }) {
+async function UploadFile({ file, private: isPrivate = false }) {
   const uploadFile = await compressImageIfNeeded(file);
   const base64Data = await new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -237,10 +237,23 @@ async function UploadFile({ file }) {
     await fetch(`${API_BASE}/upload`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ filename: uploadFile.name, contentType: uploadFile.type, base64Data }),
+      body: JSON.stringify({ filename: uploadFile.name, contentType: uploadFile.type, base64Data, private: isPrivate }),
     })
   );
   return res.json(); // { file_url }
+}
+
+// Private files need the signed-in user's token, so they can't be opened with
+// a plain link. This fetches one and returns a temporary blob: URL.
+async function GetPrivateFile({ file_url }) {
+  const headers = await authHeaders();
+  const res = await checkOk(await fetch(file_url, { headers }));
+  return URL.createObjectURL(await res.blob());
+}
+
+async function DeletePrivateFile({ file_url }) {
+  const headers = await authHeaders();
+  await fetch(file_url, { method: "DELETE", headers });
 }
 
 // Reads a statement/bill/receipt and returns suggested finance items.
@@ -292,7 +305,7 @@ export const base44 = {
   },
   entities,
   integrations: {
-    Core: { InvokeLLM, GenerateImage, GetPlacePhoto, SearchPlacesAutocomplete, UploadFile, ImportFinanceFile, CompareAI },
+    Core: { InvokeLLM, GenerateImage, GetPlacePhoto, SearchPlacesAutocomplete, UploadFile, GetPrivateFile, DeletePrivateFile, ImportFinanceFile, CompareAI },
   },
   functions: {
     // KNOWN GAP: base44.functions.invoke("exportTripPdf", ...) (used in TripDetail.jsx)

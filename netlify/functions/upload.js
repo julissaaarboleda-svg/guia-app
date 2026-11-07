@@ -25,12 +25,13 @@ exports.handler = async (event, context) => {
   if (!user) return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: "Not authenticated" }) };
 
   try {
-    const { filename, contentType, base64Data } = JSON.parse(event.body);
+    const { filename, contentType, base64Data, private: isPrivate } = JSON.parse(event.body);
     if (!base64Data) throw new Error("Missing base64Data");
 
     const store = getStore("guia-files");
     const fileId = randomUUID();
-    const key = `${user.sub}/${fileId}-${filename || "file"}`;
+    // Private files (tax papers, contracts, licenses) can only be read back by their owner.
+    const key = `${user.sub}/${isPrivate ? "private/" : ""}${fileId}-${filename || "file"}`;
 
     await store.set(key, Buffer.from(base64Data, "base64"), {
       metadata: { contentType: contentType || "application/octet-stream" },

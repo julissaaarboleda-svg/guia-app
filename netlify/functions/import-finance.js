@@ -71,6 +71,33 @@ Rules:
 - Never include account numbers or personal identifiers.
 - If there is no schedule, return {"payments": [], "payoff_amount": null}.`;
 
+const BUSINESS_PROMPT = `You are helping a small business owner log their business activity. Read the attached business bank or card statement (or a list of transactions) and return each transaction worth logging.
+
+Return ONLY JSON in this exact shape:
+{
+  "entries": [
+    {
+      "date": "YYYY-MM-DD",
+      "name": "short, human name, e.g. Etsy payout, Fabric.com, Shopify fee",
+      "kind": "sale" | "expense" | "skip",
+      "amount": positive number,
+      "note": "one short phrase of context, or empty",
+      "confidence": number between 0 and 1
+    }
+  ]
+}
+
+Rules:
+- "sale" = money coming in from customers or marketplaces (payouts, client payments, deposits for orders).
+- "expense" = money going out for the business: supplies, materials, software, shipping, fees, advertising, rent, insurance, contractors, equipment.
+- Use "skip" for transfers between the owner's own accounts, owner draws or contributions, loan proceeds, refunds of your own purchases, and anything personal.
+- Dates must be full ISO dates. If the statement shows only month and day, use the year of the statement period.
+- Keep each transaction as its own entry. Only merge identical charges on the same day from the same merchant.
+- Amounts are always positive; "kind" says which direction.
+- Never include account numbers, card numbers, addresses or any other personal identifiers anywhere in the output.
+- When unsure, lower the confidence rather than guessing.
+- Return at most 80 entries, most recent first. If nothing relevant is found, return {"entries": []}.`;
+
 const KINDS = ["bill", "subscription", "loan", "credit_card", "savings_goal", "skip"];
 
 function parseJson(text) {
@@ -129,7 +156,7 @@ exports.handler = async (event, context) => {
   try {
     const existingList = (Array.isArray(existing) ? existing : []).slice(0, 80)
       .map((e) => `- ${String(e.name || "").slice(0, 60)} (${e.type}, ${e.amount != null ? "$" + e.amount : "no amount"})`).join("\n");
-    const promptText = mode === "schedule" ? SCHEDULE_PROMPT : PROMPT + `\n\nEXISTING ITEMS:\n${existingList || "(none)"}`;
+    const promptText = mode === "schedule" ? SCHEDULE_PROMPT : mode === "business" ? BUSINESS_PROMPT : PROMPT + `\n\nEXISTING ITEMS:\n${existingList || "(none)"}`;
     const docText = isText ? `\n\nDocument (${filename || "text"}):\n` + bytes.toString("utf8").slice(0, 120000) : "";
 
     let rawText;
@@ -138,7 +165,7 @@ exports.handler = async (event, context) => {
         const content = isText
           ? promptText + docText
           : [fileBlock(isPdf ? "application/pdf" : (type || "image/jpeg"), base64Data), { type: "text", text: promptText }];
-        rawText = await claudeText({ content, maxTokens: 6000 });
+        rawText = await claudeText({ content, maxTokens: mode === "business" ? 9000 : 6000 });
       } catch (claudeErr) {
         console.error("import-finance Claude failed, falling back to Gemini:", claudeErr);
         if (!apiKey) throw claudeErr;
@@ -166,6 +193,22 @@ exports.handler = async (event, context) => {
         .filter((p) => /^\d{4}-\d{2}-\d{2}$/.test(p.date) && Number.isFinite(p.amount) && p.amount > 0);
       const payoff = Number(parsed.payoff_amount);
       return reply(200, { payments, payoff_amount: Number.isFinite(payoff) && payoff > 0 ? payoff : null });
+    }
+    if (mode === "business") {
+      if (!parsed || !Array.isArray(parsed.entries)) return reply(502, { error: "The file was read, but the result wasn't usable. Try again, or try a clearer copy." });
+      const entries = parsed.entries.slice(0, 80).map((it) => {
+        const amt = Number(it.amount);
+        const kind = ["sale", "expense", "skip"].includes(it.kind) ? it.kind : "skip";
+        return {
+          date: /^\d{4}-\d{2}-\d{2}$/.test(String(it.date || "").slice(0, 10)) ? String(it.date).slice(0, 10) : "",
+          name: String(it.name || "").slice(0, 80),
+          kind,
+          amount: Number.isFinite(amt) && amt > 0 ? Math.round(amt * 100) / 100 : null,
+          note: String(it.note || "").slice(0, 120),
+          confidence: Math.max(0, Math.min(1, Number(it.confidence) || 0)),
+        };
+      }).filter((it) => it.name && it.amount);
+      return reply(200, { entries });
     }
     if (!parsed || !Array.isArray(parsed.items)) return reply(502, { error: "The file was read, but the result wasn't usable. Try again, or try a clearer copy." });
 
