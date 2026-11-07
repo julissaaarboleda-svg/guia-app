@@ -9,7 +9,7 @@ import DateInput from "@/components/DateInput";
 import BudgetTab from "@/components/finance/BudgetTab";
 import FinanceSummary from "@/components/finance/FinanceSummary";
 
-const TABS = ["summary", "bill", "budget", "savings_goal", "loan", "credit_score"];
+const TABS = ["summary", "budget", "bill", "savings_goal", "loan", "credit_score"];
 
 const PRESET_CATEGORIES = [
   "Housing", "Utilities", "Groceries", "Dining", "Transportation",
