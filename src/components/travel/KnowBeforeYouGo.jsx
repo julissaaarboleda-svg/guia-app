@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Sun, DollarSign, Train, IdCard as Passport, ShieldCheck, X, ExternalLink } from "lucide-react";
+import { Sun, DollarSign, Train, IdCard as Passport, ShieldCheck, X, ExternalLink, ChevronDown } from "lucide-react";
 import { getTripWeather } from "@/lib/packingAi";
 
 const CARDS = [
@@ -17,6 +17,7 @@ const CARDS = [
 // own. generateHappeningAndKnow() no longer asks the model for weather at all.
 export default function KnowBeforeYouGo({ trip, know, loading, error }) {
   const [open, setOpen] = useState(null);
+  const [expanded, setExpanded] = useState(false);
   const [weather, setWeather] = useState(null);
   const [weatherLoading, setWeatherLoading] = useState(true);
 
@@ -40,8 +41,17 @@ export default function KnowBeforeYouGo({ trip, know, loading, error }) {
 
   return (
     <section>
-      <h2 className="font-heading text-base text-foreground font-semibold mb-2">Know Before You Go</h2>
-      <div className="flex gap-1.5">
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center justify-between bg-card border border-border rounded-2xl px-4 py-3"
+      >
+        <span className="font-heading text-base text-foreground font-semibold">Know before you go</span>
+        <span className="flex items-center gap-2 font-body text-[12px] text-muted-foreground">
+          {expanded ? "Hide" : "Weather · Currency · Visa"}
+          <ChevronDown className={`w-4 h-4 transition-transform ${expanded ? "rotate-180" : ""}`} />
+        </span>
+      </button>
+      {expanded && <div className="flex gap-1.5 mt-2">
         {CARDS.map((c) => {
           const isWeather = c.id === "weather";
           const d = isWeather ? null : (know ? know[c.id] : null);
@@ -64,7 +74,7 @@ export default function KnowBeforeYouGo({ trip, know, loading, error }) {
             </button>
           );
         })}
-      </div>
+      </div>}
 
       {item && (
         <div

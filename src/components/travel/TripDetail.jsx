@@ -3,13 +3,11 @@ import { searchCities, searchCountries } from "@/lib/cityData";
 import { parseISO, eachDayOfInterval, format } from "date-fns";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { ArrowLeft, Edit2, Check, X, Trash2, Plane, Home, MapPin, DollarSign, Calendar, Heart, List, Info, Download, Plus, Trash, Clock, Upload, ImageIcon, Pencil, MoreVertical } from "lucide-react";
+import { ArrowLeft, Edit2, Check, X, Trash2, MapPin, Calendar, Download, Plus, Clock, Upload, ImageIcon, MoreVertical } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import FlightTimeline from "./FlightTimeline";
 import SavedTab from "./saved/SavedTab";
 import PackingTab from "./PackingTab";
 import ItineraryTab from "./ItineraryTab";
-import ReactQuill from "react-quill";
 import BudgetTab from "./BudgetTab";
 import MemoriesTab from "./MemoriesTab";
 import BottomNav from "@/components/BottomNav";
@@ -182,9 +180,6 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
                 <DropdownMenuItem onClick={() => setEditing(true)} className="gap-2 cursor-pointer">
                   <Edit2 className="w-4 h-4" /> Edit trip
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => { setPhotoUrl(trip.hero_image_url || ""); setShowPhotoModal(true); }} className="gap-2 cursor-pointer">
-                  <ImageIcon className="w-4 h-4" /> Cover photo
-                </DropdownMenuItem>
                 <DropdownMenuItem onClick={exportPdf} className="gap-2 cursor-pointer">
                   <Download className="w-4 h-4" /> Export PDF
                 </DropdownMenuItem>
@@ -236,20 +231,28 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
                 </div>
               </button>
 
-              <div className="flex items-center gap-2 flex-wrap mt-3">
-                <span className="inline-flex items-center gap-1.5 font-body text-[12px] text-foreground bg-secondary px-3 py-1.5 rounded-full">
-                  <Calendar className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.8} />
-                  {daysUntil !== null && daysUntil > 0 ? `${daysUntil} days away` : "—"}
-                </span>
-                <span className="inline-flex items-center gap-1.5 font-body text-[12px] text-foreground bg-secondary px-3 py-1.5 rounded-full">
-                  <Clock className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.8} />
-                  {tripDays ? `${tripDays} days long` : "—"}
-                </span>
-                <span className="inline-flex items-center gap-1.5 font-body text-[12px] text-foreground bg-secondary px-3 py-1.5 rounded-full">
-                  <MapPin className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.8} />
-                  {trip.cities?.length || 0} cities
-                </span>
-              </div>
+              {(daysUntil > 0 || tripDays || trip.cities?.length > 0) && (
+                <div className="flex items-center gap-2 flex-wrap mt-3">
+                  {daysUntil > 0 && (
+                    <span className="inline-flex items-center gap-1.5 font-body text-[12px] text-foreground bg-secondary px-3 py-1.5 rounded-full">
+                      <Calendar className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.8} />
+                      {daysUntil} days away
+                    </span>
+                  )}
+                  {tripDays && (
+                    <span className="inline-flex items-center gap-1.5 font-body text-[12px] text-foreground bg-secondary px-3 py-1.5 rounded-full">
+                      <Clock className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.8} />
+                      {tripDays} days long
+                    </span>
+                  )}
+                  {trip.cities?.length > 0 && (
+                    <span className="inline-flex items-center gap-1.5 font-body text-[12px] text-foreground bg-secondary px-3 py-1.5 rounded-full">
+                      <MapPin className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.8} />
+                      {trip.cities.length} {trip.cities.length === 1 ? "city" : "cities"}
+                    </span>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -508,252 +511,6 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
       </div>
       <BottomNav prefs={prefs} onFeedback={() => setShowFeedback(true)} />
       {showFeedback && <FeedbackModal onClose={() => setShowFeedback(false)} />}
-    </div>
-  );
-}
-
-export function DetailsTab({ trip, onUpdate }) {
-  const [editingFlights, setEditingFlights] = useState(false);
-  const [editingStays, setEditingStays] = useState(false);
-  const [flightList, setFlightList] = useState(() => {
-    if (trip.flights?.length > 0) return trip.flights;
-    const legacy = [trip.flight_info?.outbound, trip.flight_info?.return]
-      .filter(f => f && (f.airline || f.departure_airport))
-      .map((f, i) => ({ ...f, label: i === 0 ? "Outbound" : "Return" }));
-    return legacy.length > 0 ? legacy : [];
-  });
-  const [stayList, setStayList] = useState(trip.stay_info || []);
-
-  const addFlight = () => {
-    setFlightList([...flightList, { label: "", airline: "", flight_number: "", departure_date: "", departure_time: "", departure_airport: "", arrival_date: "", arrival_time: "", arrival_airport: "", seat: "", terminal_gate: "" }]);
-  };
-
-  const removeFlight = (index) => {
-    setFlightList(flightList.filter((_, i) => i !== index));
-  };
-
-  const updateFlight = (index, field, value) => {
-    const updated = [...flightList];
-    updated[index] = { ...updated[index], [field]: value };
-    setFlightList(updated);
-  };
-
-  const saveFlights = async () => {
-    const updateData = { flights: flightList };
-
-    if (trip.start_date && trip.end_date) {
-      const start = parseISO(trip.start_date);
-      const end = parseISO(trip.end_date);
-      if (end >= start) {
-        const days = eachDayOfInterval({ start, end });
-        const existing = trip.itinerary || [];
-        const newItinerary = days.map((d, i) => {
-          const dateStr = format(d, "yyyy-MM-dd");
-          const alreadyExists = existing.find(e => e.date === dateStr);
-          return alreadyExists ? { ...alreadyExists, day: i + 1 } : { day: i + 1, date: dateStr, title: "", description: "", activities: [] };
-        });
-
-        const outbound = flightList.find(f => f.label === "Outbound" || (!f.label && flightList.indexOf(f) === 0));
-        if (outbound) {
-          const matchDate = outbound.arrival_date || outbound.departure_date;
-          let dayIndex = matchDate ? newItinerary.findIndex(d => d.date === matchDate) : -1;
-          if (dayIndex < 0) dayIndex = 0;
-          if (dayIndex >= 0) {
-            const arrivalActivity = {
-              time: outbound.arrival_time || "",
-              activity: `Arrive at ${outbound.arrival_airport || "destination"}`,
-              location: outbound.arrival_airport || "",
-              notes: outbound.airline ? `${outbound.airline} ${outbound.flight_number || ""}`.trim() : "",
-            };
-            const day = newItinerary[dayIndex];
-            const exists = day.activities?.some(a => a.activity === arrivalActivity.activity);
-            if (!exists) {
-              day.activities = [arrivalActivity, ...(day.activities || [])];
-            }
-          }
-        }
-
-        updateData.itinerary = newItinerary;
-      }
-    }
-
-    const updated = await ent.Trip.update(trip.id, updateData);
-    onUpdate(updated);
-    setEditingFlights(false);
-  };
-
-  const saveStays = async () => {
-    const updated = await ent.Trip.update(trip.id, { stay_info: stayList });
-    onUpdate(updated);
-    setEditingStays(false);
-  };
-
-  const deleteStay = async (index) => {
-    const updated = stayList.filter((_, i) => i !== index);
-    const saved = await ent.Trip.update(trip.id, { stay_info: updated });
-    setStayList(updated);
-    onUpdate(saved);
-  };
-
-  const clearFlights = async () => {
-    if (!confirm("Clear all flight info?")) return;
-    const saved = await ent.Trip.update(trip.id, { flights: [], flight_info: {} });
-    onUpdate(saved);
-  };
-
-  const addStay = () => {
-    setStayList([...stayList, {}]);
-  };
-
-  const removeStay = (index) => {
-    setStayList(stayList.filter((_, i) => i !== index));
-  };
-
-  const updateStay = (index, field, value) => {
-    const updated = [...stayList];
-    updated[index] = { ...updated[index], [field]: value };
-    setStayList(updated);
-  };
-
-  return (
-    <div className="space-y-4 font-body">
-      <div className="bg-card border border-border rounded-2xl p-5">
-        <div
-          className={`flex items-center justify-between mb-3 ${!editingFlights ? "cursor-pointer" : ""}`}
-          onClick={!editingFlights ? () => setEditingFlights(true) : undefined}
-        >
-          <h3 className="font-heading text-sm font-medium text-foreground flex items-center gap-2"><Plane className="w-4 h-4" /> ✈️ Flights</h3>
-          {!editingFlights ? (
-            <div className="flex items-center gap-1">
-              {(trip.flights?.length > 0 || trip.flight_info?.outbound?.airline || trip.flight_info?.return?.airline) && (
-                <button onClick={e => { e.stopPropagation(); clearFlights(); }} className="p-2 text-muted-foreground hover:text-destructive transition-colors"><Trash className="w-4 h-4" /></button>
-              )}
-              <button onClick={e => { e.stopPropagation(); setEditingFlights(true); }} className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"><Edit2 className="w-4 h-4" /></button>
-            </div>
-          ) : (
-            <div className="flex gap-2">
-              <button onClick={saveFlights} className="flex items-center gap-1 bg-accent text-accent-foreground px-3 py-1.5 rounded-lg text-xs font-medium hover:opacity-90"><Check className="w-3 h-3" /> Save</button>
-              <button onClick={() => setEditingFlights(false)} className="text-muted-foreground hover:text-foreground text-xs px-2">Cancel</button>
-            </div>
-          )}
-        </div>
-        {editingFlights ? (
-          <div className="space-y-5">
-            <div className="flex justify-end">
-              <button onClick={addFlight} className="flex items-center gap-1 text-xs bg-accent text-accent-foreground px-2 py-1.5 rounded-lg hover:opacity-90 transition-colors">
-                <Plus className="w-3 h-3" /> Add flight
-              </button>
-            </div>
-            {flightList.map((flight, index) => (
-              <div key={index} className="bg-muted border border-border rounded-xl p-4 relative">
-                {flightList.length > 1 && (
-                  <button onClick={() => removeFlight(index)} className="absolute top-2 right-2 text-muted-foreground hover:text-destructive transition-colors">
-                    <Trash className="w-4 h-4" />
-                  </button>
-                )}
-                <div className="mb-3">
-                  <label className="text-xs text-muted-foreground mb-1 block">Label</label>
-                  <select value={flight.label || ""} onChange={e => updateFlight(index, "label", e.target.value)} className="w-full bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring">
-                    <option value="">Select label…</option>
-                    <option value="Outbound">Outbound</option>
-                    <option value="Layover">Layover</option>
-                    <option value="Return">Return</option>
-                    <option value="Connection">Connection</option>
-                  </select>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <input placeholder="Airline" value={flight.airline || ""} onChange={e => updateFlight(index, "airline", e.target.value)} className="bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring" />
-                  <input placeholder="Flight #" value={flight.flight_number || ""} onChange={e => updateFlight(index, "flight_number", e.target.value)} className="bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring" />
-                  <div><label className="text-xs text-muted-foreground mb-1 block">Departure date</label><DateInput value={flight.departure_date || ""} onChange={e => updateFlight(index, "departure_date", e.target.value)} /></div>
-                  <div><label className="text-xs text-muted-foreground mb-1 block flex items-center gap-1"><Clock className="w-3 h-3" /> Departure time</label><input type="time" value={flight.departure_time || ""} onChange={e => updateFlight(index, "departure_time", e.target.value)} /></div>
-                  <div><label className="text-xs text-muted-foreground mb-1 block">Arrival date</label><DateInput value={flight.arrival_date || ""} onChange={e => updateFlight(index, "arrival_date", e.target.value)} /></div>
-                  <div><label className="text-xs text-muted-foreground mb-1 block flex items-center gap-1"><Clock className="w-3 h-3" /> Arrival time</label><input type="time" value={flight.arrival_time || ""} onChange={e => updateFlight(index, "arrival_time", e.target.value)} /></div>
-                  <input placeholder="From (e.g. LAX)" value={flight.departure_airport || ""} onChange={e => updateFlight(index, "departure_airport", e.target.value)} className="bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring" />
-                  <input placeholder="To (e.g. NRT)" value={flight.arrival_airport || ""} onChange={e => updateFlight(index, "arrival_airport", e.target.value)} className="bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring" />
-                  <input placeholder="Seat" value={flight.seat || ""} onChange={e => updateFlight(index, "seat", e.target.value)} className="bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring" />
-                  <input placeholder="Gate" value={flight.terminal_gate || ""} onChange={e => updateFlight(index, "terminal_gate", e.target.value)} className="bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <FlightTimeline flights={trip.flights} flightInfo={trip.flight_info} />
-        )}
-      </div>
-
-      <div className="bg-card border border-border rounded-2xl p-5">
-        <div
-          className={`flex items-center justify-between mb-3 ${!editingStays ? "cursor-pointer" : ""}`}
-          onClick={!editingStays ? () => setEditingStays(true) : undefined}
-        >
-          <h3 className="font-heading text-sm font-medium text-foreground flex items-center gap-2"><Home className="w-4 h-4" /> 🏨 Stays</h3>
-          {!editingStays ? (
-            <button onClick={e => { e.stopPropagation(); setEditingStays(true); }} className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"><Edit2 className="w-4 h-4" /></button>
-          ) : (
-            <div className="flex gap-2">
-              <button onClick={saveStays} className="flex items-center gap-1 bg-accent text-accent-foreground px-3 py-1.5 rounded-lg text-xs font-medium hover:opacity-90"><Check className="w-3 h-3" /> Save</button>
-              <button onClick={() => setEditingStays(false)} className="text-muted-foreground hover:text-foreground text-xs px-2">Cancel</button>
-            </div>
-          )}
-        </div>
-        {editingStays ? (
-          <div className="space-y-4">
-            <div className="flex justify-end">
-              <button onClick={addStay} className="flex items-center gap-1 text-xs bg-accent text-accent-foreground px-2 py-1.5 rounded-lg hover:opacity-90 transition-colors">
-                <Plus className="w-3 h-3" /> Add stay
-              </button>
-            </div>
-            {stayList.map((stay, index) => (
-              <div key={index} className="bg-muted border border-border rounded-xl p-4 relative">
-                {stayList.length > 1 && (
-                  <button onClick={() => removeStay(index)} className="absolute top-2 right-2 text-muted-foreground hover:text-destructive transition-colors">
-                    <Trash className="w-4 h-4" />
-                  </button>
-                )}
-                <p className="text-xs text-muted-foreground mb-2">Stay #{index + 1}</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="col-span-2"><label className="text-xs text-muted-foreground mb-1 block">Property name</label><input placeholder="e.g. The Grand Hotel" value={stay.property_name || ""} onChange={e => updateStay(index, "property_name", e.target.value)} /></div>
-                  <div className="col-span-2"><label className="text-xs text-muted-foreground mb-1 block">Property type</label><select value={stay.property_type || ""} onChange={e => updateStay(index, "property_type", e.target.value)} className="w-full bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring"><option value="">Select type...</option><option value="Hotel">Hotel</option><option value="Airbnb">Airbnb</option><option value="Vacation Rental">Vacation Rental</option><option value="Family & Friends">Family &amp; Friends</option><option value="Hostel">Hostel</option><option value="Resort">Resort</option><option value="Other">Other</option></select></div>
-                  <div className="col-span-2"><label className="text-xs text-muted-foreground mb-1 block">Address</label><input placeholder="Street address" value={stay.address || ""} onChange={e => updateStay(index, "address", e.target.value)} /></div>
-                  <div><label className="text-xs text-muted-foreground mb-1 block">Check-in date</label><DateInput value={stay.check_in_date || ""} onChange={e => updateStay(index, "check_in_date", e.target.value)} /></div>
-                  <div><label className="text-xs text-muted-foreground mb-1 block flex items-center gap-1"><Clock className="w-3 h-3" /> Check-in time</label><input type="time" value={stay.check_in_time || ""} onChange={e => updateStay(index, "check_in_time", e.target.value)} /></div>
-                  <div><label className="text-xs text-muted-foreground mb-1 block">Check-out date</label><DateInput value={stay.check_out_date || ""} onChange={e => updateStay(index, "check_out_date", e.target.value)} /></div>
-                  <div><label className="text-xs text-muted-foreground mb-1 block flex items-center gap-1"><Clock className="w-3 h-3" /> Check-out time</label><input type="time" value={stay.check_out_time || ""} onChange={e => updateStay(index, "check_out_time", e.target.value)} /></div>
-                  <div className="col-span-2"><label className="text-xs text-muted-foreground mb-1 block">Confirmation #</label><input placeholder="e.g. ABC123456" value={stay.confirmation_number || ""} onChange={e => updateStay(index, "confirmation_number", e.target.value)} /></div>
-                  <div className="col-span-2"><label className="text-xs text-muted-foreground mb-1 block">Contact phone</label><input placeholder="Phone number" value={stay.contact_phone || ""} onChange={e => updateStay(index, "contact_phone", e.target.value)} /></div>
-                  <textarea placeholder="Notes" value={stay.notes || ""} onChange={e => updateStay(index, "notes", e.target.value)} rows={2} className="col-span-2 bg-card border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring resize-none" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          stayList && stayList.length > 0 ? (
-            <div className="space-y-3">
-              {stayList.map((stay, index) => (
-                <div key={index} className={`relative group ${stayList.length > 1 ? "pb-3 border-b border-border last:border-0 last:pb-0" : ""}`}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      {stayList.length > 1 && <p className="text-xs text-muted-foreground mb-1">Stay #{index + 1}</p>}
-                      {stay.property_name &&               <p className="font-heading font-medium text-foreground">{stay.property_name}</p>}
-                      {stay.property_type && <p className="text-xs text-muted-foreground">{stay.property_type}</p>}
-                      {stay.address && <p className="text-sm text-muted-foreground">{stay.address}</p>}
-                      {stay.check_in_date && <p className="text-xs text-muted-foreground mt-1">Check-in: {stay.check_in_date} {stay.check_in_time}</p>}
-                      {stay.check_out_date && <p className="text-xs text-muted-foreground">Check-out: {stay.check_out_date} {stay.check_out_time}</p>}
-                      {stay.confirmation_number && <p className="text-xs text-muted-foreground">Confirmation: {stay.confirmation_number}</p>}
-                    </div>
-                    <button onClick={e => { e.stopPropagation(); deleteStay(index); }} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 p-1">
-                      <Trash className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-sm text-center py-4">No stay info yet</p>
-          )
-        )}
-      </div>
-
     </div>
   );
 }

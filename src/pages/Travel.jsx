@@ -27,6 +27,7 @@ export default function Travel() {
   const [showSearch, setShowSearch] = useState(false);
   const [query, setQuery] = useState("");
   const [viewTab, setViewTab] = useState("current");
+  const [showAllPast, setShowAllPast] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [knowData, setKnowData] = useState(null);
@@ -184,7 +185,8 @@ export default function Travel() {
   const current = inProgress || upcomingSorted[0] || active[0] || null;
   const undated = active.filter((t) => !t.start_date && t.id !== current?.id);
   const upcoming = [...upcomingSorted.filter((t) => t.id !== current?.id), ...undated].slice(0, 6);
-  const past = trips.filter((t) => t.status === "completed").slice(0, 8);
+  const pastAll = trips.filter((t) => t.status === "completed");
+  const past = showAllPast ? pastAll : pastAll.slice(0, 4);
 
   const q = query.trim().toLowerCase();
   const matches = (t) =>
@@ -277,8 +279,8 @@ export default function Travel() {
                     onCustomize={() => setShowCover(current)}
                     onEditTrip={() => editTrip(current)}
                   />
-                  <JourneyProgress trip={current} onNavigate={(tab) => openTrip(current, tab)} />
                   <UpcomingEvent trip={current} onNavigate={(tab, date) => openTrip(current, tab, date)} />
+                  <JourneyProgress trip={current} onNavigate={(tab) => openTrip(current, tab)} />
                   <KnowBeforeYouGo trip={current} know={knowData} loading={knowLoading} error={knowError} />
                 </>
               ) : (
@@ -310,9 +312,11 @@ export default function Travel() {
               <section>
                 <div className="flex items-end justify-between mb-3">
                   <h2 className="font-heading text-[1.2rem] text-foreground font-semibold leading-tight">Past Journeys</h2>
-                  <button className="font-body text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-0.5 transition-colors">
-                    View All →
-                  </button>
+                  {pastAll.length > 4 && (
+                    <button onClick={() => setShowAllPast((v) => !v)} className="font-body text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-0.5 transition-colors">
+                      {showAllPast ? "Show less" : "View all →"}
+                    </button>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   {past.map((trip) => (

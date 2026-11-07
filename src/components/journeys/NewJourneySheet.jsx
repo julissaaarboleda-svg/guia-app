@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Plus, MapPin } from "lucide-react";
+import { X, Plus } from "lucide-react";
 import DateRangePicker from "@/components/DateRangePicker";
 import { searchCountries, searchCities } from "@/lib/cityData";
 

@@ -1,5 +1,4 @@
 import { parseISO } from "date-fns";
-import { base44 } from "@/api/base44Client";
 
 export function getSeason(dateStr) {
   if (!dateStr) return null;
@@ -47,44 +46,3 @@ export function getJourneyCaption(trip) {
   }
   return "Everything is almost ready.";
 }
-
-export async function generateTravelBrief(trip) {
-  const dest = [trip.country, ...(trip.cities || [])].filter(Boolean).join(", ") || trip.title;
-  const season = getSeason(trip.start_date);
-  const totalSpent = (trip.expense_items || []).reduce((s, e) => s + (e.amount || 0), 0);
-  const context = {
-    title: trip.title,
-    country: trip.country,
-    cities: trip.cities,
-    destination: dest,
-    season,
-    start_date: trip.start_date,
-    end_date: trip.end_date,
-    budget_target: trip.budget_target,
-    budget_used_pct: trip.budget_target ? Math.round((totalSpent / trip.budget_target) * 100) : null,
-    total_spent: totalSpent,
-    itinerary_days: (trip.itinerary || []).length,
-    itinerary_with_activities: (trip.itinerary || []).filter((d) => d.activities && d.activities.length > 0).length,
-    stay_count: (trip.stay_info || []).length,
-    packing_count: (trip.packing_items || []).length,
-    packing_packed: (trip.packing_items || []).filter((p) => p.packed).length,
-  };
-  // NOTE: this used to hardcode weather as the mandatory first insight (an
-  // ungrounded guess, separate from Packing tab's real grounded forecast) —
-  // dropped now that weather has one authoritative source. This is 2 insights
-  // (budget + itinerary), not 3.
-  const prompt = `You are a serene travel curator. Given this journey data, return exactly 2 short editorial insights: one about budget, one about itinerary/planning progress, drawn from the data. Each insight MUST have a headline (concise, under 45 characters) and a detail (one sentence under 70 characters). Be specific, warm, and non-technical. Do not mention the data structure or JSON. Return JSON {insights: [{headline: string, detail: string}]}. Provide exactly 2 insights.\n\nData: ${JSON.stringify(context)}`;
-  const res = await base44.integrations.Core.InvokeLLM({
-    prompt,
-    response_json_schema: {
-      type: "object",
-      properties: { insights: { type: "array", items: { type: "object", properties: { headline: { type: "string" }, detail: { type: "string" } } } } },
-    },
-  });
-  return (res.insights || []).slice(0, 2);
-}
-
-// NOTE: generateTravelAssistantInsights() was removed here — it powered the
-// standalone Travel Assistant page, which was retired for duplicating the
-// weather/budget/itinerary insights already shown by generateTravelBrief()
-// above and by Know Before You Go. One AI-generated trip summary instead of three.

@@ -84,7 +84,7 @@ export default function UpcomingEvent({ trip, onNavigate }) {
   return (
     <section>
       <div className="flex items-end justify-between mb-3">
-        <h2 className="font-heading text-lg text-foreground font-semibold leading-tight">Up Next</h2>
+        <h2 className="font-heading text-lg text-foreground font-semibold leading-tight">Next up</h2>
         {events.length > 1 && (
           <button
             onClick={() => setExpanded((e) => !e)}
