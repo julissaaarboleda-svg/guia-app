@@ -149,10 +149,11 @@ export default function Goals() {
       <div className={`w-full md:w-64 lg:w-72 flex-shrink-0 bg-background border-r border-border flex-col ${showingDetail ? "hidden" : "flex"}`}>
         <PageHeader
           title="Goals & Tasks"
+          subtitle="Where you're headed."
           actions={
             <button
               onClick={openAdd}
-              className="w-9 h-9 flex items-center justify-center rounded-full bg-foreground text-background hover:opacity-90 transition-opacity"
+              className="w-9 h-9 flex items-center justify-center rounded-full bg-[#A7773F] text-[#F7F3EC] hover:opacity-90 transition-opacity"
               aria-label={`New ${activeTab === "goals" ? "goal" : "task"}`}
               title={`New ${activeTab === "goals" ? "goal" : "task"}`}
             >
@@ -162,18 +163,18 @@ export default function Goals() {
         />
 
         {/* Tabs */}
-        <div className="flex gap-1 p-2 border-b border-border">
+        <div className="flex gap-1.5 px-4 pt-3 pb-1">
           <button onClick={() => { setActiveTab("goals"); setSelected(null); setAdding(false); }}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${activeTab === "goals" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}>
+            className={`px-3.5 py-1.5 rounded-full font-body text-[12.5px] font-medium transition-colors ${activeTab === "goals" ? "bg-[#A7773F] text-[#F7F3EC]" : "border border-border text-muted-foreground hover:text-foreground"}`}>
             Goals
           </button>
           <button onClick={() => { setActiveTab("tasks"); setSelected(null); setAdding(false); }}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${activeTab === "tasks" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}>
+            className={`px-3.5 py-1.5 rounded-full font-body text-[12.5px] font-medium transition-colors ${activeTab === "tasks" ? "bg-[#A7773F] text-[#F7F3EC]" : "border border-border text-muted-foreground hover:text-foreground"}`}>
             Tasks
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5">
           {activeTab === "goals" && (
             <>
               {[...activeGoals, ...doneGoals].map(g => {
@@ -182,21 +183,25 @@ export default function Goals() {
                 const pct = sub.length > 0 ? Math.round((doneCount / sub.length) * 100) : 0;
                 return (
                   <button key={g.id} onClick={() => { setSelected({ type: "goal", id: g.id }); setEditGoalData({ ...g }); setAdding(false); }}
-                    className={`w-full text-left p-3 rounded-lg transition-colors ${selected?.id === g.id ? "bg-card border border-border text-foreground shadow-sm" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
-                    <p className="text-sm font-medium truncate">{g.title}</p>
-                    <p className="text-xs text-muted-foreground capitalize mt-0.5">{g.category} · {STATUS_LABELS[g.status]}</p>
-                    {sub.length > 0 && (
-                      <div className="flex items-center gap-2 mt-2">
-                        <div className="flex-1 h-[5px] rounded-full overflow-hidden" style={{ background: "#A7773F26" }}>
-                          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: "#A7773F" }} />
-                        </div>
-                        <span className="text-[10.5px] text-muted-foreground flex-shrink-0">{doneCount}/{sub.length}</span>
+                    className={`w-full text-left p-3.5 rounded-2xl bg-card border transition-colors ${selected?.id === g.id ? "border-[#A7773F]/60 shadow-sm" : "border-border hover:border-[#A7773F]/40"}`}>
+                    <div className="flex items-center gap-3">
+                      <div className="relative w-11 h-11 flex-shrink-0">
+                        <svg viewBox="0 0 44 44" className="w-11 h-11 -rotate-90">
+                          <circle cx="22" cy="22" r="19" fill="none" stroke="#A7773F26" strokeWidth="3.5" />
+                          <circle cx="22" cy="22" r="19" fill="none" stroke="#A7773F" strokeWidth="3.5" strokeLinecap="round" strokeDasharray={`${(pct / 100) * 119.4} 119.4`} />
+                        </svg>
+                        <span className="absolute inset-0 flex items-center justify-center font-heading text-[11px] text-foreground">{pct}%</span>
                       </div>
-                    )}
+                      <div className="min-w-0 flex-1">
+                        <p className="font-heading text-[15px] text-foreground truncate">{g.title}</p>
+                        <p className="text-xs text-muted-foreground capitalize mt-0.5">{g.category} · {sub.length > 0 ? `${doneCount} of ${sub.length} done` : STATUS_LABELS[g.status]}</p>
+                      </div>
+                    </div>
+                    {sub.length > 0 && pct === 100 && <p className="text-[11px] text-[#A7773F] mt-2">All done. Nice work.</p>}
                   </button>
                 );
               })}
-              {goals.length === 0 && !adding && <p className="text-muted-foreground text-xs p-3">No goals yet</p>}
+              {goals.length === 0 && !adding && <p className="text-muted-foreground text-sm p-3 text-center">No goals yet. Tap + to add your first one.</p>}
             </>
           )}
           {activeTab === "tasks" && (
@@ -213,7 +218,7 @@ export default function Goals() {
               )}
               {[...openTasks, ...completedTasks].map(t => (
                 <div key={t.id}
-                  className={`w-full text-left p-3 rounded-lg transition-colors flex items-start gap-2 group ${selected?.id === t.id ? "bg-card border border-border text-foreground shadow-sm" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
+                  className={`w-full text-left p-3 rounded-2xl bg-card border transition-colors flex items-start gap-2 group ${selected?.id === t.id ? "border-[#A7773F]/60 shadow-sm" : "border-border"}`}>
                   {/* Clickable checkbox — doesn't open detail */}
                   <button
                     onClick={async (e) => { e.stopPropagation(); await toggleTask(t); }}
@@ -239,7 +244,7 @@ export default function Goals() {
                   </button>
                 </div>
               ))}
-              {tasks.length === 0 && !adding && <p className="text-muted-foreground text-xs p-3">No tasks yet</p>}
+              {tasks.length === 0 && !adding && <p className="text-muted-foreground text-sm p-3 text-center">No tasks yet. Tap + to add one.</p>}
             </>
           )}
         </div>
