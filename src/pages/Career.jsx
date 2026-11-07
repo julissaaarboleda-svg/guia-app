@@ -26,6 +26,7 @@ const ACHIEVEMENT_SUBTYPES = [
 export default function Career() {
   const [entries, setEntries] = useState([]);
   const [adding, setAdding] = useState(false);
+  const [showPay, setShowPay] = useState(false);
   const [editing, setEditing] = useState(null);
   const [entryType, setEntryType] = useState("job");
   const [achievementSubtype, setAchievementSubtype] = useState("milestone");
@@ -177,11 +178,11 @@ export default function Career() {
       <div className="max-w-[1200px] mx-auto w-full">
       <PageHeader
         title="Career"
-        subtitle={`${entries.length} ${entries.length === 1 ? "entry" : "entries"}`}
+        subtitle="Where you've been, where you're going."
         actions={
           <button
             onClick={() => setAdding(true)}
-            className="w-9 h-9 flex items-center justify-center rounded-full bg-foreground text-background hover:opacity-90 transition-opacity"
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-[#A7773F] text-[#F7F3EC] hover:opacity-90 transition-opacity"
             aria-label="Add entry"
             title="Add entry"
           >
@@ -192,46 +193,33 @@ export default function Career() {
       <div className="p-4 md:p-6 lg:p-8">
       {/* Current Role Card */}
       {currentJob && (
-        <div className="bg-gradient-to-br from-foreground to-foreground text-background rounded-2xl p-4 md:p-5 mb-4 md:mb-6 shadow-lg">
+        <div className="bg-card border border-border border-l-4 border-l-[#A7773F] rounded-2xl p-4 md:p-5 mb-4 md:mb-6">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <Briefcase className="w-4 h-4 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground uppercase tracking-wide">Current Role</span>
-              </div>
-              <h2 className="text-xl font-bold text-white truncate">{currentJob.title}</h2>
-              {currentJob.company && <p className="text-muted-foreground/60 text-sm mt-1">{currentJob.company}</p>}
-              <div className="flex flex-wrap gap-4 mt-3">
-                {currentJob.salary && (
-                  <div>
-                    <p className="text-xs text-muted-foreground">Current Pay</p>
-                    <p className="text-lg font-semibold text-green-400">${currentJob.salary.toLocaleString()}</p>
-                  </div>
-                )}
-                {currentJob.start_date && (
-                  <div>
-                    <p className="text-xs text-muted-foreground">Started</p>
-                    <p className="text-sm font-medium text-white">
-                      {new Date(currentJob.start_date).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
-                    </p>
-                  </div>
-                )}
-                {currentJob.skills_gained && currentJob.skills_gained.length > 0 && (
-                  <div className="flex-1 min-w-[120px]">
-                    <p className="text-xs text-muted-foreground mb-1">Key Skills</p>
-                    <div className="flex flex-wrap gap-1">
-                      {currentJob.skills_gained.slice(0, 3).map((s, i) => (
-                        <span key={i} className="text-xs bg-stone-700 text-muted-foreground/40 px-2 py-0.5 rounded-full">{s}</span>
-                      ))}
-                      {currentJob.skills_gained.length > 3 && (
-                        <span className="text-xs text-muted-foreground px-1">+{currentJob.skills_gained.length - 3}</span>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <span className="text-[9px] font-bold text-[#8B6B3E] uppercase tracking-[0.14em]">Current role</span>
+              <h2 className="font-heading text-xl text-foreground truncate mt-0.5">{currentJob.title}</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {currentJob.company}{currentJob.company && currentJob.start_date ? " · " : ""}
+                {currentJob.start_date && `since ${new Date(currentJob.start_date).toLocaleDateString("en-US", { month: "short", year: "numeric" })}`}
+              </p>
+              {currentJob.salary && (
+                <div className="flex items-center gap-2 mt-3">
+                  <span className="text-base font-medium text-foreground tracking-wide">{showPay ? `$${currentJob.salary.toLocaleString()}` : "••••••"}</span>
+                  <button onClick={() => setShowPay(v => !v)} className="text-[11px] text-[#A7773F] border border-[#A7773F] rounded-full px-2.5 py-0.5">{showPay ? "Hide pay" : "Show pay"}</button>
+                </div>
+              )}
+              {currentJob.skills_gained && currentJob.skills_gained.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-3">
+                  {currentJob.skills_gained.slice(0, 3).map((sk, i) => (
+                    <span key={i} className="text-xs bg-muted text-foreground px-2 py-0.5 rounded-full">{sk}</span>
+                  ))}
+                  {currentJob.skills_gained.length > 3 && (
+                    <span className="text-xs text-muted-foreground px-1">+{currentJob.skills_gained.length - 3}</span>
+                  )}
+                </div>
+              )}
             </div>
-            <button onClick={() => startEdit(currentJob)} className="text-muted-foreground hover:text-white transition-colors flex-shrink-0">
+            <button onClick={() => startEdit(currentJob)} className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 p-1">
               <Pencil className="w-4 h-4" />
             </button>
           </div>
@@ -247,32 +235,24 @@ export default function Career() {
             <h2 className="font-heading font-semibold text-stone-900">Add {ENTRY_TYPES.find(t => t.id === entryType)?.label}</h2>
           </div>
 
-          <Select value={entryType} onValueChange={(v) => { resetForm(); setEntryType(v); }}>
-            <SelectTrigger className="w-full text-sm bg-stone-50 border-border text-stone-900">
-              <SelectValue placeholder="Select type" />
-            </SelectTrigger>
-            <SelectContent>
-              {ENTRY_TYPES.map(t => (
-                <SelectItem key={t.id} value={t.id} className="flex items-center gap-2">
-                  <span className="flex items-center gap-2"><t.icon className="w-4 h-4" /> {t.label}</span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-wrap gap-1.5">
+            {ENTRY_TYPES.map(t => (
+              <button key={t.id} type="button" onClick={() => { resetForm(); setEntryType(t.id); }}
+                className={`px-3.5 py-1.5 rounded-full font-body text-[12.5px] font-medium transition-colors ${entryType === t.id ? "bg-[#A7773F] text-[#F7F3EC]" : "border border-border text-muted-foreground hover:text-foreground"}`}>
+                {t.label.replace("Performance ", "").replace(" / Position", "")}
+              </button>
+            ))}
+          </div>
 
           {entryType === "achievement" && (
-            <Select value={achievementSubtype} onValueChange={setAchievementSubtype}>
-              <SelectTrigger className="w-full text-sm bg-stone-50 border-border text-stone-900">
-                <SelectValue placeholder="Achievement type" />
-              </SelectTrigger>
-              <SelectContent>
-                {ACHIEVEMENT_SUBTYPES.map(t => (
-                  <SelectItem key={t.id} value={t.id}>
-                    <span className="flex items-center gap-2"><t.icon className="w-4 h-4" /> {t.label}</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex flex-wrap gap-1.5">
+              {ACHIEVEMENT_SUBTYPES.map(t => (
+                <button key={t.id} type="button" onClick={() => setAchievementSubtype(t.id)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${achievementSubtype === t.id ? "bg-[#F0E6D6] text-[#8B6B3E] border border-[#A7773F]/40" : "border border-border text-muted-foreground hover:text-foreground"}`}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
           )}
 
           <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Title (required)" autoFocus
@@ -329,7 +309,7 @@ export default function Career() {
             <div className="border-t border-border pt-4">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-medium text-foreground">Performance Calibrations</h3>
-                <button onClick={() => setShowCalibrations(true)} className="text-xs text-amber-600 hover:text-amber-700 flex items-center gap-1">
+                <button onClick={() => setShowCalibrations(true)} className="text-xs text-[#A7773F] hover:opacity-80 flex items-center gap-1">
                   <Settings className="w-3 h-3" /> Manage
                 </button>
               </div>
@@ -394,7 +374,7 @@ export default function Career() {
             className="w-full bg-stone-50 border border-border rounded-lg px-3 py-2 text-stone-900 text-sm outline-none focus:border-ring transition-colors resize-none" />
 
           <div className="flex gap-2">
-            <button onClick={editing ? saveEdit : add} className="flex-1 bg-foreground text-background py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">
+            <button onClick={editing ? saveEdit : add} className="flex-1 bg-[#A7773F] text-[#F7F3EC] py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">
               {editing ? "Save changes" : "Add entry"}
             </button>
             <button onClick={editing ? cancelEdit : () => setAdding(false)} className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors">Cancel</button>
@@ -405,9 +385,9 @@ export default function Career() {
       {/* Entries grouped by type */}
       {entries.length === 0 && !adding && (
         <div className="text-center py-16 text-muted-foreground bg-card border border-border rounded-2xl">
-          <p className="text-4xl mb-3">📋</p>
-          <p className="text-sm font-medium text-foreground mb-1">No career entries yet</p>
-          <p className="text-xs">Track jobs, reviews, milestones, skills, and more</p>
+          <p className="font-heading text-base text-foreground mb-1">Start your career story</p>
+          <p className="text-xs mb-4">Jobs, reviews, milestones, skills and more.</p>
+          <button onClick={() => setAdding(true)} className="bg-[#A7773F] text-[#F7F3EC] rounded-full text-xs px-4 py-2">Add first entry</button>
         </div>
       )}
 
@@ -421,6 +401,9 @@ export default function Career() {
             <div key={type.id}>
               <h2 className="font-heading text-sm text-muted-foreground font-medium mb-3 flex items-center gap-2">
                 <Icon className="w-4 h-4" /> {type.label} ({typeEntries.length})
+                {type.id === "job" && !currentJob && typeEntries.some(e => e.salary) && (
+                  <button onClick={() => setShowPay(v => !v)} className="ml-auto text-[11px] text-[#A7773F] border border-[#A7773F] rounded-full px-2.5 py-0.5">{showPay ? "Hide pay" : "Show pay"}</button>
+                )}
               </h2>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                 {typeEntries.map(e => (
@@ -429,7 +412,7 @@ export default function Career() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <p className="font-medium text-stone-900 truncate">{e.title}</p>
-                          {e.current && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Current</span>}
+                          {e.current && <span className="text-xs bg-[#F0E6D6] text-[#8B6B3E] px-2 py-0.5 rounded-full">Current</span>}
                         </div>
                         {e.company && <p className="text-sm text-muted-foreground">{e.company}</p>}
                         {(e.start_date || e.end_date) && (
@@ -439,7 +422,7 @@ export default function Career() {
                             {e.current ? "Present" : (e.end_date ? new Date(e.end_date).toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "?")}
                           </p>
                         )}
-                        {e.salary && <p className="text-sm text-foreground mt-1">${e.salary.toLocaleString()}</p>}
+                        {e.salary && <p className="text-sm text-foreground mt-1">{showPay ? `$${e.salary.toLocaleString()}` : "••••••"}</p>}
                         {e.rating && <p className="text-sm text-amber-600 mt-1">Rating: {e.rating}/{e.rating_scale || 10}</p>}
                         {e.description && <p className="text-sm text-foreground mt-2 line-clamp-2">{e.description}</p>}
                         {e.skills_gained && e.skills_gained.length > 0 && (
@@ -449,7 +432,7 @@ export default function Career() {
                         )}
                         {e.notes && <p className="text-xs text-muted-foreground mt-2 line-clamp-1">{e.notes}</p>}
                       </div>
-                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100">
+                      <div className="flex items-center gap-2 md:opacity-0 md:group-hover:opacity-100">
                         <button onClick={() => startEdit(e)} className="text-muted-foreground/60 hover:text-foreground transition-colors">
                           <Pencil className="w-4 h-4" />
                         </button>
