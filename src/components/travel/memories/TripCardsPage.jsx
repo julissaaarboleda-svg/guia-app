@@ -105,7 +105,7 @@ function RouteArt({ points, loading, pendingRef }) {
 
   const map = useMemo(() => {
     if (loading || points.length === 0 || !box.w || !box.h) return null;
-    const P = 44;
+    const P = 40;
     let z = 12;
     for (; z > 2; z -= 1) {
       const w = points.map((p) => worldXY(p.lat, p.lon, z));
@@ -124,11 +124,25 @@ function RouteArt({ points, loading, pendingRef }) {
       for (let tx = Math.floor(tlx / TILE); tx <= Math.floor((tlx + box.w) / TILE); tx += 1) {
         if (ty < 0 || ty >= max) continue;
         const wx = ((tx % max) + max) % max;
-        tiles.push({ key: `${z}/${tx}/${ty}`, url: `https://basemaps.cartocdn.com/rastertiles/voyager_nolabels/${z}/${wx}/${ty}@2x.png`, left: tx * TILE - tlx, top: ty * TILE - tly });
+        tiles.push({ key: `${z}/${tx}/${ty}`, url: `https://tile.openstreetmap.org/${z}/${wx}/${ty}.png`, left: tx * TILE - tlx, top: ty * TILE - tly });
       }
     }
     const pts = points.map((p, i) => ({ name: p.name, x: w[i].x - tlx, y: w[i].y - tly }));
-    return { tiles, pts };
+    const placed = [];
+    const hit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+    const dots = pts.map((p) => ({ x: p.x - 9, y: p.y - 9, w: 18, h: 18 }));
+    const labels = pts.map((p) => {
+      const pw = p.name.length * 6 + 16;
+      const ph = 20;
+      const cands = [
+        { x: p.x - pw / 2, y: p.y - 12 - ph }, { x: p.x - pw / 2, y: p.y + 12 },
+        { x: p.x + 12, y: p.y - ph / 2 }, { x: p.x - 12 - pw, y: p.y - ph / 2 },
+      ].map((c) => ({ x: Math.min(Math.max(c.x, 4), box.w - pw - 4), y: Math.min(Math.max(c.y, 4), box.h - ph - 4), w: pw, h: ph }));
+      const pick = cands.find((c) => !placed.some((q) => hit(c, q)) && !dots.some((d) => hit(c, d))) || cands[0];
+      placed.push(pick);
+      return pick;
+    });
+    return { tiles, pts, labels };
   }, [points, loading, box.w, box.h]);
 
   useEffect(() => {
@@ -150,26 +164,23 @@ function RouteArt({ points, loading, pendingRef }) {
             <img key={t.key} src={t.url} crossOrigin="anonymous" alt="" onLoad={done} onError={done}
               style={{ position: "absolute", left: t.left, top: t.top, width: TILE, height: TILE, maxWidth: "none" }} />
           ))}
-          <div style={{ position: "absolute", inset: 0, background: "rgba(244,234,214,0.28)" }} />
+          <div style={{ position: "absolute", inset: 0, background: "rgba(244,234,214,0.38)" }} />
           <svg width={box.w} height={box.h} viewBox={`0 0 ${box.w} ${box.h}`} style={{ position: "absolute", left: 0, top: 0 }}>
             <polyline points={map.pts.map((p) => `${p.x},${p.y}`).join(" ")} fill="none" stroke="#fff" strokeOpacity="0.85" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
             <polyline points={map.pts.map((p) => `${p.x},${p.y}`).join(" ")} fill="none" stroke={BROWN} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="1 7" />
             {map.pts.map((p, i) => {
-              const pw = p.name.length * 6.4 + 16;
-              const lx = Math.min(Math.max(p.x - pw / 2, 4), box.w - pw - 4);
-              const above = p.y > 40;
-              const ly = above ? p.y - 34 : p.y + 12;
+              const L = map.labels[i];
               return (
                 <g key={i}>
                   <circle cx={p.x} cy={p.y} r="7" fill={BROWN} stroke="#fff" strokeWidth="2.5" />
                   <text x={p.x} y={p.y + 3.5} fontSize="9" textAnchor="middle" fill="#fff" fontFamily="Plus Jakarta Sans, sans-serif" fontWeight="700">{i + 1}</text>
-                  <rect x={lx} y={ly} width={pw} height="22" rx="11" fill="#F9F8F6" stroke="#E1DACB" />
-                  <text x={lx + pw / 2} y={ly + 15} fontSize="12" textAnchor="middle" fill={INK} fontFamily="Playfair Display, Georgia, serif">{p.name}</text>
+                  <rect x={L.x} y={L.y} width={L.w} height={L.h} rx="10" fill="#F9F8F6" stroke="#E1DACB" />
+                  <text x={L.x + L.w / 2} y={L.y + 14} fontSize="11" textAnchor="middle" fill={INK} fontFamily="Playfair Display, Georgia, serif">{p.name}</text>
                 </g>
               );
             })}
           </svg>
-          <span className="font-body" style={{ position: "absolute", right: 4, bottom: 3, fontSize: 7, color: "#5F5A52", background: "rgba(255,255,255,0.7)", padding: "1px 4px", borderRadius: 3 }}>© OpenStreetMap, CARTO</span>
+          <span className="font-body" style={{ position: "absolute", right: 4, bottom: 3, fontSize: 7, color: "#5F5A52", background: "rgba(255,255,255,0.7)", padding: "1px 4px", borderRadius: 3 }}>© OpenStreetMap</span>
         </>
       )}
     </div>
