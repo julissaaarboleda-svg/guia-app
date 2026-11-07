@@ -7,6 +7,7 @@
 // the bottom of this file for the exact client-side replacement code.
 
 const { GoogleGenAI } = require("@google/genai");
+const { claudeEnabled, claudeText, CLAUDE_FAST_MODEL } = require("../lib/ai");
 
 const CORS = {
   "Content-Type": "application/json",
@@ -67,7 +68,8 @@ exports.handler = async (event) => {
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
+  const useClaude = claudeEnabled();
+  if (!apiKey && !useClaude) {
     return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: "GEMINI_API_KEY is not set on this Netlify site" }) };
   }
 
@@ -85,6 +87,22 @@ Variety seed: ${seed}. Favor variety — mix iconic staples with genuine local f
 
 Respond with ONLY a JSON object in this exact shape, no markdown, no commentary:
 { "picks": [ /* exactly 9 objects, 1 per category, in the order listed above */ ] }`;
+
+  // Claude (with live web search) is tried first; Gemini is the backup.
+  if (useClaude) {
+    try {
+      const text = await claudeText({ content: prompt, model: CLAUDE_FAST_MODEL, maxTokens: 3500, search: true, maxUses: 2, timeoutMs: 22000 });
+      const parsed = extractJson(text);
+      if (parsed.picks && parsed.picks.length) {
+        return { statusCode: 200, headers: CORS, body: JSON.stringify({ picks: parsed.picks }) };
+      }
+    } catch (err) {
+      console.error("generate-top-picks Claude failed, falling back to Gemini:", err);
+      if (!apiKey) {
+        return { statusCode: 502, headers: CORS, body: JSON.stringify({ error: `Couldn't load picks: ${err.message}` }) };
+      }
+    }
+  }
 
   const ai = new GoogleGenAI({ apiKey });
 

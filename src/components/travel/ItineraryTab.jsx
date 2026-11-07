@@ -304,7 +304,6 @@ export default function ItineraryTab({ trip, onUpdate, cityOrder, initialDate, i
   const handleImport = async (file) => {
     setImporting(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
       const res = await base44.integrations.Core.InvokeLLM({
         prompt: `Extract travel itinerary items from this document or booking email.
 
@@ -313,7 +312,7 @@ For FLIGHTS (including multi-leg journeys with layovers): return ONE single acti
 For other items (hotels, restaurants, tours, events, weddings, invitations, save-the-dates): return one item per booking or event. This includes decorative/graphic invitations (e.g. a wedding invite with the date, time, and venue laid out in stylized text over a graphic background) — extract the same fields from those as you would from a plain-text confirmation; the visual style doesn't change what counts as a real event. Set date (yyyy-MM-dd — for a hotel stay output separate check-in and check-out items using their respective dates; for an invitation use the event date; empty string if none), time (HH:MM 24h or empty — convert any stated local time, e.g. "16:00h" or "4pm", to 24h), activity (short label e.g. "Hotel check-in", "Hotel check-out", "Dinner reservation", "Wedding ceremony"), name (the venue, hotel, restaurant, or event name if stated — e.g. a venue name printed on an invitation — otherwise empty string), location (the CITY name e.g. "Rio de Janeiro" — never the hotel or venue name, never an airport code), address (full street address if listed, otherwise empty string), link (the venue/hotel/restaurant website URL if stated, otherwise empty string), notes (confirmation number and key booking details, or for an invitation, the couple's/host's names and any other printed details).
 
 Only include real travel/booking/event items. Return as { activities: [...] }.`,
-        file_urls: [file_url],
+        files: [file],
         response_json_schema: { type: "object", properties: { activities: { type: "array", items: { type: "object", properties: { date: { type: "string" }, time: { type: "string" }, activity: { type: "string" }, name: { type: "string" }, location: { type: "string" }, address: { type: "string" }, link: { type: "string" },           notes: { type: "string" }, arrival_date: { type: "string" }, arrival_time: { type: "string" }, arrival_city: { type: "string" }, layover_city: { type: "string" }, layover_date: { type: "string" }, layover_duration: { type: "string" }, layover_arrival_time: { type: "string" }, layover_departure_time: { type: "string" } } } } } },
       });
       const acts = (res?.activities || [])

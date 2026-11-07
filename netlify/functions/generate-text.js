@@ -22,24 +22,7 @@ const WINDOW_MS = 60 * 60 * 1000;   // window length: 1 hour
 // someone's well within the general 30/hour limit.
 const GROUNDED_RATE_LIMIT = 8;      // max grounded requests per window, per user
 
-const CLAUDE_MODEL = "claude-sonnet-5-5";
-
-// Claude is the primary model for plain text/JSON requests (it won the in-app
-// A/B comparison). Set AI_PROVIDER=gemini in Netlify to switch back instantly.
-// Google Search grounded requests always use Gemini.
-async function runClaude(prompt, wantJson) {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error("ANTHROPIC_API_KEY not set");
-  const content = wantJson ? `${prompt}\n\nReturn only valid JSON, with no commentary or code fences.` : prompt;
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 4096, messages: [{ role: "user", content }] }),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error?.message || `Claude request failed (${res.status})`);
-  return (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
-}
+const { claudeEnabled, claudeText, fileBlock } = require("../lib/ai");
 
 const CORS = {
   "Content-Type": "application/json",
@@ -85,10 +68,11 @@ exports.handler = async (event, context) => {
   if (!user) return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: "Not authenticated" }) };
 
   const apiKey = process.env.GEMINI_API_KEY;
-  const useClaude = !!process.env.ANTHROPIC_API_KEY && process.env.AI_PROVIDER !== "gemini";
+  const useClaude = claudeEnabled();
   if (!apiKey && !useClaude) return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: "No AI key set" }) };
 
-  const { prompt, grounded, wantJson } = JSON.parse(event.body || "{}");
+  const { prompt, grounded, wantJson, files } = JSON.parse(event.body || "{}");
+  const attachments = (Array.isArray(files) ? files : []).slice(0, 3).filter((f) => f && f.base64Data);
   if (!prompt) return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "Missing 'prompt'" }) };
 
   // --- Rate limiting: check this before doing anything else ---
@@ -137,7 +121,10 @@ exports.handler = async (event, context) => {
     let text;
     if (useClaude && !grounded) {
       try {
-        text = await runClaude(prompt, wantJson);
+        const instruction = wantJson ? `${prompt}\n\nReturn only valid JSON, with no commentary or code fences.` : prompt;
+        text = await claudeText({
+          content: attachments.length ? [...attachments.map((f) => fileBlock(f.mimeType, f.base64Data)), { type: "text", text: instruction }] : instruction,
+        });
       } catch (claudeErr) {
         console.error("generate-text Claude failed, falling back to Gemini:", claudeErr);
         if (!apiKey) throw claudeErr;
@@ -145,7 +132,10 @@ exports.handler = async (event, context) => {
     }
     if (text === undefined) {
       const ai = new GoogleGenAI({ apiKey });
-      const request = { contents: prompt, ...(grounded ? { config: { tools: [{ googleSearch: {} }] } } : {}) };
+      const contents = attachments.length
+        ? [{ role: "user", parts: [{ text: prompt }, ...attachments.map((f) => ({ inlineData: { mimeType: f.mimeType || "image/jpeg", data: f.base64Data } }))] }]
+        : prompt;
+      const request = { contents, ...(grounded ? { config: { tools: [{ googleSearch: {} }] } } : {}) };
       // The AI service is sometimes briefly overloaded; try once more, on a second model, before giving up.
       let response;
       try {

@@ -173,13 +173,25 @@ async function fetchWithRetry(url, options) {
   }
 }
 
-async function InvokeLLM({ prompt, add_context_from_internet, response_json_schema, model }) {
+async function fileToPayload(file) {
+  const f = await compressImageIfNeeded(file);
+  const base64Data = await new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result.split(",")[1]);
+    r.onerror = reject;
+    r.readAsDataURL(f);
+  });
+  return { mimeType: f.type || "application/octet-stream", base64Data };
+}
+
+async function InvokeLLM({ prompt, add_context_from_internet, response_json_schema, model, files }) {
   const headers = await authHeaders();
+  const filePayloads = files && files.length ? await Promise.all(files.map(fileToPayload)) : undefined;
   const res = await checkOk(
     await fetchWithRetry(`${API_BASE}/generate-text`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ prompt, grounded: !!add_context_from_internet, wantJson: !!response_json_schema }),
+      body: JSON.stringify({ prompt, grounded: !!add_context_from_internet, wantJson: !!response_json_schema, files: filePayloads }),
     })
   );
   const data = await res.json();

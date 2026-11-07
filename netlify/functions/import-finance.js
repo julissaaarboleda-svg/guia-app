@@ -8,6 +8,7 @@
 // mode "schedule" reads a loan payment schedule and returns { payments: [{ date, amount }], payoff_amount }.
 
 const { GoogleGenAI } = require("@google/genai");
+const { claudeEnabled, claudeText, fileBlock } = require("../lib/ai");
 const { getStore, connectLambda } = require("@netlify/blobs");
 
 const RATE_LIMIT = 10;
@@ -89,7 +90,8 @@ exports.handler = async (event, context) => {
   if (!user) return reply(401, { error: "Not authenticated" });
 
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return reply(500, { error: "The AI key isn't set up on the server (GEMINI_API_KEY)." });
+  const useClaude = claudeEnabled();
+  if (!apiKey && !useClaude) return reply(500, { error: "The AI key isn't set up on the server." });
 
   let filename, contentType, base64Data, existing, mode;
   try { ({ filename, contentType, base64Data, existing, mode } = JSON.parse(event.body || "{}")); }
@@ -125,22 +127,39 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
     const existingList = (Array.isArray(existing) ? existing : []).slice(0, 80)
       .map((e) => `- ${String(e.name || "").slice(0, 60)} (${e.type}, ${e.amount != null ? "$" + e.amount : "no amount"})`).join("\n");
-    const parts = [{ text: mode === "schedule" ? SCHEDULE_PROMPT : PROMPT + `\n\nEXISTING ITEMS:\n${existingList || "(none)"}` }];
-    if (isText) parts.push({ text: `\n\nDocument (${filename || "text"}):\n` + bytes.toString("utf8").slice(0, 120000) });
-    else parts.push({ inlineData: { mimeType: isPdf ? "application/pdf" : (type || "image/jpeg"), data: base64Data } });
+    const promptText = mode === "schedule" ? SCHEDULE_PROMPT : PROMPT + `\n\nEXISTING ITEMS:\n${existingList || "(none)"}`;
+    const docText = isText ? `\n\nDocument (${filename || "text"}):\n` + bytes.toString("utf8").slice(0, 120000) : "";
 
-    // The AI service is sometimes briefly overloaded; try once more, on a second model, before giving up.
-    let response;
-    try {
-      response = await ai.models.generateContent({ model: "gemini-3.6-flash", contents: [{ role: "user", parts }], config: { responseMimeType: "application/json" } });
-    } catch (firstErr) {
-      console.error("import-finance first attempt failed, retrying:", firstErr);
-      response = await ai.models.generateContent({ model: "gemini-3.5-flash", contents: [{ role: "user", parts }], config: { responseMimeType: "application/json" } });
+    let rawText;
+    if (useClaude) {
+      try {
+        const content = isText
+          ? promptText + docText
+          : [fileBlock(isPdf ? "application/pdf" : (type || "image/jpeg"), base64Data), { type: "text", text: promptText }];
+        rawText = await claudeText({ content, maxTokens: 6000 });
+      } catch (claudeErr) {
+        console.error("import-finance Claude failed, falling back to Gemini:", claudeErr);
+        if (!apiKey) throw claudeErr;
+      }
     }
-    const parsed = parseJson(response.text || "");
+    if (rawText === undefined) {
+      const ai = new GoogleGenAI({ apiKey });
+      const parts = [{ text: promptText }];
+      if (isText) parts.push({ text: docText });
+      else parts.push({ inlineData: { mimeType: isPdf ? "application/pdf" : (type || "image/jpeg"), data: base64Data } });
+      // The AI service is sometimes briefly overloaded; try once more, on a second model, before giving up.
+      let response;
+      try {
+        response = await ai.models.generateContent({ model: "gemini-3.6-flash", contents: [{ role: "user", parts }], config: { responseMimeType: "application/json" } });
+      } catch (firstErr) {
+        console.error("import-finance first attempt failed, retrying:", firstErr);
+        response = await ai.models.generateContent({ model: "gemini-3.5-flash", contents: [{ role: "user", parts }], config: { responseMimeType: "application/json" } });
+      }
+      rawText = response.text || "";
+    }
+    const parsed = parseJson(rawText || "");
     if (mode === "schedule") {
       if (!parsed || !Array.isArray(parsed.payments)) return reply(502, { error: "The file was read, but no schedule could be found in it." });
       const payments = parsed.payments.slice(0, 120).map((p) => ({ date: String(p.date || "").slice(0, 10), amount: Math.round(Number(p.amount) * 100) / 100 }))
