@@ -1,11 +1,23 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Star, Heart, Sparkles, MapPin, X, RefreshCw } from "lucide-react";
-import { generatePickImage, getLastPicksError } from "@/lib/savedAi";
+import { Star, Heart, Sparkles, MapPin, X, RefreshCw, Phone, Globe, Clock, ChevronDown, CalendarPlus } from "lucide-react";
+import { generatePickImage, getLastPicksError, getPlaceDetails } from "@/lib/savedAi";
 import { categoryMeta } from "./categoryMeta";
 
-export default function TopPicksCarousel({ trip, city, picks, loading, refreshing, failed, onRefresh, onWishlist, isSaved }) {
+export default function TopPicksCarousel({ trip, city, picks, loading, refreshing, failed, onRefresh, onWishlist, isSaved, onAddToItinerary }) {
   const [images, setImages] = useState({});
   const [expanded, setExpanded] = useState(null);
+  const [details, setDetails] = useState(null); // null = loading/none, object = loaded
+  const [hoursOpen, setHoursOpen] = useState(false);
+
+  // Load hours / phone / reviews when a place is opened (one cached request).
+  useEffect(() => {
+    setDetails(null);
+    setHoursOpen(false);
+    if (!expanded?.place_id) return;
+    let alive = true;
+    getPlaceDetails(expanded.place_id).then((d) => { if (alive) setDetails(d); }).catch(() => {});
+    return () => { alive = false; };
+  }, [expanded?.place_id]);
   const requestedRef = useRef(new Set()); // which picks we've already kicked off a generation for
 
   // We no longer eagerly fire off 8 concurrent image generations here — that
@@ -210,18 +222,90 @@ export default function TopPicksCarousel({ trip, city, picks, loading, refreshin
                 {expanded.price && <span>{expanded.price}</span>}
               </div>
             )}
-            <p className="font-body text-[15px] text-foreground leading-relaxed mt-4">{expanded.description}</p>
+            {(details?.summary || expanded.description) && (
+              <>
+                <h3 className="font-heading text-[16px] text-foreground font-semibold mt-5 mb-1.5">About</h3>
+                <p className="font-body text-[14px] text-foreground leading-relaxed">{details?.summary || expanded.description}</p>
+              </>
+            )}
+
+            <h3 className="font-heading text-[16px] text-foreground font-semibold mt-5 mb-1">Details</h3>
+            <div className="font-body text-[13px] text-foreground">
+              {(details?.address || expanded.address) && (
+                <a href={details?.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${expanded.name} ${city}`)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 py-2.5 border-b border-border">
+                  <MapPin className="w-4 h-4 text-accent flex-shrink-0" />
+                  <span className="flex-1 min-w-0">{details?.address || expanded.address}</span>
+                  <span className="text-[11px] text-muted-foreground">Directions ›</span>
+                </a>
+              )}
+              {details?.weekdayHours?.length > 0 && (
+                <div className="border-b border-border">
+                  <button onClick={() => setHoursOpen((o) => !o)} className="w-full flex items-center gap-3 py-2.5 text-left">
+                    <Clock className="w-4 h-4 text-accent flex-shrink-0" />
+                    <span className="flex-1">
+                      Hours
+                      {details.openNow != null && (
+                        <span className="ml-2 text-[11px]" style={{ color: details.openNow ? "#5F6A3F" : "#8A5F64" }}>
+                          {details.openNow ? "Open now" : "Closed now"}
+                        </span>
+                      )}
+                    </span>
+                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${hoursOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  {hoursOpen && (
+                    <ul className="pb-2.5 pl-7 space-y-1 text-[12px] text-muted-foreground">
+                      {details.weekdayHours.map((h) => <li key={h}>{h}</li>)}
+                    </ul>
+                  )}
+                </div>
+              )}
+              {details?.phone && (
+                <a href={`tel:${details.phone.replace(/[^\d+]/g, "")}`} className="flex items-center gap-3 py-2.5 border-b border-border">
+                  <Phone className="w-4 h-4 text-accent flex-shrink-0" />
+                  <span className="flex-1">{details.phone}</span>
+                  <span className="text-[11px] text-muted-foreground">Call ›</span>
+                </a>
+              )}
+              {(details?.website || expanded.website) && (
+                <a href={details?.website || expanded.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 py-2.5 border-b border-border">
+                  <Globe className="w-4 h-4 text-accent flex-shrink-0" />
+                  <span className="flex-1 min-w-0 truncate">Website</span>
+                  <span className="text-[11px] text-muted-foreground">Open ›</span>
+                </a>
+              )}
+              {expanded.instagramSearchUrl && (
+                <a href={expanded.instagramSearchUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 py-2.5">
+                  <Sparkles className="w-4 h-4 text-accent flex-shrink-0" />
+                  <span className="flex-1">See it on Instagram</span>
+                  <span className="text-[11px] text-muted-foreground">Search ›</span>
+                </a>
+              )}
+            </div>
+
+            {details?.reviews?.length > 0 && (
+              <>
+                <h3 className="font-heading text-[16px] text-foreground font-semibold mt-5 mb-2">What people say</h3>
+                <div className="space-y-2">
+                  {details.reviews.map((rv, k) => (
+                    <div key={k} className="rounded-xl border border-border bg-card px-3.5 py-3">
+                      <p className="font-body text-[13px] text-foreground leading-snug">“{rv.text}”</p>
+                      <p className="font-body text-[11px] text-muted-foreground mt-1.5">
+                        {rv.rating ? "★".repeat(Math.round(rv.rating)) + " · " : ""}Google review{rv.when ? ` · ${rv.when}` : ""}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
           <div className="px-6 py-4 border-t border-border flex items-center gap-3">
-            <a
-              href={`https://www.google.com/search?q=${encodeURIComponent(`${expanded.name} ${city}`)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 text-center py-3 rounded-full bg-[#A7773F] text-[#F7F3EC] font-body text-[14px] font-medium hover:opacity-90 transition-opacity"
+            <button
+              onClick={() => onAddToItinerary ? onAddToItinerary(expanded) : window.open(`https://www.google.com/search?q=${encodeURIComponent(`${expanded.name} ${city}`)}`, "_blank")}
+              className="flex-1 inline-flex items-center justify-center gap-2 py-3 rounded-full bg-[#A7773F] text-[#F7F3EC] font-heading text-[15px] hover:opacity-90 transition-opacity"
             >
-              Search for {expanded.name}
-            </a>
+              <CalendarPlus className="w-4 h-4" /> Add to itinerary
+            </button>
             <button
               onClick={() => onWishlist({ ...expanded, image: images[expanded.name]?.url })}
               className="w-12 h-12 flex-shrink-0 flex items-center justify-center rounded-xl border border-border text-foreground hover:bg-secondary transition-colors"

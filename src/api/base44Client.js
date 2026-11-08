@@ -214,6 +214,14 @@ async function GetPlacePhoto({ name, city, photoName, photoAuthor }) {
   return res.json(); // { url, attribution }
 }
 
+async function GetPlaceDetails({ place_id }) {
+  const headers = await authHeaders();
+  const res = await checkOk(
+    await fetch(`${API_BASE}/place-details`, { method: "POST", headers, body: JSON.stringify({ place_id }) })
+  );
+  return res.json(); // { address, phone, website, mapsUrl, summary, openNow, weekdayHours, reviews }
+}
+
 // Worldwide address autocomplete for free-text address fields (e.g. Saved
 // Places) — same Google Places API key as GetPlacePhoto, different endpoint.
 async function SearchPlacesAutocomplete({ input }) {
@@ -305,7 +313,7 @@ export const base44 = {
   },
   entities,
   integrations: {
-    Core: { InvokeLLM, GenerateImage, GetPlacePhoto, SearchPlacesAutocomplete, UploadFile, GetPrivateFile, DeletePrivateFile, ImportFinanceFile, CompareAI },
+    Core: { InvokeLLM, GenerateImage, GetPlacePhoto, GetPlaceDetails, SearchPlacesAutocomplete, UploadFile, GetPrivateFile, DeletePrivateFile, ImportFinanceFile, CompareAI },
   },
   functions: {
     // KNOWN GAP: base44.functions.invoke("exportTripPdf", ...) (used in TripDetail.jsx)

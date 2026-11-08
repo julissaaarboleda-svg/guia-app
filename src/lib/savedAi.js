@@ -115,3 +115,31 @@ export async function generatePickImage(tripId, city, name, imagePrompt, photo =
   imgCache.set(key, { promise });
   return promise;
 }
+
+// ---- Place details (hours, phone, website, reviews) ----
+// One request per place per browser; cached in localStorage for 14 days.
+const DETAILS_KEY = "guia:place-details:v1";
+const DETAILS_TTL = 14 * 24 * 60 * 60 * 1000;
+const detailsInflight = new Map();
+
+function readDetailsCache() {
+  try { return JSON.parse(localStorage.getItem(DETAILS_KEY) || "{}"); } catch { return {}; }
+}
+
+export async function getPlaceDetails(placeId) {
+  if (!placeId) return null;
+  const cache = readDetailsCache();
+  const hit = cache[placeId];
+  if (hit && Date.now() - hit.at < DETAILS_TTL) return hit.data;
+  if (detailsInflight.has(placeId)) return detailsInflight.get(placeId);
+  const p = base44.integrations.Core.GetPlaceDetails({ place_id: placeId })
+    .then((data) => {
+      const c = readDetailsCache();
+      c[placeId] = { at: Date.now(), data };
+      try { localStorage.setItem(DETAILS_KEY, JSON.stringify(c)); } catch { /* quota */ }
+      return data;
+    })
+    .finally(() => detailsInflight.delete(placeId));
+  detailsInflight.set(placeId, p);
+  return p;
+}

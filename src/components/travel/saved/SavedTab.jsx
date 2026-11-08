@@ -189,6 +189,7 @@ export default function SavedTab({ trip, onUpdate, cityOrder }) {
         onRefresh={refreshPicks}
         onWishlist={addToWishlist}
         isSaved={isSaved}
+        onAddToItinerary={(pick) => openItinModal({ name: pick.name, category: pick.category, categoryLabel: categoryMeta(pick.category).label, description: pick.description || "", city, website: pick.website || "" })}
       />
 
       <WishlistSection
