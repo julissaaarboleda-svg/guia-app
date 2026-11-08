@@ -59,7 +59,7 @@ export default function PlaceDetailSheet({ pick, city, trip, isSaved, onWishlist
           <div className="flex items-center gap-2 mt-2 font-body text-sm text-foreground">
             {pick.rating && (
               <span className="inline-flex items-center gap-1">
-                <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
+                <Star className="w-4 h-4 fill-[#A7773F] text-[#A7773F]" />
                 {pick.rating.toFixed(1)}
                 {pick.reviewCount ? ` (${pick.reviewCount} reviews)` : ""}
               </span>

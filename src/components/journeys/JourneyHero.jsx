@@ -23,7 +23,7 @@ export default function JourneyHero({ trip, onOpen, onCustomize, onEditTrip, gen
       {trip.hero_image_url ? (
         <AdjustableImage src={trip.hero_image_url} pos={trip.hero_image_pos} className="absolute inset-0" />
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-charcoal via-olive/40 to-forest/60" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#C9A574] via-[#A7773F] to-[#7A5628]" />
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-black/5" />
 

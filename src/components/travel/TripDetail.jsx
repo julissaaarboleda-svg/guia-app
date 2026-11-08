@@ -27,8 +27,8 @@ const TABS = [
 
 const statusOptions = ["planning", "confirmed", "completed"];
 const statusColors = {
-  planning:  "bg-amber-50 text-amber-700 border-amber-100",
-  confirmed: "bg-green-50 text-green-700 border-green-100",
+  planning:  "bg-[#F3E8D6] text-[#8A5F27] border-[#E6D3B0]",
+  confirmed: "bg-[#E4E9D5] text-[#566033] border-[#D3DBBE]",
   completed: "bg-secondary text-muted-foreground border-border",
 };
 
@@ -204,7 +204,7 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
                 {trip.hero_image_url ? (
                   <AdjustableImage src={trip.hero_image_url} pos={trip.hero_image_pos} className="absolute inset-0" />
                 ) : (
-                  <div className="absolute inset-0 bg-gradient-to-br from-charcoal via-olive/40 to-forest/60 flex items-center justify-center">
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#C9A574] via-[#A7773F] to-[#7A5628] flex items-center justify-center">
                     <ImageIcon className="w-8 h-8 text-white/40" strokeWidth={1.4} />
                   </div>
                 )}
@@ -469,7 +469,7 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
           <div className="px-4 md:px-8 flex gap-5 overflow-x-auto no-scrollbar">
             {TABS.map(t => (
               <button key={t.id} onClick={() => setTab(t.id)}
-                className={`font-body py-3 text-sm transition-colors whitespace-nowrap border-b-2 -mb-px ${tab === t.id ? "border-foreground text-foreground font-medium" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                className={`font-body py-3 text-sm transition-colors whitespace-nowrap border-b-2 -mb-px ${tab === t.id ? "border-[#A7773F] text-foreground font-medium" : "border-transparent text-muted-foreground hover:text-foreground"}`}
               >
                 {t.label}
               </button>

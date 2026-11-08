@@ -28,7 +28,6 @@ export default function Travel() {
   const [showSearch, setShowSearch] = useState(false);
   const [query, setQuery] = useState("");
   const [viewTab, setViewTab] = useState("current");
-  const [showAllPast, setShowAllPast] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [knowData, setKnowData] = useState(null);
@@ -190,7 +189,7 @@ export default function Travel() {
   const undated = active.filter((t) => !t.start_date && t.id !== current?.id);
   const upcoming = [...upcomingSorted.filter((t) => t.id !== current?.id), ...undated].slice(0, 6);
   const pastAll = trips.filter((t) => t.status === "completed");
-  const past = showAllPast ? pastAll : pastAll.slice(0, 4);
+  const past = pastAll.slice(0, 4);
 
   const q = query.trim().toLowerCase();
   const matches = (t) =>
@@ -206,7 +205,10 @@ export default function Travel() {
       <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm" style={{ paddingTop: "1rem" }}>
        <div className="px-6 md:px-10 lg:px-14 pb-3">
         <div className="flex items-center justify-between">
-          <h1 className="font-heading text-[30px] leading-tight text-foreground font-bold truncate">Journeys</h1>
+          <div className="min-w-0">
+            <h1 className="font-heading text-[30px] leading-tight text-foreground font-bold truncate">Journeys</h1>
+            <p className="font-heading italic text-[15px] text-muted-foreground mt-0.5">Where to next.</p>
+          </div>
           <div className="flex items-center gap-1">
             <button
               onClick={() => setShowSearch((s) => !s)}
@@ -265,19 +267,31 @@ export default function Travel() {
         ) : (
           <>
             {/* Tab switcher */}
-            <div className="flex items-center gap-6 border-b border-border">
-              {["current", "upcoming"].map((t) => (
+            <div className="flex gap-1.5">
+              {[["current", "Current"], ["upcoming", "Upcoming"], ["past", "Past"]].map(([t, label]) => (
                 <button
                   key={t}
                   onClick={() => setViewTab(t)}
-                  className={`font-body text-[14px] pb-2.5 transition-colors capitalize border-b-2 -mb-px ${viewTab === t ? "border-accent text-foreground font-medium" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                  className={`px-3.5 py-1.5 rounded-full font-body text-[12.5px] font-medium transition-colors ${viewTab === t ? "bg-[#A7773F] text-[#F7F3EC]" : "border border-border text-muted-foreground hover:text-foreground"}`}
                 >
-                  {t === "current" ? "Current Trip" : "Upcoming"}
+                  {label}
                 </button>
               ))}
             </div>
 
-            {viewTab === "current" ? (
+            {viewTab === "past" ? (
+              pastAll.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {pastAll.map((trip) => (
+                    <PastJourneyCard key={trip.id} trip={trip} onOpen={() => openTrip(trip, "Itinerary")} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-16">
+                  <p className="font-body text-[14px] text-muted-foreground">No past journeys yet.</p>
+                </div>
+              )
+            ) : viewTab === "current" ? (
               current ? (
                 <>
                   <JourneyHero
@@ -317,13 +331,13 @@ export default function Travel() {
             )}
 
             {/* Past Journeys — always visible */}
-            {past.length > 0 && (
+            {viewTab !== "past" && past.length > 0 && (
               <section>
                 <div className="flex items-end justify-between mb-3">
-                  <h2 className="font-heading text-[1.2rem] text-foreground font-semibold leading-tight">Past Journeys</h2>
+                  <h2 className="font-heading text-[20px] text-foreground leading-tight">Past journeys</h2>
                   {pastAll.length > 4 && (
-                    <button onClick={() => setShowAllPast((v) => !v)} className="font-body text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-0.5 transition-colors">
-                      {showAllPast ? "Show less" : "View all →"}
+                    <button onClick={() => setViewTab("past")} className="font-body text-[12px] font-medium text-[#A7773F] inline-flex items-center gap-0.5 transition-colors">
+                      View all →
                     </button>
                   )}
                 </div>

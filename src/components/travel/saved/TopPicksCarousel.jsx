@@ -118,7 +118,7 @@ export default function TopPicksCarousel({ trip, city, picks, loading, refreshin
                       <div className="flex items-center gap-1 mt-1 font-body text-[10px] text-muted-foreground">
                         {p.rating && (
                           <span className="inline-flex items-center gap-0.5">
-                            <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
+                            <Star className="w-2.5 h-2.5 fill-[#A7773F] text-[#A7773F]" />
                             {p.rating.toFixed(1)}
                             {p.reviewCount ? ` (${p.reviewCount})` : ""}
                           </span>

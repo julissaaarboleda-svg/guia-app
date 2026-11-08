@@ -42,7 +42,7 @@ export default function CoverCustomizer({ trip, onClose, onUpdate }) {
             {trip.hero_image_url ? (
               <AdjustableImage src={trip.hero_image_url} pos={trip.hero_image_pos} />
             ) : (
-              <div className="absolute inset-0 bg-gradient-to-br from-charcoal via-olive/40 to-forest/60" />
+              <div className="absolute inset-0 bg-gradient-to-br from-[#C9A574] via-[#A7773F] to-[#7A5628]" />
             )}
           </div>
 

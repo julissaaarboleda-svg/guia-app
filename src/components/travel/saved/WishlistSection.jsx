@@ -66,7 +66,7 @@ export default function WishlistSection({ items, city, empty, onRemove, onAddToI
                     )}
                     {it.rating ? (
                       <div className="flex items-center gap-1 mt-1 font-body text-[10px] text-muted-foreground">
-                        <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
+                        <Star className="w-2.5 h-2.5 fill-[#A7773F] text-[#A7773F]" />
                         {Number(it.rating).toFixed(1)}{it.reviewCount ? ` (${it.reviewCount})` : ""}
                         {it.price ? <span>· {it.price}</span> : null}
                       </div>
