@@ -1,89 +1,51 @@
-import { useState, useEffect } from "react";
+import { useState, useRef } from "react";
 import { ent } from "@/lib/freshEntities";
 import { Plus, Trash2, DollarSign, Edit2, Check, X, ChevronDown } from "lucide-react";
+import { toast } from "sonner";
 import DateInput from "@/components/DateInput";
 
 const CATEGORIES = ["Flights", "Hotel", "Food", "Activities", "Transport", "Shopping", "Other"];
 
-// Fixed colors per known category so a given category always reads the
-// same way across visits, rather than shifting with data order.
+// Brand-friendly colors per category so each one always reads the same way.
 const CATEGORY_COLORS = {
-  Flights: "#378ADD",
-  Hotel: "#7F77DD",
-  Food: "#D85A30",
-  Activities: "#1D9E75",
-  Transport: "#BA7517",
-  Shopping: "#D4537E",
-  Other: "#888780",
+  Flights: "#A7773F",
+  Hotel: "#5A6F45",
+  Food: "#A77C81",
+  Activities: "#8B6B3E",
+  Transport: "#6B655D",
+  Shopping: "#C9A86A",
+  Other: "#B8AE9F",
 };
 
-// Groups expenses by category and totals each. If there are more than 4
-// categories in play, the smallest ones fold into a single "Other" ring so
-// the summary always stays scannable at a glance instead of growing with
-// every new category someone uses.
-function buildCategoryRings(expenses) {
+const fmtDay = (d) => {
+  const dt = new Date(String(d).length === 10 ? `${d}T12:00:00` : d);
+  return Number.isNaN(dt.getTime()) ? "" : dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+};
+
+// One thin stacked bar + a legend, instead of four rings (several of them empty).
+function SpendingBreakdown({ expenses, totalSpent }) {
   const totals = {};
-  expenses.forEach((e) => {
-    const cat = e.category || "Other";
-    totals[cat] = (totals[cat] || 0) + (Number(e.amount) || 0);
-  });
-  const entries = Object.entries(totals).filter(([, amt]) => amt > 0).sort((a, b) => b[1] - a[1]);
-  let rings;
-  if (entries.length <= 4) {
-    rings = entries;
-  } else {
-    const top = new Map(entries.slice(0, 3));
-    const restTotal = entries.slice(3).reduce((s, [, amt]) => s + amt, 0);
-    top.set("Other", (top.get("Other") || 0) + restTotal);
-    rings = Array.from(top.entries()).sort((a, b) => b[1] - a[1]);
-  }
-  // Pad to 4 slots with greyed-out placeholders from categories that don't
-  // have any spending yet, so the row always stays full instead of a
-  // couple of rings floating with empty space around them.
-  const used = new Set(rings.map(([label]) => label));
-  const placeholders = CATEGORIES.filter((c) => !used.has(c));
-  let i = 0;
-  while (rings.length < 4 && i < placeholders.length) {
-    rings.push([placeholders[i], 0]);
-    i++;
-  }
-  return rings;
-}
-
-function CategoryRing({ label, amount, totalSpent }) {
-  const isEmpty = amount <= 0;
-  const pct = totalSpent > 0 ? Math.round((amount / totalSpent) * 100) : 0;
-  const color = CATEGORY_COLORS[label] || CATEGORY_COLORS.Other;
-  const r = 17;
-  const c = 2 * Math.PI * r;
-
-  // Every ring starts fully grey (0%) and the colored arc animates in on
-  // top, so populated rings visibly "fill in" on load and empty ones stay
-  // at rest looking the same as any other ring — never broken or blank.
-  const [animatedPct, setAnimatedPct] = useState(0);
-  useEffect(() => {
-    const t = setTimeout(() => setAnimatedPct(pct), 50);
-    return () => clearTimeout(t);
-  }, [pct]);
-
-  const offset = c - (animatedPct / 100) * c;
-
+  expenses.forEach((e) => { const c = e.category || "Other"; totals[c] = (totals[c] || 0) + (Number(e.amount) || 0); });
+  const rows = Object.entries(totals).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  if (rows.length === 0) return null;
   return (
-    <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
-      <svg width="44" height="44" viewBox="0 0 44 44" className="flex-shrink-0">
-        <circle cx="22" cy="22" r={r} fill="none" stroke="#DCD7CA" strokeWidth="4" />
-        <circle
-          cx="22" cy="22" r={r} fill="none" stroke={color} strokeWidth="4"
-          strokeLinecap="round" strokeDasharray={c} strokeDashoffset={offset}
-          transform="rotate(-90 22 22)"
-          style={{ transition: "stroke-dashoffset 0.6s ease-out" }}
-        />
-        <text x="22" y="26" textAnchor="middle" className={isEmpty ? "fill-muted-foreground" : "fill-foreground"} fontSize="10.5" fontWeight="600">
-          {isEmpty ? "–" : `${pct}%`}
-        </text>
-      </svg>
-      <p className={`text-[10.5px] font-medium truncate max-w-full ${isEmpty ? "text-muted-foreground" : "text-foreground"}`}>{label}</p>
-      <p className="text-[9.5px] text-muted-foreground">{isEmpty ? "No spending" : `$${amount.toLocaleString()}`}</p>
+    <div className="bg-card border border-border rounded-2xl p-4">
+      <h3 className="font-heading text-[18px] text-foreground mb-3">Where it's going</h3>
+      <div className="flex h-2 rounded-full overflow-hidden gap-px bg-[#E7D9C6]">
+        {rows.map(([label, amt]) => (
+          <div key={label} style={{ width: `${(amt / totalSpent) * 100}%`, background: CATEGORY_COLORS[label] || CATEGORY_COLORS.Other }} />
+        ))}
+      </div>
+      <div className="mt-3 space-y-1.5">
+        {rows.map(([label, amt]) => (
+          <div key={label} className="flex items-center gap-2 text-[13px]">
+            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: CATEGORY_COLORS[label] || CATEGORY_COLORS.Other }} />
+            <span className="text-foreground flex-1">{label}</span>
+            <span className="text-muted-foreground text-[12px]">{Math.round((amt / totalSpent) * 100)}%</span>
+            <span className="text-foreground font-medium w-20 text-right">${amt.toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -93,6 +55,22 @@ export default function BudgetTab({ trip, onUpdate }) {
   const [editingBudget, setEditingBudget] = useState(false);
   const [budgetInput, setBudgetInput] = useState(String(trip.budget_target || ""));
   const [expandedCats, setExpandedCats] = useState(new Set());
+  const [showForm, setShowForm] = useState(false);
+  // Latest trip + a save queue so two quick adds/removes can't overwrite each other.
+  const latestRef = useRef(trip);
+  latestRef.current = trip;
+  const queueRef = useRef(Promise.resolve());
+  const save = (compute) => {
+    queueRef.current = queueRef.current
+      .then(async () => {
+        const patch = compute(latestRef.current);
+        if (!patch) return;
+        const result = await ent.Trip.update(trip.id, patch);
+        if (result) { latestRef.current = result; onUpdate(result); }
+      })
+      .catch((err) => { console.error("Budget save failed:", err); toast.error("Couldn't save that change. Try again."); });
+    return queueRef.current;
+  };
 
   const expenses = trip.expense_items || [];
   const budgetTarget = trip.budget_target || 0;
@@ -101,7 +79,6 @@ export default function BudgetTab({ trip, onUpdate }) {
   const pct = budgetTarget > 0 ? Math.min((totalSpent / budgetTarget) * 100, 100) : 0;
   const isOverBudget = budgetTarget > 0 && totalSpent > budgetTarget;
   const isNearBudget = !isOverBudget && pct >= 80 && budgetTarget > 0;
-  const categoryRings = buildCategoryRings(expenses);
 
   // Group expenses by category, keeping each item's original index so
   // "remove" still targets the right entry in the flat expense_items array.
@@ -129,39 +106,23 @@ export default function BudgetTab({ trip, onUpdate }) {
   };
 
   const saveBudget = async () => {
-    const updated = await ent.Trip.update(trip.id, { budget_target: budgetInput ? Number(budgetInput) : null });
-    onUpdate(updated);
+    await save(() => ({ budget_target: budgetInput ? Number(budgetInput) : null }));
     setEditingBudget(false);
   };
 
   const addExpense = async () => {
     if (!form.name.trim() || !form.amount) return;
-    const updated = [...expenses, { ...form, amount: Number(form.amount) }];
-    const result = await ent.Trip.update(trip.id, { expense_items: updated });
-    onUpdate(result);
-    setForm({ name: "", category: "Food", amount: "", date: "" });
+    const entry = { ...form, name: form.name.trim(), amount: Number(form.amount) };
+    setForm({ name: "", category: form.category, amount: "", date: "" });
+    setShowForm(false);
+    await save((t) => ({ expense_items: [...(t.expense_items || []), entry] }));
   };
 
-  const removeExpense = async (idx) => {
-    const updated = expenses.filter((_, i) => i !== idx);
-    const result = await ent.Trip.update(trip.id, { expense_items: updated });
-    onUpdate(result);
-  };
+  const removeExpense = (idx) => save((t) => ({ expense_items: (t.expense_items || []).filter((_, i) => i !== idx) }));
 
   return (
     <div className="space-y-4 font-body">
-      {/* Spending by category — shown above the budget target bar so you
-          can see where the money's actually going at a glance. */}
-      {categoryRings.length > 0 && (
-        <div className="bg-card border border-border rounded-2xl p-4">
-          <h3 className="text-sm font-medium text-foreground mb-2.5">Spending by category</h3>
-          <div className="flex gap-1.5">
-            {categoryRings.map(([label, amount]) => (
-              <CategoryRing key={label} label={label} amount={amount} totalSpent={totalSpent} />
-            ))}
-          </div>
-        </div>
-      )}
+      <SpendingBreakdown expenses={expenses} totalSpent={totalSpent} />
 
       {/* Budget summary */}
       {editingBudget ? (
@@ -173,11 +134,11 @@ export default function BudgetTab({ trip, onUpdate }) {
               value={budgetInput}
               onChange={e => setBudgetInput(e.target.value)}
               onKeyDown={e => e.key === "Enter" && saveBudget()}
-              className="flex-1 bg-muted border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring"
+              className="flex-1 bg-card border border-border rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#A7773F]"
               placeholder="0"
               autoFocus
             />
-            <button onClick={saveBudget} className="flex items-center gap-1 bg-accent text-accent-foreground px-3 py-2 rounded-lg text-xs font-medium hover:opacity-90 transition-colors">
+            <button onClick={saveBudget} className="flex items-center gap-1 bg-[#A7773F] text-[#F7F3EC] px-4 py-2 rounded-full text-xs font-medium hover:opacity-90 transition-colors">
               <Check className="w-3.5 h-3.5" /> Save
             </button>
             <button onClick={() => { setEditingBudget(false); setBudgetInput(String(trip.budget_target || "")); }} className="px-2 text-muted-foreground hover:text-foreground transition-colors">
@@ -188,9 +149,9 @@ export default function BudgetTab({ trip, onUpdate }) {
       ) : budgetTarget > 0 ? (
         <div className="bg-card border border-border rounded-2xl p-5">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-sm font-medium text-foreground">Budget target</span>
+            <span className="font-heading text-[18px] text-foreground">Budget target</span>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-foreground">${budgetTarget.toLocaleString()}</span>
+              <span className="font-heading text-[18px] text-foreground">${budgetTarget.toLocaleString()}</span>
               <button onClick={() => setEditingBudget(true)} className="text-muted-foreground hover:text-foreground transition-colors">
                 <Edit2 className="w-3.5 h-3.5" />
               </button>
@@ -198,75 +159,88 @@ export default function BudgetTab({ trip, onUpdate }) {
           </div>
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-muted-foreground">Spent: <strong>${totalSpent.toLocaleString()}</strong></span>
-            <span className={`text-xs font-semibold ${isOverBudget ? "text-destructive" : isNearBudget ? "text-amber-600" : "text-green-700"}`}>
+            <span className={`text-xs font-semibold ${isOverBudget ? "text-[#8F6368]" : isNearBudget ? "text-[#8B6B3E]" : "text-foreground"}`}>
               {isOverBudget
                 ? `Over by $${(totalSpent - budgetTarget).toLocaleString()}`
                 : `$${remaining.toLocaleString()} remaining`}
             </span>
           </div>
-          <div className="h-2.5 bg-secondary rounded-full overflow-hidden">
+          <div className="h-1.5 bg-[#E7D9C6] rounded-full overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all duration-300 ${isOverBudget ? "bg-destructive" : isNearBudget ? "bg-amber-500" : "bg-green-600"}`}
+              className={`h-full rounded-full transition-all duration-300 ${isOverBudget ? "bg-[#A77C81]" : "bg-[#A7773F]"}`}
               style={{ width: `${Math.min(pct, 100)}%` }}
             />
           </div>
-          <p className="text-xs text-muted-foreground mt-1 text-right">{Math.round(pct)}% used</p>
+          <p className="text-xs text-muted-foreground mt-1.5 text-right">{Math.round(pct)}% used</p>
         </div>
       ) : (
         <div className="bg-muted border border-dashed border-border rounded-2xl p-4 text-center">
           <p className="text-xs text-muted-foreground mb-2">No budget target set.</p>
-          <button onClick={() => setEditingBudget(true)} className="text-xs text-foreground font-medium underline">Set budget target</button>
+          <button onClick={() => setEditingBudget(true)} className="text-xs font-medium" style={{ color: "#A7773F" }}>Set budget target</button>
         </div>
       )}
 
-      {/* Add expense */}
-      <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
-        <h3 className="text-sm font-heading font-medium text-foreground">Add expense</h3>
-        <input
-          placeholder="Expense name"
-          value={form.name}
-          onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-          onKeyDown={e => e.key === "Enter" && addExpense()}
-          className="w-full bg-muted border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring transition-colors"
-        />
-        <div className="grid grid-cols-2 gap-2">
-          <select
-            value={form.category}
-            onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-            className="bg-muted border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring"
-          >
-            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-          <input
-            type="number"
-            placeholder="Amount ($)"
-            value={form.amount}
-            onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
-            className="bg-muted border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring"
-          />
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Date (optional)</label>
-          <DateInput
-            value={form.date}
-            onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-            className="w-full bg-muted border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring"
-          />
-        </div>
+      {/* Add expense — collapsed until tapped */}
+      {!showForm ? (
         <button
-          onClick={addExpense}
-          className="w-full flex items-center justify-center gap-1.5 bg-accent text-accent-foreground px-4 py-2.5 rounded-lg text-sm font-medium hover:opacity-90 transition-colors"
+          onClick={() => setShowForm(true)}
+          className="w-full flex items-center justify-center gap-1.5 border border-dashed rounded-2xl py-3 text-sm font-medium"
+          style={{ borderColor: "#A7773F", color: "#A7773F" }}
         >
-          <Plus className="w-4 h-4" /> Add Expense
+          <Plus className="w-4 h-4" strokeWidth={1.5} /> Add expense
         </button>
-      </div>
+      ) : (
+        <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+          <h3 className="font-heading text-[18px] text-foreground">New expense</h3>
+          <input
+            placeholder="What was it?"
+            value={form.name}
+            onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+            onKeyDown={e => e.key === "Enter" && addExpense()}
+            autoFocus
+            className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#A7773F] transition-colors"
+          />
+          <div className="flex flex-wrap gap-1.5">
+            {CATEGORIES.map(c => (
+              <button key={c} type="button" onClick={() => setForm(f => ({ ...f, category: c }))}
+                className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors ${form.category === c ? "bg-[#E7D9C6] text-foreground" : "border border-border text-muted-foreground"}`}>
+                {c}
+              </button>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="number"
+              inputMode="decimal"
+              placeholder="Amount ($)"
+              value={form.amount}
+              onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
+              className="bg-card border border-border rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#A7773F]"
+            />
+            <DateInput
+              value={form.date}
+              onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+              className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#A7773F]"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={addExpense}
+              className="flex-1 flex items-center justify-center gap-1.5 bg-[#A7773F] text-[#F7F3EC] px-4 py-2.5 rounded-full text-sm font-medium hover:opacity-90 transition-colors"
+            >
+              <Plus className="w-4 h-4" strokeWidth={1.5} /> Add expense
+            </button>
+            <button onClick={() => { setShowForm(false); setForm({ name: "", category: form.category, amount: "", date: "" }); }} className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors">Cancel</button>
+          </div>
+        </div>
+      )}
 
       {/* Expense list — grouped by category, collapsed by default so a
           trip with many expenses doesn't turn into one long scroll. */}
       {expenses.length > 0 ? (
         <div className="bg-card border border-border rounded-2xl overflow-hidden">
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-            <h3 className="text-sm font-heading font-medium text-foreground">Expenses</h3>
+            <h3 className="font-heading text-[18px] text-foreground">Expenses</h3>
             <span className="text-xs text-muted-foreground">{expenses.length} items</span>
           </div>
           <div className="divide-y divide-border">
@@ -291,11 +265,11 @@ export default function BudgetTab({ trip, onUpdate }) {
                         <div key={e.idx} className="flex items-center gap-3 pl-9 pr-4 py-2.5">
                           <div className="flex-1 min-w-0">
                             <p className="text-sm text-foreground truncate">{e.name}</p>
-                            {e.date && <span className="text-xs text-muted-foreground">{new Date(e.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>}
+                            {e.date && <span className="text-xs text-muted-foreground">{fmtDay(e.date)}</span>}
                           </div>
                           <span className="text-sm font-medium text-foreground flex-shrink-0">${Number(e.amount).toLocaleString()}</span>
                           <button onClick={() => removeExpense(e.idx)} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0">
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-3.5 h-3.5" strokeWidth={1.5} />
                           </button>
                         </div>
                       ))}

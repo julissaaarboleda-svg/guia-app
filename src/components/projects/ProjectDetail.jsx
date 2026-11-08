@@ -103,10 +103,15 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
         // Self-register my own display name on the project the first time I open
         // it, so everyone else sees "Ruth" instead of the start of my email.
         const key = (u.email || "").toLowerCase();
-        const mine = u.full_name && u.full_name !== u.email ? u.full_name : "";
-        if (key && mine && (latestRef.current.collaborator_names || {})[key] !== mine) {
-          mutate((p) => ({ collaborator_names: { ...(p.collaborator_names || {}), [key]: mine } }));
-        }
+        ent.UserPreferences.filter({ user_email: u.email })
+          .then((prefs) => (prefs[0] && prefs[0].display_name) || "")
+          .catch(() => "")
+          .then((saved) => {
+            const mine = saved || (u.full_name && u.full_name !== u.email ? u.full_name : "");
+            if (key && mine && (latestRef.current.collaborator_names || {})[key] !== mine) {
+              mutate((p) => ({ collaborator_names: { ...(p.collaborator_names || {}), [key]: mine } }));
+            }
+          });
       })
       .catch(() => setIsOwner(false));
   }, [project.created_by_id]);

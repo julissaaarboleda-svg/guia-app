@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { MapPin, Loader2, X } from "lucide-react";
 
 let debounceTimer = null;

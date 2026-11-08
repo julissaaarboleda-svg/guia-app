@@ -211,6 +211,25 @@ export default function SavedTab({ trip, onUpdate, cityOrder }) {
         onAddToMemories={addToMemories}
       />
 
+      {trip.wish_list?.content && (
+        <div className="bg-card border border-border rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-heading text-[16px] text-foreground">Earlier wish list notes</h3>
+            <button
+              onClick={async () => {
+                if (!window.confirm("Delete these notes? Your saved places stay.")) return;
+                const updated = await ent.Trip.update(trip.id, { wish_list: { ...(trip.wish_list || {}), content: "" } });
+                onUpdate(updated);
+              }}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              Delete
+            </button>
+          </div>
+          <div className="text-muted-foreground text-sm prose prose-sm max-w-none quill-render" dangerouslySetInnerHTML={{ __html: trip.wish_list.content }} />
+        </div>
+      )}
+
       {manualOpen && (
         <ManualItemModal city={city} onClose={() => setManualOpen(false)} onAdd={addOwnItem} />
       )}

@@ -1,6 +1,6 @@
 import { X, Check, Trash2, Plus, Minus } from "lucide-react";
 import { useState } from "react";
-import { PACKING_CATEGORIES, categoryMeta } from "@/lib/packingAi";
+import { categoryMeta } from "@/lib/packingAi";
 import { Wallet, Shirt, Droplets, Plug, Pill, Package } from "lucide-react";
 
 const ICONS = {
@@ -12,10 +12,10 @@ const ICONS = {
   misc: Package,
 };
 
-export default function CategorySheet({ categoryId, items, onClose, onToggle, onRemove, onAddItem }) {
+export default function CategorySheet({ categoryId, startAdding = false, items, onClose, onToggle, onRemove, onAddItem }) {
   const cat = categoryMeta(categoryId);
   const Icon = ICONS[categoryId] || Package;
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState(startAdding);
   const [newName, setNewName] = useState("");
   const [newQty, setNewQty] = useState(1);
   const list = items.filter((i) => (i.category || "misc") === categoryId);
@@ -42,17 +42,17 @@ export default function CategorySheet({ categoryId, items, onClose, onToggle, on
           <div className="flex items-center gap-2.5">
             <div
               className="w-8 h-8 rounded-full flex items-center justify-center"
-              style={{ background: "#555B40" }}
+              style={{ background: "#F0E6D6" }}
             >
-              <Icon className="w-4 h-4 text-white" strokeWidth={1.8} />
+              <Icon className="w-4 h-4" style={{ color: "#8B6B3E" }} strokeWidth={1.5} />
             </div>
             <div>
-              <h2 className="font-heading text-[16px] text-foreground leading-tight">{cat.label}</h2>
+              <h2 className="font-heading text-[18px] text-foreground leading-tight">{cat.label}</h2>
               <p className="font-body text-[11px] text-muted-foreground">{packed} of {list.length} packed</p>
             </div>
           </div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" strokeWidth={1.5} />
           </button>
         </div>
 
@@ -70,10 +70,10 @@ export default function CategorySheet({ categoryId, items, onClose, onToggle, on
                     <button
                       onClick={() => onToggle(realIdx)}
                       className={`w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 transition-colors ${
-                        item.packed ? "bg-[#555B40] border-[#555B40] text-white" : "border-input hover:border-ring"
+                        item.packed ? "bg-[#A7773F] border-[#A7773F] text-white" : "border-input hover:border-[#A7773F]"
                       }`}
                     >
-                      {item.packed && <Check className="w-3 h-3" />}
+                      {item.packed && <Check className="w-3 h-3" strokeWidth={1.5} />}
                     </button>
                     <span
                       className={`flex-1 font-body text-[13px] ${
@@ -87,7 +87,7 @@ export default function CategorySheet({ categoryId, items, onClose, onToggle, on
                       onClick={() => onRemove(realIdx)}
                       className="text-muted-foreground/40 hover:text-destructive transition-colors"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4" strokeWidth={1.5} />
                     </button>
                   </div>
                 );
@@ -112,14 +112,14 @@ export default function CategorySheet({ categoryId, items, onClose, onToggle, on
                     onClick={() => setNewQty((q) => Math.max(1, q - 1))}
                     className="w-6 h-6 rounded-full border border-border flex items-center justify-center hover:bg-secondary"
                   >
-                    <Minus className="w-3 h-3" />
+                    <Minus className="w-3 h-3" strokeWidth={1.5} />
                   </button>
                   <span className="font-body text-[13px] text-foreground w-5 text-center">{newQty}</span>
                   <button
                     onClick={() => setNewQty((q) => q + 1)}
                     className="w-6 h-6 rounded-full border border-border flex items-center justify-center hover:bg-secondary"
                   >
-                    <Plus className="w-3 h-3" />
+                    <Plus className="w-3 h-3" strokeWidth={1.5} />
                   </button>
                 </div>
                 <div className="flex gap-2">
@@ -131,7 +131,7 @@ export default function CategorySheet({ categoryId, items, onClose, onToggle, on
                   </button>
                   <button
                     onClick={submit}
-                    className="px-3 py-1.5 rounded-lg bg-accent text-accent-foreground text-[12px] font-medium hover:opacity-90"
+                    className="px-4 py-1.5 rounded-full bg-[#A7773F] text-[#F7F3EC] text-[12px] font-medium hover:opacity-90"
                   >
                     Add
                   </button>
@@ -143,7 +143,7 @@ export default function CategorySheet({ categoryId, items, onClose, onToggle, on
               onClick={() => setAdding(true)}
               className="w-full mt-3 border border-dashed border-border rounded-xl py-2.5 flex items-center justify-center gap-2 text-foreground hover:bg-secondary/40 transition-colors"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-3.5 h-3.5" strokeWidth={1.5} />
               <span className="font-body text-[12px] font-medium">Add item to {cat.label}</span>
             </button>
           )}

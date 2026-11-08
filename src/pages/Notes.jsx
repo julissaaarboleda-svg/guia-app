@@ -9,7 +9,7 @@ import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
 import {
   Plus, Trash2, List, FileText, Check, ArrowLeft, Paperclip, Pencil,
-  Folder as FolderIcon, Share2, Download, MoreHorizontal, MapPin, Navigation, X,
+  Folder as FolderIcon, Share2, Download, MoreHorizontal, Navigation, X,
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import AttachmentSheet from "@/components/notes/AttachmentSheet";

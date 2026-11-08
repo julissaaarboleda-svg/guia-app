@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { Check, Save, Camera, ChevronDown, Target, FileText, Briefcase, Building2, CreditCard, Plane, FolderOpen, CheckCircle, X } from "lucide-react";
+import { Camera, ChevronDown, Target, FileText, Briefcase, Building2, CreditCard, Plane, FolderOpen, CheckCircle, X, LogOut, MessageSquare } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import SectionOrderEditor from "@/components/settings/SectionOrderEditor";
-import AiCompare from "@/components/settings/AiCompare";
+import FeedbackModal from "@/components/feedback/FeedbackModal";
 
 const ALL_SECTIONS = [
   { id: "tasks",    label: "Tasks",    icon: CheckCircle, description: "Daily to-dos and reminders" },
@@ -17,38 +17,60 @@ const ALL_SECTIONS = [
   { id: "notes",    label: "Notes",    icon: FileText, description: "Free-form writing and logs" },
 ];
 
+// Brand palette: Charcoal, Clay, Olive, Dusty Mauve, Warm Grey
 const AVATAR_COLORS = [
-  { hex: "#1C1C1A", label: "Charcoal" },
-  { hex: "#7C6A52", label: "Warm brown" },
-  { hex: "#5B7FA6", label: "Blue" },
-  { hex: "#6B7A5E", label: "Sage" },
-  { hex: "#8B6A72", label: "Mauve" },
-  { hex: "#6A6B8B", label: "Slate" },
+  { hex: "#1F1F1F", label: "Charcoal" },
+  { hex: "#A7773F", label: "Clay" },
+  { hex: "#5A6F45", label: "Olive" },
+  { hex: "#A77C81", label: "Dusty mauve" },
+  { hex: "#6B655D", label: "Warm grey" },
 ];
+const DEFAULT_ORDER = ["goals", "notes", "career", "business", "finance", "travel", "projects"];
+const FIELD = "w-full bg-card border border-border rounded-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F] transition-colors font-body";
+
+function Switch({ on }) {
+  return (
+    <span className="relative w-10 h-6 rounded-full flex-shrink-0 transition-colors" style={{ backgroundColor: on ? "#A7773F" : "#E7D9C6" }}>
+      <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-all" style={{ left: on ? "18px" : "2px" }} />
+    </span>
+  );
+}
 
 export default function Settings() {
   const [prefs, setPrefs] = useState(null);
+  const [email, setEmail] = useState("");
+  const [userId, setUserId] = useState("");
   const [name, setName] = useState("");
   const [tagline, setTagline] = useState("");
   const [word, setWord] = useState("");
   const [intention, setIntention] = useState("");
-  const [avatarColor, setAvatarColor] = useState("#1C1C1A");
+  const [avatarColor, setAvatarColor] = useState("#1F1F1F");
   const [selected, setSelected] = useState(new Set());
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [avatarPhoto, setAvatarPhoto] = useState(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [sectionOrder, setSectionOrder] = useState([]);
+  const [sectionOrder, setSectionOrder] = useState(DEFAULT_ORDER);
   const [showOrderEditor, setShowOrderEditor] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [initial, setInitial] = useState(null);
   const fileRef = useRef(null);
   const { toast } = useToast();
+
+  const snapshot = (n, t, w, i, sel, ord) => JSON.stringify([n, t, w, i, [...sel].sort(), ord]);
 
   const handlePhoto = async (e) => {
     const file = e.target.files[0];
     if (!file || !prefs?.id) return;
     setUploadingPhoto(true);
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    setAvatarPhoto(file_url);
-    await ent.UserPreferences.update(prefs.id, { avatar_url: file_url });
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      setAvatarPhoto(file_url);
+      await ent.UserPreferences.update(prefs.id, { avatar_url: file_url });
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Couldn't upload that photo — try again", variant: "destructive" });
+    }
     setUploadingPhoto(false);
   };
 
@@ -83,19 +105,23 @@ export default function Settings() {
   useEffect(() => {
     const load = async () => {
       const u = await base44.auth.me();
+      setEmail(u.email || "");
+      setUserId(u.id || "");
       const p = await ent.UserPreferences.filter({ user_email: u.email });
-      if (p.length > 0) {
-        const pref = p[0];
-        setPrefs(pref);
-        setName(pref.display_name || u.full_name || "");
-        setTagline(pref.tagline || "");
-        setWord(pref.monthly_word || "");
-        setIntention(pref.monthly_intention || "");
-        setAvatarColor(pref.avatar_color || "#1C1C1A");
-        setSelected(new Set(pref.enabled_sections || []));
-        setAvatarPhoto(pref.avatar_url || null);
-        setSectionOrder(pref.section_order || ["goals", "notes", "career", "business", "finance", "travel", "projects"]);
-      }
+      const pref = p[0] || null;
+      const n = pref?.display_name || (u.full_name && u.full_name !== u.email ? u.full_name : "") || "";
+      const t = pref?.tagline || "";
+      const w = pref?.monthly_word || "";
+      const i = pref?.monthly_intention || "";
+      const sel = new Set(pref?.enabled_sections || []);
+      const ord = pref?.section_order || DEFAULT_ORDER;
+      setPrefs(pref);
+      setName(n); setTagline(t); setWord(w); setIntention(i);
+      setAvatarColor(pref?.avatar_color || "#1F1F1F");
+      setSelected(sel);
+      setAvatarPhoto(pref?.avatar_url || null);
+      setSectionOrder(ord);
+      setInitial(snapshot(n, t, w, i, sel, ord));
     };
     load();
   }, []);
@@ -108,12 +134,32 @@ export default function Settings() {
     });
   };
 
-  const [showCompare, setShowCompare] = useState(false);
+  const dirty = useMemo(
+    () => initial !== null && snapshot(name, tagline, word, intention, selected, sectionOrder) !== initial,
+    [initial, name, tagline, word, intention, selected, sectionOrder]
+  );
+
+  // Keep the name people see on shared projects in step with this one.
+  const syncNameToProjects = async (newName) => {
+    const key = (email || "").toLowerCase();
+    if (!key || !newName) return;
+    try {
+      const projects = await ent.Project.list("-created_date");
+      await Promise.all(
+        projects
+          .filter((pr) => pr.created_by_id === userId || (pr.collaborators || []).some((c) => String(c).toLowerCase() === key))
+          .filter((pr) => (pr.collaborator_names || {})[key] !== newName)
+          .map((pr) => ent.Project.update(pr.id, { collaborator_names: { ...(pr.collaborator_names || {}), [key]: newName } }))
+      );
+    } catch (err) {
+      console.error("Name sync skipped:", err);
+    }
+  };
 
   const save = async () => {
     setSaving(true);
     const data = {
-      display_name: name,
+      display_name: name.trim(),
       tagline,
       monthly_word: word,
       monthly_intention: intention,
@@ -121,151 +167,168 @@ export default function Settings() {
       enabled_sections: Array.from(selected),
       section_order: sectionOrder,
     };
-    if (prefs?.id) {
-      await ent.UserPreferences.update(prefs.id, data);
+    try {
+      const navChanged = initial !== null && JSON.stringify([[...selected].sort(), sectionOrder]) !== JSON.stringify([JSON.parse(initial)[4], JSON.parse(initial)[5]]);
+      if (prefs?.id) {
+        await ent.UserPreferences.update(prefs.id, data);
+      } else {
+        const created = await ent.UserPreferences.create({ user_email: email, ...data });
+        setPrefs(created);
+      }
+      await syncNameToProjects(name.trim());
+      setInitial(snapshot(name, tagline, word, intention, selected, sectionOrder));
+      if (navChanged) {
+        // The menu is built at load time, so changing sections needs a refresh.
+        toast({ title: "Saved — refreshing your menu…" });
+        setTimeout(() => window.location.reload(), 600);
+        return;
+      }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2200);
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Couldn't save — please try again", variant: "destructive" });
     }
-    toast({ title: "Settings saved! Refreshing..." });
-    setTimeout(() => window.location.reload(), 500);
+    setSaving(false);
   };
 
-  const initials = (name || "LH").slice(0, 2).toUpperCase();
+  const initials = (name || email || "G").trim().slice(0, 2).toUpperCase();
 
   return (
-    <div className="p-6 md:p-8 max-w-2xl mx-auto pb-32 md:pb-8">
+    <div className="p-6 md:p-8 max-w-2xl mx-auto pb-40 md:pb-28">
       <h1 className="font-heading text-[30px] leading-tight text-foreground font-bold mb-0.5">Settings</h1>
       <p className="font-heading italic text-[15px] text-muted-foreground mb-8">Make Guía yours.</p>
 
-      {/* Avatar */}
-      <section className="bg-card border border-border rounded-2xl p-6 mb-5">
-        <h2 className="font-heading text-lg text-foreground mb-4">Avatar</h2>
-        <div className="flex items-center gap-6">
+      {/* Account */}
+      <section className="bg-card border border-border rounded-2xl p-5 mb-5">
+        <h2 className="font-heading text-lg text-foreground mb-4">Account</h2>
+        <div className="flex items-center gap-4">
           <div className="relative flex-shrink-0">
-            <div className="w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-bold overflow-hidden"
-              style={{ backgroundColor: avatarColor, boxShadow: `0 0 0 3px ${avatarColor}` }}>
+            <div className="w-16 h-16 rounded-full flex items-center justify-center text-white text-lg font-semibold overflow-hidden"
+              style={{ backgroundColor: avatarColor }}>
               {avatarPhoto ? <img src={avatarPhoto} alt="avatar" className="w-full h-full object-cover" /> : initials}
             </div>
-            <button onClick={() => fileRef.current.click()} disabled={uploadingPhoto} className="absolute -bottom-1 -right-1 w-5 h-5 bg-accent hover:bg-foreground text-accent-foreground rounded-full flex items-center justify-center transition-colors disabled:opacity-50">
-              <Camera className="w-3 h-3" />
+            <button onClick={() => fileRef.current.click()} disabled={uploadingPhoto} aria-label="Change photo"
+              className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#A7773F] text-white rounded-full flex items-center justify-center disabled:opacity-50">
+              <Camera className="w-3.5 h-3.5" strokeWidth={1.5} />
             </button>
             <input ref={fileRef} type="file" accept="image/*,image/heic,image/heif,.heic,.heif" className="hidden" onChange={handlePhoto} />
           </div>
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-3 flex-wrap">
-              {AVATAR_COLORS.map(c => (
-                <button
-                  key={c.hex}
-                  onClick={() => pickColor(c.hex)}
-                  aria-label={c.label}
-                  className={`w-10 h-10 rounded-full transition-all ${avatarColor === c.hex ? "ring-2 ring-offset-2 ring-ring scale-110" : "hover:scale-105"}`}
-                  style={{ backgroundColor: c.hex }}
-                />
-              ))}
-            </div>
-            {avatarPhoto && (
-              <button onClick={removePhoto} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors font-body w-fit">
-                <X className="w-3 h-3" /> Remove photo
-              </button>
-            )}
+          <div className="min-w-0">
+            <p className="font-heading text-[17px] text-foreground truncate">{name || "Your name"}</p>
+            <p className="text-[13px] text-muted-foreground break-all">{email || "…"}</p>
+            <span className="inline-block mt-1.5 text-[10.5px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#E4E9D5", color: "#566033" }}>Signed in</span>
           </div>
         </div>
-      </section>
 
-      {/* Profile */}
-      <section className="bg-card border border-border rounded-2xl p-6 mb-5">
-        <h2 className="font-heading text-lg text-foreground mb-4">Your info</h2>
-        <div className="space-y-3">
+        {!avatarPhoto ? (
+          <div className="flex items-center gap-2.5 mt-4">
+            <span className="text-xs text-muted-foreground mr-1">Color</span>
+            {AVATAR_COLORS.map(c => (
+              <button key={c.hex} onClick={() => pickColor(c.hex)} aria-label={c.label}
+                className={`w-7 h-7 rounded-full transition-all ${avatarColor === c.hex ? "ring-2 ring-offset-2 ring-[#A7773F]" : "hover:scale-105"}`}
+                style={{ backgroundColor: c.hex }} />
+            ))}
+          </div>
+        ) : (
+          <button onClick={removePhoto} className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-body w-fit">
+            <X className="w-3 h-3" strokeWidth={1.5} /> Remove photo
+          </button>
+        )}
+
+        <div className="space-y-3 mt-5">
           <div>
-            <label className="text-xs text-muted-foreground font-body mb-1 block">Name</label>
-            <input value={name} onChange={e => setName(e.target.value)}
-              className="w-full bg-muted border border-input rounded-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-ring transition-colors font-body" />
+            <label className="text-xs text-muted-foreground font-body mb-1 block">Name <span className="opacity-70">· shown to people you share projects with</span></label>
+            <input value={name} onChange={e => setName(e.target.value)} className={FIELD} />
           </div>
           <div>
             <label className="text-xs text-muted-foreground font-body mb-1 block">Role / note (optional)</label>
-            <input value={tagline} onChange={e => setTagline(e.target.value)} placeholder="e.g. Designer, Founder, Student"
-              className="w-full bg-muted border border-input rounded-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-ring transition-colors font-body" />
+            <input value={tagline} onChange={e => setTagline(e.target.value)} placeholder="e.g. Designer, Founder, Student" className={FIELD} />
           </div>
         </div>
+
+        <button onClick={() => base44.auth.logout()}
+          className="mt-5 inline-flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-full border" style={{ color: "#8F6368", borderColor: "#A77C81" }}>
+          <LogOut className="w-4 h-4" strokeWidth={1.5} /> Sign out
+        </button>
       </section>
 
       {/* Your words */}
-      <section className="bg-card border border-border rounded-2xl p-6 mb-5">
+      <section className="bg-card border border-border rounded-2xl p-5 mb-5">
         <h2 className="font-heading text-lg text-foreground mb-1">Your words</h2>
         <p className="text-xs text-muted-foreground font-body mb-4">Update this each month — takes 10 seconds.</p>
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-muted-foreground font-body mb-1 block">2026 word or phrase</label>
-            <input value={word} onChange={e => setWord(e.target.value)} placeholder="e.g. Consistency"
-              className="w-full bg-muted border border-input rounded-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-ring transition-colors font-body" />
+            <label className="text-xs text-muted-foreground font-body mb-1 block">{new Date().getFullYear()} word or phrase</label>
+            <input value={word} onChange={e => setWord(e.target.value)} placeholder="e.g. Consistency" className={FIELD} />
           </div>
           <div>
             <label className="text-xs text-muted-foreground font-body mb-1 block">This month's intention</label>
-            <input value={intention} onChange={e => setIntention(e.target.value)} placeholder="e.g. Show up every day"
-              className="w-full bg-muted border border-input rounded-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-ring transition-colors font-body" />
+            <input value={intention} onChange={e => setIntention(e.target.value)} placeholder="e.g. Show up every day" className={FIELD} />
           </div>
         </div>
       </section>
 
       {/* Sections */}
-      <section className="bg-card border border-border rounded-2xl p-6 mb-5">
-        <h2 className="font-heading text-lg text-foreground mb-1">Active sections</h2>
-        <p className="text-xs text-muted-foreground font-body mb-4">Toggle sections on or off.</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {ALL_SECTIONS.map(s => {
-            const on = selected.has(s.id);
+      <section className="bg-card border border-border rounded-2xl p-5 mb-5">
+        <h2 className="font-heading text-lg text-foreground mb-1">Sections</h2>
+        <p className="text-xs text-muted-foreground font-body mb-2">Turn off what you don't use.</p>
+        <div>
+          {ALL_SECTIONS.map((sec, i) => {
+            const on = selected.has(sec.id);
+            const Icon = sec.icon;
             return (
-              <button key={s.id} onClick={() => toggle(s.id)}
-                className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
-                  on ? "bg-accent border-accent text-accent-foreground" : "bg-card border-border text-foreground hover:border-ring"
-                }`}
-              >
-                {(() => { const Icon = s.icon; return Icon ? <Icon className="w-4 h-4 flex-shrink-0" /> : null; })()}
+              <button key={sec.id} onClick={() => toggle(sec.id)} role="switch" aria-checked={on}
+                className={`w-full flex items-center gap-3 py-3 text-left ${i ? "border-t border-border/60" : ""}`}>
+                <Icon className="w-[18px] h-[18px] flex-shrink-0" style={{ color: on ? "#A7773F" : "#9B948A" }} strokeWidth={1.5} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-body font-medium">{s.label}</p>
-                  <p className="text-xs text-muted-foreground truncate">{s.description}</p>
+                  <p className="text-sm font-body font-medium text-foreground">{sec.label}</p>
+                  <p className="text-xs text-muted-foreground truncate">{sec.description}</p>
                 </div>
-                {on && <Check className="w-4 h-4 flex-shrink-0" />}
+                <Switch on={on} />
               </button>
             );
           })}
         </div>
+
+        <div className="border-t border-border/60 mt-1 pt-3">
+          <button onClick={() => setShowOrderEditor(!showOrderEditor)} className="w-full flex items-center justify-between text-left">
+            <span className="text-sm font-body text-foreground">Menu order <span className="text-xs text-muted-foreground">(desktop sidebar)</span></span>
+            <span className="flex items-center gap-1 text-xs font-medium" style={{ color: "#A7773F" }}>
+              {showOrderEditor ? "Hide" : "Customize"}
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showOrderEditor ? "rotate-180" : ""}`} strokeWidth={1.5} />
+            </span>
+          </button>
+          {showOrderEditor && (
+            <div className="mt-3">
+              <SectionOrderEditor enabledSections={Array.from(selected)} sectionOrder={sectionOrder} onReorder={setSectionOrder} />
+            </div>
+          )}
+        </div>
       </section>
 
-      {/* Section order */}
-      <section className="bg-card border border-border rounded-2xl p-6 mb-6">
-        <div className="flex items-center justify-between mb-1">
-          <h2 className="font-heading text-lg text-foreground">Navigation order</h2>
-          <button
-            onClick={() => setShowOrderEditor(!showOrderEditor)}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors font-body"
-          >
-            {showOrderEditor ? "Hide" : "Customize"}
-            <ChevronDown className={`w-3 h-3 transition-transform ${showOrderEditor ? "rotate-180" : ""}`} />
+      {/* About */}
+      <section className="bg-card border border-border rounded-2xl p-5 mb-6">
+        <h2 className="font-heading text-lg text-foreground mb-1">About</h2>
+        <button onClick={() => setShowFeedback(true)} className="w-full flex items-center justify-between py-3 text-left">
+          <span className="flex items-center gap-3 text-sm font-body text-foreground"><MessageSquare className="w-[18px] h-[18px] text-muted-foreground" strokeWidth={1.5} /> Send feedback</span>
+          <span className="text-muted-foreground">›</span>
+        </button>
+        <p className="text-[11px] text-muted-foreground border-t border-border/60 pt-3">Guía · Clarity to navigate. Freedom to be you.</p>
+      </section>
+
+      {showFeedback && <FeedbackModal onClose={() => setShowFeedback(false)} />}
+
+      {/* Pinned save bar — only appears once something has changed */}
+      {(dirty || saved) && (
+        <div className="fixed left-4 right-4 bottom-24 md:bottom-6 md:left-auto md:right-8 md:w-72 z-40">
+          <button onClick={save} disabled={saving || saved}
+            className="w-full py-3 rounded-2xl font-body text-sm font-medium text-[#F7F3EC] shadow-lg disabled:opacity-90"
+            style={{ backgroundColor: saved ? "#5A6F45" : "#A7773F", boxShadow: "0 8px 22px rgba(167,119,63,0.33)" }}>
+            {saving ? "Saving…" : saved ? "Saved ✓" : "Save changes"}
           </button>
         </div>
-        <p className="text-xs text-muted-foreground font-body mb-4">Drag to reorder your sidebar navigation.</p>
-        {showOrderEditor && (
-          <SectionOrderEditor
-            enabledSections={Array.from(selected)}
-            sectionOrder={sectionOrder}
-            onReorder={setSectionOrder}
-          />
-        )}
-      </section>
-
-      <section className="bg-card border border-border rounded-2xl p-5 mb-6">
-        <button onClick={() => setShowCompare((v) => !v)} className="w-full flex items-center justify-between">
-          <h2 className="font-heading text-lg text-foreground">AI comparison</h2>
-          <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showCompare ? "rotate-180" : ""}`} />
-        </button>
-        {showCompare && <div className="mt-3"><AiCompare /></div>}
-      </section>
-
-      <button onClick={save} disabled={saving}
-        className="w-full flex items-center justify-center gap-2 bg-accent text-accent-foreground py-3 rounded-xl font-body font-medium hover:opacity-90 transition-colors disabled:opacity-50"
-      >
-        <Save className="w-4 h-4" />
-        {saving ? "Saving..." : "Save profile"}
-      </button>
+      )}
     </div>
   );
 }

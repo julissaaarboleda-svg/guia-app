@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { format, parseISO, isValid, startOfMonth, endOfMonth, eachDayOfInterval,
-  getDay, isSameDay, isWithinInterval, isBefore, isAfter, addMonths, subMonths } from "date-fns";
+  getDay, isSameDay, isWithinInterval, isBefore, addMonths, subMonths } from "date-fns";
 import { CalendarDays, ChevronLeft, ChevronRight, X } from "lucide-react";
 
 function parseDate(str) {

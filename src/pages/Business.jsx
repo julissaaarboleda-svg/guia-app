@@ -26,6 +26,19 @@ const PERIODS = [["month", "Month"], ["year", "Year"], ["all", "All time"]];
 const lsGet = (k, d) => { try { return localStorage.getItem(k) || d; } catch { return d; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch { /* optional */ } };
 
+function Chips({ options, value, onChange }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {options.map((o) => (
+        <button key={o} type="button" onClick={() => onChange(o)}
+          className={`px-3.5 py-1.5 rounded-full text-[12.5px] font-medium transition-colors ${value === o ? "bg-[#E7D9C6] text-foreground" : "border border-border text-muted-foreground hover:text-foreground"}`}>
+          {o}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function Business() {
   const [allEntries, setEntries] = useState([]);
   const [allGoals, setGoals] = useState([]);
@@ -300,12 +313,12 @@ export default function Business() {
           <div>
             <label className="block text-xs font-medium text-foreground mb-1">Target amount ($)</label>
             <input type="number" value={gForm.target_value} onChange={e => setGForm(f => ({ ...f, target_value: e.target.value }))} placeholder="e.g. 10000"
-              className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+              className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F]" />
           </div>
           <div>
             <label className="block text-xs font-medium text-foreground mb-1">Current amount ($)</label>
             <input type="number" value={gForm.current_value} onChange={e => setGForm(f => ({ ...f, current_value: e.target.value }))} placeholder="0"
-              className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+              className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F]" />
           </div>
         </div>
       )}
@@ -314,17 +327,17 @@ export default function Business() {
           <div>
             <label className="block text-xs font-medium text-foreground mb-1">Target number</label>
             <input type="number" value={gForm.target_value} onChange={e => setGForm(f => ({ ...f, target_value: e.target.value }))} placeholder="e.g. 10"
-              className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+              className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F]" />
           </div>
           <div>
             <label className="block text-xs font-medium text-foreground mb-1">Unit (e.g. shows, clients)</label>
             <input value={gForm.unit === "$" || gForm.unit === "milestone" ? "" : gForm.unit} onChange={e => setGForm(f => ({ ...f, unit: e.target.value }))} placeholder="market shows"
-              className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+              className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F]" />
           </div>
           <div className="col-span-2">
             <label className="block text-xs font-medium text-foreground mb-1">Current count</label>
             <input type="number" value={gForm.current_value} onChange={e => setGForm(f => ({ ...f, current_value: e.target.value }))} placeholder="0"
-              className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+              className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F]" />
           </div>
         </div>
       )}
@@ -333,28 +346,24 @@ export default function Business() {
 
   const renderEntryEditor = () => (
     <div className="space-y-3">
-      <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} autoFocus
-        className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring appearance-none">
-        <option value="" disabled>Select a category</option>
-        {BUSINESS_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-      </select>
+      <Chips options={BUSINESS_CATEGORIES} value={form.category} onChange={(c) => setForm(f => ({ ...f, category: c }))} />
       <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={form.category === "Event" ? "What's the event?" : "Name"}
-        className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+        className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F]" />
       <div className="grid grid-cols-2 gap-2">
         <input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="Location"
-          className="bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+          className="bg-card border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F]" />
         <DateInput value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-          className="bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+          className="bg-card border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F]" />
         <input type="number" step="0.01" value={form.revenue} onChange={e => setForm(f => ({ ...f, revenue: e.target.value }))} placeholder="Revenue"
-          className="bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+          className="bg-card border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F]" />
         <input type="number" step="0.01" value={form.expense} onChange={e => setForm(f => ({ ...f, expense: e.target.value }))} placeholder="Expense"
-          className="bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+          className="bg-card border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F]" />
       </div>
       <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Description"
-        className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
-      <ReactQuill value={form.notes} onChange={(value) => setForm(f => ({ ...f, notes: value }))} placeholder="Notes" className="bg-secondary rounded-lg quill-business" theme="snow" />
+        className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F]" />
+      <ReactQuill value={form.notes} onChange={(value) => setForm(f => ({ ...f, notes: value }))} placeholder="Notes" className="bg-card rounded-xl quill-business" theme="snow" />
       <div className="flex gap-2">
-        <button onClick={updateEntry} className="flex-1 bg-[#A7773F] text-[#F7F3EC] py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">Save</button>
+        <button onClick={updateEntry} className="flex-1 bg-[#A7773F] text-[#F7F3EC] py-2.5 rounded-full text-sm font-medium hover:opacity-90 transition-colors">Save</button>
         <button onClick={cancelEditEntry} className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors">Cancel</button>
       </div>
     </div>
@@ -363,18 +372,18 @@ export default function Business() {
   const renderGoalEditor = () => (
     <div className="space-y-3">
       <input value={goalForm.title} onChange={e => setGoalForm(f => ({ ...f, title: e.target.value }))} placeholder="Goal title" autoFocus
-        className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+        className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F]" />
       <input value={goalForm.description} onChange={e => setGoalForm(f => ({ ...f, description: e.target.value }))} placeholder="Description (optional)"
-        className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+        className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F]" />
       {GoalTypeInputs({ type: editGoalType, setType: setEditGoalType, form: goalForm, setForm: setGoalForm })}
       <div>
         <label className="flex items-center gap-1 text-xs font-medium text-foreground mb-1">Target date (optional)</label>
         <DateInput value={goalForm.target_date} onChange={e => setGoalForm(f => ({ ...f, target_date: e.target.value }))}
-          className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+          className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F]" />
       </div>
-      <ReactQuill value={goalForm.notes} onChange={(value) => setGoalForm(f => ({ ...f, notes: value }))} placeholder="Notes" className="bg-secondary rounded-lg quill-business" theme="snow" />
+      <ReactQuill value={goalForm.notes} onChange={(value) => setGoalForm(f => ({ ...f, notes: value }))} placeholder="Notes" className="bg-card rounded-xl quill-business" theme="snow" />
       <div className="flex gap-2">
-        <button onClick={updateGoal} className="flex-1 bg-[#A7773F] text-[#F7F3EC] py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">Save</button>
+        <button onClick={updateGoal} className="flex-1 bg-[#A7773F] text-[#F7F3EC] py-2.5 rounded-full text-sm font-medium hover:opacity-90 transition-colors">Save</button>
         <button onClick={cancelEditGoal} className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors">Cancel</button>
       </div>
     </div>
@@ -445,34 +454,36 @@ export default function Business() {
 
       {/* Add form (any tab) */}
       {adding && (
-        <div className="bg-card border border-border rounded-2xl p-4 md:p-5 mb-5 lg:max-w-2xl">
-          <div className="flex gap-2 mb-4">
-            <button onClick={() => setAddTab("entry")} className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${addTab === "entry" ? "bg-[#E7D9C6] text-foreground" : "bg-muted text-muted-foreground"}`}>Business Entry</button>
-            <button onClick={() => setAddTab("goal")} className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${addTab === "goal" ? "bg-[#E7D9C6] text-foreground" : "bg-muted text-muted-foreground"}`}>Goal</button>
+        <div className="bg-card border border-border rounded-2xl p-4 md:p-5 mb-5 lg:max-w-2xl space-y-0">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-heading text-[18px] text-foreground">{addTab === "entry" ? "New entry" : "New goal"}</h2>
+            <div className="flex gap-4">
+              {[["entry", "Entry"], ["goal", "Goal"]].map(([id, label]) => (
+                <button key={id} onClick={() => setAddTab(id)} className={`relative pb-1 text-[13px] ${addTab === id ? "text-foreground font-semibold" : "text-muted-foreground"}`}>
+                  {label}{addTab === id && <span className="absolute left-0 right-0 -bottom-px h-0.5 rounded-full bg-[#A7773F]" />}
+                </button>
+              ))}
+            </div>
           </div>
 
           {addTab === "entry" && (
             <div className="space-y-3">
-              <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} autoFocus
-                className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring appearance-none">
-                <option value="" disabled>Select a category</option>
-                {BUSINESS_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <Chips options={BUSINESS_CATEGORIES} value={form.category} onChange={(c) => setForm(f => ({ ...f, category: c }))} />
               <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={form.category === "Event" ? "What's the event? (e.g. Market Show, Product Launch)" : "Name / Title"}
-                className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+                className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F]" />
               <div className="grid grid-cols-2 gap-2">
                 <input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="Location"
-                  className="bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+                  className="bg-card border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F]" />
                 <DateInput value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-                  className="bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+                  className="bg-card border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F]" />
                 <input type="number" step="0.01" value={form.revenue} onChange={e => setForm(f => ({ ...f, revenue: e.target.value }))} placeholder="Revenue ($)"
-                  className="bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+                  className="bg-card border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F]" />
                 <input type="number" step="0.01" value={form.expense} onChange={e => setForm(f => ({ ...f, expense: e.target.value }))} placeholder="Expense ($)"
-                  className="bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+                  className="bg-card border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F]" />
               </div>
               <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Description"
-                className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
-              <ReactQuill value={form.notes} onChange={(value) => setForm(f => ({ ...f, notes: value }))} placeholder="Notes (optional)" className="bg-secondary rounded-lg quill-career" theme="snow" />
+                className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F]" />
+              <ReactQuill value={form.notes} onChange={(value) => setForm(f => ({ ...f, notes: value }))} placeholder="Notes (optional)" className="bg-card rounded-xl quill-career" theme="snow" />
             </div>
           )}
 
@@ -481,7 +492,7 @@ export default function Business() {
               <div>
                 <label className="block text-xs font-medium text-foreground mb-1">What do you want to achieve?</label>
                 <input value={goalForm.title} onChange={e => setGoalForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g., Attend Market Shows" autoFocus
-                  className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+                  className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F]" />
               </div>
               {GoalTypeInputs({ type: goalType, setType: setGoalType, form: goalForm, setForm: setGoalForm })}
               <div>
@@ -489,19 +500,19 @@ export default function Business() {
                   Target date {goalType !== "milestone" ? "(optional)" : ""}
                 </label>
                 <DateInput value={goalForm.target_date} onChange={e => setGoalForm(f => ({ ...f, target_date: e.target.value }))}
-                  className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring"
+                  className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F]"
                   placeholder="Select target date" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-foreground mb-1">Details (optional)</label>
                 <input value={goalForm.description} onChange={e => setGoalForm(f => ({ ...f, description: e.target.value }))} placeholder="Add more context about your goal"
-                  className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+                  className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F]" />
               </div>
             </div>
           )}
 
           <div className="flex gap-2 mt-4">
-            <button onClick={addTab === "entry" ? add : addGoal} className="flex-1 bg-[#A7773F] text-[#F7F3EC] py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">
+            <button onClick={addTab === "entry" ? add : addGoal} className="flex-1 bg-[#A7773F] text-[#F7F3EC] py-2.5 rounded-full text-sm font-medium hover:opacity-90 transition-colors">
               Add {addTab === "entry" ? "Entry" : "Goal"}
             </button>
             <button onClick={() => setAdding(false)} className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors">Cancel</button>

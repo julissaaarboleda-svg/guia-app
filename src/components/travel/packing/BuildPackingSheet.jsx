@@ -28,7 +28,7 @@ function OptionGroup({ label, options, value, onChange }) {
             onClick={() => onChange(o.id)}
             className={`rounded-xl border p-2.5 text-left transition-colors ${
               value === o.id
-                ? "border-[#555B40] bg-[#555B40]/10"
+                ? "border-[#A7773F] bg-[#F0E6D6]"
                 : "border-border bg-secondary/40 hover:border-foreground/20"
             }`}
           >

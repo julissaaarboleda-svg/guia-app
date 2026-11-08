@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { Edit2, Check, X, Plus, Trash, Calendar, MapPin, Star, MoreVertical, FileText } from "lucide-react";
+import { Edit2, Check, X, Plus, Trash, Calendar, MapPin, MoreVertical, FileText } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
@@ -436,8 +436,6 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
             <Plus className="w-4 h-4" /> Add a day
           </button>
         </div>
-        <WishListSection trip={trip} onUpdate={onUpdate} />
-
         {dayEdit.open && (
           <div
             className="fixed inset-0 z-[70] flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm"
@@ -758,73 +756,6 @@ Only include real travel/booking/event items. Return as { activities: [...] }.`,
             </div>
           </div>
         </div>
-      )}
-    </div>
-  );
-}
-
-function WishListSection({ trip, onUpdate }) {
-  const [editing, setEditing] = useState(false);
-  const [content, setContent] = useState(trip.wish_list?.content || "");
-
-  useEffect(() => { setContent(trip.wish_list?.content || ""); }, [trip.wish_list]);
-
-  const save = async () => {
-    const updated = await ent.Trip.update(trip.id, { wish_list: { format: "rich_text", content } });
-    onUpdate(updated);
-    setEditing(false);
-  };
-
-  const clear = async () => {
-    if (!confirm("Clear wish list?")) return;
-    const updated = await ent.Trip.update(trip.id, { wish_list: { format: "rich_text", content: "" } });
-    setContent("");
-    onUpdate(updated);
-  };
-
-  return (
-    <div
-      className={`bg-card border border-border rounded-2xl p-5 ${!editing ? "cursor-pointer hover:border-ring/50 transition-colors" : ""}`}
-      onClick={!editing ? () => setEditing(true) : undefined}
-    >
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="font-heading text-base text-foreground flex items-center gap-2">
-          <Star className="w-4 h-4 text-accent" /> Wish List
-        </h3>
-        {!editing ? (
-          <div className="flex items-center gap-1">
-            {content && (
-              <button onClick={(e) => { e.stopPropagation(); clear(); }} className="p-2 text-muted-foreground/30 hover:text-destructive transition-colors">
-                <Trash className="w-4 h-4" />
-              </button>
-            )}
-            <button onClick={(e) => { e.stopPropagation(); setEditing(true); }} className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors">
-              <Edit2 className="w-4 h-4" />
-            </button>
-          </div>
-        ) : (
-          <div className="flex gap-2">
-            <button onClick={save} className="flex items-center gap-1 bg-[#A7773F] text-[#F7F3EC] px-3 py-1.5 rounded-full text-xs font-medium hover:opacity-90 transition-colors">
-              <Check className="w-3 h-3" /> Save
-            </button>
-            <button onClick={() => setEditing(false)} className="text-muted-foreground hover:text-foreground text-xs px-2 transition-colors">Cancel</button>
-          </div>
-        )}
-      </div>
-      {editing ? (
-        <div onClick={(e) => e.stopPropagation()}>
-          <ReactQuill
-            value={content}
-            onChange={setContent}
-            placeholder="Things you want to see, do, eat..."
-            className="bg-muted rounded-lg quill-notes"
-            theme="snow"
-          />
-        </div>
-      ) : content ? (
-        <div className="text-muted-foreground text-sm prose prose-sm max-w-none quill-render" dangerouslySetInnerHTML={{ __html: content }} />
-      ) : (
-        <p className="text-muted-foreground text-sm text-center py-4">No wish list yet</p>
       )}
     </div>
   );

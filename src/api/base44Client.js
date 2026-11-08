@@ -285,16 +285,6 @@ async function ImportFinanceFile({ file, existing = [], mode = "items" }) {
   return res.json(); // { items }
 }
 
-// Runs one prompt on a specific provider ("gemini" or "claude") for the
-// side-by-side comparison in Settings.
-async function CompareAI({ prompt, provider, search }) {
-  const headers = await authHeaders();
-  const res = await checkOk(
-    await fetch(`${API_BASE}/compare-ai`, { method: "POST", headers, body: JSON.stringify({ prompt, provider, search: !!search }) })
-  );
-  return res.json(); // { text, ms, model }
-}
-
 // ---- Public shape — matches the real base44 client's surface ----
 export const base44 = {
   auth: {
@@ -313,7 +303,7 @@ export const base44 = {
   },
   entities,
   integrations: {
-    Core: { InvokeLLM, GenerateImage, GetPlacePhoto, GetPlaceDetails, SearchPlacesAutocomplete, UploadFile, GetPrivateFile, DeletePrivateFile, ImportFinanceFile, CompareAI },
+    Core: { InvokeLLM, GenerateImage, GetPlacePhoto, GetPlaceDetails, SearchPlacesAutocomplete, UploadFile, GetPrivateFile, DeletePrivateFile, ImportFinanceFile },
   },
   functions: {
     // KNOWN GAP: base44.functions.invoke("exportTripPdf", ...) (used in TripDetail.jsx)

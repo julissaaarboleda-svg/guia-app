@@ -2,7 +2,7 @@ import { Sun, Cloud, CloudRain, CloudSun, CloudSnow, Wind, Droplets, ExternalLin
 
 function WeatherIcon({ condition }) {
   const c = (condition || "").toLowerCase();
-  const color = "#555B40";
+  const color = "#A7773F";
   const cls = "w-3.5 h-3.5 flex-shrink-0";
   if (/thunder|rain|shower|drizzle/.test(c)) return <CloudRain className={cls} style={{ color }} />;
   if (/snow/.test(c)) return <CloudSnow className={cls} style={{ color }} />;
@@ -17,7 +17,7 @@ export default function WeatherSummary({ cities, loading, forecastUrl }) {
   return (
     <div className="bg-card border border-border rounded-2xl p-3.5">
       <div className="flex items-center justify-between mb-2.5">
-        <h3 className="font-heading text-[14px] font-medium text-foreground">Weather by city</h3>
+        <h3 className="font-heading text-[18px] text-foreground">Weather by city</h3>
         {forecastUrl && (
           <a
             href={forecastUrl}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { ent } from "@/lib/freshEntities";
 import { toast } from "sonner";
 import { RefreshCw, AlertCircle } from "lucide-react";
@@ -17,8 +17,14 @@ export default function PackingTab({ trip, onUpdate }) {
   const [buildOpen, setBuildOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [activeCategory, setActiveCategory] = useState(null);
+  const [openWithAdd, setOpenWithAdd] = useState(false);
+  // Latest list + a save queue, so quick taps (checking off several items in a row)
+  // never overwrite each other and the checkbox responds instantly.
+  const itemsRef = useRef(trip.packing_items || []);
+  const queueRef = useRef(Promise.resolve());
 
   useEffect(() => {
+    itemsRef.current = trip.packing_items || [];
     setItems(trip.packing_items || []);
     setMeta(trip.packing_meta || null);
   }, [trip.packing_items, trip.packing_meta]);
@@ -52,13 +58,20 @@ export default function PackingTab({ trip, onUpdate }) {
   }, [trip.id, (trip.cities || []).join(","), trip.start_date, trip.end_date, (trip.itinerary || []).map((d) => `${d.date || ""}:${(d.activities || []).length}`).join(";")]);
 
 
-  const persist = async (packingItems, packingMeta) => {
-    const updateData = { packing_items: packingItems };
-    if (packingMeta !== undefined) updateData.packing_meta = packingMeta;
-    const updated = await ent.Trip.update(trip.id, updateData);
+  const persist = (packingItems, packingMeta) => {
+    itemsRef.current = packingItems;
     setItems(packingItems);
     if (packingMeta !== undefined) setMeta(packingMeta);
-    onUpdate(updated);
+    const updateData = { packing_items: packingItems };
+    if (packingMeta !== undefined) updateData.packing_meta = packingMeta;
+    queueRef.current = queueRef.current
+      .then(() => ent.Trip.update(trip.id, updateData))
+      .then((updated) => { if (updated) onUpdate(updated); })
+      .catch((err) => {
+        console.error("Packing save failed:", err);
+        toast.error("Couldn't save that change. Check your connection and try again.");
+      });
+    return queueRef.current;
   };
 
   const runGenerate = async (prefs) => {
@@ -107,19 +120,18 @@ export default function PackingTab({ trip, onUpdate }) {
     }
   };
 
-  const toggleItem = async (index) => {
-    const updated = items.map((it, i) => (i === index ? { ...it, packed: !it.packed } : it));
-    await persist(updated);
+  const toggleItem = (index) => {
+    const updated = itemsRef.current.map((it, i) => (i === index ? { ...it, packed: !it.packed } : it));
+    return persist(updated);
   };
 
-  const removeItem = async (index) => {
-    const updated = items.filter((_, i) => i !== index);
-    await persist(updated);
+  const removeItem = (index) => {
+    const updated = itemsRef.current.filter((_, i) => i !== index);
+    return persist(updated);
   };
 
-  const addCustomItem = async (item) => {
-    await persist([...items, { ...item, packed: false, source: "user", quantity: item.quantity || 1 }]);
-  };
+  const addCustomItem = (item) =>
+    persist([...itemsRef.current, { ...item, packed: false, source: "user", quantity: item.quantity || 1 }]);
 
   const packed = items.filter((i) => i.packed).length;
 
@@ -134,15 +146,15 @@ export default function PackingTab({ trip, onUpdate }) {
       />
 
       {needsUpdate && (
-        <div className="flex items-center gap-2 bg-[#555B40]/10 border border-[#555B40]/30 rounded-xl px-3 py-2.5">
-          <AlertCircle className="w-4 h-4 text-[#555B40] flex-shrink-0" />
+        <div className="flex items-center gap-2 bg-[#F0E6D6] border border-[#A7773F]/30 rounded-xl px-3 py-2.5">
+          <AlertCircle className="w-4 h-4 text-[#8B6B3E] flex-shrink-0" />
           <p className="flex-1 font-body text-[12px] text-foreground">
             Your trip has changed. Update your packing list?
           </p>
           <button
             onClick={handleBuild}
             disabled={generating}
-            className="inline-flex items-center gap-1 px-2.5 h-7 rounded-full bg-[#555B40] text-white font-body text-[11px] font-medium hover:opacity-90 transition-opacity disabled:opacity-60"
+            className="inline-flex items-center gap-1 px-2.5 h-7 rounded-full bg-[#A7773F] text-white font-body text-[11px] font-medium hover:opacity-90 transition-opacity disabled:opacity-60"
           >
             <RefreshCw className={`w-3 h-3 ${generating ? "animate-spin" : ""}`} /> Update
           </button>
@@ -163,13 +175,14 @@ export default function PackingTab({ trip, onUpdate }) {
 
       <PackingCategories
         items={items}
-        onOpenCategory={setActiveCategory}
-        onAddCustom={() => setActiveCategory("misc")}
+        onOpenCategory={(id) => { setOpenWithAdd(false); setActiveCategory(id); }}
+        onAddCustom={() => { setOpenWithAdd(true); setActiveCategory("misc"); }}
       />
 
       {activeCategory && (
         <CategorySheet
           categoryId={activeCategory}
+          startAdding={openWithAdd}
           items={items}
           onClose={() => setActiveCategory(null)}
           onToggle={toggleItem}
