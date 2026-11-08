@@ -457,12 +457,18 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
         )}
 
         {datePassed && (
-          <div className="flex items-center justify-between gap-3 mb-4 rounded-xl border border-[#A7773F]/30 bg-[#F7F3EC] px-3.5 py-2.5">
-            <p className="text-xs text-foreground">This project's date has passed.</p>
+          <div className="flex items-center justify-between gap-3 mb-3 rounded-xl border border-[#E6D3B0] bg-[#F3E8D6] px-3 py-2">
+            <p className="text-xs text-[#8A5F27]">
+              Date passed{tasks.filter((t) => !t.completed).length > 0 ? ` · ${tasks.filter((t) => !t.completed).length} task${tasks.filter((t) => !t.completed).length === 1 ? "" : "s"} still open` : ""}
+            </p>
             <button
-              onClick={() => mutate(() => ({ status: "completed" }))}
-              className="flex-shrink-0 text-xs font-medium text-white px-3 py-1.5 rounded-full"
-              style={{ backgroundColor: "#A7773F" }}
+              onClick={() => {
+                const n = tasks.filter((t) => !t.completed).length;
+                if (n > 0 && !confirm(`${n} task${n === 1 ? " is" : "s are"} still open. Mark this project completed anyway?`)) return;
+                mutate(() => ({ status: "completed" }));
+              }}
+              className="flex-shrink-0 text-xs font-medium"
+              style={{ color: "#A7773F" }}
             >
               Mark completed
             </button>
@@ -486,54 +492,28 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
             project with Tasks turned off entirely was exactly the kind of
             clutter the section-visibility toggle was meant to remove. */}
         {(visibleTabs.tasks || visibleTabs.budget) && (
-          <div className={`grid gap-3 mb-5 ${visibleTabs.tasks && visibleTabs.budget ? "grid-cols-2" : "grid-cols-1"}`}>
+          <div className="bg-white border border-border rounded-2xl px-4 py-3 mb-4">
             {visibleTabs.tasks && (
-              <div className="bg-white border border-border rounded-2xl p-3 min-w-0">
-                <p className="text-[10px] font-medium font-heading text-muted-foreground mb-1">Progress</p>
-                <p className="text-base font-bold text-foreground mb-1.5">{progress}%</p>
-                <div className="h-1.5 bg-secondary rounded-full overflow-hidden mb-1.5">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{ width: `${progress}%`, backgroundColor: "#A7773F" }}
-                  />
+              <div className={visibleTabs.budget ? "mb-3" : ""}>
+                <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+                  <span>{tasks.filter((t) => t.completed).length} of {tasks.length} tasks</span>
+                  <span className="text-sm font-semibold text-foreground">{progress}%</span>
                 </div>
-                <p className="text-[9.5px] text-muted-foreground truncate">
-                  {tasks.filter((t) => t.completed).length} of {tasks.length} tasks
-                </p>
+                <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all" style={{ width: `${progress}%`, backgroundColor: "#A7773F" }} />
+                </div>
               </div>
             )}
-
             {visibleTabs.budget && (
-              <button
-                onClick={() => setTab("budget")}
-                className="text-left bg-white border border-border rounded-2xl p-3 min-w-0 hover:border-border transition-colors"
-              >
-                <div className="flex items-center justify-between mb-1 gap-1">
-                  <p className="text-[10px] font-medium font-heading text-muted-foreground truncate">Budget</p>
-                  <span className="text-[9px] font-medium flex-shrink-0" style={{ color: "#A7773F" }}>Details →</span>
-                </div>
-                <p className="text-base font-bold text-foreground mb-1.5 truncate">
-                  ${totalSpent.toLocaleString()}
-                  <span className="text-[10px] text-muted-foreground font-normal ml-1">
-                    {budgetTarget > 0 ? `/ $${budgetTarget.toLocaleString()}` : "spent"}
-                  </span>
-                </p>
-                <div className="h-1.5 rounded-full overflow-hidden mb-1.5" style={{ background: "#EFE9DF" }}>
-                  {budgetTarget > 0 && (
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${Math.min(100, Math.round((totalSpent / budgetTarget) * 100))}%`,
-                        background: totalSpent > budgetTarget ? "#DC2626" : "#A7773F",
-                      }}
-                    />
-                  )}
-                </div>
-                {budgetTarget > 0 && (
-                  <p className="text-[9.5px] truncate" style={{ color: totalSpent > budgetTarget ? "#BE123C" : undefined }}>
-                    {totalSpent > budgetTarget ? `$${(totalSpent - budgetTarget).toLocaleString()} over` : `$${(budgetTarget - totalSpent).toLocaleString()} left`}
-                  </p>
-                )}
+              <button onClick={() => setTab("budget")} className="w-full text-left flex items-center justify-between gap-2 text-xs">
+                <span className="text-muted-foreground truncate">
+                  Budget · ${totalSpent.toLocaleString()} spent{budgetTarget > 0 ? ` of $${budgetTarget.toLocaleString()}` : ""}
+                </span>
+                <span className="flex-shrink-0 font-semibold" style={{ color: budgetTarget > 0 && totalSpent > budgetTarget ? "#BE123C" : "#2E2A27" }}>
+                  {budgetTarget > 0
+                    ? totalSpent > budgetTarget ? `$${(totalSpent - budgetTarget).toLocaleString()} over` : `$${(budgetTarget - totalSpent).toLocaleString()} left`
+                    : "Details →"}
+                </span>
               </button>
             )}
           </div>

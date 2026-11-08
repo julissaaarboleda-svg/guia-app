@@ -1,6 +1,6 @@
 import { nameFor, firstNameFor, initialsFor as initialsOf } from "@/lib/collab";
 import { useState, useMemo, useEffect, Fragment } from "react";
-import { Plus, Trash2, SlidersHorizontal, DollarSign, Check, Pencil, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Trash2, SlidersHorizontal, DollarSign, Check, Pencil, ChevronDown, ChevronRight, MoreHorizontal, CalendarClock } from "lucide-react";
 import DateInput from "@/components/DateInput";
 
 const CHIP_COLORS = ["#A7773F", "#7D8A53", "#A77C81", "#6B655D", "#8A6530"];
@@ -26,7 +26,7 @@ function dueDateInfo(dueDate) {
   today.setHours(0, 0, 0, 0);
   const days = Math.round((due - today) / 86400000);
   const label = due.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  if (days < 0) return { label: `Overdue · ${label}`, tone: "overdue" };
+  if (days < 0) return { label, tone: "overdue" };
   if (days === 0) return { label: "Due today", tone: "soon" };
   if (days <= 3) return { label: `Due in ${days} day${days > 1 ? "s" : ""}`, tone: "soon" };
   return { label: `Due ${label}`, tone: "normal" };
@@ -43,6 +43,9 @@ export default function ProjectTasks({ tasks, collaborators, names = {}, current
   const [hideCompleted, setHideCompleted] = useState(false);
   const [groupByDue, setGroupByDue] = useState(false);
   const [showDone, setShowDone] = useState(false);
+  const [menuIdx, setMenuIdx] = useState(null);
+  const [reschedOpen, setReschedOpen] = useState(false);
+  const [reschedDate, setReschedDate] = useState("");
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem("guia-task-view") || "{}");
@@ -141,10 +144,10 @@ export default function ProjectTasks({ tasks, collaborators, names = {}, current
     onReassign(idx, next.length > 0 ? next : [currentEmail]);
   };
 
-  const renderRow = (t) => {
+  const renderRow = (t, first) => {
           if (editingIdx === t._idx) {
             return (
-              <div className="py-2.5 border-t border-border">
+              <div className={`py-2.5 ${first ? "" : "border-t border-border"}`}>
                 <input
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
@@ -169,20 +172,20 @@ export default function ProjectTasks({ tasks, collaborators, names = {}, current
           const due = t.completed ? null : dueDateInfo(t.due_date);
           const people = assigneesFor(t, currentEmail);
           return (
-            <div className="flex items-center gap-3 py-2 border-t border-border">
+            <div className={`flex items-center gap-3 py-2.5 ${first ? "" : "border-t border-border"}`}>
               <button onClick={() => onToggle(t._idx)} className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${t.completed ? "bg-[#A7773F] border-[#A7773F]" : "border-input"}`}>
                 {t.completed && <span className="text-white text-[10px]">✓</span>}
               </button>
               <div className="flex-1 min-w-0">
-                <p className={`text-sm truncate ${t.completed ? "line-through text-muted-foreground" : "text-foreground"}`}>{t.title}</p>
+                <p onClick={() => !t.completed && startEdit(t)} className={`text-[14.5px] truncate cursor-pointer ${t.completed ? "line-through text-muted-foreground" : "text-foreground"}`}>{t.title}</p>
                 {due && (
-                  <span className={`text-[10.5px] font-medium ${due.tone === "overdue" ? "text-rose-600" : due.tone === "soon" ? "text-accent" : "text-muted-foreground"}`}>
+                  <span className={`text-[10.5px] font-medium ${due.tone === "overdue" ? "text-[#8F5F65]" : due.tone === "soon" ? "text-accent" : "text-muted-foreground"}`}>
                     {due.label}
                   </span>
                 )}
               </div>
               <div className="relative flex-shrink-0">
-                <button
+                {people.some((e) => e !== currentEmail) && <button
                   onClick={() => setReassigningIdx(reassigningIdx === t._idx ? null : t._idx)}
                   className="flex items-center -space-x-1.5"
                   title={people.map((e) => (e === currentEmail ? "Me" : e)).join(", ") + " — tap to change"}
@@ -201,7 +204,7 @@ export default function ProjectTasks({ tasks, collaborators, names = {}, current
                       +{people.length - 3}
                     </span>
                   )}
-                </button>
+                </button>}
                 {reassigningIdx === t._idx && (
                   <>
                     <div className="fixed inset-0 z-[9]" onClick={() => setReassigningIdx(null)} />
@@ -239,28 +242,55 @@ export default function ProjectTasks({ tasks, collaborators, names = {}, current
                   </>
                 )}
               </div>
-              <button onClick={() => startEdit(t)} className="text-muted-foreground/50 hover:text-foreground flex-shrink-0"><Pencil className="w-3.5 h-3.5" /></button>
-              <button onClick={() => onRemove(t._idx)} className="text-muted-foreground/50 hover:text-destructive flex-shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
+              <div className="relative flex-shrink-0">
+                <button onClick={() => setMenuIdx(menuIdx === t._idx ? null : t._idx)} aria-label="Task options" className="p-1 text-muted-foreground/60 hover:text-foreground">
+                  <MoreHorizontal className="w-4 h-4" />
+                </button>
+                {menuIdx === t._idx && (
+                  <>
+                    <div className="fixed inset-0 z-[9]" onClick={() => setMenuIdx(null)} />
+                    <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-lg shadow-lg z-10 py-1 min-w-[140px]">
+                      <button onClick={() => { setMenuIdx(null); startEdit(t); }} className="w-full flex items-center gap-2 text-left px-3 py-2 text-xs hover:bg-secondary"><Pencil className="w-3.5 h-3.5" /> Edit</button>
+                      <button onClick={() => { setMenuIdx(null); setReassigningIdx(t._idx); }} className="w-full flex items-center gap-2 text-left px-3 py-2 text-xs hover:bg-secondary"><Check className="w-3.5 h-3.5" /> Assign</button>
+                      <button onClick={() => { setMenuIdx(null); onRemove(t._idx); }} className="w-full flex items-center gap-2 text-left px-3 py-2 text-xs text-[#8F5F65] hover:bg-secondary"><Trash2 className="w-3.5 h-3.5" /> Delete</button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           );
         };
 
   return (
     <div>
-      {/* Header: count + single Filter icon (popover holds person / hide done / grouping) */}
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-xs text-muted-foreground">
+      {/* Header: count + person chips + view options */}
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <p className="text-xs text-muted-foreground flex-shrink-0">
           {scoped.filter((t) => !t.completed).length} open · {scoped.filter((t) => t.completed).length} done
-          {filter !== "all" && <span> · {filter === currentEmail ? "My tasks" : `${firstNameFor(filter, names)}'s`}</span>}
         </p>
-        <div className="relative">
+        <div className="flex items-center gap-1.5 min-w-0">
+          {collaborators.filter((c) => c !== currentEmail).length > 0 && (
+            <div className="flex gap-1 overflow-x-auto">
+              {[["all", "All"], ...(currentEmail ? [[currentEmail, "Mine"]] : []),
+                ...collaborators.filter((c) => c !== currentEmail).map((c) => [c, `${firstNameFor(c, names)}'s`])].map(([val, label]) => (
+                <button
+                  key={val}
+                  onClick={() => setFilter(val)}
+                  className={`text-[11px] px-2.5 py-1 rounded-full whitespace-nowrap ${filter === val ? "bg-[#F3E8D6] text-[#8A5F27]" : "bg-[#ECE7DD] text-[#6B655D]"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        <div className="relative flex-shrink-0">
           <button
             onClick={() => setShowFilter((v) => !v)}
-            aria-label="Filter tasks"
+            aria-label="View options"
             className="relative w-8 h-8 flex items-center justify-center rounded-full border border-border bg-card text-foreground hover:bg-secondary"
           >
             <SlidersHorizontal className="w-3.5 h-3.5" />
-            {filterActive && <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full" style={{ backgroundColor: "#A7773F" }} />}
+            {(hideCompleted || groupByDue) && <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full" style={{ backgroundColor: "#A7773F" }} />}
           </button>
           {showFilter && (
             <>
@@ -300,19 +330,26 @@ export default function ProjectTasks({ tasks, collaborators, names = {}, current
             </>
           )}
         </div>
+        </div>
       </div>
 
-      {/* Add task — collapsed behind a button until tapped */}
-      {!showForm ? (
+      {/* Add task — sticky bar (always visible) + sheet form */}
+      <div className="fixed lg:sticky left-0 right-0 lg:left-auto lg:right-auto z-30 px-4 lg:px-0 pt-6 pb-3 lg:pb-0 lg:mt-3 pointer-events-none bottom-[calc(env(safe-area-inset-bottom,44px)+60px)] lg:bottom-4 bg-gradient-to-t from-background via-background/90 to-transparent lg:from-transparent lg:via-transparent">
         <button
           onClick={() => setShowForm(true)}
-          className="w-full flex items-center justify-center gap-1.5 border border-dashed rounded-lg py-2.5 text-sm font-medium mb-3 transition-colors"
-          style={{ borderColor: "#A7773F", color: "#A7773F" }}
+          className="pointer-events-auto w-full flex items-center justify-center gap-1.5 rounded-full py-3 text-sm font-medium text-white shadow-[0_8px_20px_-10px_rgba(167,119,63,0.8)] hover:opacity-90"
+          style={{ backgroundColor: "#A7773F" }}
         >
           <Plus className="w-4 h-4" /> Add task
         </button>
-      ) : (
-        <div className="mb-3">
+      </div>
+
+      {showForm && (
+        <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowForm(false)}>
+          <div className="bg-card border border-border rounded-t-3xl md:rounded-2xl w-full max-w-md p-5 max-h-[85vh] overflow-y-auto"
+            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 20px)" }} onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-heading text-lg mb-3">New task</h3>
+        <div>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -374,10 +411,12 @@ export default function ProjectTasks({ tasks, collaborators, names = {}, current
             </button>
           </div>
         </div>
+          </div>
+        </div>
       )}
 
       {/* Task list */}
-      <div className="space-y-1 mt-2">
+      <div className="space-y-1 mt-2 pb-20 lg:pb-0">
         {sections.map((sec) => {
           const collapsed = sec.done && !showDone;
           return (
@@ -389,13 +428,28 @@ export default function ProjectTasks({ tasks, collaborators, names = {}, current
                   className="w-full flex items-center gap-2 pt-3 pb-1 text-left"
                 >
                   {sec.done && (collapsed ? <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />)}
-                  <span className={`text-xs font-medium ${sec.tone === "overdue" ? "text-rose-600" : "text-muted-foreground"}`}>
+                  <span className={`text-xs font-medium ${sec.tone === "overdue" ? "text-[#8F5F65]" : "text-muted-foreground"}`}>
                     {sec.label} · {sec.items.length}
                   </span>
                   <div className="h-px bg-border flex-1" />
+                  {sec.tone === "overdue" && (
+                    <span role="button" onClick={(e) => { e.stopPropagation(); setReschedOpen((v) => !v); }} className="text-[11px] font-medium flex items-center gap-1" style={{ color: "#A7773F" }}>
+                      <CalendarClock className="w-3.5 h-3.5" /> Reschedule all
+                    </span>
+                  )}
                 </button>
               )}
-              {!collapsed && sec.items.map((t) => <Fragment key={t._idx}>{renderRow(t)}</Fragment>)}
+              {sec.tone === "overdue" && reschedOpen && (
+                <div className="flex items-center gap-2 py-2">
+                  <div className="flex-1"><DateInput value={reschedDate} onChange={(e) => setReschedDate(e.target.value)} /></div>
+                  <button
+                    disabled={!reschedDate}
+                    onClick={() => { sec.items.forEach((t) => onUpdateTask(t._idx, { due_date: reschedDate })); setReschedOpen(false); setReschedDate(""); }}
+                    className="text-xs font-medium text-white px-3 py-2 rounded-full disabled:opacity-40" style={{ backgroundColor: "#A7773F" }}
+                  >Move {sec.items.length}</button>
+                </div>
+              )}
+              {!collapsed && sec.items.map((t, i) => <Fragment key={t._idx}>{renderRow(t, i === 0 && !!sec.label)}</Fragment>)}
             </Fragment>
           );
         })}
