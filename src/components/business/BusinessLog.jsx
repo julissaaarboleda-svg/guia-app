@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Edit2, Trash2, MapPin, Plus, ChevronDown, ChevronUp, Search } from "lucide-react";
+import { base44 } from "@/api/base44Client";
+import { Edit2, Trash2, MapPin, Paperclip, Plus, ChevronDown, ChevronUp, Search } from "lucide-react";
 
 export const money = (n) => `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: Number.isInteger(Number(n)) ? 0 : 2, maximumFractionDigits: 2 })}`;
 const monthKey = (d) => (d ? d.slice(0, 7) : "undated");
@@ -7,9 +8,16 @@ const monthLabel = (k) => (k === "undated" ? "No date" : new Date(`${k}-15T12:00
 const dayLabel = (d) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "");
 
 // The log, grouped by month. The current month starts open; every month can be toggled.
-export default function BusinessLog({ entries, categories, editingEntry, renderEditor, onEdit, onDelete, onNew, readOnly = false }) {
+export default function BusinessLog({ entries, docs = [], categories, editingEntry, renderEditor, onEdit, onDelete, onNew, readOnly = false }) {
   const [cat, setCat] = useState("All");
   const [q, setQ] = useState("");
+  const openDoc = async (d) => {
+    const tab = window.open("", "_blank");
+    try {
+      const url = await base44.integrations.Core.GetPrivateFile({ file_url: d.file_url });
+      if (tab) tab.location.href = url; else window.location.href = url;
+    } catch { if (tab) tab.close(); }
+  };
   const [toggled, setToggled] = useState({}); // monthKey -> true/false, overrides the default
   const [openRow, setOpenRow] = useState(null);
 
@@ -107,7 +115,8 @@ export default function BusinessLog({ entries, categories, editingEntry, renderE
               {open && rows.map((e) => {
                 if (editingEntry === e.id) return <div key={e.id} className="px-4 py-4 border-t border-border/60">{renderEditor(e)}</div>;
                 const expanded = openRow === e.id;
-                const hasMore = e.location || e.description || e.notes;
+                const doc = e.document_id ? docs.find((d) => d.id === e.document_id) : null;
+                const hasMore = e.location || e.description || e.notes || doc;
                 return (
                   <div key={e.id} className="border-t border-border/60">
                     <div className="flex items-center gap-3 pl-6 pr-4 py-2.5">
@@ -127,6 +136,7 @@ export default function BusinessLog({ entries, categories, editingEntry, renderE
                         {e.location && <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3" strokeWidth={1.5} /> {e.location}</p>}
                         {e.description && <p className="text-xs text-muted-foreground mt-1">{e.description}</p>}
                         {e.notes && <p className="text-xs text-muted-foreground mt-1" dangerouslySetInnerHTML={{ __html: e.notes }} />}
+                        {doc && <button onClick={() => openDoc(doc)} className="inline-flex items-center gap-1 text-xs font-medium text-[#A7773F] mt-1.5"><Paperclip className="w-3.5 h-3.5" strokeWidth={1.5} /> {doc.title}</button>}
                         {!hasMore && <p className="text-xs text-muted-foreground">No extra details.</p>}
                         <div className="flex items-center gap-4 mt-2.5">
                           <button onClick={() => onEdit(e)} className="inline-flex items-center gap-1 text-xs font-medium text-[#A7773F]"><Edit2 className="w-3.5 h-3.5" strokeWidth={1.5} /> Edit</button>

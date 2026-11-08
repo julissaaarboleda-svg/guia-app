@@ -53,7 +53,7 @@ export default function Business() {
   const setTab = (t) => { setTabState(t); lsSet("guia_business_tab", t); };
   const [adding, setAdding] = useState(false);
   const [addTab, setAddTab] = useState("entry");
-  const [form, setForm] = useState({ category: "", name: "", date: "", revenue: "", expense: "", location: "", description: "", notes: "" });
+  const [form, setForm] = useState({ category: "", name: "", date: "", revenue: "", expense: "", location: "", description: "", notes: "", document_id: "" });
   const [goalForm, setGoalForm] = useState({ title: "", description: "", target_value: "", current_value: "0", unit: "$", target_date: "", notes: "" });
   const [goalType, setGoalType] = useState("revenue");
   const [editGoalType, setEditGoalType] = useState("revenue");
@@ -110,12 +110,13 @@ export default function Business() {
     if (!form.category || !form.name) return;
     await ent.BusinessEntry.create({
       ...form,
+      document_id: form.document_id || null,
       business_id: writeId,
       revenue: form.revenue ? Number(form.revenue) : null,
       expense: form.expense ? Number(form.expense) : null,
       date: form.date || new Date().toISOString().split("T")[0],
     });
-    setForm({ category: "", name: "", date: "", revenue: "", expense: "", location: "", description: "", notes: "" });
+    setForm({ category: "", name: "", date: "", revenue: "", expense: "", location: "", description: "", notes: "", document_id: "" });
     setAdding(false);
     loadEntries();
   };
@@ -162,18 +163,20 @@ export default function Business() {
       location: entry.location || "",
       description: entry.description || "",
       notes: entry.notes || "",
+      document_id: entry.document_id || "",
     });
   };
 
   const cancelEditEntry = () => {
     setEditingEntry(null);
-    setForm({ category: "", name: "", date: "", revenue: "", expense: "", location: "", description: "", notes: "" });
+    setForm({ category: "", name: "", date: "", revenue: "", expense: "", location: "", description: "", notes: "", document_id: "" });
   };
 
   const updateEntry = async () => {
     if (!form.category || !form.name) return;
     await ent.BusinessEntry.update(editingEntry, {
       ...form,
+      document_id: form.document_id || null,
       revenue: form.revenue ? Number(form.revenue) : null,
       expense: form.expense ? Number(form.expense) : null,
     });
@@ -361,6 +364,13 @@ export default function Business() {
       </div>
       <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Description"
         className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F]" />
+      {docs.length > 0 && (
+        <select value={form.document_id} onChange={e => setForm(f => ({ ...f, document_id: e.target.value }))}
+          className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#A7773F] text-foreground">
+          <option value="">Attach a document (optional)</option>
+          {docs.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+        </select>
+      )}
       <ReactQuill value={form.notes} onChange={(value) => setForm(f => ({ ...f, notes: value }))} placeholder="Notes" className="bg-card rounded-xl quill-business" theme="snow" />
       <div className="flex gap-2">
         <button onClick={updateEntry} className="flex-1 bg-[#A7773F] text-[#F7F3EC] py-2.5 rounded-full text-sm font-medium hover:opacity-90 transition-colors">Save</button>
@@ -483,6 +493,13 @@ export default function Business() {
               </div>
               <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Description"
                 className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F]" />
+              {docs.length > 0 && (
+                <select value={form.document_id} onChange={e => setForm(f => ({ ...f, document_id: e.target.value }))}
+                  className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#A7773F] text-foreground">
+                  <option value="">Attach a document (optional)</option>
+                  {docs.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+                </select>
+              )}
               <ReactQuill value={form.notes} onChange={(value) => setForm(f => ({ ...f, notes: value }))} placeholder="Notes (optional)" className="bg-card rounded-xl quill-career" theme="snow" />
             </div>
           )}
@@ -622,6 +639,7 @@ export default function Business() {
       {tab === "log" && (
         <BusinessLog
           entries={entries}
+          docs={docs}
           categories={BUSINESS_CATEGORIES}
           editingEntry={editingEntry}
           renderEditor={renderEntryEditor}

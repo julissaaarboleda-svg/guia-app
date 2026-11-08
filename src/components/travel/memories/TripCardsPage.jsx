@@ -155,7 +155,7 @@ function RouteArt({ points, loading, pendingRef }) {
     <div ref={boxRef} style={{ flex: 1, minHeight: 0, position: "relative", background: "#EAE3D5", borderRadius: "0.5em", overflow: "hidden" }}>
       {!map && (
         <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <span className="font-body" style={{ fontSize: "0.7em", color: MUTED }}>{loading ? "Drawing your route…" : "Couldn't place your cities."}</span>
+          <span className="font-body" style={{ fontSize: "0.7em", color: MUTED }}>{loading ? "Mapping your route…" : "We couldn't place your cities on the map."}</span>
         </div>
       )}
       {map && (
@@ -309,12 +309,12 @@ export default function TripCardsPage({ trip, onBack }) {
     const cityCount = cities.length;
     const daysPart = days ? `${days} day${days !== 1 ? "s" : ""}` : null;
     const cityPart = cityCount > 0 ? `${cityCount} cit${cityCount !== 1 ? "ies" : "y"}` : null;
-    const bigNote = [daysPart && cityPart ? `${daysPart} across ${cityPart}` : daysPart || cityPart, range].filter(Boolean).join(", ") || "A trip to remember.";
+    const bigNote = [daysPart && cityPart ? `${daysPart} across ${cityPart}` : daysPart || cityPart, range].filter(Boolean).join(", ") || "A trip worth remembering.";
     list.push({ kind: "trip", chip: "Big picture", data: { year, lead: words.join(" "), accent: accentWord, cover, note: `${bigNote}.` } });
 
     if (cities.length >= 2) {
       list.push({ kind: "route", chip: "Route", data: { year, lead: `${NUMBER_WORDS[cities.length] || cities.length} cities,`, accent: "one trip.", points, loading: routeLoading, pendingRef: tilesPendingRef,
-        note: points.length >= 2 ? `About ${Math.round(points.slice(1).reduce((s, p, i) => s + haversineKm(points[i], p), 0)).toLocaleString()} km between your stops.` : cities.join(" → ") } });
+        note: points.length >= 2 ? `Roughly ${Math.round(points.slice(1).reduce((s, p, i) => s + haversineKm(points[i], p), 0)).toLocaleString()} km from first stop to last.` : cities.join(" → ") } });
     }
 
     if (cityDays.length >= 2) {
@@ -324,13 +324,13 @@ export default function TripCardsPage({ trip, onBack }) {
       itinerary.forEach((d) => { if (d.date && d.city) dayToCity[d.date] = d.city; });
       const topPhotos = media.filter((m) => dayToCity[m.date] === top.city).length;
       list.push({ kind: "cities", chip: "Cities", data: { year, lead: "Where the", accent: "days went.", rows, maxDays: top.days,
-        note: `Most time in ${top.city}${topPhotos ? `, with ${topPhotos} photo${topPhotos !== 1 ? "s" : ""}` : ""}.` } });
+        note: `Most of your time was in ${top.city}${topPhotos ? `, with ${topPhotos} photo${topPhotos !== 1 ? "s" : ""}` : ""}.` } });
     }
 
     if (places.length > 0) {
       const ranked = [...places].sort((a, b) => Number(!!b.favorited) - Number(!!a.favorited)).slice(0, 4);
-            list.push({ kind: "places", chip: "Places", data: { year, lead: "Places you", accent: "kept.", places: ranked,
-        note: `${ranked[0].name}${ranked.length > 1 ? ` and ${places.length - 1} more saved` : ", saved from your trip"}.` } });
+            list.push({ kind: "places", chip: "Places", data: { year, lead: "Places you", accent: "saved.", places: ranked,
+        note: `${ranked[0].name}${ranked.length > 1 ? ` and ${places.length - 1} more you saved` : ", saved from your trip"}.` } });
     }
 
     if (media.length > 0 || quote) {
@@ -441,7 +441,7 @@ export default function TripCardsPage({ trip, onBack }) {
     } catch (err) {
       if (err?.name !== "AbortError") {
         console.error("Trip card export failed:", err);
-        setStatus("Couldn't create the image. Try again.");
+        setStatus("We couldn't create the image. Please try again.");
         setBusy(false);
         return;
       }
@@ -460,14 +460,14 @@ export default function TripCardsPage({ trip, onBack }) {
     }
     setStatus(`Saved ${files.length}`);
   });
-  const shareOne = () => run("Preparing…", async () => {
+  const shareOne = () => run("Getting your card ready…", async () => {
     const file = await render(active);
     if (navigator.canShare?.({ files: [file] })) {
       await navigator.share({ files: [file], title: trip.title });
       setStatus("");
     } else {
       download(file);
-      setStatus("Sharing isn't available here, so the image was saved instead.");
+      setStatus("Sharing isn't available on this device, so we saved the image instead.");
     }
   });
 
@@ -481,7 +481,7 @@ export default function TripCardsPage({ trip, onBack }) {
       </button>
       <div className="text-center">
         <h2 className="font-heading text-lg text-foreground">Trip card preview</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">Swipe to pick a card. What you see is what gets saved.</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Swipe to choose a card. What you see is what you'll save.</p>
       </div>
 
       <div
@@ -527,7 +527,7 @@ export default function TripCardsPage({ trip, onBack }) {
         <button onClick={saveAll} disabled={busy} className="flex-1 py-2.5 rounded-full text-sm font-body border disabled:opacity-60" style={{ borderColor: BROWN, color: BROWN }}>Save all {cards.length}</button>
         <button onClick={shareOne} disabled={busy} className="flex-1 py-2.5 rounded-full text-sm font-body border disabled:opacity-60" style={{ borderColor: BROWN, color: BROWN }}>Share…</button>
       </div>
-      <p className="text-[11px] text-center text-muted-foreground min-h-[1em]">{status || "Drawn on your device from your own trip. Nothing is uploaded."}</p>
+      <p className="text-[11px] text-center text-muted-foreground min-h-[1em]">{status || "Made on your device from your own trip. Nothing leaves your device."}</p>
     </div>
   );
 }
