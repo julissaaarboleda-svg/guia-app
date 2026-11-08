@@ -1,3 +1,4 @@
+import { nameFor, firstNameFor, initialsFor as initialsOf } from "@/lib/collab";
 import { useState, useMemo } from "react";
 import { Plus, Trash2, SlidersHorizontal, DollarSign, Check, Pencil } from "lucide-react";
 import DateInput from "@/components/DateInput";
@@ -7,11 +8,6 @@ function colorForPerson(email) {
   let hash = 0;
   for (let i = 0; i < email.length; i++) hash = email.charCodeAt(i) + ((hash << 5) - hash);
   return CHIP_COLORS[Math.abs(hash) % CHIP_COLORS.length];
-}
-function initialsFor(email, currentEmail) {
-  if (email === currentEmail) return "Me".slice(0, 2).toUpperCase();
-  const namePart = email.split("@")[0];
-  return namePart.slice(0, 2).toUpperCase();
 }
 
 // Tasks can now have more than one assignee. Older tasks only ever had a
@@ -36,7 +32,7 @@ function dueDateInfo(dueDate) {
   return { label: `Due ${label}`, tone: "normal" };
 }
 
-export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd, onToggle, onRemove, onReassign, onAddToBudget, onUpdateTask }) {
+export default function ProjectTasks({ tasks, collaborators, names = {}, currentEmail, onAdd, onToggle, onRemove, onReassign, onAddToBudget, onUpdateTask }) {
   const [name, setName] = useState("");
   const [assignees, setAssignees] = useState([currentEmail]);
   const [dueDate, setDueDate] = useState("");
@@ -136,7 +132,7 @@ export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd
                     onClick={() => { setFilter(c); setShowAssigneeFilter(false); }}
                     className={`w-full text-left px-3 py-1.5 text-xs hover:bg-secondary ${filter === c ? "font-semibold text-foreground" : "text-muted-foreground"}`}
                   >
-                    {c.split("@")[0]}'s ({countFor(c)})
+                    {firstNameFor(c, names)}'s ({countFor(c)})
                   </button>
                 ))}
               </div>
@@ -186,7 +182,7 @@ export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd
                 className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-full border transition-colors ${assignees.includes(c) ? "text-white border-transparent" : "bg-muted text-muted-foreground border-input"}`}
                 style={assignees.includes(c) ? { backgroundColor: colorForPerson(c) } : undefined}
               >
-                {assignees.includes(c) && <Check className="w-3 h-3" />} {c.split("@")[0]}
+                {assignees.includes(c) && <Check className="w-3 h-3" />} {nameFor(c, names)}
               </button>
             ))}
           </div>
@@ -277,7 +273,7 @@ export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd
                       className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[9px] font-bold border-2 border-card"
                       style={{ background: colorForPerson(email), zIndex: 3 - i }}
                     >
-                      {initialsFor(email, currentEmail)}
+                      {initialsOf(email, names, currentEmail)}
                     </span>
                   ))}
                   {people.length > 3 && (
@@ -308,7 +304,7 @@ export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd
                           <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 ${people.includes(c) ? "bg-accent border-accent" : "border-input"}`}>
                             {people.includes(c) && <Check className="w-2.5 h-2.5 text-white" />}
                           </span>
-                          <span className={`truncate ${people.includes(c) ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{c.split("@")[0]}</span>
+                          <span className={`truncate ${people.includes(c) ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{nameFor(c, names)}</span>
                         </button>
                       ))}
                       <div className="border-t border-border mt-1 pt-1">

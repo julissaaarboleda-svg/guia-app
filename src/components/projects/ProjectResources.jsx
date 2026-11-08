@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Upload, Trash2, FileText, X } from "lucide-react";
+import { Upload, FileText, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
 function isImage(att) {

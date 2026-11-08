@@ -1,18 +1,21 @@
 import { useState } from "react";
+import { nameFor } from "@/lib/collab";
 import { X, Check, Link2, Mail } from "lucide-react";
 
 // Controlled component now — ProjectDetail.jsx owns the "open" state and
 // triggers this via its own top-right icon (matching the reference design,
 // which shows one dedicated person+ icon rather than avatars nested in the
 // hero). This modal is just the picker itself.
-export default function ProjectCollaborators({ open, onClose, collaborators, onAdd, onRemove, canManage, projectId, projectTitle }) {
+export default function ProjectCollaborators({ open, onClose, collaborators, names = {}, onAdd, onRemove, canManage, projectId, projectTitle }) {
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
 
   const submit = () => {
     if (!email.trim()) return;
-    onAdd(email.trim());
+    onAdd(email.trim(), name);
     setEmail("");
+    setName("");
   };
 
   const copyLink = async () => {
@@ -50,15 +53,20 @@ export default function ProjectCollaborators({ open, onClose, collaborators, onA
               {linkCopied ? <><Check className="w-4 h-4 text-green-600" /> Link copied</> : <><Link2 className="w-4 h-4" /> Copy project link</>}
             </button>
             <p className="text-[11px] text-muted-foreground mb-4 leading-relaxed">
-              Share this so they know which project you mean — they'll still need to be added by email below to actually see it.
+              Share this so they know which project you mean — they'll still need to be added by email below. Once added, the project shows up under Projects the next time they open Guía.
             </p>
 
             <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
               <Mail className="w-3.5 h-3.5" /> Add by email
             </div>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Name (optional)"
+              className="w-full mb-2 bg-muted border border-input rounded-lg px-3 py-2 text-sm outline-none focus:border-ring"
+            />
             <div className="flex gap-2">
               <input
-                autoFocus
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && submit()}
@@ -74,7 +82,10 @@ export default function ProjectCollaborators({ open, onClose, collaborators, onA
           <div className={canManage ? "mt-4 pt-4 border-t border-border space-y-1.5" : "space-y-1.5"}>
             {collaborators.map((c) => (
               <div key={c} className="flex items-center justify-between text-sm">
-                <span className="text-foreground truncate">{c}</span>
+                <span className="text-foreground truncate">
+                  {nameFor(c, names)}
+                  {names[c.toLowerCase()] && <span className="text-muted-foreground text-xs"> · {c}</span>}
+                </span>
                 {canManage && (
                   <button onClick={() => onRemove(c)} className="text-muted-foreground hover:text-destructive text-xs">Remove</button>
                 )}

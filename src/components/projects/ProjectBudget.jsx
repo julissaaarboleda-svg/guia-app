@@ -1,3 +1,4 @@
+import { nameFor, initialsFor as initialsOf } from "@/lib/collab";
 import { useState } from "react";
 import { Plus, Trash2, Check, Pencil, ChevronDown } from "lucide-react";
 
@@ -6,10 +7,6 @@ function colorForPerson(email) {
   let hash = 0;
   for (let i = 0; i < email.length; i++) hash = email.charCodeAt(i) + ((hash << 5) - hash);
   return CHIP_COLORS[Math.abs(hash) % CHIP_COLORS.length];
-}
-function initialsFor(email, currentEmail) {
-  if (email === currentEmail) return "Me".slice(0, 2).toUpperCase();
-  return email.split("@")[0].slice(0, 2).toUpperCase();
 }
 
 // Expenses can now have more than one payer. Older expenses only ever had
@@ -21,7 +18,7 @@ function payersFor(expense) {
   return [];
 }
 
-export default function ProjectBudget({ target, expenses, collaborators = [], currentEmail, onAddExpense, onRemoveExpense, onReassignExpense, onUpdateExpense }) {
+export default function ProjectBudget({ target, expenses, collaborators = [], names = {}, currentEmail, onAddExpense, onRemoveExpense, onReassignExpense, onUpdateExpense }) {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [paidBy, setPaidBy] = useState([currentEmail].filter(Boolean));
@@ -155,7 +152,7 @@ export default function ProjectBudget({ target, expenses, collaborators = [], cu
                     className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-full border transition-colors ${paidBy.includes(c) ? "text-white border-transparent" : "bg-muted text-muted-foreground border-input"}`}
                     style={paidBy.includes(c) ? { backgroundColor: colorForPerson(c) } : undefined}
                   >
-                    {paidBy.includes(c) && <Check className="w-3 h-3" />} {c.split("@")[0]}
+                    {paidBy.includes(c) && <Check className="w-3 h-3" />} {nameFor(c, names)}
                   </button>
                 ))}
               </div>
@@ -239,7 +236,7 @@ export default function ProjectBudget({ target, expenses, collaborators = [], cu
                     <button
                       onClick={() => setReassigningIdx(reassigningIdx === i ? null : i)}
                       className="flex items-center -space-x-1.5"
-                      title={payers.length > 0 ? payers.map((p) => (p === currentEmail ? "Me" : p)).join(", ") + " — tap to change" : "Tap to set who paid"}
+                      title={payers.length > 0 ? payers.map((p) => nameFor(p, names, currentEmail)).join(", ") + " — tap to change" : "Tap to set who paid"}
                     >
                       {payers.length === 0 ? (
                         <span className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[9px] font-bold" style={{ background: "#C4BEB2" }}>?</span>
@@ -251,7 +248,7 @@ export default function ProjectBudget({ target, expenses, collaborators = [], cu
                               className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[9px] font-bold border-2 border-card"
                               style={{ background: colorForPerson(email), zIndex: 3 - idx }}
                             >
-                              {initialsFor(email, currentEmail)}
+                              {initialsOf(email, names, currentEmail)}
                             </span>
                           ))}
                           {payers.length > 3 && (
@@ -286,7 +283,7 @@ export default function ProjectBudget({ target, expenses, collaborators = [], cu
                               <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 ${payers.includes(c) ? "bg-accent border-accent" : "border-input"}`}>
                                 {payers.includes(c) && <Check className="w-2.5 h-2.5 text-white" />}
                               </span>
-                              <span className={`truncate ${payers.includes(c) ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{c.split("@")[0]}</span>
+                              <span className={`truncate ${payers.includes(c) ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{nameFor(c, names)}</span>
                             </button>
                           ))}
                           <div className="border-t border-border mt-1 pt-1">
@@ -322,10 +319,10 @@ export default function ProjectBudget({ target, expenses, collaborators = [], cu
                               className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[8px] font-bold flex-shrink-0"
                               style={{ background: colorForPerson(email) }}
                             >
-                              {initialsFor(email, currentEmail)}
+                              {initialsOf(email, names, currentEmail)}
                             </span>
                             <span className="text-xs text-foreground truncate">
-                              {email === currentEmail ? "Me" : email.split("@")[0]} · ${share.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                              {nameFor(email, names, currentEmail)} · ${share.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                             </span>
                           </div>
                           <button

@@ -84,6 +84,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
 
   const tasks = project.tasks || [];
   const collaborators = project.collaborators || [];
+  const names = project.collaborator_names || {};
   const visibleTabs = project.visible_tabs || DEFAULT_VISIBLE_TABS;
 
   useEffect(() => {
@@ -98,6 +99,13 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
       .then((u) => {
         setIsOwner(!project.created_by_id || u.id === project.created_by_id);
         setCurrentUserEmail(u.email);
+        // Self-register my own display name on the project the first time I open
+        // it, so everyone else sees "Ruth" instead of the start of my email.
+        const key = (u.email || "").toLowerCase();
+        const mine = u.full_name && u.full_name !== u.email ? u.full_name : "";
+        if (key && mine && (latestRef.current.collaborator_names || {})[key] !== mine) {
+          mutate((p) => ({ collaborator_names: { ...(p.collaborator_names || {}), [key]: mine } }));
+        }
       })
       .catch(() => setIsOwner(false));
   }, [project.created_by_id]);
@@ -228,19 +236,26 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
   // this is what let "ruth@..." and "Ruth@..." get added as two separate
   // collaborators. The dedup check was case-sensitive, so a differently
   // capitalized retry looked like a brand new person.
-  const addCollaborator = (email) => {
+  const addCollaborator = (email, name) => {
     const normalized = (email || "").trim().toLowerCase();
     if (!normalized) return Promise.resolve();
+    const cleanName = (name || "").trim();
     return mutate((p) => {
       const list = p.collaborators || [];
       if (list.some((c) => c.toLowerCase() === normalized)) return null;
-      return { collaborators: [...list, normalized] };
+      const patch = { collaborators: [...list, normalized] };
+      if (cleanName) patch.collaborator_names = { ...(p.collaborator_names || {}), [normalized]: cleanName };
+      return patch;
     });
   };
 
   const removeCollaborator = (email) => {
     const normalized = (email || "").trim().toLowerCase();
-    return mutate((p) => ({ collaborators: (p.collaborators || []).filter((c) => c.toLowerCase() !== normalized) }));
+    return mutate((p) => {
+      const rest = { ...(p.collaborator_names || {}) };
+      delete rest[normalized];
+      return { collaborators: (p.collaborators || []).filter((c) => c.toLowerCase() !== normalized), collaborator_names: rest };
+    });
   };
 
   const setAttachments = (attachments) => mutate(() => ({ attachments }));
@@ -391,6 +406,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
           open={showCollabModal}
           onClose={() => setShowCollabModal(false)}
           collaborators={collaborators}
+          names={names}
           onAdd={addCollaborator}
           onRemove={removeCollaborator}
           canManage={isOwner}
@@ -671,6 +687,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
             <ProjectTasks
               tasks={tasks}
               collaborators={collaborators}
+              names={names}
               currentEmail={currentUserEmail}
               onAdd={addTask}
               onToggle={toggleTask}
@@ -698,6 +715,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
               target={budgetTarget}
               expenses={expenses}
               collaborators={collaborators}
+              names={names}
               currentEmail={currentUserEmail}
               onAddExpense={addExpense}
               onRemoveExpense={removeExpense}

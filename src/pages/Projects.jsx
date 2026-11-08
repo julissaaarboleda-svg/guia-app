@@ -1,3 +1,4 @@
+import { nameFor, initialsFor as initialsOf, sameEmail } from "@/lib/collab";
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
@@ -32,10 +33,6 @@ function colorForPerson(email) {
   for (let i = 0; i < email.length; i++) hash = email.charCodeAt(i) + ((hash << 5) - hash);
   return CHIP_COLORS[Math.abs(hash) % CHIP_COLORS.length];
 }
-function initialsFor(email, currentEmail) {
-  if (email === currentEmail) return "Me".slice(0, 2).toUpperCase();
-  return email.split("@")[0].slice(0, 2).toUpperCase();
-}
 
 export default function Projects() {
   const [projects, setProjects] = useState([]);
@@ -48,9 +45,10 @@ export default function Projects() {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ title: "", description: "", status: "planning", target_date: "", category: "", visible_tabs: DEFAULT_VISIBLE_TABS });
   const [currentEmail, setCurrentEmail] = useState("");
+  const [currentId, setCurrentId] = useState("");
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const data = await ent.Project.list("-created_date");
       setProjects(data);
@@ -63,7 +61,16 @@ export default function Projects() {
 
   useEffect(() => {
     load();
-    base44.auth.me().then((u) => setCurrentEmail(u.email)).catch(() => {});
+    base44.auth.me().then((u) => { setCurrentEmail(u.email); setCurrentId(u.id); }).catch(() => {});
+    // Pick up projects someone just shared with me without a manual reload:
+    // refetch quietly whenever the app comes back to the foreground.
+    const refresh = () => { if (document.visibilityState === "visible") load(true); };
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("focus", refresh);
+    };
   }, []);
 
   const addProject = async () => {
@@ -171,6 +178,9 @@ export default function Projects() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-heading text-base text-foreground truncate">{project.title}</h3>
                         <span className={`text-[10px] px-2 py-0.5 rounded-full border flex-shrink-0 ${statusColors[project.status]}`}>{project.status.replace("_", " ")}</span>
+                        {currentId && project.created_by_id && project.created_by_id !== currentId && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#A7773F]/40 text-[#A7773F] flex-shrink-0">Shared with you</span>
+                        )}
                       </div>
                       {project.description && <p className="text-muted-foreground text-xs line-clamp-1">{project.description}</p>}
                       <div className="flex items-center gap-2.5">
@@ -194,16 +204,16 @@ export default function Projects() {
                             style={{ background: colorForPerson(currentEmail || "me") }}
                             title="Me"
                           >
-                            {initialsFor(currentEmail || "me", currentEmail)}
+                            {initialsOf(currentEmail || "me", project.collaborator_names, currentEmail)}
                           </div>
-                          {(project.collaborators || []).filter((c) => c !== currentEmail).map((c) => (
+                          {(project.collaborators || []).filter((c) => !sameEmail(c, currentEmail)).map((c) => (
                             <div
                               key={c}
                               className="w-5 h-5 rounded-full border-2 border-card flex items-center justify-center text-white text-[8px] font-bold"
                               style={{ background: colorForPerson(c) }}
-                              title={c}
+                              title={nameFor(c, project.collaborator_names)}
                             >
-                              {initialsFor(c, currentEmail)}
+                              {initialsOf(c, project.collaborator_names, currentEmail)}
                             </div>
                           ))}
                         </div>

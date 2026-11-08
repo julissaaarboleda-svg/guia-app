@@ -26,6 +26,10 @@ const CORS = {
 
 // Only these emails can read Feedback across all users (see the GET-list
 // branch below). ⚠️ REPLACE THIS with your real login email before deploying.
+const isCollab = (item, email) =>
+  !!item && Array.isArray(item.collaborators) && !!email &&
+  item.collaborators.some((c) => String(c).toLowerCase() === String(email).toLowerCase());
+
 const ADMIN_EMAILS = ["contact@julissaa.com"];
 
 function json(statusCode, body) {
@@ -79,7 +83,7 @@ exports.handler = async (event, context) => {
         const others = allBlobs.filter((b) => b.key.includes(`/${entityName}/`) && !b.key.startsWith(prefix));
         const otherItems = await Promise.all(others.map((b) => store.get(b.key, { type: "json" })));
         sharedItems = otherItems.filter(
-          (item) => item && Array.isArray(item.collaborators) && item.collaborators.includes(user.email)
+          (item) => isCollab(item, user.email)
         );
       }
 
@@ -98,7 +102,7 @@ exports.handler = async (event, context) => {
         const match = allBlobs.find((b) => b.key.endsWith(`/${entityName}/${id}`));
         if (match) {
           const candidate = await store.get(match.key, { type: "json" });
-          if (candidate && Array.isArray(candidate.collaborators) && candidate.collaborators.includes(user.email)) {
+          if (isCollab(candidate, user.email)) {
             item = candidate;
           }
         }
@@ -131,7 +135,7 @@ exports.handler = async (event, context) => {
         const match = allBlobs.find((b) => b.key.endsWith(`/${entityName}/${id}`));
         if (match) {
           const candidate = await store.get(match.key, { type: "json" });
-          if (candidate && Array.isArray(candidate.collaborators) && candidate.collaborators.includes(user.email)) {
+          if (isCollab(candidate, user.email)) {
             existing = candidate;
             realKey = match.key;
           }
