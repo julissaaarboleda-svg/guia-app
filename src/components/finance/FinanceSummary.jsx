@@ -41,6 +41,16 @@ export default function FinanceSummary({ items, buckets, onNavigate, onAddFirst 
   const savingsTarget = savings.reduce((s, g) => s + (g.target_amount || 0), 0);
 
   const loans = items.filter(i => i.type === "loan");
+  const loanLines = loans.map(l => {
+    const unpaid = (l.schedule || []).filter(p => !p.paid).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    const left = unpaid.reduce((t, p) => t + Number(p.amount || 0), 0);
+    const payoff = l.payoff_amount != null ? Number(l.payoff_amount) : null;
+    const bits = [`payoff today ${payoff != null ? fmt(payoff) : "unknown"}`, `${unpaid.length} payments left totaling ${fmt(left)}`];
+    if (unpaid[0]) bits.push(`next ${fmt(unpaid[0].amount)} on ${unpaid[0].date}`);
+    if (payoff != null && left > payoff && l.reduces_balance !== false) bits.push(`paying off today saves ${fmt(left - payoff)}`);
+    if (l.reduces_balance === false) bits.push("scheduled payments do not reduce the balance");
+    return `  - ${l.name}: ${bits.join("; ")}`;
+  }).join("\n");
   const loansOutstanding = loans.reduce((s, l) => s + (l.payoff_amount != null ? Number(l.payoff_amount) : (l.total_amount || 0) - (l.amount_paid || 0)), 0);
 
   const credit = items.filter(i => i.type === "credit_score");
@@ -82,11 +92,13 @@ ${recurringBills.length > 0 ? recurringBills.map(b => `  - ${b.name}: $${b.amoun
 ${oneTimeBills.length > 0 ? oneTimeBills.map(b => `  - ${b.name}: $${b.amount}${b.due_date ? ` (due ${b.due_date})` : ""}`).join("\n") : ""}
 - Subscriptions: ${subs.length} active, ${fmt(subMonthly)}/month equivalent
 - Savings goals: ${savings.length} goals, ${fmt(savingsCurrent)} saved of ${fmt(savingsTarget)} target
-- Outstanding loan debt: ${fmt(loansOutstanding)} across ${loans.length} loans
+- Outstanding loan debt: ${fmt(loansOutstanding)} across ${loans.length} loans\n${loanLines}
 - Top credit score: ${topScore || "N/A"}
 - Monthly income: ${fmt(income)}
 - Budget utilization: ${budgetUtil.toFixed(0)}% (${fmt(totalSpent)} spent of ${fmt(totalAllocated)} allocated)
 - Category breakdown: ${buckets.map(b => `${b.name || b.category || "Other"}: ${fmt(b.spent_amount || 0)}`).join(", ") || "none"}
+
+LOANS: if there is loan debt, one of the three recommendations must be about paying it down (for example paying off early if that saves money, or the next payment due). Mention the debt in the summary only if it is the biggest issue.
 
 ADDITIONAL ANALYSIS — 50/30/20 RULE:
 If monthly income is greater than 0, evaluate spending against the 50/30/20 guideline (50% needs, 30% wants, 20% savings/debt repayment). Estimate which spending categories fall into needs vs wants based on their names, compute rough percentages of income, and call out whether the user is on track. Mention it in at most ONE recommendation, never in the summary.
@@ -107,7 +119,7 @@ Format your response as JSON with this structure:
       setInsights(res);
       setLoading(false);
     }).catch(() => { setFailed(true); setLoading(false); });
-  }, [items.length, buckets.length, budgetUtil, retry, income, incomeReady]);
+  }, [items.length, buckets.length, budgetUtil, retry, income, incomeReady, loanLines]);
 
   const utilColor = budgetUtil > 100 ? "text-destructive" : budgetUtil > 80 ? "text-foreground" : "text-muted-foreground";
   const utilBarColor = budgetUtil > 100 ? "bg-destructive" : budgetUtil > 80 ? "bg-[#8B6B3E]" : "bg-[#A7773F]";
