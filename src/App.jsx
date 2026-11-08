@@ -28,19 +28,28 @@ const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
   const [onboardingDone, setOnboardingDone] = useState(null);
 
+  const [retryKey, setRetryKey] = useState(0);
+
   useEffect(() => {
     if (isLoadingAuth || isLoadingPublicSettings || authError) return;
+    let alive = true;
     const check = async () => {
+      setOnboardingDone(null);
       try {
         const u = await base44.auth.me();
         const p = await ent.UserPreferences.filter({ user_email: u.email });
-        setOnboardingDone(p.length > 0 && p[0].onboarding_complete);
-      } catch {
-        setOnboardingDone(false);
+        if (alive) setOnboardingDone(p.length > 0 && !!p[0].onboarding_complete);
+      } catch (err) {
+        // A failed lookup (expired session, network, server hiccup) must NOT be
+        // treated as "new user" — that dropped returning users onto the welcome
+        // screen. Show a retry screen instead.
+        console.error("Profile check failed:", err);
+        if (alive) setOnboardingDone("error");
       }
     };
     check();
-  }, [isLoadingAuth, isLoadingPublicSettings, authError]);
+    return () => { alive = false; };
+  }, [isLoadingAuth, isLoadingPublicSettings, authError, retryKey]);
 
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
@@ -61,8 +70,27 @@ const AuthenticatedApp = () => {
 
   if (onboardingDone === null) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-[#0f1117]">
+      <div className="fixed inset-0 flex items-center justify-center bg-background">
         <div className="w-8 h-8 border-4 border-border border-t-[#A7773F] rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (onboardingDone === "error") {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-background px-6">
+        <div className="w-full max-w-sm bg-card border border-border rounded-3xl shadow-editorial p-7 text-center">
+          <h1 className="font-heading text-xl text-foreground mb-2">Couldn't load your account</h1>
+          <p className="font-body text-[13px] text-muted-foreground mb-5">
+            This is usually a dropped connection or an expired sign-in. Your data is safe.
+          </p>
+          <button onClick={() => setRetryKey((k) => k + 1)} className="w-full bg-[#A7773F] text-white rounded-full py-3 font-heading text-[15px] mb-2.5">
+            Try again
+          </button>
+          <button onClick={() => { base44.auth.logout(); }} className="w-full border border-border text-foreground rounded-full py-3 font-body text-[13px]">
+            Sign in again
+          </button>
+        </div>
       </div>
     );
   }
