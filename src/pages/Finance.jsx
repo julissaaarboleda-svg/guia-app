@@ -1,6 +1,7 @@
 import { useState, useEffect, Fragment } from "react";
 import { ent } from "@/lib/freshEntities";
-import { Trash2, ChevronDown, ChevronUp, ChevronRight, Pencil, X } from "lucide-react";
+import { Trash2, ChevronDown, ChevronUp, ChevronRight, Pencil, X, MoreHorizontal, Check, Plus } from "lucide-react";
+import { isPaid, paidPatch, dueInfo, TONE_CLASS, monthKeyOf, isRecurringBill, monthlyEquivalent, needsReview } from "@/lib/financeHelpers";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import PageHeader from "@/components/PageHeader";
@@ -36,6 +37,21 @@ function fmtDate(s) {
   const d = safeDate(s);
   return d ? d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
 }
+function RowMenu({ open, onToggle, onClose, children }) {
+  return (
+    <div className="relative flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+      <button onClick={onToggle} aria-label="Options" className="p-1 text-muted-foreground/60 hover:text-foreground"><MoreHorizontal className="w-4 h-4" /></button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-[9]" onClick={onClose} />
+          <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-lg shadow-lg z-10 py-1 min-w-[150px]">{children}</div>
+        </>
+      )}
+    </div>
+  );
+}
+const menuBtn = "w-full flex items-center gap-2 text-left px-3 py-2 text-xs hover:bg-secondary";
+
 const ADD_LABELS = { credit_score: "score", savings_goal: "goal", bill: "bill", loan: "loan", subscription: "subscription", budget: "bucket" };
 const TAB_LABELS = { summary: "Summary", credit_score: "Credit Scores", savings_goal: "Savings Goals", bill: "Bills", loan: "Loans", subscription: "Subscriptions", budget: "Budget" };
 
@@ -52,6 +68,9 @@ export default function Finance() {
   const [editingItemId, setEditingItemId] = useState(null);
   const [editItemForm, setEditItemForm] = useState({});
   const [collapsed, setCollapsed] = useState({});
+  const [menuId, setMenuId] = useState(null);
+  const [contribId, setContribId] = useState(null);
+  const [contribAmt, setContribAmt] = useState("");
 
   const load = async () => {
     const [i, b] = await Promise.all([
@@ -146,7 +165,7 @@ export default function Finance() {
   };
 
   const togglePaid = async (item) => {
-    await ent.FinanceItem.update(item.id, { paid: !item.paid });
+    await ent.FinanceItem.update(item.id, paidPatch(item, !isPaid(item)));
     load();
   };
 
@@ -194,7 +213,7 @@ export default function Finance() {
       target_amount: item.target_amount || "",
       due_date: item.due_date || "",
       amount: item.amount || "",
-      paid: item.paid || false,
+      paid: isPaid(item),
       monthly_payment: item.monthly_payment || "",
       total_amount: item.total_amount || "",
       amount_paid: item.amount_paid || 0,
@@ -222,6 +241,7 @@ export default function Finance() {
       data.amount = Number(editItemForm.amount) || null;
       data.due_date = editItemForm.due_date || null;
       data.paid = editItemForm.paid;
+      data.paid_month = editItemForm.paid ? monthKeyOf() : null;
       data.is_fixed = editItemForm.is_fixed || false;
       data.category = editItemForm.category === "__new__" ? (editItemForm.customCategory || "") : (editItemForm.category || "");
       data.billing_cycle = editItemForm.recurrence || "one_time";
@@ -254,7 +274,7 @@ export default function Finance() {
 
   return (
     <>
-      <div className="max-w-[1200px] 2xl:max-w-[1400px] mx-auto w-full">
+      <div className="finance-ui max-w-[1200px] 2xl:max-w-[1400px] mx-auto w-full">
       <PageHeader
         title="Finance"
         subtitle="Your financial picture, at a glance."
@@ -515,11 +535,29 @@ export default function Finance() {
         </div>
       )}
 
+      {activeTab === "bill" && (() => {
+        const mk = monthKeyOf();
+        const monthBills = items.filter((i) => i.type === "bill" && (isRecurringBill(i) || (i.due_date || "").startsWith(mk)));
+        const total = monthBills.reduce((s, b) => s + (Number(b.amount) || 0), 0);
+        const paid = monthBills.filter(isPaid).reduce((s, b) => s + (Number(b.amount) || 0), 0);
+        if (!monthBills.length) return null;
+        const money0 = (n) => `$${Math.round(n).toLocaleString()}`;
+        return (
+          <div className="bg-card border border-border rounded-2xl px-4 py-3 mb-3">
+            <div className="flex items-start justify-between text-xs text-muted-foreground">
+              <div>{new Date().toLocaleDateString("en-US", { month: "long" })}<p className="font-heading text-base text-foreground mt-0.5">{money0(total)} in bills</p></div>
+              <div className="text-right">Paid so far<p className="font-heading text-base mt-0.5" style={{ color: "#566033" }}>{money0(paid)}</p></div>
+            </div>
+            <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-2.5"><div className="h-full rounded-full" style={{ width: `${total ? Math.min(100, (paid / total) * 100) : 0}%`, background: "#A7773F" }} /></div>
+          </div>
+        );
+      })()}
+
       {activeTab === "loan" && <UpcomingLoans items={items} />}
 
       {/* Items */}
       {activeTab !== "budget" && (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 [&>*:only-child]:col-span-full">
+      <div className={`grid grid-cols-1 lg:grid-cols-2 ${activeTab === "bill" ? "gap-2" : "gap-3"} [&>*:only-child]:col-span-full`}>
         {tabItems.length === 0 && !adding && activeTab !== "summary" && (
           <div className="text-center py-10 text-muted-foreground bg-card border border-border rounded-2xl">
             <p className="font-heading text-base text-foreground">No {TAB_LABELS[activeTab].toLowerCase()} yet.</p>
@@ -559,7 +597,7 @@ export default function Finance() {
                 <button type="button" onClick={() => setCollapsed(c => ({ ...c, subs: !c.subs }))} className="flex items-center gap-1.5 w-full py-1">
                   {collapsed.subs ? <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
                   <h3 className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground">Subscriptions</h3>
-                  <span className="text-xs text-muted-foreground ml-auto">${subMonthlyEquivalent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo</span>
+                  <span className="text-xs text-muted-foreground ml-auto">${subMonthlyEquivalent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo · ${Math.round(subMonthlyEquivalent * 12).toLocaleString()}/yr</span>
                 </button>
               </div>
             )}
@@ -768,6 +806,44 @@ export default function Finance() {
                   <button onClick={() => setEditingItemId(null)} className="px-4 py-2 text-muted-foreground text-sm hover:text-foreground transition-colors">Cancel</button>
                 </div>
               </div>
+            ) : (item.type === "bill" || item.type === "subscription") ? (
+              (() => {
+                const isBill = item.type === "bill";
+                const due = isBill ? dueInfo(item) : null;
+                const amt = Number(item.amount) || 0;
+                const yearly = item.billing_cycle === "yearly";
+                const subLine = isBill
+                  ? due.label
+                  : item.renewal_date
+                    ? `Renews ${fmtDate(item.renewal_date)}${yearly ? ` · ≈$${Math.round(monthlyEquivalent(item))}/mo` : ""}`
+                    : `${(item.billing_cycle || "monthly").replace(/^./, (c) => c.toUpperCase())}${yearly ? ` · ≈$${Math.round(monthlyEquivalent(item))}/mo` : ""}`;
+                return (
+                  <div className="flex items-center gap-3 px-4 py-3">
+                    {isBill && (
+                      <button
+                        onClick={() => togglePaid(item)}
+                        aria-label={due.tone === "paid" ? "Mark unpaid" : "Mark paid"}
+                        className={`w-[22px] h-[22px] rounded-full border flex items-center justify-center flex-shrink-0 ${due.tone === "paid" ? "bg-[#566033] border-[#566033]" : "border-[#CFC7B8]"}`}
+                      >
+                        {due.tone === "paid" && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                      </button>
+                    )}
+                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => openEditItem(item)}>
+                      <p className="text-[14.5px] text-foreground truncate">{item.name}
+                        {isBill && item.is_fixed && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-[#F3E8D6] text-[#8A5F27] align-middle">Fixed</span>}
+                        {!isBill && needsReview(item) && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-[#F4E6E7] text-[#8F5F65] align-middle">Review</span>}
+                      </p>
+                      <p className={`text-[11.5px] ${isBill ? TONE_CLASS[due.tone] : "text-muted-foreground"}`}>{subLine}</p>
+                    </div>
+                    <span className="font-heading text-[14px] text-foreground flex-shrink-0">${amt.toLocaleString(undefined, { minimumFractionDigits: Number.isInteger(amt) ? 0 : 2, maximumFractionDigits: 2 })}{!isBill && yearly ? "/yr" : ""}</span>
+                    <RowMenu open={menuId === item.id} onToggle={() => setMenuId(menuId === item.id ? null : item.id)} onClose={() => setMenuId(null)}>
+                      <button className={menuBtn} onClick={() => { setMenuId(null); openEditItem(item); }}><Pencil className="w-3.5 h-3.5" /> Edit</button>
+                      {!isBill && <button className={menuBtn} onClick={async () => { setMenuId(null); await ent.FinanceItem.update(item.id, { reviewed_at: new Date().toISOString() }); load(); }}><Check className="w-3.5 h-3.5" /> Still using it</button>}
+                      <button className={`${menuBtn} text-[#8F5F65]`} onClick={() => { setMenuId(null); if (confirm(`Delete ${item.name}?`)) remove(item.id); }}><Trash2 className="w-3.5 h-3.5" /> Delete</button>
+                    </RowMenu>
+                  </div>
+                );
+              })()
             ) : (
               <div
                 className="p-4 cursor-pointer"
@@ -811,8 +887,23 @@ export default function Finance() {
                         </div>
                         {item.target_amount && (
                           <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div className="h-full bg-accent rounded-full" style={{ width: `${Math.min(((item.current_amount || 0) / item.target_amount) * 100, 100)}%` }} />
+                            <div className="h-full rounded-full" style={{ background: "#A7773F", width: `${Math.min(((item.current_amount || 0) / item.target_amount) * 100, 100)}%` }} />
                           </div>
+                        )}
+                        {item.target_amount && (
+                          <p className="text-[11.5px] text-muted-foreground mt-1.5">{Math.round(Math.min(((item.current_amount || 0) / item.target_amount) * 100, 100))}% · ${Math.max(0, item.target_amount - (item.current_amount || 0)).toLocaleString()} to go</p>
+                        )}
+                        {contribId === item.id ? (
+                          <div className="flex items-center gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                            <input type="number" inputMode="decimal" autoFocus value={contribAmt} onChange={(e) => setContribAmt(e.target.value)} placeholder="Amount"
+                              className="w-28 bg-secondary border border-input rounded-lg px-2 py-1.5 text-sm outline-none focus:border-ring" />
+                            <button
+                              onClick={async () => { const v = Number(contribAmt); if (v > 0) { await ent.FinanceItem.update(item.id, { current_amount: (item.current_amount || 0) + v }); load(); } setContribId(null); }}
+                              className="text-xs text-white rounded-full px-3.5 py-1.5" style={{ background: "#A7773F" }}>Add</button>
+                            <button onClick={() => setContribId(null)} className="text-xs text-muted-foreground">Cancel</button>
+                          </div>
+                        ) : (
+                          <button onClick={(e) => { e.stopPropagation(); setContribId(item.id); setContribAmt(""); }} className="text-xs mt-2 font-medium" style={{ color: "#A7773F" }}>+ Add contribution</button>
                         )}
                       </div>
                     )}
@@ -846,14 +937,11 @@ export default function Finance() {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={() => openEditItem(item)} className="text-muted-foreground/60 hover:text-foreground transition-colors">
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => remove(item.id)} className="text-muted-foreground/40 hover:text-rose-400 transition-colors">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                  <RowMenu open={menuId === item.id} onToggle={() => setMenuId(menuId === item.id ? null : item.id)} onClose={() => setMenuId(null)}>
+                    <button className={menuBtn} onClick={() => { setMenuId(null); item.type === "credit_score" ? toggleExpand(item) : openEditItem(item); }}><Pencil className="w-3.5 h-3.5" /> Edit</button>
+                    {item.type === "savings_goal" && <button className={menuBtn} onClick={() => { setMenuId(null); setContribId(item.id); setContribAmt(""); }}><Plus className="w-3.5 h-3.5" /> Add contribution</button>}
+                    <button className={`${menuBtn} text-[#8F5F65]`} onClick={() => { setMenuId(null); if (confirm(`Delete ${item.name}?`)) remove(item.id); }}><Trash2 className="w-3.5 h-3.5" /> Delete</button>
+                  </RowMenu>
                 </div>
               </div>
             )}

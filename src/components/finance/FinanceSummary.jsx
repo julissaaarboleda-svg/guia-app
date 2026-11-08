@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
+import { isPaid, dueInfo, TONE_CLASS, monthlyEquivalent } from "@/lib/financeHelpers";
 import { Receipt, RefreshCw, PiggyBank, Landmark, TrendingUp, Sparkles, Lightbulb, Banknote } from "lucide-react";
 
 function monthKey(date) {
@@ -16,6 +17,7 @@ export default function FinanceSummary({ items, buckets, onNavigate, onAddFirst 
   const [incomeReady, setIncomeReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [retry, setRetry] = useState(0);
+  const [allTips, setAllTips] = useState(false);
 
   useEffect(() => {
     ent.MonthlyIncome.filter({ month: monthKey(new Date()) }).then(res => {
@@ -23,7 +25,7 @@ export default function FinanceSummary({ items, buckets, onNavigate, onAddFirst 
     }).catch(() => setIncome(0)).finally(() => setIncomeReady(true));
   }, []);
 
-  const unpaidBills = items.filter(i => i.type === "bill" && !i.paid);
+  const unpaidBills = items.filter(i => i.type === "bill" && !isPaid(i));
   const billsTotal = unpaidBills.reduce((s, b) => s + (b.amount || 0), 0);
 
   const recurringBills = unpaidBills.filter(b => b.is_fixed && b.billing_cycle && b.billing_cycle !== "one_time");
@@ -32,13 +34,7 @@ export default function FinanceSummary({ items, buckets, onNavigate, onAddFirst 
   const oneTimeTotal = oneTimeBills.reduce((s, b) => s + (b.amount || 0), 0);
 
   const subs = items.filter(i => i.type === "subscription");
-  const subMonthly = subs.reduce((sum, sub) => {
-    const amt = sub.amount || 0;
-    if (sub.billing_cycle === "yearly") return sum + amt / 12;
-    if (sub.billing_cycle === "quarterly") return sum + amt / 3;
-    if (sub.billing_cycle === "weekly") return sum + amt * 4.33;
-    return sum + amt;
-  }, 0);
+  const subMonthly = subs.reduce((sum, sub) => sum + monthlyEquivalent(sub), 0);
 
   const savings = items.filter(i => i.type === "savings_goal");
   const savingsCurrent = savings.reduce((s, g) => s + (g.current_amount || 0), 0);
@@ -124,7 +120,7 @@ Format your response as JSON with this structure:
             onClick={() => onNavigate(tab)}
             className="flex flex-col items-center gap-1.5 bg-card border border-border rounded-2xl py-4 px-1 hover:border-[#A7773F]/40 transition-colors"
           >
-            <Icon className="w-5 h-5 text-foreground" strokeWidth={1.5} />
+            <Icon className="w-5 h-5 text-[#A7773F]" strokeWidth={1.5} />
             <span className="font-heading text-[13px] text-foreground leading-none mt-0.5">{label}</span>
             <span className="font-heading text-[15px] font-bold text-foreground leading-none">{value}</span>
           </button>
@@ -154,7 +150,7 @@ Format your response as JSON with this structure:
       <div className="bg-secondary/60 border border-border rounded-2xl p-4 mb-3">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-foreground" strokeWidth={1.5} />
+            <Sparkles className="w-4 h-4 text-[#A7773F]" strokeWidth={1.5} />
             <h3 className="font-heading text-base font-bold text-foreground">AI Insights</h3>
             {loading && <span className="w-3 h-3 border-2 border-muted border-t-foreground rounded-full animate-spin ml-1" />}
           </div>
@@ -172,15 +168,18 @@ Format your response as JSON with this structure:
           </div>
         ) : insights ? (
           <>
-            <p className="font-heading text-[15px] text-foreground leading-snug mb-3">{insights.summary}</p>
+            <p className="text-[14px] text-foreground leading-relaxed mb-3">{insights.summary}</p>
             {insights.recommendations?.length > 0 && (
               <div className="space-y-2 border-t border-border pt-3">
-                {insights.recommendations.map((rec, idx) => (
+                {(allTips ? insights.recommendations : insights.recommendations.slice(0, 2)).map((rec, idx) => (
                   <div key={idx} className="flex items-start gap-2">
                     <Lightbulb className="w-3.5 h-3.5 text-[#A7773F] mt-0.5 flex-shrink-0" strokeWidth={1.5} />
-                    <p className="text-xs text-muted-foreground leading-relaxed">{rec}</p>
+                    <p className="text-[12.5px] text-muted-foreground leading-relaxed">{rec}</p>
                   </div>
                 ))}
+                {insights.recommendations.length > 2 && (
+                  <button onClick={() => setAllTips(v => !v)} className="text-xs font-medium text-[#A7773F] pt-1">{allTips ? "Show fewer" : `${insights.recommendations.length - 2} more tip${insights.recommendations.length - 2 === 1 ? "" : "s"} ›`}</button>
+                )}
               </div>
             )}
           </>
@@ -201,28 +200,37 @@ Format your response as JSON with this structure:
 
       </div>
 
-      {unpaidBills.length > 0 && (
+      {(() => {
+        const rows = [
+          ...items.filter(i => i.type === "bill").map(b => ({ id: b.id, name: b.name, amount: b.amount, info: dueInfo(b) })),
+          ...items.filter(i => i.type === "subscription" && i.renewal_date).map(sub => {
+            const d = new Date(`${sub.renewal_date}T00:00:00`); d.setHours(0, 0, 0, 0);
+            const days = Math.round((d - new Date(new Date().setHours(0, 0, 0, 0))) / 86400000);
+            return { id: sub.id, name: `${sub.name} (renews)`, amount: sub.amount, info: { date: d, days, tone: days <= 3 ? "soon" : "normal", label: `Renews ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })} · in ${days} day${days === 1 ? "" : "s"}` }, onlyUpcoming: days >= 0 && days <= 14 };
+          }).filter(r => r.onlyUpcoming),
+        ];
+        const list = rows.sort((a, b) => (a.info.tone === "paid") - (b.info.tone === "paid") || (a.info.date || 0) - (b.info.date || 0)).slice(0, 6);
+        if (!list.length) return null;
+        return (
         <div className="bg-card border border-border rounded-2xl p-4 mb-3">
           <div className="flex items-center justify-between mb-2.5">
-            <h3 className="font-heading text-base font-bold text-foreground">Bills due</h3>
+            <h3 className="font-heading text-base font-bold text-foreground">Due next</h3>
             <button onClick={() => onNavigate("bill")} className="text-xs text-[#A7773F]">View all</button>
           </div>
           <div className="divide-y divide-border/50">
-            {[...unpaidBills]
-              .sort((a, b) => String(a.due_date || `9999-${String(a.due_day || 99).padStart(2, "0")}`).localeCompare(String(b.due_date || `9999-${String(b.due_day || 99).padStart(2, "0")}`)))
-              .slice(0, 6)
-              .map((b) => (
-                <div key={b.id} className="flex items-center justify-between gap-3 py-2">
-                  <div className="min-w-0">
-                    <p className="text-sm text-foreground truncate">{b.name}</p>
-                    <p className="text-[11px] text-muted-foreground">{b.due_date ? new Date(`${b.due_date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : b.due_day ? `Day ${b.due_day}` : "No date"}</p>
-                  </div>
-                  <span className="font-heading text-sm text-foreground flex-shrink-0">{fmt(b.amount)}</span>
+            {list.map((r) => (
+              <div key={r.id} className="flex items-center justify-between gap-3 py-2">
+                <div className="min-w-0">
+                  <p className="text-sm text-foreground truncate">{r.name}</p>
+                  <p className={`text-[11px] ${TONE_CLASS[r.info.tone]}`}>{r.info.label}</p>
                 </div>
-              ))}
+                <span className="font-heading text-sm text-foreground flex-shrink-0">{fmt(r.amount)}</span>
+              </div>
+            ))}
           </div>
         </div>
-      )}
+        );
+      })()}
       </div>
 
       {items.length === 0 && buckets.length === 0 && (

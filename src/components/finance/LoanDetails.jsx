@@ -13,17 +13,18 @@ const sum = (arr) => arr.reduce((s, p) => s + (Number(p.amount) || 0), 0);
 
 export function upcomingLoanPayments(items, days = 30) {
   const start = parseDay(todayIso());
+  const farPast = new Date(start); farPast.setFullYear(farPast.getFullYear() - 1);
   const end = new Date(start); end.setDate(end.getDate() + days);
   const out = [];
   items.filter((i) => i.type === "loan").forEach((l) => {
     if (Array.isArray(l.schedule) && l.schedule.length) {
       l.schedule.filter((p) => !p.paid).forEach((p) => {
         const d = parseDay(p.date);
-        if (d >= start && d <= end) out.push({ key: `${l.id}-${p.id}`, name: l.name, date: p.date, amount: p.amount });
+        if (d >= farPast && d <= end) out.push({ key: `${l.id}-${p.id}`, name: l.name, date: p.date, amount: p.amount, overdue: d < start });
       });
     } else if (l.due_date && !l.paid) {
       const d = parseDay(l.due_date);
-      if (d >= start && d <= end) out.push({ key: l.id, name: l.name, date: l.due_date, amount: l.monthly_payment });
+      if (d >= farPast && d <= end) out.push({ key: l.id, name: l.name, date: l.due_date, amount: l.monthly_payment, overdue: d < start });
     }
   });
   return out.sort((a, b) => a.date.localeCompare(b.date));
@@ -32,26 +33,50 @@ export function upcomingLoanPayments(items, days = 30) {
 export function UpcomingLoans({ items }) {
   const list = upcomingLoanPayments(items);
   const [all, setAll] = useState(false);
-  if (list.length === 0) return null;
-  const shown = all ? list : list.slice(0, 3);
+  const loans = items.filter((i) => i.type === "loan");
+  const owed = loans.reduce((s, l) => s + (l.payoff_amount != null ? Number(l.payoff_amount) : (l.total_amount || 0) - (l.amount_paid || 0)), 0);
+  const allPays = loans.flatMap((l) => (Array.isArray(l.schedule) ? l.schedule : []));
+  const madeCount = allPays.filter((p) => p.paid).length;
+  const next30 = sum(list.filter((p) => !p.overdue));
+  const overdueTotal = sum(list.filter((p) => p.overdue));
+  if (loans.length === 0) return null;
+  const shown = all ? list : list.slice(0, 4);
   return (
-    <div className="bg-card border border-border rounded-2xl p-4 mb-4">
-      <p className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground mb-2">Due in the next 30 days</p>
-      <div className="space-y-1.5">
-        {shown.map((p) => (
-          <div key={p.key} className="flex items-center justify-between text-[13px]">
-            <span className="text-foreground">{dayLabel(p.date)} · {p.name}</span>
-            <span className="font-heading text-[15px] text-foreground">{money(p.amount)}</span>
+    <div className="mb-4 space-y-3">
+      <div className="bg-card border border-border rounded-2xl p-4">
+        <div className="flex items-start justify-between">
+          <div><p className="text-xs text-muted-foreground">Total owed</p><p className="font-heading text-xl text-foreground mt-0.5">{money(owed)}</p></div>
+          <div className="text-right"><p className="text-xs text-muted-foreground">Next 30 days</p><p className="font-heading text-xl text-foreground mt-0.5">{money(next30)}</p></div>
+        </div>
+        {allPays.length > 0 && (
+          <>
+            <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden mt-3 mb-1.5"><div className="h-full rounded-full" style={{ background: "#A7773F", width: `${(madeCount / allPays.length) * 100}%` }} /></div>
+            <p className="text-xs text-muted-foreground">{madeCount} of {allPays.length} payments made</p>
+          </>
+        )}
+      </div>
+      {list.length > 0 && (
+        <div className="bg-card border border-border rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground">Coming up</p>
+            {overdueTotal > 0 && <span className="text-[10.5px] px-2 py-0.5 rounded-full bg-[#F4E6E7] text-[#8F5F65]">{money(overdueTotal)} overdue</span>}
           </div>
-        ))}
-      </div>
-      {list.length > 3 && (
-        <button onClick={() => setAll((v) => !v)} className="text-xs text-[#A7773F] mt-2">{all ? "Show fewer" : `Show all ${list.length} payments`}</button>
+          <div className="divide-y divide-border/50">
+            {shown.map((p) => (
+              <div key={p.key} className="flex items-center justify-between py-2">
+                <div className="min-w-0">
+                  <p className="text-[14px] text-foreground truncate">{p.name}</p>
+                  <p className={`text-[11.5px] ${p.overdue ? "text-[#8F5F65]" : "text-muted-foreground"}`}>{p.overdue ? `Overdue · ${dayLabel(p.date)}` : `Due ${dayLabel(p.date)}`}</p>
+                </div>
+                <span className="font-heading text-[14px] text-foreground">{money(p.amount)}</span>
+              </div>
+            ))}
+          </div>
+          {list.length > 4 && (
+            <button onClick={() => setAll((v) => !v)} className="text-xs text-[#A7773F] mt-2">{all ? "Show fewer" : `Show all ${list.length} payments`}</button>
+          )}
+        </div>
       )}
-      <div className="flex items-center justify-between border-t border-border mt-2.5 pt-2">
-        <span className="text-xs text-muted-foreground">Total</span>
-        <span className="font-heading text-base text-foreground">{money(sum(list))}</span>
-      </div>
     </div>
   );
 }
@@ -133,7 +158,7 @@ export default function LoanDetails({ item, onChange }) {
         <div>
           <p className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground">{next ? "Next payment" : "Monthly"}</p>
           <p className="font-heading text-[26px] leading-tight text-foreground">{money(next ? next.amount : item.monthly_payment)}</p>
-          {(next || item.due_date) && <p className="text-xs text-muted-foreground">{dayLong(next ? next.date : item.due_date)}</p>}
+          {(next || item.due_date) && (() => { const nd = next ? next.date : item.due_date; const od = parseDay(nd) < parseDay(todayIso()); return <p className={`text-xs ${od ? "text-[#8F5F65]" : "text-muted-foreground"}`}>{od ? `Overdue · ${dayLabel(nd)}` : dayLong(nd)}</p>; })()}
         </div>
         <div className="text-right">
           <p className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground">Payoff today</p>

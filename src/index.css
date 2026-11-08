@@ -183,3 +183,7 @@ h1, h2, h3, h4, .font-heading {
   top: env(safe-area-inset-top, 0px) !important;
   height: calc(100% - env(safe-area-inset-top, 0px)) !important;
 }
+
+/* Finance: numbers, labels and tabs use Inter (serif old-style digits are hard to scan); titles stay serif. */
+.finance-ui .font-heading:not(h1):not(h2):not(h3):not(h4) { font-family: var(--font-body); font-weight: 600; letter-spacing: 0; font-variant-numeric: tabular-nums lining-nums; }
+.finance-ui button.font-heading { font-weight: 500; }
