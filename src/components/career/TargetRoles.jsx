@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { ent } from "@/lib/freshEntities";
 import { base44 } from "@/api/base44Client";
 import { Plus, ChevronLeft, Trash2, Check, Pencil, FileText, Download, Copy, Sparkles } from "lucide-react";
+import CostOfLivingView, { RoleCostCard } from "@/components/career/CostOfLiving";
 import { analyzePosting, buildResume, writeCoverLetter, exportResumePdf, exportResumeDocx, exportLetterPdf, exportLetterDocx } from "@/lib/careerTailor";
 
 const scoreColor = (n) => (n >= 75 ? "#566033" : n >= 50 ? "#A7773F" : "#8F5F65");
@@ -92,6 +93,7 @@ export default function TargetRoles({ entries, currentJob, onEditCurrent }) {
           <button onClick={() => { setView("add"); setError(""); }} className="text-xs font-medium flex items-center gap-1" style={{ color: "#A7773F" }}><Plus className="w-3.5 h-3.5" /> Add posting</button>
         </div>
         <p className="text-xs text-muted-foreground mb-2">Paste a job posting to see how your career matches it, what to change, and get a tailored resume and cover letter.</p>
+        <button onClick={() => setView("col")} className="text-xs font-medium mb-2 block" style={{ color: "#A7773F" }}>Cost of living: compare cities ›</button>
         {!hasProfile && <p className="text-xs rounded-lg px-3 py-2 bg-[#F3E8D6] text-[#8A5F27]">Add your current role (with its job description) first. It's what each posting is compared against.</p>}
         {hasProfile && currentJob && !currentJob.description && (
           <button onClick={() => onEditCurrent(currentJob)} className="text-xs rounded-lg px-3 py-2 bg-[#F3E8D6] text-[#8A5F27] text-left w-full">Add the job description to {currentJob.title} for better matches ›</button>
@@ -105,6 +107,8 @@ export default function TargetRoles({ entries, currentJob, onEditCurrent }) {
       </div>
     );
   }
+
+  if (view === "col") return <CostOfLivingView currentJob={currentJob} onBack={() => setView(null)} />;
 
   // ---------- add ----------
   if (view === "add") {
@@ -180,6 +184,8 @@ export default function TargetRoles({ entries, currentJob, onEditCurrent }) {
           );
         })}
       </div>
+
+      <RoleCostCard role={role} currentJob={currentJob} onPatch={(d) => patch(role.id, d)} onOpenSetup={() => setView("col")} />
 
       {/* Tailored resume */}
       <div className="bg-card border border-border rounded-2xl p-4">
