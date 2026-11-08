@@ -45,8 +45,8 @@ export function UpcomingLoans({ items }) {
     <div className="mb-4 space-y-3">
       <div className="bg-card border border-border rounded-2xl p-4">
         <div className="flex items-start justify-between">
-          <div><p className="text-xs text-muted-foreground">Total owed</p><p className="font-heading text-lg text-foreground mt-0.5">{money(owed)}</p></div>
-          <div className="text-right"><p className="text-xs text-muted-foreground">Next 30 days</p><p className="font-heading text-lg text-foreground mt-0.5">{money(next30)}</p></div>
+          <div><p className="text-xs text-muted-foreground">Total owed</p><p className="font-heading text-base text-foreground mt-0.5">{money(owed)}</p></div>
+          <div className="text-right"><p className="text-xs text-muted-foreground">Next 30 days</p><p className="font-heading text-base text-foreground mt-0.5">{money(next30)}</p></div>
         </div>
         {allPays.length > 0 && (
           <>
@@ -157,7 +157,7 @@ export default function LoanDetails({ item, onChange }) {
       <div className="flex items-end justify-between gap-3">
         <div>
           <p className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground">{next ? "Next payment" : "Monthly"}</p>
-          <p className="font-heading text-[26px] leading-tight text-foreground">{money(next ? next.amount : item.monthly_payment)}</p>
+          <p className="font-heading text-xl leading-tight text-foreground">{money(next ? next.amount : item.monthly_payment)}</p>
           {(next || item.due_date) && (() => { const nd = next ? next.date : item.due_date; const od = parseDay(nd) < parseDay(todayIso()); return <p className={`text-xs ${od ? "text-[#8F5F65]" : "text-muted-foreground"}`}>{od ? `Overdue · ${dayLabel(nd)}` : dayLong(nd)}</p>; })()}
         </div>
         <div className="text-right">
@@ -170,7 +170,7 @@ export default function LoanDetails({ item, onChange }) {
             </div>
           ) : payoff != null ? (
             <button onClick={() => { setPayoffInput(String(payoff)); setEditPayoff(true); }} className="text-right">
-              <span className="font-heading text-xl text-foreground block">{money(payoff)}</span>
+              <span className="font-heading text-base text-foreground block">{money(payoff)}</span>
               <span className="text-xs text-muted-foreground">{item.payoff_date ? `Entered ${dayLabel(item.payoff_date)}${staleDays > 14 ? " · may be out of date" : ""}` : ""}</span>
             </button>
           ) : (

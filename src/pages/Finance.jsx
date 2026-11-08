@@ -877,7 +877,7 @@ export default function Finance() {
                       return (
                         <div className="mt-2" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-2.5">
-                            <span className="font-heading text-[28px] leading-none text-foreground">{sc || "—"}</span>
+                            <span className="font-heading text-[22px] leading-none text-foreground">{sc || "—"}</span>
                             {rating && <span className={`text-[11px] px-2 py-0.5 rounded-full ${rating.cls}`}>{rating.label}</span>}
                             {delta != null && delta !== 0 && <span className={`text-[12px] font-medium ${delta > 0 ? "text-[#566033]" : "text-[#8F5F65]"}`}>{delta > 0 ? "▲" : "▼"} {Math.abs(delta)}</span>}
                           </div>
@@ -909,7 +909,7 @@ export default function Finance() {
                     {item.type === "savings_goal" && (
                       <div className="mt-2">
                         <div className="flex items-baseline gap-2 mb-1">
-                          <span className="font-heading text-xl text-foreground">${(item.current_amount || 0).toLocaleString()}</span>
+                          <span className="font-heading text-base text-foreground">${(item.current_amount || 0).toLocaleString()}</span>
                           {item.target_amount && <span className="text-xs text-muted-foreground">of ${Number(item.target_amount).toLocaleString()}</span>}
                         </div>
                         {item.target_amount && (
@@ -938,7 +938,7 @@ export default function Finance() {
                     {item.type === "bill" && (
                       <div className="mt-1">
                         <div className="flex items-center gap-3">
-                          {item.amount && <span className="font-heading text-lg text-foreground">${Number(item.amount).toLocaleString()}</span>}
+                          {item.amount && <span className="font-heading text-[14px] text-foreground">${Number(item.amount).toLocaleString()}</span>}
                           {item.is_fixed && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#F0E6D6] text-[#8B6B3E] font-body">Fixed</span>}
                           {item.billing_cycle && item.billing_cycle !== "one_time" && item.due_day
                             ? <span className="text-xs text-muted-foreground">Day {item.due_day}</span>
@@ -958,7 +958,7 @@ export default function Finance() {
 
                     {item.type === "subscription" && (
                       <div className="mt-1">
-                        {item.amount && <p className="font-heading text-xl text-foreground">${Number(item.amount).toLocaleString()}</p>}
+                        {item.amount && <p className="font-heading text-base text-foreground">${Number(item.amount).toLocaleString()}</p>}
                         <p className="text-xs text-muted-foreground capitalize">{item.billing_cycle || "monthly"}{item.renewal_date ? ` · Renews ${fmtDate(item.renewal_date)}` : ""}</p>
                       </div>
                     )}
