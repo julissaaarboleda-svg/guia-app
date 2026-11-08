@@ -1,3 +1,4 @@
+import { billInMonth } from "@/lib/financeHelpers";
 import { useState, useEffect, useRef } from "react";
 import { ent } from "@/lib/freshEntities";
 import { ChevronLeft, ChevronRight, ChevronDown, Pencil, Trash2, X } from "lucide-react";
@@ -67,7 +68,7 @@ export default function BudgetTab() {
       return c ? { ...b, spent_amount: Math.round(c.total), _spentAuto: true } : b;
     });
     const manualNames = manualBuckets.map(b => b.name?.toLowerCase().trim());
-    const fixedBills = allBills.filter(b => b.is_fixed && b.billing_cycle && b.billing_cycle !== "one_time");
+    const fixedBills = allBills.filter(b => b.is_fixed && b.billing_cycle && b.billing_cycle !== "one_time" && billInMonth(b, mk));
     const billAutoBuckets = fixedBills
       .filter(b => !manualNames.includes(b.name?.toLowerCase().trim()))
       .map(b => ({

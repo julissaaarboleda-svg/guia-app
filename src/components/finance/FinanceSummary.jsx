@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { isPaid, dueInfo, TONE_CLASS, monthlyEquivalent, isRecurringBill } from "@/lib/financeHelpers";
+import { isPaid, dueInfo, TONE_CLASS, monthlyEquivalent, billInMonth } from "@/lib/financeHelpers";
 import { monthView, monthsWithData } from "@/lib/spending";
 import { Receipt, ShoppingBag, PiggyBank, Landmark, TrendingUp, Sparkles, Lightbulb, Banknote } from "lucide-react";
 
@@ -35,7 +35,7 @@ export default function FinanceSummary({ items, buckets, onNavigate, onAddFirst 
     if (!moneyView) return null;
     const inc = Number(incomes.find(i => i.month === moneyKey)?.amount) || 0;
     if (!(inc > 0)) return null;
-    const bills = items.filter(i => i.type === "bill" && (isRecurringBill(i) || String(i.due_date || "").slice(0, 7) === moneyKey)).reduce((t, b) => t + (Number(b.amount) || 0), 0);
+    const bills = items.filter(i => i.type === "bill" && billInMonth(i, moneyKey)).reduce((t, b) => t + (Number(b.amount) || 0), 0);
     const subsM = items.filter(i => i.type === "subscription").reduce((t, x) => t + monthlyEquivalent(x), 0);
     const loansM = items.filter(i => i.type === "loan").reduce((t, l) => t + (Array.isArray(l.schedule) ? l.schedule.filter(p => String(p.date || "").slice(0, 7) === moneyKey).reduce((a, p) => a + (Number(p.amount) || 0), 0) : 0), 0);
     const covered = ["Housing", "Utilities", "Insurance", "Subscriptions"];

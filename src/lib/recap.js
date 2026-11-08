@@ -2,7 +2,7 @@
 // snapshot is saved each month (RecapSnapshot) for the things that can't be
 // rebuilt later, like which bills were paid and how much was saved.
 import { ent } from "@/lib/freshEntities";
-import { monthKeyOf, isPaid, isRecurringBill, monthlyEquivalent } from "@/lib/financeHelpers";
+import { monthKeyOf, isPaid, isRecurringBill, billInMonth, monthlyEquivalent } from "@/lib/financeHelpers";
 
 export const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 export const monthLabel = (key) => {
@@ -45,7 +45,7 @@ export function counters(all) {
 
 // The part of a month that is only knowable while the month is current.
 export function liveFinance(all, key) {
-  const bills = all.finance.filter((i) => i.type === "bill" && (isRecurringBill(i) || inMonth(i.due_date, key)));
+  const bills = all.finance.filter((i) => i.type === "bill" && billInMonth(i, key));
   const subs = all.finance.filter((i) => i.type === "subscription");
   const loans = all.finance.filter((i) => i.type === "loan");
   const loanMonth = loans.reduce((s, l) => s + scheduleOf(l).filter((p) => inMonth(p.date, key)).reduce((a, p) => a + num(p.amount), 0), 0);

@@ -1,7 +1,8 @@
-import { useState, useEffect, Fragment } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
+import { createPortal } from "react-dom";
 import { ent } from "@/lib/freshEntities";
 import { Trash2, ChevronDown, ChevronUp, ChevronRight, Pencil, X, MoreHorizontal, Check, Plus } from "lucide-react";
-import { isPaid, paidPatch, dueInfo, TONE_CLASS, monthKeyOf, isRecurringBill, monthlyEquivalent, needsReview } from "@/lib/financeHelpers";
+import { isPaid, paidPatch, dueInfo, TONE_CLASS, monthKeyOf, billInMonth, monthlyEquivalent, needsReview } from "@/lib/financeHelpers";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import PageHeader from "@/components/PageHeader";
@@ -46,14 +47,25 @@ const withHistory = (item, newScore) => {
 };
 
 function RowMenu({ open, onToggle, onClose, children }) {
+  const btnRef = useRef(null);
+  const [pos, setPos] = useState(null);
+  // The row cards clip anything that overflows them, so the menu is drawn on the page itself.
+  useEffect(() => {
+    if (!open || !btnRef.current) { setPos(null); return; }
+    const r = btnRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - r.bottom - 110; // leave room for the bottom nav
+    const up = spaceBelow < 150;
+    setPos({ right: Math.max(8, window.innerWidth - r.right), ...(up ? { bottom: window.innerHeight - r.top + 4 } : { top: r.bottom + 4 }) });
+  }, [open]);
   return (
     <div className="relative flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-      <button onClick={onToggle} aria-label="Options" className="p-1 text-muted-foreground/60 hover:text-foreground"><MoreHorizontal className="w-4 h-4" /></button>
-      {open && (
+      <button ref={btnRef} onClick={onToggle} aria-label="Options" className="p-1 text-muted-foreground/60 hover:text-foreground"><MoreHorizontal className="w-4 h-4" /></button>
+      {open && pos && createPortal(
         <>
-          <div className="fixed inset-0 z-[9]" onClick={onClose} />
-          <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-lg shadow-lg z-10 py-1 min-w-[150px]">{children}</div>
-        </>
+          <div className="fixed inset-0 z-[89]" onClick={onClose} />
+          <div style={pos} className="fixed bg-card border border-border rounded-lg shadow-lg z-[90] py-1 min-w-[150px]" onClick={(e) => e.stopPropagation()}>{children}</div>
+        </>,
+        document.body
       )}
     </div>
   );
@@ -152,8 +164,13 @@ export default function Finance() {
         data.category = form.category === "__new__" ? (form.customCategory || "") : (form.category || "");
         data.billing_cycle = form.recurrence || "one_time";
         if (form.recurrence && form.recurrence !== "one_time") {
-          data.due_day = form.due_day ? Number(form.due_day) : null;
-          data.due_date = null;
+          if (form.recurrence === "yearly") {
+            data.due_date = form.due_date || null;
+            data.due_day = form.due_date ? Number(form.due_date.slice(8, 10)) : null;
+          } else {
+            data.due_day = form.due_day ? Number(form.due_day) : null;
+            data.due_date = null;
+          }
         }
       }
     }
@@ -261,8 +278,13 @@ export default function Finance() {
       data.category = editItemForm.category === "__new__" ? (editItemForm.customCategory || "") : (editItemForm.category || "");
       data.billing_cycle = editItemForm.recurrence || "one_time";
       if (editItemForm.recurrence && editItemForm.recurrence !== "one_time") {
-        data.due_day = editItemForm.due_day ? Number(editItemForm.due_day) : null;
-        data.due_date = null;
+        if (editItemForm.recurrence === "yearly") {
+          data.due_date = editItemForm.due_date || null;
+          data.due_day = editItemForm.due_date ? Number(editItemForm.due_date.slice(8, 10)) : null;
+        } else {
+          data.due_day = editItemForm.due_day ? Number(editItemForm.due_day) : null;
+          data.due_date = null;
+        }
       }
     } else if (item.type === "loan") {
       data.monthly_payment = Number(editItemForm.monthly_payment) || null;
@@ -417,7 +439,7 @@ export default function Finance() {
                     className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors" />
                 </div>
                 <div>
-                  {form.recurrence && form.recurrence !== "one_time" ? (
+                  {form.recurrence && form.recurrence !== "one_time" && form.recurrence !== "yearly" ? (
                     <>
                       <label className="block text-xs font-medium text-foreground mb-1">Due day (1-31)</label>
                       <input type="number" min="1" max="31" value={form.due_day || ""} onChange={e => setForm(f => ({ ...f, due_day: e.target.value }))} placeholder="1"
@@ -425,7 +447,7 @@ export default function Finance() {
                     </>
                   ) : (
                     <>
-                      <label className="block text-xs font-medium text-foreground mb-1">Due date</label>
+                      <label className="block text-xs font-medium text-foreground mb-1">{form.recurrence === "yearly" ? "Renews on" : "Due date"}</label>
                       <DateInput value={form.due_date || ""} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
                         className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors" />
                     </>
@@ -555,7 +577,7 @@ export default function Finance() {
 
       {activeTab === "bill" && (() => {
         const mk = monthKeyOf();
-        const monthBills = items.filter((i) => i.type === "bill" && (isRecurringBill(i) || (i.due_date || "").startsWith(mk)));
+        const monthBills = items.filter((i) => i.type === "bill" && billInMonth(i, mk));
         const total = monthBills.reduce((s, b) => s + (Number(b.amount) || 0), 0);
         const paid = monthBills.filter(isPaid).reduce((s, b) => s + (Number(b.amount) || 0), 0);
         if (!monthBills.length) return null;
@@ -700,7 +722,7 @@ export default function Finance() {
                           className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
                       </div>
                       <div>
-                        {editItemForm.recurrence && editItemForm.recurrence !== "one_time" ? (
+                        {editItemForm.recurrence && editItemForm.recurrence !== "one_time" && editItemForm.recurrence !== "yearly" ? (
                           <>
                             <label className="block text-xs font-medium text-foreground mb-1">Due day (1-31)</label>
                             <input type="number" min="1" max="31" value={editItemForm.due_day || ""} onChange={e => setEditItemForm(f => ({ ...f, due_day: e.target.value }))} placeholder="1"
@@ -708,7 +730,7 @@ export default function Finance() {
                           </>
                         ) : (
                           <>
-                            <label className="block text-xs font-medium text-foreground mb-1">Due date</label>
+                            <label className="block text-xs font-medium text-foreground mb-1">{editItemForm.recurrence === "yearly" ? "Renews on" : "Due date"}</label>
                             <DateInput value={editItemForm.due_date} onChange={e => setEditItemForm(f => ({ ...f, due_date: e.target.value }))}
                               className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
                           </>
@@ -955,7 +977,7 @@ export default function Finance() {
                         <div className="flex items-center gap-3">
                           {item.amount && <span className="font-heading text-[14px] text-foreground">${Number(item.amount).toLocaleString()}</span>}
                           {item.is_fixed && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#F0E6D6] text-[#8B6B3E] font-body">Fixed</span>}
-                          {item.billing_cycle && item.billing_cycle !== "one_time" && item.due_day
+                          {item.billing_cycle && item.billing_cycle !== "one_time" && item.billing_cycle !== "yearly" && item.due_day
                             ? <span className="text-xs text-muted-foreground">Day {item.due_day}</span>
                             : item.due_date && <span className="text-xs text-muted-foreground">Due {fmtDate(item.due_date)}</span>}
                           <button
@@ -965,7 +987,7 @@ export default function Finance() {
                             {item.paid ? "✓ Paid" : "Mark paid"}
                           </button>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">{item.billing_cycle && item.billing_cycle !== "one_time" ? <span className="capitalize">{item.billing_cycle}{item.due_day ? ` · Day ${item.due_day}` : ""}</span> : null}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{item.billing_cycle && item.billing_cycle !== "one_time" ? <span className="capitalize">{item.billing_cycle}{item.billing_cycle === "yearly" ? (item.due_date ? ` · ${new Date(item.due_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "") : item.due_day ? ` · Day ${item.due_day}` : ""}</span> : null}</p>
                       </div>
                     )}
 
