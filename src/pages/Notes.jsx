@@ -9,7 +9,7 @@ import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
 import {
   Plus, Trash2, List, FileText, Check, ArrowLeft, Paperclip, Pencil,
-  Folder as FolderIcon, Share2, Download, MoreHorizontal, Navigation, X,
+  Folder as FolderIcon, Share2, Download, MoreHorizontal, Navigation, X, Pin,
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import AttachmentSheet from "@/components/notes/AttachmentSheet";
@@ -205,6 +205,14 @@ export default function Notes() {
     await ent.Note.update(noteId, { folder_id: folderId || null });
     setNoteMenu(null);
     toast({ title: folderId ? "Moved to collection" : "Removed from collection" });
+  };
+
+  const togglePin = async (note) => {
+    const pinned = !note.pinned;
+    setNotes(prev => prev.map(n => n.id === note.id ? { ...n, pinned } : n));
+    setNoteMenu(null);
+    try { await ent.Note.update(note.id, { pinned }); } catch (e) { console.error(e); }
+    toast({ title: pinned ? "Pinned" : "Unpinned" });
   };
 
   const getNoteText = (note) => {
@@ -517,6 +525,7 @@ export default function Notes() {
           onClose={() => setNoteMenu(null)}
           onDelete={remove}
           onMove={moveNoteToFolder}
+          onPin={togglePin}
           onEdit={(n) => { setNoteMenu(null); setSelected(n); setEditingId(n.id); }}
         />
       </div>
@@ -556,6 +565,7 @@ export default function Notes() {
         onClose={() => setNoteMenu(null)}
         onDelete={remove}
         onMove={moveNoteToFolder}
+        onPin={togglePin}
         onEdit={(n) => { setNoteMenu(null); setSelected(n); setEditingId(n.id); }}
       />
       <PlaceFormSheet
@@ -574,7 +584,7 @@ export default function Notes() {
   );
 }
 
-function NoteMenuSheet({ note, folders, onClose, onDelete, onMove, onEdit }) {
+function NoteMenuSheet({ note, folders, onClose, onDelete, onMove, onEdit, onPin }) {
   if (!note) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
@@ -589,6 +599,9 @@ function NoteMenuSheet({ note, folders, onClose, onDelete, onMove, onEdit }) {
         <div className="px-2 pb-6 pt-2">
           <button onClick={() => onEdit(note)} className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left text-foreground hover:bg-secondary transition-colors">
             <Pencil className="w-4 h-4" /> Edit note
+          </button>
+          <button onClick={() => onPin(note)} className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left text-foreground hover:bg-secondary transition-colors">
+            <Pin className="w-4 h-4" /> {note.pinned ? "Unpin note" : "Pin note"}
           </button>
           <div className="border-t border-border my-2" />
           <div className="px-3 pb-2">

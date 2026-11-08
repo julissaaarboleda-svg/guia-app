@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, SlidersHorizontal, FileText, MoreHorizontal, MapPin, Navigation, ChevronRight, ArrowRight } from "lucide-react";
+import { Search, SlidersHorizontal, FileText, MoreHorizontal, MapPin, ArrowRight, Pin } from "lucide-react";
 import { isToday, isYesterday, format } from "date-fns";
 import CollectionCard from "./CollectionCard";
 
@@ -29,10 +29,10 @@ export default function NotesLanding({
   onAddPlace, onPlaceMenu,
 }) {
   const [view, setView] = useState("notes"); // "notes" | "checklists" | "places"
-  const [showAllCollections, setShowAllCollections] = useState(false);
   const [showAllRecent, setShowAllRecent] = useState(false);
   const [query, setQuery] = useState("");
   const [sortNewest, setSortNewest] = useState(true);
+  const [placeFilter, setPlaceFilter] = useState("All");
 
   // Checklist notes already carry note_type "list" — Checklists is purely a
   // filtered view of the same data, not a separate thing to migrate.
@@ -49,15 +49,45 @@ export default function NotesLanding({
   const countFor = (folderId) => plainNotes.filter((n) => n.folder_id === folderId).length;
   const folderName = (id) => folders.find((f) => f.id === id)?.name;
 
-  const recent = useMemo(() => {
-    let list = [...plainNotes];
-    if (query.trim()) {
-      const q = query.toLowerCase();
-      list = list.filter((n) => n.title?.toLowerCase().includes(q) || stripHtml(n.content).toLowerCase().includes(q));
-    }
-    list.sort((a, b) => new Date(sortNewest ? b.updated_date : a.updated_date) - new Date(sortNewest ? a.updated_date : b.updated_date));
-    return showAllRecent ? list : list.slice(0, 6);
-  }, [plainNotes, query, sortNewest, showAllRecent]);
+  const sortNotes = (list) => list.sort((x, y) => new Date(sortNewest ? y.updated_date : x.updated_date) - new Date(sortNewest ? x.updated_date : y.updated_date));
+  const searching = !!query.trim();
+  const matches = (n) => { const q = query.toLowerCase(); return n.title?.toLowerCase().includes(q) || stripHtml(n.content).toLowerCase().includes(q); };
+
+  const pinned = useMemo(
+    () => (searching ? [] : sortNotes(plainNotes.filter((n) => n.pinned))),
+    [plainNotes, searching, sortNewest] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const recentAll = useMemo(() => {
+    const base = searching ? plainNotes.filter(matches) : plainNotes.filter((n) => !n.pinned);
+    return sortNotes([...base]);
+  }, [plainNotes, query, sortNewest]); // eslint-disable-line react-hooks/exhaustive-deps
+  const recent = showAllRecent || searching ? recentAll : recentAll.slice(0, 6);
+
+  const renderNoteRow = (n, i) => {
+    const fname = n.folder_id ? folderName(n.folder_id) : null;
+    const preview = stripHtml(n.content).replace(/\s+/g, " ").trim();
+    return (
+      <div key={n.id} className={`flex items-start transition-colors ${i !== 0 ? "border-t border-border/40" : ""}`}>
+        <button onClick={() => onOpenNote(n)} className="flex-1 min-w-0 py-3 pl-4 pr-2 flex items-start gap-3 text-left hover:bg-secondary/50 transition-colors">
+          <span className="w-9 h-9 rounded-xl bg-[#F0E6D6] flex items-center justify-center flex-shrink-0 mt-0.5">
+            <FileText className="w-[17px] h-[17px] text-[#8B6B3E]" strokeWidth={1.5} />
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="font-heading text-[16px] text-foreground truncate leading-snug">{n.title || "Untitled"}</p>
+            {preview && <p className="font-body text-[12.5px] text-muted-foreground mt-0.5 line-clamp-2 leading-snug">{preview}</p>}
+            <div className="flex items-center gap-1.5 mt-1.5 min-w-0">
+              {n.pinned && <Pin className="w-3 h-3 text-[#A7773F] flex-shrink-0" strokeWidth={1.8} />}
+              <span className="font-body text-[11px] text-muted-foreground flex-shrink-0">{noteDateLabel(n.updated_date)}</span>
+              {fname && <span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full bg-[#E4E9D5] text-[#566033] truncate">{fname}</span>}
+            </div>
+          </div>
+        </button>
+        <button onClick={() => onNoteMenu(n)} aria-label="Note options" className="w-8 h-8 mt-2 mr-2 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
+          <MoreHorizontal className="w-4 h-4" />
+        </button>
+      </div>
+    );
+  };
 
   const recentChecklists = useMemo(() => {
     let list = [...checklistNotes];
@@ -70,19 +100,19 @@ export default function NotesLanding({
   }, [checklistNotes, query, sortNewest]);
 
   const filteredPlaces = useMemo(() => {
-    let list = [...savedPlaces];
+    let list = savedPlaces.filter((p) => placeFilter === "All" || p.type === placeFilter);
     if (query.trim()) {
       const q = query.toLowerCase();
       list = list.filter((p) => p.name?.toLowerCase().includes(q) || p.type?.toLowerCase().includes(q) || p.address?.toLowerCase().includes(q));
     }
     list.sort((a, b) => new Date(sortNewest ? b.updated_date : a.updated_date) - new Date(sortNewest ? a.updated_date : b.updated_date));
     return list;
-  }, [savedPlaces, query, sortNewest]);
+  }, [savedPlaces, query, sortNewest, placeFilter]);
+  const placeTypes = useMemo(() => [...new Set(savedPlaces.map((p) => p.type).filter(Boolean))], [savedPlaces]);
 
   const subtitle = { notes: "Capture, plan and keep what matters.", checklists: "Track what needs doing.", places: "Somewhere you want to check out." }[view];
   const addLabel = { notes: "Note", checklists: "Checklist", places: "Place" }[view];
   const onAdd = () => (view === "notes" ? onQuickCapture() : view === "checklists" ? onQuickCapture("list") : onAddPlace());
-  const shownFolders = showAllCollections ? visibleFolders : visibleFolders.slice(0, 6);
 
   return (
     <div className="px-6 md:px-10 lg:px-14 pb-8 max-w-[1200px] 2xl:max-w-[1400px] mx-auto w-full space-y-3" style={{ paddingTop: "1rem" }}>
@@ -97,12 +127,12 @@ export default function NotesLanding({
         {[
           { id: "notes", label: "Notes" },
           { id: "checklists", label: "Checklists" },
-          { id: "places", label: "Saved Places" },
+          { id: "places", label: "Saved places" },
         ].map((t) => (
           <button
             key={t.id}
             onClick={() => setView(t.id)}
-            className={`px-4 py-2 rounded-full font-heading text-[14px] whitespace-nowrap flex-shrink-0 transition-colors ${
+            className={`px-3.5 py-1.5 rounded-full font-body text-[12.5px] font-medium whitespace-nowrap flex-shrink-0 transition-colors ${
               view === t.id ? "bg-[#A7773F] text-[#F7F3EC]" : "border border-border text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -132,7 +162,7 @@ export default function NotesLanding({
         </button>
         <button
           onClick={onAdd}
-          className="h-10 px-4 rounded-full bg-[#A7773F] text-[#F7F3EC] font-heading text-[13px] flex-shrink-0 hover:opacity-90 transition-opacity"
+          className="h-10 px-4 rounded-full bg-[#A7773F] text-[#F7F3EC] font-body text-[13px] font-medium flex-shrink-0 hover:opacity-90 transition-opacity"
         >
           + {addLabel}
         </button>
@@ -141,47 +171,39 @@ export default function NotesLanding({
       {/* ---------------- NOTES VIEW ---------------- */}
       {view === "notes" && (
         <>
-          <section className="space-y-3 pt-2">
+          <section className="space-y-2.5 pt-1">
             <div className="flex items-end justify-between">
-              <h2 className="font-heading text-[22px] text-foreground leading-tight">Collections</h2>
-              {visibleFolders.length > 4 && (
-                <button onClick={() => setShowAllCollections((v) => !v)} className="font-heading text-[13px] text-[#A7773F] flex items-center gap-1">
-                  {showAllCollections ? "Show less" : "View all"} {!showAllCollections && <ArrowRight className="w-3.5 h-3.5" />}
-                </button>
-              )}
+              <h2 className="font-heading text-[20px] text-foreground leading-tight">Collections</h2>
+              {visibleFolders.length > 0 && <span className="font-body text-[11px] text-muted-foreground">Press and hold to edit</span>}
             </div>
             {loading ? (
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                {[0, 1, 2, 3].map((i) => (
-                  <div key={i} className="h-[76px] rounded-2xl bg-card border border-border/50 animate-pulse" />
-                ))}
+              <div className="flex gap-2 overflow-hidden">
+                {[0, 1, 2].map((i) => <div key={i} className="h-[52px] w-[150px] flex-shrink-0 rounded-2xl bg-card border border-border/50 animate-pulse" />)}
               </div>
             ) : (
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                {shownFolders.map((f) => (
-                  <CollectionCard
-                    key={f.id}
-                    folder={f}
-                    count={countFor(f.id)}
-                    onOpen={onOpenCollection}
-                    onLongPress={onLongPressCollection}
-                  />
+              <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-6 px-6 md:mx-0 md:px-0 md:flex-wrap pb-0.5">
+                {visibleFolders.map((f) => (
+                  <CollectionCard key={f.id} folder={f} count={countFor(f.id)} onOpen={onOpenCollection} onLongPress={onLongPressCollection} compact />
                 ))}
+                <button onClick={onNewCollection} className="flex-shrink-0 h-[52px] px-4 rounded-2xl border border-dashed border-border bg-card/40 font-body text-[13px] text-muted-foreground hover:bg-card transition-colors">
+                  + New
+                </button>
               </div>
             )}
-            <button
-              onClick={onNewCollection}
-              className="w-full h-11 flex items-center justify-center rounded-2xl border border-dashed border-border bg-card/40 font-heading text-[14px] text-foreground hover:bg-card transition-colors"
-            >
-              + New collection
-            </button>
           </section>
 
-          <section className="space-y-3 pt-2">
+          {pinned.length > 0 && (
+            <section className="space-y-2.5 pt-2">
+              <h2 className="font-heading text-[20px] text-foreground leading-tight">Pinned</h2>
+              <div className="bg-card border border-border/60 rounded-2xl overflow-hidden">{pinned.map(renderNoteRow)}</div>
+            </section>
+          )}
+
+          <section className="space-y-2.5 pt-2">
             <div className="flex items-end justify-between">
-              <h2 className="font-heading text-[22px] text-foreground leading-tight">Recent notes</h2>
-              {plainNotes.length > 6 && !query && (
-                <button onClick={() => setShowAllRecent((v) => !v)} className="font-heading text-[13px] text-[#A7773F] flex items-center gap-1">
+              <h2 className="font-heading text-[20px] text-foreground leading-tight">{searching ? "Results" : pinned.length ? "Recent" : "Recent notes"}</h2>
+              {recentAll.length > 6 && !searching && (
+                <button onClick={() => setShowAllRecent((v) => !v)} className="font-body text-[12px] font-medium text-[#A7773F] flex items-center gap-1">
                   {showAllRecent ? "Show less" : "View all"} {!showAllRecent && <ArrowRight className="w-3.5 h-3.5" />}
                 </button>
               )}
@@ -194,41 +216,11 @@ export default function NotesLanding({
               </div>
             ) : recent.length === 0 ? (
               <div className="bg-card border border-border/60 rounded-2xl py-8 text-center">
-                <p className="font-heading text-base text-foreground">{query ? "No notes match your search." : "No notes yet."}</p>
-                {!query && <p className="text-xs text-muted-foreground mt-1">Tap + Note to write your first one.</p>}
+                <p className="font-heading text-base text-foreground">{query ? "No notes match your search." : pinned.length ? "Everything else is pinned." : "No notes yet."}</p>
+                {!query && !pinned.length && <p className="text-xs text-muted-foreground mt-1">Tap + Note to write your first one.</p>}
               </div>
             ) : (
-              <div className="bg-card border border-border/60 rounded-2xl overflow-hidden">
-                {recent.map((n, i) => {
-                  const fname = n.folder_id ? folderName(n.folder_id) : null;
-                  return (
-                  <div key={n.id} className={`flex items-center transition-colors ${i !== 0 ? "border-t border-border/40" : ""}`}>
-                    <button
-                      onClick={() => onOpenNote(n)}
-                      className="flex-1 min-w-0 py-3 pl-4 pr-2 flex items-center gap-3 text-left hover:bg-secondary/50 transition-colors"
-                    >
-                      <span className="w-10 h-10 rounded-xl bg-[#F0E6D6] flex items-center justify-center flex-shrink-0">
-                        <FileText className="w-[18px] h-[18px] text-[#8B6B3E]" strokeWidth={1.5} />
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-heading text-[16px] text-foreground truncate leading-snug">{n.title || "Untitled"}</p>
-                        <p className="font-body text-[12px] text-muted-foreground mt-0.5 truncate">
-                          {noteDateLabel(n.updated_date)}{fname ? ` · ${fname}` : ""}
-                        </p>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" strokeWidth={1.6} />
-                    </button>
-                    <button
-                      onClick={() => onNoteMenu(n)}
-                      aria-label="Note options"
-                      className="w-8 h-8 mr-2 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-                    >
-                      <MoreHorizontal className="w-4 h-4" />
-                    </button>
-                  </div>
-                  );
-                })}
-              </div>
+              <div className="bg-card border border-border/60 rounded-2xl overflow-hidden">{recent.map(renderNoteRow)}</div>
             )}
           </section>
         </>
@@ -250,33 +242,30 @@ export default function NotesLanding({
               </p>
             </div>
           ) : (
-            <div className="bg-card border border-border/60 rounded-2xl overflow-hidden">
-              {recentChecklists.map((n, i) => {
+            <div className="space-y-2.5">
+              {recentChecklists.map((n) => {
                 const items = n.list_items || [];
                 const done = items.filter((it) => it.checked).length;
                 const pct = items.length ? Math.round((done / items.length) * 100) : 0;
+                const complete = items.length > 0 && done === items.length;
+                const next = items.find((it) => !it.checked);
                 return (
-                  <div key={n.id} className={`flex items-center transition-colors ${i !== 0 ? "border-t border-border/40" : ""}`}>
-                    <button
-                      onClick={() => onOpenNote(n)}
-                      className="flex-1 min-w-0 py-2.5 px-4 text-left hover:bg-secondary/50 transition-colors"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="font-body text-[13.5px] font-medium text-foreground truncate leading-snug">{n.title || "Untitled"}</p>
-                        <span className="font-body text-[10.5px] font-semibold flex-shrink-0" style={{ color: done === items.length && items.length > 0 ? "#5F6A3F" : "#8A5F64" }}>
-                          {done}/{items.length}
-                        </span>
+                  <div key={n.id} className="bg-card border border-border/60 rounded-2xl flex items-start">
+                    <button onClick={() => onOpenNote(n)} className="flex-1 min-w-0 p-3.5 text-left">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <p className="font-heading text-[16px] text-foreground truncate leading-snug">{n.title || "Untitled"}</p>
+                        <span className="font-body text-[11px] text-muted-foreground flex-shrink-0">{done} of {items.length}</span>
                       </div>
                       {items.length > 0 && (
-                        <div className="h-[3px] rounded-full bg-[#EFE9DF] overflow-hidden mt-1.5">
-                          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct === 100 ? "#7D8A53" : "#A77C81" }} />
+                        <div className="h-1 rounded-full bg-[#EFE9DF] overflow-hidden mt-2.5">
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: complete ? "#5A6F45" : "#A7773F" }} />
                         </div>
                       )}
+                      <p className="font-body text-[12.5px] mt-2 flex items-center gap-1.5 min-w-0" style={{ color: complete ? "#5A6F45" : undefined }}>
+                        {complete ? "All done" : next ? (<><span className="w-3 h-3 rounded-full border-[1.5px] border-muted-foreground/40 flex-shrink-0" /><span className="truncate text-foreground">{next.text}</span></>) : <span className="text-muted-foreground">Empty list</span>}
+                      </p>
                     </button>
-                    <button
-                      onClick={() => onNoteMenu(n)}
-                      className="w-8 h-8 mr-3 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-                    >
+                    <button onClick={() => onNoteMenu(n)} aria-label="Checklist options" className="w-8 h-8 mt-2 mr-2 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
                       <MoreHorizontal className="w-4 h-4" />
                     </button>
                   </div>
@@ -290,6 +279,16 @@ export default function NotesLanding({
       {/* ---------------- SAVED PLACES VIEW ---------------- */}
       {view === "places" && (
         <>
+          {placeTypes.length > 0 && (
+            <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+              {["All", ...placeTypes].map((t) => (
+                <button key={t} onClick={() => setPlaceFilter(t)}
+                  className={`px-3 py-1 rounded-full text-[12px] font-medium whitespace-nowrap flex-shrink-0 border transition-colors ${placeFilter === t ? "bg-[#F3E8D6] text-[#8A5F27] border-[#E6D3B0]" : "border-border text-muted-foreground"}`}>
+                  {t}
+                </button>
+              ))}
+            </div>
+          )}
           {loading ? (
             <div className="bg-card border border-border/60 rounded-2xl overflow-hidden">
               {[0, 1, 2].map((i) => (
@@ -310,8 +309,8 @@ export default function NotesLanding({
                     {p.photo_url ? <img src={p.photo_url} alt="" className="w-full h-full object-cover" /> : <MapPin className="w-4 h-4 text-[#A7773F]" strokeWidth={1.8} />}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="font-body text-[13.5px] font-medium text-foreground truncate leading-snug">{p.name || "Untitled place"}</p>
-                    <p className="font-body text-[10.5px] text-[#8E8A84] mt-0.5 truncate">
+                    <p className="font-heading text-[16px] text-foreground truncate leading-snug">{p.name || "Untitled place"}</p>
+                    <p className="font-body text-[12px] text-muted-foreground mt-0.5 truncate">
                       {[p.type, p.address].filter(Boolean).join(" · ")}
                     </p>
                   </div>
@@ -320,10 +319,10 @@ export default function NotesLanding({
                       href={p.maps_url || mapsUrl(p.address)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-8 h-8 flex items-center justify-center text-[#A7773F] hover:text-[#8A5F2E] transition-colors flex-shrink-0"
+                      className="px-1.5 text-[12px] font-medium text-[#A7773F] hover:text-[#8A5F2E] transition-colors flex-shrink-0"
                       title="Open in maps"
                     >
-                      <Navigation className="w-4 h-4" />
+                      Directions
                     </a>
                   )}
                   <button
