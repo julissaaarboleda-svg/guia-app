@@ -37,6 +37,13 @@ function fmtDate(s) {
   const d = safeDate(s);
   return d ? d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
 }
+const scoreRating = (n) => n >= 800 ? { label: "Excellent", cls: "bg-[#E4E9D5] text-[#566033]" } : n >= 740 ? { label: "Very good", cls: "bg-[#E4E9D5] text-[#566033]" } : n >= 670 ? { label: "Good", cls: "bg-[#F3E8D6] text-[#8A5F27]" } : n >= 580 ? { label: "Fair", cls: "bg-[#F3E8D6] text-[#8A5F27]" } : { label: "Poor", cls: "bg-[#F4E6E7] text-[#8F5F65]" };
+const withHistory = (item, newScore) => {
+  const hist = Array.isArray(item.score_history) ? item.score_history : (item.score ? [{ score: item.score, date: (item.score_updated || item.created_date || new Date().toISOString()).slice(0, 10) }] : []);
+  const today = new Date().toISOString().slice(0, 10);
+  return { score: newScore, score_updated: today, score_history: [...hist.filter((h) => h.date !== today), { score: newScore, date: today }].slice(-24) };
+};
+
 function RowMenu({ open, onToggle, onClose, children }) {
   return (
     <div className="relative flex-shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -71,6 +78,8 @@ export default function Finance() {
   const [menuId, setMenuId] = useState(null);
   const [contribId, setContribId] = useState(null);
   const [contribAmt, setContribAmt] = useState("");
+  const [scoreId, setScoreId] = useState(null);
+  const [scoreVal, setScoreVal] = useState("");
 
   const load = async () => {
     const [i, b] = await Promise.all([
@@ -233,6 +242,7 @@ export default function Finance() {
       data.bureau = editItemForm.bureau;
       data.name = editItemForm.bureau || editItemForm.name;
       data.score = Number(editItemForm.score) || null;
+      if (data.score && data.score !== item.score) Object.assign(data, withHistory(item, data.score));
       data.target_score = Number(editItemForm.target_score) || null;
     } else if (item.type === "savings_goal") {
       data.current_amount = Number(editItemForm.current_amount) || 0;
@@ -265,13 +275,6 @@ export default function Finance() {
     load();
   };
 
-  const getScoreColor = (score) => {
-    if (!score) return "text-muted-foreground";
-    if (score >= 750) return "text-foreground";
-    if (score >= 670) return "text-foreground";
-    return "text-destructive";
-  };
-
   return (
     <>
       <div className="finance-ui max-w-[1200px] 2xl:max-w-[1400px] mx-auto w-full">
@@ -289,7 +292,7 @@ export default function Finance() {
       <ImportSheet open={importing} onClose={() => setImporting(false)} existing={items} onDone={() => { setActiveTab("bill"); load(); }} />
 
       {/* Tabs */}
-      <div className="sticky top-[87px] z-20 bg-background -mx-6 md:-mx-8 px-6 md:px-8 py-2 flex gap-1.5 overflow-x-auto no-scrollbar mb-5">
+      <div className="sticky top-[84px] z-20 bg-background -mx-6 md:-mx-8 px-6 md:px-8 py-2 flex gap-1.5 overflow-x-auto no-scrollbar mb-5">
         {TABS.map(t => (
           <button key={t} onClick={() => { setActiveTab(t); setAdding(false); setEditingItemId(null); }}
             className={`px-3.5 py-1.5 rounded-full font-heading text-[13px] whitespace-nowrap flex-shrink-0 transition-colors ${
@@ -864,20 +867,44 @@ export default function Finance() {
                       )}
                     </div>
 
-                    {item.type === "credit_score" && (
-                      <div className="mt-2">
-                        {item.bureau && <p className="text-xs text-muted-foreground mb-1">{item.bureau}</p>}
-                        <div className="flex items-baseline gap-2">
-                          <span className={`font-heading text-[28px] leading-none ${getScoreColor(item.score)}`}>{item.score || "—"}</span>
-                          {item.target_score && <span className="text-xs text-muted-foreground">target: {item.target_score}</span>}
-                        </div>
-                        {item.score && item.target_score && (
-                          <div className="mt-2 w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div className="h-full bg-[#A7773F] rounded-full" style={{ width: `${Math.min((item.score / item.target_score) * 100, 100)}%` }} />
+                    {item.type === "credit_score" && (() => {
+                      const sc = Number(item.score) || 0;
+                      const hist = Array.isArray(item.score_history) ? item.score_history : [];
+                      const prev = [...hist].reverse().find((h) => h.score !== sc);
+                      const delta = prev && sc ? sc - prev.score : null;
+                      const rating = sc ? scoreRating(sc) : null;
+                      const toGo = item.target_score && sc ? Math.max(0, item.target_score - sc) : null;
+                      return (
+                        <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-2.5">
+                            <span className="font-heading text-[34px] leading-none text-foreground">{sc || "—"}</span>
+                            {rating && <span className={`text-[11px] px-2 py-0.5 rounded-full ${rating.cls}`}>{rating.label}</span>}
+                            {delta != null && delta !== 0 && <span className={`text-[12px] font-medium ${delta > 0 ? "text-[#566033]" : "text-[#8F5F65]"}`}>{delta > 0 ? "▲" : "▼"} {Math.abs(delta)}</span>}
                           </div>
-                        )}
-                      </div>
-                    )}
+                          {sc > 0 && (
+                            <div className="relative mt-3 h-1.5 rounded-full" style={{ background: "linear-gradient(90deg,#E7CFD2,#F3E8D6 45%,#CFD8B5)" }}>
+                              <span className="absolute -top-1 w-3.5 h-3.5 rounded-full border-2 border-white shadow" style={{ background: "#A7773F", left: `calc(${Math.min(100, Math.max(0, ((sc - 300) / 550) * 100))}% - 7px)` }} />
+                              {item.target_score && <span className="absolute -top-0.5 w-0.5 h-2.5 bg-foreground/60" style={{ left: `${Math.min(100, Math.max(0, ((item.target_score - 300) / 550) * 100))}%` }} />}
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between text-[11.5px] text-muted-foreground mt-2">
+                            <span>{toGo != null ? (toGo > 0 ? `${toGo} points to your ${item.target_score} target` : `Target of ${item.target_score} reached`) : "Add a target to track progress"}</span>
+                            {item.score_updated && <span>Updated {fmtDate(item.score_updated)}</span>}
+                          </div>
+                          {scoreId === item.id ? (
+                            <div className="flex items-center gap-2 mt-2">
+                              <input type="number" inputMode="numeric" autoFocus value={scoreVal} onChange={(e) => setScoreVal(e.target.value)} placeholder="New score"
+                                className="w-28 bg-secondary border border-input rounded-lg px-2 py-1.5 text-sm outline-none focus:border-ring" />
+                              <button onClick={async () => { const v = Number(scoreVal); if (v >= 300 && v <= 850) { await ent.FinanceItem.update(item.id, withHistory(item, v)); load(); } setScoreId(null); }}
+                                className="text-xs text-white rounded-full px-3.5 py-1.5" style={{ background: "#A7773F" }}>Save</button>
+                              <button onClick={() => setScoreId(null)} className="text-xs text-muted-foreground">Cancel</button>
+                            </div>
+                          ) : (
+                            <button onClick={() => { setScoreId(item.id); setScoreVal(""); }} className="text-xs font-medium mt-2" style={{ color: "#A7773F" }}>+ Update score</button>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {item.type === "savings_goal" && (
                       <div className="mt-2">
@@ -938,7 +965,7 @@ export default function Finance() {
                   </div>
 
                   <RowMenu open={menuId === item.id} onToggle={() => setMenuId(menuId === item.id ? null : item.id)} onClose={() => setMenuId(null)}>
-                    <button className={menuBtn} onClick={() => { setMenuId(null); item.type === "credit_score" ? toggleExpand(item) : openEditItem(item); }}><Pencil className="w-3.5 h-3.5" /> Edit</button>
+                    <button className={menuBtn} onClick={() => { setMenuId(null); openEditItem(item); }}><Pencil className="w-3.5 h-3.5" /> Edit</button>
                     {item.type === "savings_goal" && <button className={menuBtn} onClick={() => { setMenuId(null); setContribId(item.id); setContribAmt(""); }}><Plus className="w-3.5 h-3.5" /> Add contribution</button>}
                     <button className={`${menuBtn} text-[#8F5F65]`} onClick={() => { setMenuId(null); if (confirm(`Delete ${item.name}?`)) remove(item.id); }}><Trash2 className="w-3.5 h-3.5" /> Delete</button>
                   </RowMenu>
