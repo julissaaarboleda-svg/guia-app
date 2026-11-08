@@ -102,7 +102,9 @@ export default function KnowBeforeYouGo({ trip, know, loading, error }) {
                   {weather.map((w, i) => (
                     <div key={i} className="flex items-center justify-between text-sm">
                       <span className="text-foreground font-medium">{w.city}</span>
-                      <span className="text-muted-foreground">{w.icon} {w.low ?? "—"}–{w.high ?? "—"}° · {w.condition || "—"}</span>
+                      <span className="text-muted-foreground">
+                        {w.high == null ? "Forecast unavailable" : `${w.low ?? w.high}–${w.high}°F${w.condition ? ` · ${w.condition}` : ""}`}
+                      </span>
                     </div>
                   ))}
                 </div>

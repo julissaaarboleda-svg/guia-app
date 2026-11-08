@@ -44,7 +44,7 @@ export async function getTripWeather(trip) {
   const cached = getCachedWeather(trip);
   if (cached) return cached;
   const result = await fetchWeather(trip);
-  setCachedWeather(trip, result);
+  if (result.some((w) => w.high != null)) setCachedWeather(trip, result);
   return result;
 }
 
@@ -139,17 +139,33 @@ function weatherCodeInfo(code) {
 }
 
 // Looks up a city's coordinates via Open-Meteo's free geocoding API.
-async function geocodeCity(city) {
-  try {
-    const res = await fetch(
-      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`
-    );
-    const data = await res.json();
-    const r = data?.results?.[0];
-    return r ? { lat: r.latitude, lon: r.longitude } : null;
-  } catch {
-    return null;
+// Tries progressively simpler names ("Cartagena de Indias" -> "Cartagena") and
+// prefers a match in the trip's country so it doesn't land in the wrong place.
+async function geocodeCity(city, country) {
+  const raw = String(city || "").trim();
+  if (!raw) return null;
+  const first = raw.split(",")[0].trim();
+  const candidates = [raw, first, first.replace(/\s+(de|del|of|da|do)\s+.+$/i, "").trim()]
+    .filter((c, i, arr) => c && arr.indexOf(c) === i);
+  const want = String(country || "").trim().toLowerCase();
+
+  for (const name of candidates) {
+    try {
+      const res = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=10&language=en&format=json`
+      );
+      const data = await res.json();
+      const list = data?.results || [];
+      if (!list.length) continue;
+      const hit = (want && list.find((r) =>
+        (r.country || "").toLowerCase() === want || (r.country_code || "").toLowerCase() === want
+      )) || list[0];
+      return { lat: hit.latitude, lon: hit.longitude };
+    } catch {
+      // try next candidate
+    }
   }
+  return null;
 }
 
 function avg(nums) {
@@ -233,13 +249,13 @@ export async function fetchWeather(trip) {
 
   const results = await Promise.all(
     orderedCities.map(async (city) => {
-      const r = ranges.find((x) => x.city === city) || {};
+      const r = ranges.find((x) => x.city === city && x.start && x.end) || { start: trip.start_date, end: trip.end_date };
       const fmt = (d) => (d ? format(parseISO(d), "MMM d") : "");
       const base = { city, dateRange: r.start && r.end ? `${fmt(r.start)} – ${fmt(r.end)}` : "" };
 
       if (!r.start || !r.end) return { ...base, high: null, low: null, condition: "", icon: "☀" };
 
-      const coords = await geocodeCity(city);
+      const coords = await geocodeCity(city, trip.country);
       if (!coords) return { ...base, high: null, low: null, condition: "", icon: "☀" };
 
       const daysUntilStart = Math.ceil((parseISO(r.start) - today) / 86400000);
