@@ -8,6 +8,7 @@ import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import PageHeader from "@/components/PageHeader";
 import CareerImportSheet from "@/components/career/CareerImportSheet";
+import TargetRoles from "@/components/career/TargetRoles";
 import { fmtMonth, monthsBetween, spanLabel, stripHtml, sameCompany, TAGS } from "@/lib/careerFormat";
 import DateInput from "@/components/DateInput";
 
@@ -309,6 +310,8 @@ export default function Career() {
           </div>
         </div>
       )}
+
+      {!adding && !editing && <TargetRoles entries={entries} currentJob={currentJob} onEditCurrent={startEdit} />}
 
       {/* Count tabs: only roles live in the timeline, everything else opens from here */}
       {entries.length > 0 && !adding && !editing && (
