@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Target, FileText, Briefcase, Building2, CreditCard, Plane, FolderOpen, Settings, MessageCircle, MoreHorizontal, X, LogOut } from "lucide-react";
+import { Home, Target, FileText, Briefcase, Building2, CreditCard, Plane, FolderOpen, Settings, MessageCircle, MoreHorizontal, X, LogOut, BarChart3, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 
 const SECTION_META = {
@@ -109,6 +109,14 @@ export default function BottomNav({ prefs, onFeedback }) {
                   </Link>
                 );
               })}
+              <div className="border-t border-border my-2" />
+              {[["/recap", "Recap", BarChart3], ["/backup", "Backup & export", ShieldCheck]].map(([path, label, I]) => (
+                <Link key={path} to={path} onClick={() => setShowMore(false)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${isActive(path) ? "bg-accent text-accent-foreground font-medium" : "text-foreground hover:bg-secondary"}`}>
+                  <I className="w-4 h-4" />
+                  <span className="font-body">{label}</span>
+                </Link>
+              ))}
               <div className="border-t border-border my-2" />
               {user?.email && (
                 <p className="px-3 pb-1 text-[11px] text-muted-foreground/60 truncate" title={user.email}>

@@ -13,7 +13,7 @@ import netlifyIdentity from "netlify-identity-widget";
 
 netlifyIdentity.init();
 
-const API_BASE = "/.netlify/functions";
+export const API_BASE = "/.netlify/functions";
 
 // Phone camera photos are often 3-10MB, which base64-encodes to something even
 // bigger — comfortably over Netlify Functions' payload limits, which is why
@@ -67,7 +67,7 @@ function compressImageIfNeeded(file, maxDimension = 1600, quality = 0.82) {
   });
 }
 
-async function authHeaders() {
+export async function authHeaders() {
   const user = netlifyIdentity.currentUser();
   if (!user) throw new Error("Not authenticated");
   const token = await user.jwt(); // auto-refreshes if expired

@@ -22,6 +22,8 @@ import Finance from './pages/Finance';
 import OnboardingDemo from './pages/OnboardingDemo';
 import Projects from './pages/Projects';
 import AdminFeedback from './pages/AdminFeedback';
+import Backup from './pages/Backup';
+import Recap from './pages/Recap';
 
 
 const AuthenticatedApp = () => {
@@ -116,6 +118,8 @@ const AuthenticatedApp = () => {
         <Route path="/finance" element={<Finance />} />
         <Route path="/travel" element={<Travel />} />
         <Route path="/projects" element={<Projects />} />
+        <Route path="/recap" element={<Recap />} />
+        <Route path="/backup" element={<Backup />} />
         <Route path="/admin/feedback" element={<AdminFeedback />} />
 
         <Route path="/onboarding" element={<Navigate to="/" replace />} />

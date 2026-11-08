@@ -10,6 +10,10 @@
 [functions."generate-text"]
   timeout = 26
 
+# Backups read every record, which can take a few seconds.
+[functions."backup"]
+  timeout = 26
+
 # React Router needs every unknown path to fall back to index.html
 [[redirects]]
   from = "/*"

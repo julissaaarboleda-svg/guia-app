@@ -3,11 +3,13 @@ import AdjustableImage from "@/components/ui/AdjustableImage";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { Settings, LogOut, Home, Target, Briefcase, Building2, CreditCard, Plane, FolderOpen, FileText, MessageCircle } from "lucide-react";
+import { Settings, LogOut, Home, Target, Briefcase, Building2, CreditCard, Plane, FolderOpen, FileText, MessageCircle, BarChart3, ShieldCheck } from "lucide-react";
 import FeedbackModal from "@/components/feedback/FeedbackModal";
 import BottomNav from "@/components/BottomNav";
 import GuiaHeader from "@/components/GuiaHeader";
 import { useAuth } from "@/lib/AuthContext";
+import { maybeAutoBackup } from "@/lib/backup";
+import { saveCurrentSnapshot } from "@/lib/recap";
 
 const DEFAULT_SECTION_ORDER = ["goals", "notes", "career", "business", "finance", "travel", "projects"];
 
@@ -29,6 +31,12 @@ export default function Layout() {
   });
   const [user, setUser] = useState(null);
   const [showFeedback, setShowFeedback] = useState(false);
+
+  // Quiet housekeeping a few seconds after the app opens: weekly backup + this month's recap snapshot.
+  useEffect(() => {
+    const t = setTimeout(() => { maybeAutoBackup(); saveCurrentSnapshot(); }, 6000);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -108,6 +116,14 @@ export default function Layout() {
             {user.email}
           </p>
         )}
+        <Link to="/recap" className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors">
+          <BarChart3 className="w-3.5 h-3.5" />
+          <span>Recap</span>
+        </Link>
+        <Link to="/backup" className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors">
+          <ShieldCheck className="w-3.5 h-3.5" />
+          <span>Backup</span>
+        </Link>
         <Link
           to="/settings"
          
