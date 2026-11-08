@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { monthView, monthsWithData, habits } from "@/lib/spending";
+import { monthView, monthsWithData, habits, throughLabel, statementRange } from "@/lib/spending";
 
 const money = (n) => `$${Math.round(Number(n) || 0).toLocaleString()}`;
 const monthLabel = (k) => new Date(Number(k.slice(0, 4)), Number(k.slice(5)) - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
@@ -115,7 +115,7 @@ Return JSON: {"review": "..."}`,
             <p className="font-heading text-xl text-foreground mt-0.5">{money(cur.total)}</p>
             <p className="text-[12.5px] text-muted-foreground mt-1">
               {delta != null && <span className={`text-[11px] px-2 py-0.5 rounded-full mr-1.5 ${delta > 0 ? "bg-[#F4E6E7] text-[#8F5F65]" : "bg-[#E4E9D5] text-[#566033]"}`}>{delta > 0 ? "▲" : "▼"} {Math.abs(delta)}%</span>}
-              {delta != null ? "vs last month · " : ""}{cur.statements} statement{cur.statements === 1 ? "" : "s"} · {cur.count} purchases
+              {delta != null ? "vs last month · " : ""}{throughLabel(cur.to) ? `${throughLabel(cur.to)} · ` : ""}{cur.count} purchases from {cur.statements} statement{cur.statements === 1 ? "" : "s"}
             </p>
           </div>
 
@@ -181,7 +181,7 @@ Return JSON: {"review": "..."}`,
           {showStatements && statements.map((s) => (
             <div key={s.id} className="flex items-center justify-between py-2 border-b border-border last:border-0 mt-1">
               <div className="min-w-0"><p className="text-[13.5px] text-foreground truncate">{s.label}</p>
-                <p className="text-[11.5px] text-muted-foreground">{Object.keys(s.months || {}).sort().map((k) => monthLabel(k).split(" ")[0].slice(0, 3)).join(", ")} · {s.count} purchases</p></div>
+                <p className="text-[11.5px] text-muted-foreground">{statementRange(s) || Object.keys(s.months || {}).sort().map((k) => monthLabel(k).split(" ")[0].slice(0, 3)).join(", ")} · {s.count} purchases</p></div>
               <button onClick={() => removeStatement(s)} className="text-[12px] text-[#8F5F65] flex-shrink-0 ml-3">Remove</button>
             </div>
           ))}

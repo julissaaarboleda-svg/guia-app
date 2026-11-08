@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { ent } from "@/lib/freshEntities";
 import { ChevronLeft, ChevronRight, ChevronDown, Pencil, Trash2, X } from "lucide-react";
 import BudgetChart from "@/components/finance/BudgetChart";
-import { monthView, monthsWithData } from "@/lib/spending";
+import { monthView, monthsWithData, throughLabel } from "@/lib/spending";
 
 const nk = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -32,6 +32,7 @@ export default function BudgetTab() {
   const [bills, setBills] = useState([]);
   const [fixedCollapsed, setFixedCollapsed] = useState(true);
   const [spendCollapsed, setSpendCollapsed] = useState(true);
+  const [spendTo, setSpendTo] = useState(null);
   const jumped = useRef(false);
   const [showedLatest, setShowedLatest] = useState(false);
 
@@ -127,6 +128,7 @@ export default function BudgetTab() {
         id: `auto_spend_${nk(c.name)}`, name: c.name, allocated_amount: Math.round(c.total), spent_amount: Math.round(c.total),
         is_fixed: false, due_day: null, category: c.name, month: mk, _auto: true, _from: "statements",
       })) : [];
+    setSpendTo(view ? view.to : null);
     setBuckets([...base, ...spendAuto]);
     const inc = allIncome.find(i => i.month === mk);
     setIncome(inc || null);
@@ -345,7 +347,7 @@ export default function BudgetTab() {
           <button type="button" onClick={() => setSpendCollapsed(c => !c)} className="flex items-center gap-1.5 w-full mb-2">
             {spendCollapsed ? <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
             <h3 className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground">Everyday spending</h3>
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#E4E9D5] text-[#566033] font-body">from statements</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#E4E9D5] text-[#566033] font-body">from statements{throughLabel(spendTo) ? ` · ${throughLabel(spendTo)}` : ""}</span>
             <span className="text-xs text-muted-foreground ml-auto">{fmt(stmtBuckets.reduce((t, b) => t + (b.allocated_amount || 0), 0))}</span>
           </button>
           {!spendCollapsed && (

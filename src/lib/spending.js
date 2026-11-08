@@ -12,7 +12,9 @@ export function buildMonths(rows) {
   for (const r of rows) {
     if (r.t !== "purchase" || !(r.a > 0)) continue;
     const k = monthOf(r.d);
-    const m = (months[k] = months[k] || { total: 0, count: 0, categories: {}, merch: {}, small: { count: 0, total: 0 } });
+    const m = (months[k] = months[k] || { total: 0, count: 0, categories: {}, merch: {}, small: { count: 0, total: 0 }, from: r.d, to: r.d });
+    if (r.d < m.from) m.from = r.d;
+    if (r.d > m.to) m.to = r.d;
     m.total += r.a; m.count += 1;
     m.categories[r.c] = (m.categories[r.c] || 0) + r.a;
     const mk = mkey(r.m);
@@ -23,7 +25,7 @@ export function buildMonths(rows) {
   const out = {};
   for (const [k, m] of Object.entries(months)) {
     out[k] = {
-      total: r2(m.total), count: m.count,
+      total: r2(m.total), count: m.count, from: m.from, to: m.to,
       categories: Object.fromEntries(Object.entries(m.categories).map(([c, v]) => [c, r2(v)])),
       merchants: Object.values(m.merch).map((e) => ({ ...e, total: r2(e.total) })).sort((a, b) => b.total - a.total).slice(0, 40),
       small: { count: m.small.count, total: r2(m.small.total) },
@@ -36,8 +38,10 @@ export function buildMonths(rows) {
 export function monthView(statements, key) {
   const parts = statements.map((s) => s.months?.[key]).filter(Boolean);
   if (!parts.length) return null;
-  const categories = {}; const merch = {}; let total = 0; let count = 0; const small = { count: 0, total: 0 };
+  const categories = {}; const merch = {}; let total = 0; let count = 0; const small = { count: 0, total: 0 }; let from = null; let to = null;
   for (const p of parts) {
+    if (p.from && (!from || p.from < from)) from = p.from;
+    if (p.to && (!to || p.to > to)) to = p.to;
     total += p.total; count += p.count; small.count += p.small?.count || 0; small.total += p.small?.total || 0;
     for (const [c, v] of Object.entries(p.categories || {})) categories[c] = (categories[c] || 0) + v;
     for (const e of p.merchants || []) {
@@ -47,7 +51,7 @@ export function monthView(statements, key) {
     }
   }
   return {
-    key, total: r2(total), count, small: { count: small.count, total: r2(small.total) }, statements: parts.length,
+    key, from, to, total: r2(total), count, small: { count: small.count, total: r2(small.total) }, statements: parts.length,
     categories: Object.entries(categories).map(([name, v]) => ({ name, total: r2(v) })).sort((a, b) => b.total - a.total),
     merchants: Object.values(merch).map((e) => ({ ...e, total: r2(e.total) })).sort((a, b) => b.total - a.total),
   };
@@ -87,4 +91,19 @@ export function habits(cur, prev, tracked = []) {
     rep.forEach((e) => out.push({ tone: "note", text: `${e.name} $${e.total.toFixed(2)} repeats monthly`, sub: "It isn't in your bills or subscriptions yet.", add: e }));
   }
   return out.slice(0, 5);
+}
+
+const dayShort = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+// "Nov 3–7", "Oct 28 – Nov 3", or "" when the dates weren't saved
+export function rangeLabel(from, to) {
+  if (!from || !to) return "";
+  if (from === to) return dayShort(from);
+  const same = from.slice(0, 7) === to.slice(0, 7);
+  return same ? `${dayShort(from)}–${Number(to.slice(8))}` : `${dayShort(from)} – ${dayShort(to)}`;
+}
+export const throughLabel = (to) => (to ? `through ${dayShort(to)}` : "");
+export function statementRange(s) {
+  const ms = Object.values(s.months || {}).filter((m) => m.from && m.to);
+  if (!ms.length) return "";
+  return rangeLabel(ms.map((m) => m.from).sort()[0], ms.map((m) => m.to).sort().slice(-1)[0]);
 }
