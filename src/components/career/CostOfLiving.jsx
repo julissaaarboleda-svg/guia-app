@@ -61,6 +61,7 @@ function Baseline({ profile, fin, save }) {
 }
 
 function useCosts(cities) {
+  const [tick, setTick] = useState(0);
   const key = cities.map(norm).filter(Boolean).join("|");
   const [costs, setCosts] = useState({});
   const [state, setState] = useState("idle");
@@ -69,8 +70,8 @@ function useCosts(cities) {
     let alive = true; setState("loading");
     fetchCityCosts(cities).then((c) => { if (alive) { setCosts(c); setState("ok"); } }).catch(() => alive && setState("error"));
     return () => { alive = false; };
-  }, [key]);
-  return { costs, state };
+  }, [key, tick]);
+  return { costs, state, retry: () => setTick((t) => t + 1) };
 }
 
 const verdictFor = (offer, needed) => {
@@ -137,7 +138,7 @@ export default function CostOfLivingView({ currentJob, onBack }) {
   const { profile, fin, save, ready } = useLiving(currentJob);
   const [newCity, setNewCity] = useState("");
   const cities = profile?.compare_cities || [];
-  const { costs, state } = useCosts(configured(profile) ? [profile.home_city, ...cities] : []);
+  const { costs, state, retry } = useCosts(configured(profile) ? [profile.home_city, ...cities] : []);
   const calcs = useMemo(() => {
     if (!configured(profile)) return [];
     const home = costs[norm(profile.home_city)];
@@ -161,7 +162,7 @@ export default function CostOfLivingView({ currentJob, onBack }) {
             <button onClick={() => { if (newCity.trim()) { save({ ...profile, compare_cities: [...cities, newCity.trim()] }); setNewCity(""); } }} className="px-3 rounded-lg text-white" style={{ background: "#A7773F" }} aria-label="Add city"><Plus className="w-4 h-4" /></button>
           </div>
           {state === "loading" && <div className="h-16 bg-muted rounded-xl animate-pulse" />}
-          {state === "error" && <p className="text-xs text-[#8F5F65]">Couldn't get prices right now. Please try again.</p>}
+          {state === "error" && <p className="text-xs text-[#8F5F65]">Couldn't get prices right now. <button onClick={retry} className="underline font-medium">Try again</button></p>}
           {home && calcs.length > 0 && (
             <>
               <p className="text-[13px] text-foreground mb-2">What costs <b className="font-semibold">$100</b> in {profile.home_city} costs about:</p>

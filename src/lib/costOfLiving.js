@@ -18,18 +18,24 @@ export async function fetchCityCosts(cities) {
     if (hit && Date.now() - hit.at < TTL) out[norm(c)] = hit.data; else missing.push(c);
   });
   if (missing.length) {
-    const res = await base44.integrations.Core.InvokeLLM({
-      prompt: `Using current public cost-of-living data (for example Numbeo, BEA regional price parities, recent rent listings), estimate typical monthly costs for a single adult in each of these places: ${missing.join("; ")}.
+    const prompt = `Estimate typical monthly costs for a single adult in each of these places: ${missing.join("; ")}.
+Use current public cost-of-living data if you can (for example Numbeo, BEA regional price parities, recent rent listings).
 For each give:
 - index: overall cost of living where the US average = 100 (include rent)
 - rent: typical monthly rent in USD for a 1-bedroom apartment in the city centre
 - groceries: typical monthly groceries in USD for one adult
 - transport: typical monthly transport cost in USD (car costs or transit pass, average)
 Be realistic and consistent; round to whole numbers. Respond as JSON only:
-{"cities":[{"name":"exactly as I wrote it","index":100,"rent":0,"groceries":0,"transport":0}]}`,
-      add_context_from_internet: true,
-      response_json_schema: { type: "object" },
-    });
+{"cities":[{"name":"exactly as I wrote it","index":100,"rent":0,"groceries":0,"transport":0}]}`;
+    let res;
+    try {
+      // Web-search version first (fresher); it can be slow, so fall back to the quick version if it fails.
+      res = await base44.integrations.Core.InvokeLLM({ prompt, add_context_from_internet: true, response_json_schema: { type: "object" } });
+    } catch (err) {
+      console.warn("Grounded cost lookup failed, retrying without web search:", err);
+      res = await base44.integrations.Core.InvokeLLM({ prompt, response_json_schema: { type: "object" } });
+    }
+    if (!Array.isArray(res?.cities) || !res.cities.length) throw new Error("No prices returned");
     (res.cities || []).forEach((c, i) => {
       const key = norm(missing.find((m) => norm(m) === norm(c.name)) || missing[i] || c.name);
       const data = { name: c.name, index: Number(c.index) || 100, rent: Number(c.rent) || 0, groceries: Number(c.groceries) || 0, transport: Number(c.transport) || 0 };

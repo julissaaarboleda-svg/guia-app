@@ -6,6 +6,10 @@
 [functions]
   node_bundler = "esbuild"
 
+# AI calls (especially ones that search the web) can take longer than the 10s default.
+[functions."generate-text"]
+  timeout = 26
+
 # React Router needs every unknown path to fall back to index.html
 [[redirects]]
   from = "/*"
