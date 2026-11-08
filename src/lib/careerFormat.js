@@ -42,8 +42,10 @@ export function stripHtml(html) {
 export const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
 // "Wellhub (formerly Gympass)", "Wellhub / Gympass" and "Gympass" are one employer.
+// Known renames: both names count as the same employer even when only one is written.
+const ALIASES = { gympass: "wellhub" };
 const companyTokens = (c) =>
-  new Set(String(c || "").toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !["formerly", "inc", "company", "corp", "group"].includes(w)));
+  new Set(String(c || "").toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !["formerly", "inc", "company", "corp", "group"].includes(w)).map((w) => ALIASES[w] || w));
 export function sameCompany(a, b) {
   const ta = companyTokens(a);
   for (const t of companyTokens(b)) if (ta.has(t)) return true;
