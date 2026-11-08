@@ -13,7 +13,7 @@ import FinanceSummary from "@/components/finance/FinanceSummary";
 import ImportSheet from "@/components/finance/ImportSheet";
 import LoanDetails, { UpcomingLoans } from "@/components/finance/LoanDetails";
 
-const TABS = ["summary", "budget", "bill", "spending", "savings_goal", "loan", "credit_score"];
+const TABS = ["summary", "budget", "bill", "savings_goal", "loan", "credit_score"];
 
 const PRESET_CATEGORIES = [
   "Housing", "Utilities", "Groceries", "Dining", "Transportation",
@@ -70,6 +70,7 @@ export default function Finance() {
   const [adding, setAdding] = useState(false);
   const [importing, setImporting] = useState(false);
   const [spendKey, setSpendKey] = useState(0);
+  const [budgetView, setBudgetView] = useState("budget");
   const [statements, setStatements] = useState([]);
   useEffect(() => { ent.SpendingStatement.list().then((s) => setStatements(s || [])).catch(() => {}); }, [spendKey]);
   const [form, setForm] = useState({});
@@ -293,12 +294,12 @@ export default function Finance() {
       />
       <div className="p-6 md:p-8 pb-12">
 
-      <ImportSheet open={importing} onClose={() => setImporting(false)} existing={items} statements={statements} onDone={(r) => { setActiveTab(r?.spending ? "spending" : "bill"); setSpendKey((k) => k + 1); load(); }} />
+      <ImportSheet open={importing} onClose={() => setImporting(false)} existing={items} statements={statements} onDone={(r) => { if (r?.spending) { setActiveTab("budget"); setBudgetView("spending"); } else setActiveTab("bill"); setSpendKey((k) => k + 1); load(); }} />
 
       {/* Tabs */}
       <div className="sticky top-[84px] z-20 bg-background -mx-6 md:-mx-8 px-6 md:px-8 py-2 flex gap-1.5 overflow-x-auto no-scrollbar mb-5">
         {TABS.map(t => (
-          <button key={t} onClick={() => { setActiveTab(t); setAdding(false); setEditingItemId(null); }}
+          <button key={t} onClick={() => { setActiveTab(t); if (t === "budget") setBudgetView("budget"); setAdding(false); setEditingItemId(null); }}
             className={`px-3.5 py-1.5 rounded-full font-heading text-[13px] whitespace-nowrap flex-shrink-0 transition-colors ${
               activeTab === t
                 ? "bg-[#A7773F] text-[#F7F3EC]"
@@ -312,12 +313,21 @@ export default function Finance() {
 
       {/* Summary tab */}
       {activeTab === "summary" && (
-        <FinanceSummary items={items} buckets={buckets} onNavigate={(t) => { setActiveTab(t); setAdding(false); setEditingItemId(null); }} onAddFirst={() => { setActiveTab("bill"); openAdd("bill"); }} />
+        <FinanceSummary items={items} buckets={buckets} onNavigate={(t) => { if (t === "spending") { setActiveTab("budget"); setBudgetView("spending"); } else { setActiveTab(t); if (t === "budget") setBudgetView("budget"); } setAdding(false); setEditingItemId(null); }} onAddFirst={() => { setActiveTab("bill"); openAdd("bill"); }} />
       )}
 
       {/* Budget tab — self-contained */}
-      {activeTab === "budget" && <BudgetTab />}
-      {activeTab === "spending" && <SpendingTab key={spendKey} items={items} onImport={() => setImporting(true)} />}
+      {activeTab === "budget" && (
+        <>
+          <div className="flex gap-2 mb-4">
+            {[["budget", "Budget"], ["spending", "Spending"]].map(([id, l]) => (
+              <button key={id} onClick={() => setBudgetView(id)}
+                className={`px-4 py-1.5 rounded-full text-[13px] border transition-colors ${budgetView === id ? "bg-[#A7773F] border-[#A7773F] text-[#F7F3EC]" : "border-border text-muted-foreground"}`}>{l}</button>
+            ))}
+          </div>
+          {budgetView === "budget" ? <BudgetTab key={`b${spendKey}`} /> : <SpendingTab key={`s${spendKey}`} items={items} onImport={() => setImporting(true)} />}
+        </>
+      )}
 
       {/* Add button */}
       {activeTab !== "budget" && activeTab !== "spending" && activeTab !== "summary" && (
