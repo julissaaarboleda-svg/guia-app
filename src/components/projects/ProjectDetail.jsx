@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
 import { parseISO } from "date-fns";
@@ -41,7 +41,7 @@ const TAB_LABELS = { tasks: "Tasks", resources: "Resources", notes: "Notes", sup
 
 const statusColors = {
   planning: "bg-amber-50 text-amber-700 border-amber-100",
-  active: "bg-green-50 text-green-700 border-green-100",
+  active: "bg-[#7D8A53]/15 text-[#5F6A3F] border-[#7D8A53]/25",
   on_hold: "bg-secondary text-muted-foreground border-border",
   completed: "bg-blue-50 text-blue-700 border-blue-100",
 };
@@ -122,6 +122,34 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
     setEditing(false);
   };
 
+  // All list edits (tasks, budget, support, notes...) go through mutate():
+  // it computes the change from the LATEST project (not the render that was
+  // on screen when the tap happened), shows it immediately, and saves changes
+  // one at a time in order. Before this, two quick taps (e.g. ticking two
+  // tasks) each started from the same stale list, so the second save wiped
+  // out the first.
+  const latestRef = useRef(project);
+  useEffect(() => { latestRef.current = project; }, [project]);
+  const queueRef = useRef(Promise.resolve());
+  const mutate = (compute) => {
+    const patch = compute(latestRef.current);
+    if (!patch) return Promise.resolve();
+    latestRef.current = { ...latestRef.current, ...patch };
+    onUpdate(latestRef.current);
+    queueRef.current = queueRef.current
+      .then(() => ent.Project.update(project.id, patch))
+      .catch(async (err) => {
+        console.error("Project save failed:", err);
+        alert("Couldn't save that change. Reloading the latest version.");
+        try {
+          const fresh = await ent.Project.get(project.id);
+          latestRef.current = fresh;
+          onUpdate(fresh);
+        } catch { /* offline: leave as is */ }
+      });
+    return queueRef.current;
+  };
+
   const deleteProject = async () => {
     if (!confirm("Delete this project?")) return;
     await ent.Project.delete(project.id);
@@ -141,38 +169,35 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
     }
   };
 
-  const addTask = async (taskInput) => {
-    const newTasks = [...tasks, { ...taskInput, completed: false }];
-    const updated = await ent.Project.update(project.id, { tasks: newTasks });
-    onUpdate(updated);
-  };
+  const addTask = (taskInput) =>
+    mutate((p) => ({ tasks: [...(p.tasks || []), { ...taskInput, completed: false }] }));
 
-  const toggleTask = async (index) => {
-    const updated = [...tasks];
-    updated[index] = { ...updated[index], completed: !updated[index].completed };
-    const result = await ent.Project.update(project.id, { tasks: updated });
-    onUpdate(result);
-  };
+  const toggleTask = (index) =>
+    mutate((p) => {
+      const t = [...(p.tasks || [])];
+      if (!t[index]) return null;
+      t[index] = { ...t[index], completed: !t[index].completed };
+      return { tasks: t };
+    });
 
-  const reassignTask = async (index, assignees) => {
-    const updated = [...tasks];
-    updated[index] = { ...updated[index], assignees, assignee: undefined };
-    const result = await ent.Project.update(project.id, { tasks: updated });
-    onUpdate(result);
-  };
+  const reassignTask = (index, assignees) =>
+    mutate((p) => {
+      const t = [...(p.tasks || [])];
+      if (!t[index]) return null;
+      t[index] = { ...t[index], assignees, assignee: undefined };
+      return { tasks: t };
+    });
 
-  const removeTask = async (index) => {
-    const updated = tasks.filter((_, i) => i !== index);
-    const result = await ent.Project.update(project.id, { tasks: updated });
-    onUpdate(result);
-  };
+  const removeTask = (index) =>
+    mutate((p) => ({ tasks: (p.tasks || []).filter((_, i) => i !== index) }));
 
-  const updateTask = async (index, patch) => {
-    const updated = [...tasks];
-    updated[index] = { ...updated[index], ...patch };
-    const result = await ent.Project.update(project.id, { tasks: updated });
-    onUpdate(result);
-  };
+  const updateTask = (index, patch) =>
+    mutate((p) => {
+      const t = [...(p.tasks || [])];
+      if (!t[index]) return null;
+      t[index] = { ...t[index], ...patch };
+      return { tasks: t };
+    });
 
   const updateAccentColor = async (hex) => {
     setAccentColor(hex);
@@ -203,90 +228,60 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
   // this is what let "ruth@..." and "Ruth@..." get added as two separate
   // collaborators. The dedup check was case-sensitive, so a differently
   // capitalized retry looked like a brand new person.
-  const addCollaborator = async (email) => {
+  const addCollaborator = (email) => {
     const normalized = (email || "").trim().toLowerCase();
-    if (!normalized) return;
-    if (collaborators.some((c) => c.toLowerCase() === normalized)) return;
-    const updated = await ent.Project.update(project.id, {
-      collaborators: [...collaborators, normalized],
+    if (!normalized) return Promise.resolve();
+    return mutate((p) => {
+      const list = p.collaborators || [];
+      if (list.some((c) => c.toLowerCase() === normalized)) return null;
+      return { collaborators: [...list, normalized] };
     });
-    onUpdate(updated);
   };
 
-  const removeCollaborator = async (email) => {
+  const removeCollaborator = (email) => {
     const normalized = (email || "").trim().toLowerCase();
-    const updated = await ent.Project.update(project.id, {
-      collaborators: collaborators.filter((c) => c.toLowerCase() !== normalized),
-    });
-    onUpdate(updated);
+    return mutate((p) => ({ collaborators: (p.collaborators || []).filter((c) => c.toLowerCase() !== normalized) }));
   };
 
-  const setAttachments = async (attachments) => {
-    const updated = await ent.Project.update(project.id, { attachments });
-    onUpdate(updated);
-  };
+  const setAttachments = (attachments) => mutate(() => ({ attachments }));
 
-  const setNotes = async (notes) => {
-    const updated = await ent.Project.update(project.id, { notes });
-    onUpdate(updated);
-  };
+  const setNotes = (notes) => mutate(() => ({ notes }));
 
   const expenses = project.expenses || [];
   const budgetTarget = project.budget_target || 0;
   const totalSpent = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
 
-  const setBudgetTarget = async (target) => {
-    const updated = await ent.Project.update(project.id, { budget_target: target });
-    onUpdate(updated);
-  };
+  const setBudgetTarget = (target) => mutate(() => ({ budget_target: target }));
 
-  const addExpense = async (expense) => {
-    const updatedExpenses = [...expenses, expense];
-    const updated = await ent.Project.update(project.id, { expenses: updatedExpenses });
-    onUpdate(updated);
-  };
+  const addExpense = (expense) => mutate((p) => ({ expenses: [...(p.expenses || []), expense] }));
 
-  const removeExpense = async (idx) => {
-    const updatedExpenses = expenses.filter((_, i) => i !== idx);
-    const updated = await ent.Project.update(project.id, { expenses: updatedExpenses });
-    onUpdate(updated);
-  };
+  const removeExpense = (idx) => mutate((p) => ({ expenses: (p.expenses || []).filter((_, i) => i !== idx) }));
 
-  const updateExpense = async (idx, patch) => {
-    const updatedExpenses = [...expenses];
-    updatedExpenses[idx] = { ...updatedExpenses[idx], ...patch };
-    const updated = await ent.Project.update(project.id, { expenses: updatedExpenses });
-    onUpdate(updated);
-  };
+  const updateExpense = (idx, patch) =>
+    mutate((p) => {
+      const e = [...(p.expenses || [])];
+      if (!e[idx]) return null;
+      e[idx] = { ...e[idx], ...patch };
+      return { expenses: e };
+    });
 
-  const reassignExpense = async (idx, paidBy) => {
-    const updatedExpenses = [...expenses];
-    updatedExpenses[idx] = { ...updatedExpenses[idx], paid_by: paidBy };
-    const updated = await ent.Project.update(project.id, { expenses: updatedExpenses });
-    onUpdate(updated);
-  };
+  const reassignExpense = (idx, paidBy) => updateExpense(idx, { paid_by: paidBy });
 
   const contributions = project.contributions || [];
 
-  const addContribution = async (contribution) => {
-    const updated = await ent.Project.update(project.id, {
-      contributions: [...contributions, contribution],
+  const addContribution = (contribution) =>
+    mutate((p) => ({ contributions: [...(p.contributions || []), contribution] }));
+
+  const updateContribution = (idx, patch) =>
+    mutate((p) => {
+      const c = [...(p.contributions || [])];
+      if (!c[idx]) return null;
+      c[idx] = { ...c[idx], ...patch };
+      return { contributions: c };
     });
-    onUpdate(updated);
-  };
 
-  const updateContribution = async (idx, patch) => {
-    const updatedContributions = [...contributions];
-    updatedContributions[idx] = { ...updatedContributions[idx], ...patch };
-    const updated = await ent.Project.update(project.id, { contributions: updatedContributions });
-    onUpdate(updated);
-  };
-
-  const removeContribution = async (idx) => {
-    const updatedContributions = contributions.filter((_, i) => i !== idx);
-    const updated = await ent.Project.update(project.id, { contributions: updatedContributions });
-    onUpdate(updated);
-  };
+  const removeContribution = (idx) =>
+    mutate((p) => ({ contributions: (p.contributions || []).filter((_, i) => i !== idx) }));
 
   const progress =
     tasks.length === 0
@@ -415,8 +410,8 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
                 <p className="text-base font-bold text-foreground mb-1.5">{progress}%</p>
                 <div className="h-1.5 bg-secondary rounded-full overflow-hidden mb-1.5">
                   <div
-                    className="h-full bg-green-600 rounded-full transition-all"
-                    style={{ width: `${progress}%` }}
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${progress}%`, backgroundColor: "#A7773F" }}
                   />
                 </div>
                 <p className="text-[9.5px] text-muted-foreground truncate">

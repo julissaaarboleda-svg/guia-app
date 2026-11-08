@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Plus, Trash2, SlidersHorizontal, User, DollarSign, Check, Pencil } from "lucide-react";
+import { Plus, Trash2, SlidersHorizontal, DollarSign, Check, Pencil } from "lucide-react";
 import DateInput from "@/components/DateInput";
 
 const CHIP_COLORS = ["#A7773F", "#7D8A53", "#A77C81", "#6B655D", "#8A6530"];
@@ -254,7 +254,7 @@ export default function ProjectTasks({ tasks, collaborators, currentEmail, onAdd
           const people = assigneesFor(t, currentEmail);
           return (
             <div key={t._idx} className="flex items-center gap-3 py-2 border-t border-border">
-              <button onClick={() => onToggle(t._idx)} className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${t.completed ? "bg-green-600 border-green-600" : "border-input"}`}>
+              <button onClick={() => onToggle(t._idx)} className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${t.completed ? "bg-[#A7773F] border-[#A7773F]" : "border-input"}`}>
                 {t.completed && <span className="text-white text-[10px]">✓</span>}
               </button>
               <div className="flex-1 min-w-0">
