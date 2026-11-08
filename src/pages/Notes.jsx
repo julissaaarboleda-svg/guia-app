@@ -253,12 +253,12 @@ export default function Notes() {
   };
 
   // ---- Saved Places ----
-  const openAddPlace = () => setPlaceForm({ name: "", type: "", address: "" });
-  const openEditPlace = (p) => { setPlaceMenu(null); setPlaceForm({ id: p.id, name: p.name || "", type: p.type || "", address: p.address || "" }); };
+  const openAddPlace = () => setPlaceForm({ name: "", type: "", address: "", place_id: "", maps_url: "", photo_url: "", photo_credit: "" });
+  const openEditPlace = (p) => { setPlaceMenu(null); setPlaceForm({ id: p.id, name: p.name || "", type: p.type || "", address: p.address || "", place_id: p.place_id || "", maps_url: p.maps_url || "", photo_url: p.photo_url || "", photo_credit: p.photo_credit || "" }); };
 
   const savePlace = async () => {
     if (!placeForm?.name?.trim()) return;
-    const patch = { name: placeForm.name.trim(), type: placeForm.type.trim(), address: placeForm.address.trim() };
+    const patch = { name: placeForm.name.trim(), type: placeForm.type.trim(), address: placeForm.address.trim(), place_id: placeForm.place_id || null, maps_url: placeForm.maps_url || null, photo_url: placeForm.photo_url || null, photo_credit: placeForm.photo_credit || null };
     if (placeForm.id) {
       await ent.SavedPlace.update(placeForm.id, patch);
       setSavedPlaces(prev => prev.map(p => p.id === placeForm.id ? { ...p, ...patch } : p));
@@ -612,15 +612,51 @@ function NoteMenuSheet({ note, folders, onClose, onDelete, onMove, onEdit }) {
   );
 }
 
-// Add/edit a saved place — just a name, a free-text type, and an address.
+// Pick the closest of our own categories from Google's place types.
+function guessPlaceType(types = [], primary = "") {
+  const t = new Set(types);
+  const has = (...k) => k.some((x) => t.has(x));
+  if (has("cafe", "coffee_shop", "bakery", "tea_house")) return "Café";
+  if (has("bar", "night_club", "wine_bar", "pub")) return "Bar";
+  if (has("restaurant", "meal_takeaway", "meal_delivery", "food") || /restaurant/i.test(primary)) return "Restaurant";
+  if (has("lodging", "hotel", "resort_hotel", "bed_and_breakfast")) return "Hotel";
+  if (has("park", "national_park", "state_park", "playground")) return "Park";
+  if (has("tourist_attraction", "museum", "art_gallery", "amusement_park", "zoo", "aquarium", "landmark")) return "Attraction";
+  if (has("store", "shopping_mall", "clothing_store", "book_store", "home_goods_store", "market", "supermarket")) return "Shop";
+  return "";
+}
+
+// Add/edit a saved place. Type a name to find the real place: its address,
+// category and a photo fill in automatically. A place can still be typed by hand.
 function PlaceFormSheet({ form, onChange, onClose, onSave }) {
+  const [nameHits, setNameHits] = useState([]);
+  const [nameSearching, setNameSearching] = useState(false);
+  const [typedName, setTypedName] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [filling, setFilling] = useState(false);
+  const nameTimer = useRef(null);
   const debounceTimer = useRef(null);
+  const formRef = useRef(form);
+  formRef.current = form;
+  const patch = (p) => onChange({ ...formRef.current, ...p });
+
+  useEffect(() => {
+    if (!form || !typedName || form.name.trim().length < 2) { setNameHits([]); return; }
+    clearTimeout(nameTimer.current);
+    nameTimer.current = setTimeout(async () => {
+      setNameSearching(true);
+      try {
+        const { predictions } = await base44.integrations.Core.SearchPlacesAutocomplete({ input: form.name });
+        setNameHits(predictions || []);
+      } catch { setNameHits([]); } finally { setNameSearching(false); }
+    }, 300);
+    return () => clearTimeout(nameTimer.current);
+  }, [form?.name, typedName]);
 
   useEffect(() => {
     if (!form) { setSuggestions([]); return; }
-    if (!form.address || form.address.trim().length < 2) { setSuggestions([]); return; }
+    if (!form.address || form.address.trim().length < 2 || form.place_id) { setSuggestions([]); return; }
     clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(async () => {
       setSearching(true);
@@ -639,31 +675,94 @@ function PlaceFormSheet({ form, onChange, onClose, onSave }) {
   if (!form) return null;
 
   const pickSuggestion = (description) => {
-    onChange({ ...form, address: description });
+    patch({ address: description, place_id: "" });
     setSuggestions([]);
+  };
+
+  // A real place was chosen: fill what we know now, then fetch the rest.
+  const choosePlace = async (hit) => {
+    setNameHits([]);
+    setTypedName(false);
+    patch({
+      name: hit.name || hit.description.split(",")[0],
+      address: hit.secondary || hit.description,
+      place_id: hit.placeId,
+      type: guessPlaceType(hit.types) || formRef.current.type,
+    });
+    setFilling(true);
+    try {
+      const d = await base44.integrations.Core.LookupPlace({ place_id: hit.placeId });
+      patch({
+        name: d.name || formRef.current.name,
+        address: d.address || formRef.current.address,
+        maps_url: d.mapsUrl || "",
+        type: guessPlaceType(d.types, d.primaryType) || formRef.current.type,
+      });
+      if (d.url) {
+        const blob = await (await fetch(d.url)).blob();
+        const file = new File([blob], "place.jpg", { type: blob.type || "image/jpeg" });
+        const { file_url } = await base44.integrations.Core.UploadFile({ file });
+        patch({ photo_url: file_url, photo_credit: d.attribution || "Google" });
+      }
+    } catch (e) {
+      console.error("Place lookup failed:", e); // the place itself is still usable
+    } finally {
+      setFilling(false);
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="relative w-full sm:max-w-sm bg-card rounded-t-3xl sm:rounded-3xl shadow-2xl border border-border overflow-hidden">
+      <div className="relative w-full sm:max-w-sm bg-card rounded-t-3xl sm:rounded-3xl shadow-2xl border border-border max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between px-5 pt-4 pb-2">
-          <p className="font-heading text-base text-foreground">{form.id ? "Edit place" : "Save a place"}</p>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+          <p className="font-heading text-lg text-foreground">{form.id ? "Edit place" : "Save a place"}</p>
+          <button onClick={onClose} aria-label="Close" className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
         <div className="px-5 pb-6 pt-2 space-y-3">
-          <div>
+          <div className="relative">
             <label className="font-body text-[12px] text-muted-foreground mb-1 block">Name</label>
             <input
               autoFocus
               value={form.name}
-              onChange={(e) => onChange({ ...form, name: e.target.value })}
-              placeholder="e.g. Nari"
+              onChange={(e) => { setTypedName(true); patch({ name: e.target.value, place_id: "" }); }}
+              placeholder="Search a place, e.g. Nari"
+              autoComplete="off"
               className="w-full bg-secondary border border-border rounded-xl px-4 py-2.5 text-[14px] text-foreground outline-none focus:border-ring transition-colors"
             />
+            {(nameHits.length > 0 || nameSearching) && (
+              <div className="absolute left-0 right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-lg z-10 py-1 max-h-60 overflow-y-auto">
+                {nameSearching && nameHits.length === 0 ? (
+                  <p className="px-3 py-2 font-body text-[12px] text-muted-foreground">Searching…</p>
+                ) : (
+                  nameHits.map((h) => (
+                    <button key={h.placeId} onClick={() => choosePlace(h)} className="w-full text-left px-3 py-2 hover:bg-secondary transition-colors">
+                      <span className="block font-body text-[13.5px] text-foreground truncate">{h.name || h.description}</span>
+                      {h.secondary && <span className="block font-body text-[11.5px] text-muted-foreground truncate">{h.secondary}</span>}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
           </div>
+
+          {(form.photo_url || filling) && (
+            <div className="relative h-32 rounded-2xl overflow-hidden bg-secondary">
+              {form.photo_url && <img src={form.photo_url} alt="" className="w-full h-full object-cover" />}
+              {filling && <div className="absolute inset-0 flex items-center justify-center bg-black/30 text-white text-xs">Finding details and a photo…</div>}
+              {form.photo_url && !filling && (
+                <>
+                  <span className="absolute bottom-1.5 left-2 text-[10px] text-white/90 drop-shadow">Photo: {form.photo_credit || "Google"}</span>
+                  <button onClick={() => patch({ photo_url: "", photo_credit: "" })} aria-label="Remove photo" className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/45 text-white flex items-center justify-center">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
           <div>
             <label className="font-body text-[12px] text-muted-foreground mb-1.5 block">Type</label>
             <div className="grid grid-cols-3 gap-1.5">
@@ -671,7 +770,7 @@ function PlaceFormSheet({ form, onChange, onClose, onSave }) {
                 <button
                   key={t}
                   type="button"
-                  onClick={() => onChange({ ...form, type: form.type === t ? "" : t })}
+                  onClick={() => patch({ type: form.type === t ? "" : t })}
                   className={`py-2 rounded-lg text-[12px] font-medium transition-colors ${
                     form.type === t ? "bg-[#A7773F] text-[#F7F3EC]" : "bg-secondary text-foreground hover:bg-secondary/70"
                   }`}
@@ -685,13 +784,13 @@ function PlaceFormSheet({ form, onChange, onClose, onSave }) {
             <label className="font-body text-[12px] text-muted-foreground mb-1 block">Address</label>
             <input
               value={form.address}
-              onChange={(e) => onChange({ ...form, address: e.target.value })}
+              onChange={(e) => patch({ address: e.target.value, place_id: "" })}
               placeholder="Search worldwide…"
               autoComplete="off"
               className="w-full bg-secondary border border-border rounded-xl px-4 py-2.5 text-[14px] text-foreground outline-none focus:border-ring transition-colors"
             />
             {(suggestions.length > 0 || searching) && (
-              <div className="absolute left-0 right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-lg z-10 py-1 max-h-52 overflow-y-auto">
+              <div className="absolute left-0 right-0 bottom-full mb-1 bg-card border border-border rounded-xl shadow-lg z-10 py-1 max-h-52 overflow-y-auto">
                 {searching && suggestions.length === 0 ? (
                   <p className="px-3 py-2 font-body text-[12px] text-muted-foreground">Searching…</p>
                 ) : (
@@ -710,10 +809,10 @@ function PlaceFormSheet({ form, onChange, onClose, onSave }) {
           </div>
           <button
             onClick={onSave}
-            disabled={!form.name.trim()}
+            disabled={!form.name.trim() || filling}
             className="w-full py-2.5 rounded-full bg-[#A7773F] text-[#F7F3EC] text-[14px] font-medium flex items-center justify-center gap-1.5 disabled:opacity-40"
           >
-            <Check className="w-4 h-4" /> Save
+            <Check className="w-4 h-4" /> {filling ? "One moment…" : "Save"}
           </button>
         </div>
       </div>

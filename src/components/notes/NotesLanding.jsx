@@ -306,8 +306,8 @@ export default function NotesLanding({
             <div className="bg-card border border-border/60 rounded-2xl overflow-hidden">
               {filteredPlaces.map((p, i) => (
                 <div key={p.id} className={`flex items-center gap-3 py-2.5 px-4 transition-colors ${i !== 0 ? "border-t border-border/40" : ""}`}>
-                  <span className="w-9 h-9 rounded-[10px] bg-[#A7773F1F] flex items-center justify-center flex-shrink-0">
-                    <MapPin className="w-4 h-4 text-[#A7773F]" strokeWidth={1.8} />
+                  <span className="w-11 h-11 rounded-xl bg-[#A7773F1F] flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    {p.photo_url ? <img src={p.photo_url} alt="" className="w-full h-full object-cover" /> : <MapPin className="w-4 h-4 text-[#A7773F]" strokeWidth={1.8} />}
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className="font-body text-[13.5px] font-medium text-foreground truncate leading-snug">{p.name || "Untitled place"}</p>
@@ -315,9 +315,9 @@ export default function NotesLanding({
                       {[p.type, p.address].filter(Boolean).join(" · ")}
                     </p>
                   </div>
-                  {p.address && (
+                  {(p.maps_url || p.address) && (
                     <a
-                      href={mapsUrl(p.address)}
+                      href={p.maps_url || mapsUrl(p.address)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="w-8 h-8 flex items-center justify-center text-[#A7773F] hover:text-[#8A5F2E] transition-colors flex-shrink-0"

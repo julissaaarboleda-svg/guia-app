@@ -54,6 +54,9 @@ exports.handler = async (event, context) => {
       .map((p) => ({
         description: p.text?.text || "",
         placeId: p.placeId,
+        name: p.structuredFormat?.mainText?.text || "",
+        secondary: p.structuredFormat?.secondaryText?.text || "",
+        types: p.types || [],
       }))
       .filter((p) => p.description)
       .slice(0, 6);
