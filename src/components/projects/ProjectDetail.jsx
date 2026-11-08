@@ -26,6 +26,7 @@ import ProjectNotes from "@/components/projects/ProjectNotes";
 import ProjectBudget from "@/components/projects/ProjectBudget";
 import ProjectContributions from "@/components/projects/ProjectContributions";
 import { StickyNote, HandHeart } from "lucide-react";
+import { initialsFor as initialsOf, nameFor, sameEmail } from "@/lib/collab";
 import { exportProjectPdf } from "@/lib/projectPdfExport";
 
 const DEFAULT_VISIBLE_TABS = { tasks: true, resources: true, notes: true, support: false, budget: true };
@@ -298,6 +299,23 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
   const removeContribution = (idx) =>
     mutate((p) => ({ contributions: (p.contributions || []).filter((_, i) => i !== idx) }));
 
+  // Countdown / date-passed state for the hero and banner.
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const daysLeft =
+    project.date_type !== "ongoing" && project.target_date
+      ? Math.round((parseISO(project.target_date) - todayStart) / 86400000)
+      : null;
+  const datePassed = daysLeft !== null && daysLeft < 0 && project.status !== "completed";
+  const openTaskCount = tasks.filter((t) => !t.completed).length;
+  const others = collaborators.filter((c) => !sameEmail(c, currentUserEmail));
+  const AVATAR_COLORS = ["#A7773F", "#7D8A53", "#A77C81", "#6B655D", "#8A6530"];
+  const avatarColor = (e) => {
+    let h = 0;
+    for (let i = 0; i < e.length; i++) h = e.charCodeAt(i) + ((h << 5) - h);
+    return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+  };
+
   const progress =
     tasks.length === 0
       ? 0
@@ -370,6 +388,11 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
                 {CATEGORIES.find((c) => c.id === project.category).emoji} {CATEGORIES.find((c) => c.id === project.category).label}
               </span>
             )}
+            {daysLeft !== null && project.status !== "completed" && (
+              <span className="self-start ml-auto font-body text-[10px] font-medium px-2.5 py-1 rounded-full bg-white/90 flex-shrink-0" style={{ color: daysLeft < 0 ? "#BE123C" : "#A7773F" }}>
+                {daysLeft === 0 ? "Today" : daysLeft === 1 ? "1 day to go" : daysLeft > 1 ? `${daysLeft} days to go` : "Date passed"}
+              </span>
+            )}
           </div>
 
           <div className="relative mt-auto [text-shadow:0_1px_4px_rgba(0,0,0,0.5)]">
@@ -401,6 +424,44 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
             )}
           </div>
         </div>
+
+        {others.length > 0 && (
+          <button
+            onClick={() => setShowCollabModal(true)}
+            className="flex items-center gap-2 mb-4 -mt-1 text-left"
+            aria-label="View collaborators"
+          >
+            <span className="flex -space-x-1.5">
+              {others.slice(0, 4).map((c) => (
+                <span
+                  key={c}
+                  title={nameFor(c, names)}
+                  className="w-6 h-6 rounded-full border-2 border-card flex items-center justify-center text-white text-[9px] font-bold"
+                  style={{ background: avatarColor(c) }}
+                >
+                  {initialsOf(c, names, currentUserEmail)}
+                </span>
+              ))}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              With {others.slice(0, 2).map((c) => nameFor(c, names).split(" ")[0]).join(", ")}
+              {others.length > 2 ? ` +${others.length - 2}` : ""}
+            </span>
+          </button>
+        )}
+
+        {datePassed && (
+          <div className="flex items-center justify-between gap-3 mb-4 rounded-xl border border-[#A7773F]/30 bg-[#F7F3EC] px-3.5 py-2.5">
+            <p className="text-xs text-foreground">This project's date has passed.</p>
+            <button
+              onClick={() => mutate(() => ({ status: "completed" }))}
+              className="flex-shrink-0 text-xs font-medium text-white px-3 py-1.5 rounded-full"
+              style={{ backgroundColor: "#A7773F" }}
+            >
+              Mark completed
+            </button>
+          </div>
+        )}
 
         <ProjectCollaborators
           open={showCollabModal}
@@ -451,7 +512,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
                     {budgetTarget > 0 ? `/ $${budgetTarget.toLocaleString()}` : "spent"}
                   </span>
                 </p>
-                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "#EFE9DF" }}>
+                <div className="h-1.5 rounded-full overflow-hidden mb-1.5" style={{ background: "#EFE9DF" }}>
                   {budgetTarget > 0 && (
                     <div
                       className="h-full rounded-full transition-all"
@@ -462,6 +523,11 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
                     />
                   )}
                 </div>
+                {budgetTarget > 0 && (
+                  <p className="text-[9.5px] truncate" style={{ color: totalSpent > budgetTarget ? "#BE123C" : undefined }}>
+                    {totalSpent > budgetTarget ? `$${(totalSpent - budgetTarget).toLocaleString()} over` : `$${(budgetTarget - totalSpent).toLocaleString()} left`}
+                  </p>
+                )}
               </button>
             )}
           </div>
@@ -632,7 +698,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
               }`}
               style={tab === "tasks" ? { backgroundColor: "#A7773F" } : undefined}
             >
-              <ListTodo className="w-3 h-3 flex-shrink-0" /> Tasks
+              <ListTodo className="w-3 h-3 flex-shrink-0" /> Tasks{openTaskCount > 0 ? ` · ${openTaskCount}` : ""}
             </button>
           )}
           {visibleTabs.resources && (
