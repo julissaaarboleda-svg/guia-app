@@ -1,12 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ent } from "@/lib/freshEntities";
 import DateRangePicker from "@/components/DateRangePicker";
-import { Trash2, Pencil, Briefcase, Star, Award, BookOpen, BadgeCheck, TrendingUp, FileText, Settings, Plus } from "lucide-react";
+import { Trash2, Pencil, Briefcase, Star, Award, BookOpen, BadgeCheck, TrendingUp, FileText, Settings, Plus, Upload, ChevronDown } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import CalibrationManager from "../components/career/CalibrationManager";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import PageHeader from "@/components/PageHeader";
+import CareerImportSheet from "@/components/career/CareerImportSheet";
+import { fmtMonth, monthsBetween, spanLabel, stripHtml, sameCompany, TAGS } from "@/lib/careerFormat";
 import DateInput from "@/components/DateInput";
 
 const ENTRY_TYPES = [
@@ -44,6 +46,10 @@ export default function Career() {
   const [showCalibrations, setShowCalibrations] = useState(false);
   const [calibrations, setCalibrations] = useState([]);
   const [jobRatings, setJobRatings] = useState([]);
+  const [showImport, setShowImport] = useState(false);
+  const [activeTab, setActiveTab] = useState(null);
+  const [showAllRoles, setShowAllRoles] = useState(false);
+  const [expanded, setExpanded] = useState(() => new Set());
 
   const load = async () => {
     const [e, cal] = await Promise.all([
@@ -173,6 +179,76 @@ export default function Career() {
   const currentJob = entries.find(e => e.entry_type === "job" && e.current);
   const SelectedIcon = ENTRY_TYPES.find(t => t.id === entryType)?.icon || FileText;
 
+  const TABS = [
+    { id: "review", label: "Reviews", add: "Review", type: "review", tag: "review" },
+    { id: "achievement", label: "Achievements", add: "Achievement", type: "achievement", tag: "milestone" },
+    { id: "education", label: "Education", add: "Education", type: "education", tag: "education" },
+    { id: "custom", label: "Other", add: "Custom", type: "custom", tag: "custom" },
+  ];
+  const tabEntries = (id) => groupedEntries[id] || [];
+  const jobs = useMemo(() => [...(groupedEntries.job || [])].sort((a, b) => {
+    if (a.current !== b.current) return a.current ? -1 : 1;
+    return String(b.start_date || "").localeCompare(String(a.start_date || ""));
+  }), [entries]);
+  const visibleJobs = showAllRoles ? jobs : jobs.slice(0, 3);
+
+  const stats = useMemo(() => {
+    if (!currentJob) return null;
+    const out = [];
+    const inRole = monthsBetween(currentJob.start_date);
+    if (inRole !== null) out.push([spanLabel(inRole), "In role"]);
+    const sameCo = jobs.filter(j => currentJob.company && j.company && sameCompany(j.company, currentJob.company) && j.start_date);
+    if (sameCo.length) {
+      const earliest = sameCo.map(j => j.start_date).sort()[0];
+      out.push([spanLabel(monthsBetween(earliest)), `At ${String(currentJob.company).split(/[\s(\/]/)[0]}`]);
+    }
+    out.push([String(jobs.length), jobs.length === 1 ? "Role" : "Roles"]);
+    return out;
+  }, [currentJob, jobs]);
+
+  const toggleExpanded = (id) => setExpanded(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const renderCard = (e, compact = false) => {
+    const isOpen = !compact || expanded.has(e.id);
+    const tagKey = e.current ? "current" : (["milestone", "skill", "certification", "review", "education", "custom"].includes(e.entry_type) ? e.entry_type : null);
+    const tag = tagKey ? TAGS[tagKey] : null;
+    const text = stripHtml(e.description);
+    const dates = (e.start_date || e.end_date) ? `${e.start_date ? fmtMonth(e.start_date) : "?"} – ${e.current ? "Present" : (e.end_date ? fmtMonth(e.end_date) : "?")}` : "";
+    return (
+      <div key={e.id} className="bg-card border border-border rounded-2xl p-3.5 group">
+        <div className="flex items-start justify-between gap-3">
+          <button type="button" onClick={compact ? () => toggleExpanded(e.id) : undefined}
+            className={`flex-1 min-w-0 text-left ${compact ? "cursor-pointer" : "cursor-default"}`}>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <p className={`text-foreground ${compact ? "font-heading text-[16px]" : "font-medium"}`}>{e.title}</p>
+              {tag && <span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full" style={{ background: tag.bg, color: tag.fg }}>{e.current ? "Current" : tag.label}</span>}
+            </div>
+            {(e.company || dates) && (
+              <p className="text-[12.5px] text-muted-foreground mt-0.5">{[e.company, dates].filter(Boolean).join(" · ")}</p>
+            )}
+            {isOpen && (
+              <>
+                {e.salary && <p className="text-sm text-foreground mt-1.5">{showPay ? `$${e.salary.toLocaleString()}` : "••••••"}</p>}
+                {e.rating && <p className="text-sm mt-1.5" style={{ color: TAGS.review.fg }}>Rating: {e.rating}/{e.rating_scale || 10}</p>}
+                {text && <p className={`text-sm text-foreground mt-2 ${compact ? "" : "line-clamp-3"}`}>{text}</p>}
+                {e.skills_gained && e.skills_gained.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {e.skills_gained.map((s, i) => <span key={i} className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: TAGS.skill.bg, color: TAGS.skill.fg }}>{s}</span>)}
+                  </div>
+                )}
+                {e.notes && <p className="text-xs text-muted-foreground mt-2">{e.notes}</p>}
+              </>
+            )}
+          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button onClick={() => startEdit(e)} className="text-muted-foreground/60 hover:text-foreground transition-colors" aria-label="Edit"><Pencil className="w-4 h-4" /></button>
+            <button onClick={() => remove(e.id)} className="text-muted-foreground/40 hover:text-rose-400 transition-colors" aria-label="Delete"><Trash2 className="w-4 h-4" /></button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
       <div className="max-w-[1200px] 2xl:max-w-[1400px] mx-auto w-full">
@@ -191,48 +267,89 @@ export default function Career() {
         }
       />
       <div className="p-4 md:p-6 lg:p-8">
+      {/* Import */}
+      {!adding && !editing && (
+        <button onClick={() => setShowImport(true)}
+          className="inline-flex items-center gap-1.5 mb-4 text-[12px] font-medium text-[#A7773F] border border-[#A7773F] rounded-full px-3.5 py-1.5 hover:bg-secondary/50 transition-colors">
+          <Upload className="w-3.5 h-3.5" strokeWidth={1.8} /> Import from PDF
+        </button>
+      )}
+
       {/* Current Role Card */}
       {currentJob && (
-        <div className="bg-card border border-border border-l-4 border-l-[#A7773F] rounded-2xl p-4 md:p-5 mb-4 md:mb-6">
+        <div className="bg-card border border-border rounded-2xl p-4 md:p-5 mb-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <span className="text-[9px] font-bold text-[#8B6B3E] uppercase tracking-[0.14em]">Current role</span>
+              <span className="text-[9px] font-bold uppercase tracking-[0.14em]" style={{ color: TAGS.current.fg }}>Current role</span>
               <h2 className="font-heading text-xl text-foreground truncate mt-0.5">{currentJob.title}</h2>
               <p className="text-sm text-muted-foreground mt-0.5">
                 {currentJob.company}{currentJob.company && currentJob.start_date ? " · " : ""}
-                {currentJob.start_date && `since ${new Date(currentJob.start_date).toLocaleDateString("en-US", { month: "short", year: "numeric" })}`}
+                {currentJob.start_date && `since ${fmtMonth(currentJob.start_date)}`}
               </p>
+              {stats && (
+                <div className="flex gap-2 mt-3">
+                  {stats.map(([value, label]) => (
+                    <div key={label} className="flex-1 min-w-0 bg-background rounded-xl px-3 py-2">
+                      <p className="font-heading text-[15px] text-foreground leading-tight">{value}</p>
+                      <p className="text-[10.5px] text-muted-foreground truncate">{label}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
               {currentJob.salary && (
                 <div className="flex items-center gap-2 mt-3">
                   <span className="text-base font-medium text-foreground tracking-wide">{showPay ? `$${currentJob.salary.toLocaleString()}` : "••••••"}</span>
                   <button onClick={() => setShowPay(v => !v)} className="text-[11px] text-[#A7773F] border border-[#A7773F] rounded-full px-2.5 py-0.5">{showPay ? "Hide pay" : "Show pay"}</button>
                 </div>
               )}
-              {currentJob.skills_gained && currentJob.skills_gained.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-3">
-                  {currentJob.skills_gained.slice(0, 3).map((sk, i) => (
-                    <span key={i} className="text-xs bg-muted text-foreground px-2 py-0.5 rounded-full">{sk}</span>
-                  ))}
-                  {currentJob.skills_gained.length > 3 && (
-                    <span className="text-xs text-muted-foreground px-1">+{currentJob.skills_gained.length - 3}</span>
-                  )}
-                </div>
-              )}
             </div>
-            <button onClick={() => startEdit(currentJob)} className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 p-1">
+            <button onClick={() => startEdit(currentJob)} className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 p-1" aria-label="Edit current role">
               <Pencil className="w-4 h-4" />
             </button>
           </div>
         </div>
       )}
 
+      {/* Count tabs: only roles live in the timeline, everything else opens from here */}
+      {entries.length > 0 && !adding && !editing && (
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar mb-5 -mx-4 px-4 md:mx-0 md:px-0">
+          {TABS.map((t) => {
+            const count = tabEntries(t.id).length;
+            const tag = TAGS[t.tag];
+            const on = activeTab === t.id;
+            return count > 0 ? (
+              <button key={t.id} onClick={() => setActiveTab(on ? null : t.id)}
+                className="flex-shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors"
+                style={on ? { background: tag.fg, color: "#fff" } : { background: tag.bg, color: tag.fg }}>
+                {t.label}
+                <span className="text-[10.5px] rounded-full px-1.5" style={{ background: on ? "#ffffff30" : "#ffffffaa" }}>{count}</span>
+              </button>
+            ) : (
+              <button key={t.id} onClick={() => { resetForm(); setEntryType(t.type); setAdding(true); }}
+                className="flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-medium border border-dashed border-[#A7773F]/70 text-[#A7773F]">
+                + {t.add}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Open tab list */}
+      {activeTab && !adding && !editing && (
+        <div className="mb-6">
+          <h2 className="font-heading text-lg text-foreground mb-2">{TABS.find(t => t.id === activeTab).label}</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+            {tabEntries(activeTab).map(e => renderCard(e))}
+          </div>
+        </div>
+      )}
 
       {/* Add/Edit form */}
-      {adding ? (
+      {adding || editing ? (
         <div className="bg-card border border-border rounded-2xl p-5 mb-6 space-y-4">
           <div className="flex items-center gap-2 mb-3">
             <SelectedIcon className="w-5 h-5 text-foreground" />
-            <h2 className="font-heading font-semibold text-foreground">Add {ENTRY_TYPES.find(t => t.id === entryType)?.label}</h2>
+            <h2 className="font-heading font-semibold text-foreground">{editing ? "Edit" : "Add"} {ENTRY_TYPES.find(t => t.id === entryType)?.label}</h2>
           </div>
 
           <div className="flex flex-wrap gap-1.5">
@@ -382,72 +499,46 @@ export default function Career() {
         </div>
       ) : null}
 
-      {/* Entries grouped by type */}
-      {entries.length === 0 && !adding && (
+      {/* Empty state */}
+      {entries.length === 0 && !adding && !editing && (
         <div className="text-center py-16 text-muted-foreground bg-card border border-border rounded-2xl">
           <p className="font-heading text-base text-foreground mb-1">Start your career story</p>
           <p className="text-xs mb-4">Jobs, reviews, milestones, skills and more.</p>
-          <button onClick={() => setAdding(true)} className="bg-[#A7773F] text-[#F7F3EC] rounded-full text-xs px-4 py-2">Add first entry</button>
+          <div className="flex justify-center gap-2">
+            <button onClick={() => setAdding(true)} className="bg-[#A7773F] text-[#F7F3EC] rounded-full text-xs px-4 py-2">Add first entry</button>
+            <button onClick={() => setShowImport(true)} className="border border-[#A7773F] text-[#A7773F] rounded-full text-xs px-4 py-2">Import from PDF</button>
+          </div>
         </div>
       )}
 
-      <div className="space-y-6">
-        {ENTRY_TYPES.map(type => {
-          const typeEntries = groupedEntries[type.id];
-          if (!typeEntries || typeEntries.length === 0) return null;
-          const Icon = type.icon;
-
-          return (
-            <div key={type.id}>
-              <h2 className="font-heading text-sm text-muted-foreground font-medium mb-3 flex items-center gap-2">
-                <Icon className="w-4 h-4" /> {type.label} ({typeEntries.length})
-                {type.id === "job" && !currentJob && typeEntries.some(e => e.salary) && (
-                  <button onClick={() => setShowPay(v => !v)} className="ml-auto text-[11px] text-[#A7773F] border border-[#A7773F] rounded-full px-2.5 py-0.5">{showPay ? "Hide pay" : "Show pay"}</button>
-                )}
-              </h2>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 [&>*:only-child]:col-span-full">
-                {typeEntries.map(e => (
-                  <div key={e.id} className="bg-card border border-border rounded-xl p-4 group">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-medium text-foreground truncate">{e.title}</p>
-                          {e.current && <span className="text-xs bg-[#F0E6D6] text-[#8B6B3E] px-2 py-0.5 rounded-full">Current</span>}
-                        </div>
-                        {e.company && <p className="text-sm text-muted-foreground">{e.company}</p>}
-                        {(e.start_date || e.end_date) && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {e.start_date ? new Date(e.start_date).toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "?"}
-                            {" - "}
-                            {e.current ? "Present" : (e.end_date ? new Date(e.end_date).toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "?")}
-                          </p>
-                        )}
-                        {e.salary && <p className="text-sm text-foreground mt-1">{showPay ? `$${e.salary.toLocaleString()}` : "••••••"}</p>}
-                        {e.rating && <p className="text-sm text-amber-600 mt-1">Rating: {e.rating}/{e.rating_scale || 10}</p>}
-                        {e.description && <p className="text-sm text-foreground mt-2 line-clamp-2">{e.description}</p>}
-                        {e.skills_gained && e.skills_gained.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {e.skills_gained.map((s, i) => <span key={i} className="text-xs bg-muted text-foreground px-2 py-0.5 rounded-full">{s}</span>)}
-                          </div>
-                        )}
-                        {e.notes && <p className="text-xs text-muted-foreground mt-2 line-clamp-1">{e.notes}</p>}
-                      </div>
-                      <div className="flex items-center gap-2 md:opacity-0 md:group-hover:opacity-100">
-                        <button onClick={() => startEdit(e)} className="text-muted-foreground/60 hover:text-foreground transition-colors">
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => remove(e.id)} className="text-muted-foreground/40 hover:text-rose-400 transition-colors">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+      {/* Roles timeline — the 3 most recent, the rest on request */}
+      {jobs.length > 0 && !adding && !editing && (
+        <div className="mb-6">
+          <div className="flex items-baseline justify-between mb-2">
+            <h2 className="font-heading text-lg text-foreground">Roles</h2>
+            {jobs.some(e => e.salary) && !currentJob && (
+              <button onClick={() => setShowPay(v => !v)} className="text-[11px] text-[#A7773F] border border-[#A7773F] rounded-full px-2.5 py-0.5">{showPay ? "Hide pay" : "Show pay"}</button>
+            )}
+          </div>
+          <div className="relative ml-1 pl-5 border-l border-border">
+            {visibleJobs.map(e => (
+              <div key={e.id} className="relative mb-2.5">
+                <span className="absolute -left-[25px] top-5 w-[9px] h-[9px] rounded-full" style={{ background: e.current ? TAGS.current.fg : "#CFC6B8" }} />
+                {renderCard(e, true)}
               </div>
-            </div>
-          );
-        })}
-      </div>
+            ))}
+          </div>
+          {jobs.length > 3 && (
+            <button onClick={() => setShowAllRoles(v => !v)}
+              className="mt-1 ml-1 w-[calc(100%-4px)] flex items-center justify-center gap-1.5 border border-dashed border-border rounded-xl py-2.5 text-[12.5px] font-medium text-[#A7773F]">
+              {showAllRoles ? "Show fewer roles" : `Show earlier roles (${jobs.length - 3})`}
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAllRoles ? "rotate-180" : ""}`} />
+            </button>
+          )}
+        </div>
+      )}
+
+      <CareerImportSheet open={showImport} onClose={() => setShowImport(false)} existing={entries} onDone={load} />
     </div>
     </div>
     </>

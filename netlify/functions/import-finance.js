@@ -98,6 +98,40 @@ Rules:
 - When unsure, lower the confidence rather than guessing.
 - Return at most 80 entries, most recent first. If nothing relevant is found, return {"entries": []}.`;
 
+const CAREER_PROMPT = `You are helping someone build their career history in a personal app. Read the attached document (a resume, a performance review, an offer letter, a certificate or a transcript) and extract the career entries worth keeping.
+
+Return ONLY JSON in this exact shape:
+{
+  "entries": [
+    {
+      "kind": "job" | "review" | "education" | "certification" | "milestone" | "skills",
+      "title": "job title, review name, degree or credential name; for kind skills use \"Skills\"",
+      "organization": "employer, school or issuing body, or empty",
+      "start_date": "YYYY-MM-DD or null",
+      "end_date": "YYYY-MM-DD or null",
+      "current": true only for the role the person holds now,
+      "date_uncertain": true if you had to guess a month or day (for example only a year was given),
+      "highlights": ["up to 5 short achievements or key points, keeping any numbers exactly as written"],
+      "skills": ["individual skills or tools, only for kind skills or when a job lists its own"],
+      "salary": number or null,
+      "rating": number or null,
+      "rating_scale": number or null,
+      "confidence": number between 0 and 1
+    }
+  ]
+}
+
+Rules:
+- Every job or role is its own "job" entry, newest first, including an "Earlier experience" section.
+- When only a year is given, use January 1 for a start and December 31 for an end, and set date_uncertain to true. When a month is given, use the 1st.
+- A role that runs to "Present" has end_date null and current true. At most one entry may be current.
+- Put the whole core-competencies / skills / tools section into ONE entry of kind "skills" (max 30 skills).
+- Degrees, schools and bootcamps are "education". Licenses and certificates are "certification". Awards and promotions that stand alone are "milestone". A performance review document is "review" with rating and rating_scale only if they are written in it.
+- Set salary only when an explicit figure for that exact role appears in the document; otherwise null. Never guess pay.
+- Never include phone numbers, email addresses, street addresses, ID numbers or any other personal identifiers anywhere in the output.
+- Never invent anything that is not in the document. Lower the confidence when unsure.
+- Return at most 40 entries. If nothing relevant is found, return {"entries": []}.`;
+
 const KINDS = ["bill", "subscription", "loan", "credit_card", "savings_goal", "skip"];
 
 function parseJson(text) {
@@ -156,7 +190,7 @@ exports.handler = async (event, context) => {
   try {
     const existingList = (Array.isArray(existing) ? existing : []).slice(0, 80)
       .map((e) => `- ${String(e.name || "").slice(0, 60)} (${e.type}, ${e.amount != null ? "$" + e.amount : "no amount"})`).join("\n");
-    const promptText = mode === "schedule" ? SCHEDULE_PROMPT : mode === "business" ? BUSINESS_PROMPT : PROMPT + `\n\nEXISTING ITEMS:\n${existingList || "(none)"}`;
+    const promptText = mode === "schedule" ? SCHEDULE_PROMPT : mode === "business" ? BUSINESS_PROMPT : mode === "career" ? CAREER_PROMPT : PROMPT + `\n\nEXISTING ITEMS:\n${existingList || "(none)"}`;
     const docText = isText ? `\n\nDocument (${filename || "text"}):\n` + bytes.toString("utf8").slice(0, 120000) : "";
 
     let rawText;
@@ -165,7 +199,7 @@ exports.handler = async (event, context) => {
         const content = isText
           ? promptText + docText
           : [fileBlock(isPdf ? "application/pdf" : (type || "image/jpeg"), base64Data), { type: "text", text: promptText }];
-        rawText = await claudeText({ content, maxTokens: mode === "business" ? 9000 : 6000 });
+        rawText = await claudeText({ content, maxTokens: mode === "business" || mode === "career" ? 9000 : 6000 });
       } catch (claudeErr) {
         console.error("import-finance Claude failed, falling back to Gemini:", claudeErr);
         if (!apiKey) throw claudeErr;
@@ -193,6 +227,35 @@ exports.handler = async (event, context) => {
         .filter((p) => /^\d{4}-\d{2}-\d{2}$/.test(p.date) && Number.isFinite(p.amount) && p.amount > 0);
       const payoff = Number(parsed.payoff_amount);
       return reply(200, { payments, payoff_amount: Number.isFinite(payoff) && payoff > 0 ? payoff : null });
+    }
+    if (mode === "career") {
+      if (!parsed || !Array.isArray(parsed.entries)) return reply(502, { error: "The file was read, but the result wasn't usable. Try again, or try a clearer copy." });
+      const CK = ["job", "review", "education", "certification", "milestone", "skills"];
+      const iso = (d) => (/^\d{4}-\d{2}-\d{2}$/.test(String(d || "").slice(0, 10)) ? String(d).slice(0, 10) : "");
+      const strs = (a, n, len) => (Array.isArray(a) ? a : []).map((x) => String(x || "").trim().slice(0, len)).filter(Boolean).slice(0, n);
+      let sawCurrent = false;
+      const entries = parsed.entries.slice(0, 40).map((it) => {
+        const kind = CK.includes(it.kind) ? it.kind : "milestone";
+        const sal = Number(it.salary); const rat = Number(it.rating); const scale = Number(it.rating_scale);
+        const current = kind === "job" && !!it.current && !sawCurrent;
+        if (current) sawCurrent = true;
+        return {
+          kind,
+          title: String(it.title || "").slice(0, 120),
+          organization: String(it.organization || "").slice(0, 120),
+          start_date: iso(it.start_date),
+          end_date: current ? "" : iso(it.end_date),
+          current,
+          date_uncertain: !!it.date_uncertain,
+          highlights: strs(it.highlights, 5, 300),
+          skills: strs(it.skills, 30, 60),
+          salary: kind === "job" && Number.isFinite(sal) && sal > 0 ? sal : null,
+          rating: Number.isFinite(rat) && rat > 0 ? rat : null,
+          rating_scale: Number.isFinite(scale) && scale > 0 ? scale : null,
+          confidence: Math.max(0, Math.min(1, Number(it.confidence) || 0)),
+        };
+      }).filter((it) => it.title);
+      return reply(200, { entries });
     }
     if (mode === "business") {
       if (!parsed || !Array.isArray(parsed.entries)) return reply(502, { error: "The file was read, but the result wasn't usable. Try again, or try a clearer copy." });
