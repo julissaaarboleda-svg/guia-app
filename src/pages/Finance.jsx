@@ -319,10 +319,10 @@ export default function Finance() {
       {/* Budget tab — self-contained */}
       {activeTab === "budget" && (
         <>
-          <div className="flex gap-2 mb-4">
-            {[["budget", "Budget"], ["spending", "Spending"]].map(([id, l]) => (
-              <button key={id} onClick={() => setBudgetView(id)}
-                className={`px-4 py-1.5 rounded-full text-[13px] border transition-colors ${budgetView === id ? "bg-[#A7773F] border-[#A7773F] text-[#F7F3EC]" : "border-border text-muted-foreground"}`}>{l}</button>
+          <div className="flex p-1 rounded-full bg-[#ECE7DD] mb-5" role="tablist">
+            {[["budget", "Plan"], ["spending", "Actual spending"]].map(([id, l]) => (
+              <button key={id} role="tab" aria-selected={budgetView === id} onClick={() => setBudgetView(id)}
+                className={`flex-1 py-1.5 rounded-full text-[13px] transition-all ${budgetView === id ? "bg-card text-foreground shadow-sm font-medium" : "text-muted-foreground"}`}>{l}</button>
             ))}
           </div>
           {budgetView === "budget" ? <BudgetTab key={`b${spendKey}`} /> : <SpendingTab key={`s${spendKey}`} items={items} onImport={() => setImporting(true)} />}
