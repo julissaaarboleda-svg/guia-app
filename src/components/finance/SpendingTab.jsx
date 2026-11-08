@@ -18,6 +18,9 @@ export default function SpendingTab({ items = [], onImport }) {
   const [review, setReview] = useState("");
   const [reviewBusy, setReviewBusy] = useState(false);
   const [dismissed, setDismissed] = useState([]);
+  const [allCats, setAllCats] = useState(false);
+  const [allPlaces, setAllPlaces] = useState(false);
+  const [showStatements, setShowStatements] = useState(false);
 
   const load = async () => {
     try {
@@ -128,7 +131,7 @@ Return JSON: {"review": "..."}`,
 
           <div className={card}>
             <h3 className="font-heading text-base text-foreground mb-2">Where it went</h3>
-            {cur.categories.map((c) => {
+            {(allCats ? cur.categories : cur.categories.slice(0, 5)).map((c) => {
               const b = budgetFor(c.name);
               const over = b != null && c.total > b;
               return (
@@ -141,14 +144,17 @@ Return JSON: {"review": "..."}`,
             })}
           </div>
 
+          {cur.categories.length > 5 && <button onClick={() => setAllCats((v) => !v)} className="text-xs text-[#A7773F] -mt-1 mb-3 ml-1">{allCats ? "Show fewer categories" : `Show all ${cur.categories.length} categories ›`}</button>}
+
           <div className={card}>
             <h3 className="font-heading text-base text-foreground mb-1">Top places</h3>
-            {cur.merchants.slice(0, 6).map((m) => (
+            {(allPlaces ? cur.merchants.slice(0, 20) : cur.merchants.slice(0, 4)).map((m) => (
               <div key={m.name} className="flex justify-between items-center py-2 border-b border-border last:border-0">
                 <div><p className="text-[13.5px] text-foreground">{m.name}</p><p className="text-[11.5px] text-muted-foreground">{m.count} {m.count === 1 ? "purchase" : "purchases"}</p></div>
                 <span className="text-[13.5px] text-foreground">{money(m.total)}</span>
               </div>
             ))}
+            {cur.merchants.length > 4 && <button onClick={() => setAllPlaces((v) => !v)} className="text-xs text-[#A7773F] pt-2">{allPlaces ? "Show fewer" : `Show more places ›`}</button>}
           </div>
 
           {notes.length > 0 && (
@@ -168,9 +174,12 @@ Return JSON: {"review": "..."}`,
 
       {statements.length > 0 && (
         <div className={card}>
-          <h3 className="font-heading text-base text-foreground mb-1">Statements added</h3>
-          {statements.map((s) => (
-            <div key={s.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+          <button onClick={() => setShowStatements((v) => !v)} className="w-full flex items-center justify-between">
+            <h3 className="font-heading text-base text-foreground">Statements added <span className="text-muted-foreground text-sm">· {statements.length}</span></h3>
+            <span className="text-xs text-[#A7773F]">{showStatements ? "Hide" : "Show"}</span>
+          </button>
+          {showStatements && statements.map((s) => (
+            <div key={s.id} className="flex items-center justify-between py-2 border-b border-border last:border-0 mt-1">
               <div className="min-w-0"><p className="text-[13.5px] text-foreground truncate">{s.label}</p>
                 <p className="text-[11.5px] text-muted-foreground">{Object.keys(s.months || {}).sort().map((k) => monthLabel(k).split(" ")[0].slice(0, 3)).join(", ")} · {s.count} purchases</p></div>
               <button onClick={() => removeStatement(s)} className="text-[12px] text-[#8F5F65] flex-shrink-0 ml-3">Remove</button>

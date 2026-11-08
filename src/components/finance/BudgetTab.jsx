@@ -31,6 +31,7 @@ export default function BudgetTab() {
   const [incomeInput, setIncomeInput] = useState("");
   const [bills, setBills] = useState([]);
   const [fixedCollapsed, setFixedCollapsed] = useState(true);
+  const [spendCollapsed, setSpendCollapsed] = useState(true);
   const jumped = useRef(false);
   const [showedLatest, setShowedLatest] = useState(false);
 
@@ -213,7 +214,8 @@ export default function BudgetTab() {
   const fixedAllocated = buckets.filter(b => b.is_fixed).reduce((s, b) => s + (b.allocated_amount || 0), 0);
   const allocPct = incomeAmount > 0 ? Math.min((allocated / incomeAmount) * 100, 100) : 0;
   const fixedBuckets = buckets.filter(b => b.is_fixed);
-  const variableBuckets = buckets.filter(b => !b.is_fixed);
+  const stmtBuckets = buckets.filter(b => b._from === "statements");
+  const variableBuckets = buckets.filter(b => !b.is_fixed && b._from !== "statements");
 
   const BucketCard = ({ b }) => {
     const pct = b.allocated_amount > 0
@@ -228,7 +230,7 @@ export default function BudgetTab() {
               <p className="font-heading text-base text-foreground">{b.name}</p>
               {b._auto && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#F0E6D6] text-[#8B6B3E] font-body">{b._from === "loans" ? "From loans" : b._from === "statements" ? "From statements" : "From bill"}</span>}
             </div>
-            {b.category && (
+            {b.category && nk(b.category) !== nk(b.name) && (
               <p className="text-xs text-muted-foreground">
                 {b.category}{b.due_day ? ` · Day ${b.due_day}` : ""}
               </p>
@@ -332,6 +334,31 @@ export default function BudgetTab() {
           {!fixedCollapsed && (
             <div className="space-y-3">
               {fixedBuckets.map(b => <BucketCard key={b.id} b={b} />)}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Everyday spending from statements — one collapsed group */}
+      {stmtBuckets.length > 0 && (
+        <div>
+          <button type="button" onClick={() => setSpendCollapsed(c => !c)} className="flex items-center gap-1.5 w-full mb-2">
+            {spendCollapsed ? <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+            <h3 className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground">Everyday spending</h3>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#E4E9D5] text-[#566033] font-body">from statements</span>
+            <span className="text-xs text-muted-foreground ml-auto">{fmt(stmtBuckets.reduce((t, b) => t + (b.allocated_amount || 0), 0))}</span>
+          </button>
+          {!spendCollapsed && (
+            <div className="bg-card border border-border rounded-2xl px-4 divide-y divide-border">
+              {stmtBuckets.map(b => (
+                <div key={b.id} className="flex items-center justify-between py-2.5">
+                  <span className="text-[14px] text-foreground">{b.name}</span>
+                  <span className="flex items-center gap-3">
+                    <span className="text-[14px] text-foreground">{fmt(b.allocated_amount)}</span>
+                    <button onClick={() => setLimit(b)} className="text-xs text-[#A7773F]">Set a limit</button>
+                  </span>
+                </div>
+              ))}
             </div>
           )}
         </div>
