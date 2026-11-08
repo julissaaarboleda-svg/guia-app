@@ -238,7 +238,7 @@ export default function BudgetTab() {
             <button onClick={() => { setEditingIncome(false); setIncomeInput(income?.amount?.toString() || ""); }} className="text-xs text-muted-foreground">Cancel</button>
           </div>
         ) : (
-          <p className="font-heading text-[22px] leading-tight text-foreground mt-0.5">{fmt(incomeAmount)}</p>
+          <p className="font-heading text-xl leading-tight text-foreground mt-0.5">{fmt(incomeAmount)}</p>
         )}
         <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-3 mb-2.5">
           <div className="h-full bg-[#A7773F] rounded-full transition-all duration-300" style={{ width: `${allocPct}%` }} />

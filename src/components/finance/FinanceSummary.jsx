@@ -118,10 +118,10 @@ Format your response as JSON with this structure:
           <button
             key={tab}
             onClick={() => onNavigate(tab)}
-            className="flex flex-col items-center gap-1.5 bg-card border border-border rounded-2xl py-4 px-1 hover:border-[#A7773F]/40 transition-colors"
+            className="flex flex-col items-center gap-1 bg-card border border-border rounded-2xl py-3 px-1 hover:border-[#A7773F]/40 transition-colors"
           >
-            <Icon className="w-5 h-5 text-[#A7773F]" strokeWidth={1.5} />
-            <span className="font-heading text-[13px] text-foreground leading-none mt-0.5">{label}</span>
+            <Icon className="w-4 h-4 text-[#A7773F]" strokeWidth={1.5} />
+            <span className="font-heading text-xs text-muted-foreground leading-none mt-0.5">{label}</span>
             <span className="font-heading text-sm text-foreground leading-none">{value}</span>
           </button>
         ))}

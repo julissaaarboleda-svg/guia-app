@@ -31,16 +31,16 @@ export default function BudgetChart({ buckets, income = 0 }) {
     <div className="bg-card border border-border rounded-2xl p-4">
       <div className="mb-3">
         <p className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground mb-0.5">Where your money goes</p>
-        <p className="font-heading text-lg text-foreground">
+        <p className="font-heading text-base text-foreground">
           {fmt(totalAllocated)}
           {income > 0 && <span className="text-muted-foreground text-sm font-body"> of {fmt(income)}</span>}
         </p>
       </div>
       <div className="flex flex-col sm:flex-row items-center gap-4">
-        <div className="relative w-full sm:w-44 sm:flex-shrink-0">
-          <ResponsiveContainer width="100%" height={176}>
+        <div className="relative w-full sm:w-36 sm:flex-shrink-0">
+          <ResponsiveContainer width="100%" height={136}>
             <PieChart>
-              <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={42} outerRadius={72} paddingAngle={2} stroke="none">
+              <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={34} outerRadius={58} paddingAngle={2} stroke="none">
                 {chartData.map((d, i) => (
                   <Cell key={i} fill={d.name === "Unallocated" ? UNALLOCATED_COLOR : SHADES[i % SHADES.length]} />
                 ))}
@@ -52,7 +52,7 @@ export default function BudgetChart({ buckets, income = 0 }) {
             </PieChart>
           </ResponsiveContainer>
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <span className="font-heading text-base text-foreground">{income > 0 ? Math.round((totalAllocated / income) * 100) : 100}%</span>
+            <span className="font-heading text-sm text-foreground">{income > 0 ? Math.round((totalAllocated / income) * 100) : 100}%</span>
             <span className="text-[10px] text-muted-foreground">{income > 0 ? "allocated" : "of budget"}</span>
           </div>
         </div>
