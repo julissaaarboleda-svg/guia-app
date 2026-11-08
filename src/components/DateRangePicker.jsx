@@ -110,6 +110,11 @@ export default function DateRangePicker({ startDate, endDate, onChange, label, p
     }
   };
 
+  const thisYear = new Date().getFullYear();
+  const yearOptions = [];
+  for (let y = thisYear + 10; y >= Math.min(1970, month.getFullYear()); y--) yearOptions.push(y);
+  if (!yearOptions.includes(month.getFullYear())) yearOptions.push(month.getFullYear());
+
   const firstDay = startOfMonth(month);
   const lastDay = endOfMonth(month);
   const days = eachDayOfInterval({ start: firstDay, end: lastDay });
@@ -173,7 +178,26 @@ export default function DateRangePicker({ startDate, endDate, onChange, label, p
               className="p-2 rounded-lg hover:bg-secondary transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center">
               <ChevronLeft className="w-4 h-4 text-muted-foreground" />
             </button>
-            <span className="text-sm font-semibold text-foreground">{format(month, "MMMM yyyy")}</span>
+            <div className="flex items-center gap-1">
+              <select
+                aria-label="Month"
+                value={month.getMonth()}
+                onChange={(ev) => setMonth(new Date(month.getFullYear(), Number(ev.target.value), 1))}
+                className="text-sm font-semibold text-foreground bg-transparent rounded-lg px-1.5 py-1.5 outline-none cursor-pointer hover:bg-secondary"
+              >
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <option key={i} value={i}>{format(new Date(2000, i, 1), "MMMM")}</option>
+                ))}
+              </select>
+              <select
+                aria-label="Year"
+                value={month.getFullYear()}
+                onChange={(ev) => setMonth(new Date(Number(ev.target.value), month.getMonth(), 1))}
+                className="text-sm font-semibold text-foreground bg-transparent rounded-lg px-1.5 py-1.5 outline-none cursor-pointer hover:bg-secondary"
+              >
+                {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
             <button type="button" onClick={() => setMonth(addMonths(month, 1))}
               className="p-2 rounded-lg hover:bg-secondary transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center">
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
@@ -222,9 +246,13 @@ export default function DateRangePicker({ startDate, endDate, onChange, label, p
               })}
             </div>
 
-            <p className="text-xs text-muted-foreground text-center mt-3">
-              {selecting === "start" ? "Tap to set start date" : "Tap to set end date"}
-            </p>
+            <div className="flex items-center justify-between mt-3">
+              <button type="button" onClick={() => setMonth(new Date())} className="text-xs text-[#A7773F] px-2 py-1 rounded-lg hover:bg-secondary">Today</button>
+              <p className="text-xs text-muted-foreground">
+                {selecting === "start" ? "Tap to set start date" : "Tap to set end date"}
+              </p>
+              <span className="w-[52px]" />
+            </div>
           </div>
         </div>,
         document.body
