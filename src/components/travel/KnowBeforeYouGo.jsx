@@ -78,11 +78,11 @@ export default function KnowBeforeYouGo({ trip, know, loading, error }) {
 
       {item && (
         <div
-          className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/45 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center px-4 pb-24 md:pb-0 bg-black/45 backdrop-blur-sm"
           onClick={() => setOpen(null)}
         >
           <div
-            className="bg-card border border-border rounded-t-3xl md:rounded-2xl w-full max-w-md p-5 shadow-[0_20px_50px_-28px_rgba(0,0,0,0.4)]"
+            className="bg-card border border-border rounded-3xl w-full max-w-md p-5 shadow-[0_20px_50px_-28px_rgba(0,0,0,0.4)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-3">

@@ -134,6 +134,8 @@ export default function Travel() {
         const know = buildKnowBeforeYouGo(cur.country, countryInfo);
         setKnowData(know);
         setKnowLoading(false);
+        // Don't remember a failed lookup — otherwise "unavailable" would stick forever.
+        if (!countryInfo) return;
         setCachedExplore(cur.id, city, { know });
         const payload = { city, know, generatedAt: Date.now() };
         ent.Trip.update(cur.id, { explore_know: payload })
