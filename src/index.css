@@ -176,3 +176,10 @@ h1, h2, h3, h4, .font-heading {
 .quill-render p { margin: 0.2rem 0; }
 .quill-render strong { font-weight: 600; }
 .quill-render em { font-style: italic; }
+/* Netlify Identity login/sign-up modal: on iPhones with viewport-fit=cover it
+   rendered under the status bar / Dynamic Island, hiding the Sign up / Log in
+   tabs. Push the widget below the safe area. */
+#netlify-identity-widget {
+  top: env(safe-area-inset-top, 0px) !important;
+  height: calc(100% - env(safe-area-inset-top, 0px)) !important;
+}
