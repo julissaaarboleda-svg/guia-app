@@ -32,11 +32,12 @@ export default function BudgetTab() {
   const mk = monthKey(monthDate);
 
   const load = async () => {
-    const [allBuckets, allIncome, allBills, allSubs] = await Promise.all([
+    const [allBuckets, allIncome, allBills, allSubs, allLoans] = await Promise.all([
       ent.BudgetBucket.list("-created_date"),
       ent.MonthlyIncome.list("-created_date"),
       ent.FinanceItem.filter({ type: "bill" }),
       ent.FinanceItem.filter({ type: "subscription" }),
+      ent.FinanceItem.filter({ type: "loan" }),
     ]);
     const manualBuckets = allBuckets.filter(b => b.month === mk);
     const manualNames = manualBuckets.map(b => b.name?.toLowerCase().trim());
@@ -73,7 +74,25 @@ export default function BudgetTab() {
       month: mk,
       _auto: true,
     }] : [];
-    setBuckets([...billAutoBuckets, ...subAutoBuckets, ...manualBuckets]);
+    const loanMonthly = allLoans.reduce((t, l) => {
+      if (Array.isArray(l.schedule) && l.schedule.length) {
+        return t + l.schedule.filter(p => String(p.date || "").slice(0, 7) === mk).reduce((a, p) => a + Number(p.amount || 0), 0);
+      }
+      return t + (l.paid ? 0 : Number(l.monthly_payment || 0));
+    }, 0);
+    const loanAutoBuckets = loanMonthly > 0 && !manualNames.includes("loans") ? [{
+      id: "auto_loans_aggregate",
+      name: "Loans",
+      allocated_amount: Math.round(loanMonthly * 100) / 100,
+      spent_amount: Math.round(loanMonthly * 100) / 100,
+      is_fixed: true,
+      due_day: null,
+      category: "Loans",
+      month: mk,
+      _auto: true,
+      _from: "loans",
+    }] : [];
+    setBuckets([...billAutoBuckets, ...subAutoBuckets, ...loanAutoBuckets, ...manualBuckets]);
     const inc = allIncome.find(i => i.month === mk);
     setIncome(inc || null);
     setIncomeInput(inc?.amount?.toString() || "");
@@ -164,7 +183,7 @@ export default function BudgetTab() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <p className="font-heading text-base text-foreground">{b.name}</p>
-              {b._auto && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#F0E6D6] text-[#8B6B3E] font-body">From bill</span>}
+              {b._auto && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#F0E6D6] text-[#8B6B3E] font-body">{b._from === "loans" ? "From loans" : "From bill"}</span>}
             </div>
             {b.category && (
               <p className="text-xs text-muted-foreground">
