@@ -74,7 +74,7 @@ export default function Finance() {
   const [notesContent, setNotesContent] = useState("");
   const [editingItemId, setEditingItemId] = useState(null);
   const [editItemForm, setEditItemForm] = useState({});
-  const [collapsed, setCollapsed] = useState({});
+  const [collapsed, setCollapsed] = useState({ variable: true, subs: true });
   const [menuId, setMenuId] = useState(null);
   const [contribId, setContribId] = useState(null);
   const [contribAmt, setContribAmt] = useState("");
