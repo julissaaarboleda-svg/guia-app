@@ -65,7 +65,9 @@ export default function FinanceSummary({ items, buckets, onNavigate, onAddFirst 
     setLoading(true);
     setFailed(false);
     base44.integrations.Core.InvokeLLM({
-      prompt: `You are a personal finance advisor. Based on the following financial snapshot, provide a brief 1-2 sentence summary of their financial health, then 2-3 actionable recommendations. Be concise, practical, and specific to the data.
+      prompt: `You are a personal finance advisor. Based on the following financial snapshot, write a SHORT read on their financial health, then 3 actionable next steps. Plain, warm, specific to the data.
+
+WRITING RULES (strict): the summary is ONE sentence, 22 words or fewer, naming only the single most important thing (do not list every number or every bill). Each recommendation is ONE sentence, 16 words or fewer, starting with a verb, about one action only. No semicolons, no lists inside a sentence, no repeating figures already shown elsewhere on the page.
 
 IMPORTANT CONTEXT ABOUT BILLS:
 - Recurring bills (labeled "recurring") are ongoing monthly obligations (e.g., rent, utilities). These are NOT one-time debts to "pay off." They are regular expenses that recur each cycle. Frame advice about these as managing the recurring obligation, not clearing the balance.
@@ -87,12 +89,12 @@ ${oneTimeBills.length > 0 ? oneTimeBills.map(b => `  - ${b.name}: $${b.amount}${
 - Category breakdown: ${buckets.map(b => `${b.name || b.category || "Other"}: ${fmt(b.spent_amount || 0)}`).join(", ") || "none"}
 
 ADDITIONAL ANALYSIS — 50/30/20 RULE:
-If monthly income is greater than 0, evaluate spending against the 50/30/20 guideline (50% needs, 30% wants, 20% savings/debt repayment). Estimate which spending categories fall into needs vs wants based on their names, compute rough percentages of income, and call out whether the user is on track. Keep this to one sentence in the summary or one recommendation.
+If monthly income is greater than 0, evaluate spending against the 50/30/20 guideline (50% needs, 30% wants, 20% savings/debt repayment). Estimate which spending categories fall into needs vs wants based on their names, compute rough percentages of income, and call out whether the user is on track. Mention it in at most ONE recommendation, never in the summary.
 
 Format your response as JSON with this structure:
 {
-  "summary": "1-2 sentence summary of financial health",
-  "recommendations": ["recommendation 1", "recommendation 2", "recommendation 3"]
+  "summary": "one sentence, max 22 words",
+  "recommendations": ["max 16 words", "max 16 words", "max 16 words"]
 }`,
       response_json_schema: {
         type: "object",
@@ -168,17 +170,17 @@ Format your response as JSON with this structure:
           </div>
         ) : insights ? (
           <>
-            <p className="text-[14px] text-foreground leading-relaxed mb-3">{insights.summary}</p>
+            <p className="text-[15px] text-foreground leading-snug mb-4">{insights.summary}</p>
             {insights.recommendations?.length > 0 && (
-              <div className="space-y-2 border-t border-border pt-3">
-                {(allTips ? insights.recommendations : insights.recommendations.slice(0, 2)).map((rec, idx) => (
+              <div className="space-y-3 border-t border-border pt-4">
+                {(allTips ? insights.recommendations : insights.recommendations.slice(0, 3)).map((rec, idx) => (
                   <div key={idx} className="flex items-start gap-2">
                     <Lightbulb className="w-3.5 h-3.5 text-[#A7773F] mt-0.5 flex-shrink-0" strokeWidth={1.5} />
-                    <p className="text-[12.5px] text-muted-foreground leading-relaxed">{rec}</p>
+                    <p className="text-[13px] text-muted-foreground leading-snug">{rec}</p>
                   </div>
                 ))}
-                {insights.recommendations.length > 2 && (
-                  <button onClick={() => setAllTips(v => !v)} className="text-xs font-medium text-[#A7773F] pt-1">{allTips ? "Show fewer" : `${insights.recommendations.length - 2} more tip${insights.recommendations.length - 2 === 1 ? "" : "s"} ›`}</button>
+                {insights.recommendations.length > 3 && (
+                  <button onClick={() => setAllTips(v => !v)} className="text-xs font-medium text-[#A7773F] pt-1">{allTips ? "Show fewer" : `${insights.recommendations.length - 3} more tip${insights.recommendations.length - 3 === 1 ? "" : "s"} ›`}</button>
                 )}
               </div>
             )}
