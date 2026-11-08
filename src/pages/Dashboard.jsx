@@ -7,9 +7,8 @@ import Greeting from "@/components/home/Greeting";
 import TodaysFocus from "@/components/home/TodaysFocus";
 import UpNext from "@/components/home/UpNext";
 import LifeProgress from "@/components/home/LifeProgress";
-import RecentActivity from "@/components/home/RecentActivity";
 import Reveal from "@/components/home/Reveal";
-import { buildFocusItems, buildUpNext, buildProgress, buildActivity, buildDailyStatus } from "@/lib/homeData";
+import { buildFocusItems, buildUpNext, buildProgress, buildDailyStatus } from "@/lib/homeData";
 
 const HERO_IMAGES = [
   "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
@@ -38,7 +37,6 @@ export default function Dashboard() {
   const [prefs, setPrefs] = useState(null);
   const [user, setUser] = useState(null);
   const [goals, setGoals] = useState([]);
-  const [notes, setNotes] = useState([]);
   const [trips, setTrips] = useState([]);
   const [bizEntries, setBizEntries] = useState([]);
   const [finItems, setFinItems] = useState([]);
@@ -80,9 +78,8 @@ export default function Dashboard() {
         if (p[0].hero_mode) setHeroMode(p[0].hero_mode);
         if (Array.isArray(p[0].hero_images) && p[0].hero_images.length > 0) setUserHeroImages(p[0].hero_images);
       }
-      const [g, n, tr, biz, fin, tsk, proj, bg, career] = await Promise.all([
+      const [g, tr, biz, fin, tsk, proj, bg, career] = await Promise.all([
         ent.Goal.list("-created_date", 20),
-        ent.Note.list("-updated_date", 5),
         ent.Trip.list("-start_date", 8),
         ent.BusinessEntry.list("-date", 30),
         ent.FinanceItem.list("-created_date", 30),
@@ -91,7 +88,7 @@ export default function Dashboard() {
         ent.BusinessGoal.list("-created_date", 10),
         ent.CareerEntry.list("-updated_date", 10),
       ]);
-      setGoals(g); setNotes(n); setTrips(tr); setBizEntries(biz);
+      setGoals(g); setTrips(tr); setBizEntries(biz);
       setFinItems(fin); setTasks(tsk); setProjects(proj);
       setBusinessGoals(bg); setCareerEntries(career);
       setLoaded(true);
@@ -105,10 +102,6 @@ export default function Dashboard() {
   );
   const upNext = useMemo(() => buildUpNext({ trips, projects, bizEntries }), [trips, projects, bizEntries]);
   const progress = useMemo(() => buildProgress({ goals, businessGoals, trips, projects }), [goals, businessGoals, trips, projects]);
-  const activity = useMemo(
-    () => buildActivity({ notes, finItems, goals, trips, bizEntries, projects, careerEntries }),
-    [notes, finItems, goals, trips, bizEntries, projects, careerEntries]
-  );
 
   const dailyStatus = useMemo(() => buildDailyStatus({ tasks, trips, finItems, goals }), [tasks, trips, finItems, goals]);
 
@@ -209,9 +202,6 @@ export default function Dashboard() {
         <UpNext items={upNext} />
       </Reveal>
 
-      <Reveal delay={0.12} className="lg:col-start-1 lg:row-start-2 min-w-0">
-        <RecentActivity items={activity} />
-      </Reveal>
       </div>
 
       {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
