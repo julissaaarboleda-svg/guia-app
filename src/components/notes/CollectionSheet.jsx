@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import {
-  Pencil, Smile, RefreshCw, ImagePlus, Palette, Tag, Pin, Archive, Trash2, X, Check,
+  Pencil, Smile, RefreshCw, ImagePlus, Palette, Tag, Pin, Archive, Trash2, X, Check, Move,
 } from "lucide-react";
+import ImageAdjuster from "@/components/ui/ImageAdjuster";
 import { COLLECTION_ACCENTS } from "./collectionAccents";
 import { COLLECTION_CATEGORIES } from "./CollectionCard";
 
@@ -14,6 +15,7 @@ export default function CollectionSheet({ folder, onClose, onUpdate, onDelete })
   const [emoji, setEmoji] = useState(folder?.emoji || "📁");
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
+  const [adjusting, setAdjusting] = useState(false);
 
   useEffect(() => {
     setName(folder?.name || "");
@@ -28,7 +30,7 @@ export default function CollectionSheet({ folder, onClose, onUpdate, onDelete })
     setUploading(true);
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      onUpdate(folder.id, { icon_type: "image", emoji: file_url });
+      onUpdate(folder.id, { icon_type: "image", emoji: file_url, photo_pos: null });
       onClose();
     } catch (err) {
       console.error("Upload failed:", err);
@@ -42,6 +44,8 @@ export default function CollectionSheet({ folder, onClose, onUpdate, onDelete })
     { icon: Pencil, label: "Rename", action: () => setStep("rename") },
     { icon: Smile, label: "Change Icon", action: () => setStep("icon") },
     { icon: ImagePlus, label: uploading ? "Uploading…" : "Add Photo", action: () => fileRef.current?.click() },
+    ...(folder.icon_type === "image" && /^https?:/.test(folder.emoji || "")
+      ? [{ icon: Move, label: "Adjust Photo", action: () => setAdjusting(true) }] : []),
     {
       icon: RefreshCw, label: folder.icon_type === "folder" || !folder.icon_type ? "Use Emoji" : "Use Folder Icon",
       action: () => (folder.icon_type === "folder" || !folder.icon_type)
@@ -54,6 +58,14 @@ export default function CollectionSheet({ folder, onClose, onUpdate, onDelete })
     { icon: Archive, label: folder.archived ? "Unarchive" : "Archive", action: () => commit({ archived: !folder.archived }) },
     { icon: Trash2, label: "Delete", danger: true, action: () => { if (confirm("Delete this collection? Notes will be kept but unfiled.")) { onDelete(folder.id); onClose(); } } },
   ];
+
+  if (adjusting) {
+    return (
+      <ImageAdjuster open src={folder.emoji} pos={folder.photo_pos} aspect={1} title="Adjust photo"
+        onClose={() => { setAdjusting(false); onClose(); }}
+        onSave={(p) => onUpdate(folder.id, { photo_pos: p })} />
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">

@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
+import AdjustableImage from "@/components/ui/AdjustableImage";
+import ImageAdjuster from "@/components/ui/ImageAdjuster";
 import { searchCities, searchCountries } from "@/lib/cityData";
 import { parseISO, eachDayOfInterval, format } from "date-fns";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { ArrowLeft, Edit2, Check, X, Trash2, Download, Plus, Upload, ImageIcon, MoreVertical } from "lucide-react";
+import { ArrowLeft, Edit2, Check, X, Trash2, Download, Plus, Upload, ImageIcon, MoreVertical, Move } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import SavedTab from "./saved/SavedTab";
 import PackingTab from "./PackingTab";
@@ -54,6 +56,8 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
   const [deletingTrip, setDeletingTrip] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [photoUrl, setPhotoUrl] = useState(trip.hero_image_url || "");
+  const [photoPos, setPhotoPos] = useState(trip.hero_image_pos || null);
+  const [adjustingPhoto, setAdjustingPhoto] = useState(false);
   const [prefs, setPrefs] = useState(null);
   const [showFeedback, setShowFeedback] = useState(false);
 
@@ -193,12 +197,12 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
           {(
             <>
               <button
-                onClick={() => { setPhotoUrl(trip.hero_image_url || ""); setShowPhotoModal(true); }}
+                onClick={() => { setPhotoUrl(trip.hero_image_url || ""); setPhotoPos(trip.hero_image_pos || null); setShowPhotoModal(true); }}
                 className="relative block w-full h-[130px] rounded-2xl overflow-hidden mt-2 text-left"
                 aria-label="Change cover photo"
               >
                 {trip.hero_image_url ? (
-                  <img src={trip.hero_image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                  <AdjustableImage src={trip.hero_image_url} pos={trip.hero_image_pos} className="absolute inset-0" />
                 ) : (
                   <div className="absolute inset-0 bg-gradient-to-br from-charcoal via-olive/40 to-forest/60 flex items-center justify-center">
                     <ImageIcon className="w-8 h-8 text-white/40" strokeWidth={1.4} />
@@ -399,6 +403,7 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
         )}
 
         {/* Photo edit modal */}
+        <ImageAdjuster open={adjustingPhoto} src={photoUrl} pos={photoPos} aspect={16 / 6} title="Adjust cover photo" onClose={() => setAdjustingPhoto(false)} onSave={setPhotoPos} />
         {showPhotoModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowPhotoModal(false)}>
             <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm shadow-editorial" onClick={e => e.stopPropagation()}>
@@ -411,12 +416,17 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
               <div className="space-y-4">
                 {photoUrl && (
                   <div className="relative rounded-xl overflow-hidden bg-muted aspect-video">
-                    <img src={photoUrl} alt="Cover preview" className="w-full h-full object-cover" />
+                    <AdjustableImage src={photoUrl} pos={photoPos} alt="Cover preview" />
                   </div>
+                )}
+                {photoUrl && (
+                  <button onClick={() => setAdjustingPhoto(true)} className="w-full flex items-center justify-center gap-1.5 border border-input rounded-lg py-2 text-xs text-foreground hover:border-ring transition-colors">
+                    <Move className="w-3.5 h-3.5" strokeWidth={1.5} /> Adjust photo
+                  </button>
                 )}
                 <div>
                   <label className="text-xs text-muted-foreground mb-1.5 block">Image URL</label>
-                  <input value={photoUrl} onChange={e => setPhotoUrl(e.target.value)}
+                  <input value={photoUrl} onChange={e => { setPhotoUrl(e.target.value); setPhotoPos(null); }}
                     className="w-full bg-muted border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors"
                     placeholder="https://..." />
                 </div>
@@ -430,6 +440,7 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
                       try {
                         const { file_url } = await base44.integrations.Core.UploadFile({ file });
                         setPhotoUrl(file_url);
+                        setPhotoPos(null);
                       } catch (err) {
                         console.error("Upload failed:", err);
                       } finally {
@@ -441,13 +452,13 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
               </div>
               <div className="flex gap-2 mt-5">
                 <button onClick={async () => {
-                  const updated = await ent.Trip.update(trip.id, { hero_image_url: photoUrl || "" });
+                  const updated = await ent.Trip.update(trip.id, { hero_image_url: photoUrl || "", hero_image_pos: photoPos });
                   onUpdate(updated);
                   setShowPhotoModal(false);
                 }} className="flex-1 flex items-center justify-center gap-1.5 bg-accent text-accent-foreground px-4 py-2.5 rounded-lg text-sm font-medium hover:opacity-90 transition-colors">
                   <Check className="w-4 h-4" /> Save
                 </button>
-                <button onClick={() => { setShowPhotoModal(false); setPhotoUrl(trip.hero_image_url || ""); }} className="px-4 py-2.5 text-muted-foreground text-sm hover:text-foreground transition-colors">Cancel</button>
+                <button onClick={() => { setShowPhotoModal(false); setPhotoUrl(trip.hero_image_url || ""); setPhotoPos(trip.hero_image_pos || null); }} className="px-4 py-2.5 text-muted-foreground text-sm hover:text-foreground transition-colors">Cancel</button>
               </div>
             </div>
           </div>

@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowRight } from "lucide-react";
 
 export default function LifeProgress({ circles }) {
   const navigate = useNavigate();
@@ -8,25 +7,25 @@ export default function LifeProgress({ circles }) {
 
   return (
     <section>
-      <h2 className="font-heading text-[22px] text-foreground mb-2.5">Life Progress</h2>
-      <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 md:grid md:grid-cols-3 md:overflow-visible">
+      <h2 className="font-heading text-[20px] text-foreground mb-2.5">Life Progress</h2>
+      <div className="grid grid-cols-2 gap-2.5">
         {circles.map((c, i) => {
-          const r = 24;
+          const r = 20;
           const circ = 2 * Math.PI * r;
-          const dash = (c.value / 100) * circ;
+          const dash = (Math.min(100, Math.max(0, c.value)) / 100) * circ;
           return (
             <button
               key={i}
               onClick={() => navigate(c.path)}
-              className="flex-shrink-0 w-[86px] md:w-auto flex flex-col items-center gap-1.5 py-2.5 px-1.5 rounded-xl border border-border/50 bg-card hover:border-olive/40 transition-colors"
+              className="flex items-center gap-3 p-3 rounded-2xl border border-border/60 bg-card text-left hover:border-[#A7773F]/50 transition-colors min-w-0"
             >
-              <div className="relative w-[60px] h-[60px]">
-                <svg width="60" height="60" className="-rotate-90">
-                  <circle cx="30" cy="30" r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth="4" />
+              <div className="relative w-[48px] h-[48px] flex-shrink-0">
+                <svg width="48" height="48" className="-rotate-90">
+                  <circle cx="24" cy="24" r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth="4" />
                   <motion.circle
-                    cx="30" cy="30" r={r}
+                    cx="24" cy="24" r={r}
                     fill="none"
-                    stroke="hsl(var(--olive))"
+                    stroke="#A7773F"
                     strokeWidth="4"
                     strokeLinecap="round"
                     strokeDasharray={circ}
@@ -35,12 +34,12 @@ export default function LifeProgress({ circles }) {
                     transition={{ duration: 0.9, delay: 0.15 + i * 0.08, ease: [0.16, 1, 0.3, 1] }}
                   />
                 </svg>
-                <span className="absolute inset-0 flex items-center justify-center text-[13px] font-heading font-medium text-foreground leading-none">{c.display}</span>
+                <span className="absolute inset-0 flex items-center justify-center text-[11px] font-heading text-foreground leading-none">{c.display}</span>
               </div>
-              <p className="font-body text-[9.5px] text-foreground text-center leading-tight line-clamp-2 min-h-[1.5rem] px-0.5">{c.label}</p>
-              <span className="flex items-center gap-0.5 text-[8px] font-body text-olive leading-none">
-                {c.action} <ArrowRight className="w-2 h-2" />
-              </span>
+              <div className="min-w-0">
+                <p className="font-body text-[12.5px] font-medium text-foreground leading-tight line-clamp-2">{c.label}</p>
+                {c.sub && <p className="font-body text-[10.5px] text-muted-foreground mt-0.5 truncate">{c.sub}</p>}
+              </div>
             </button>
           );
         })}

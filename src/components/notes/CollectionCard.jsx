@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { Folder as FolderIcon, ChevronRight } from "lucide-react";
+import { posStyle } from "@/lib/imagePos";
 
 const isUrl = (v) => typeof v === "string" && /^https?:\/\//.test(v);
 import { accentHex } from "./collectionAccents";
@@ -32,7 +33,7 @@ export default function CollectionCard({ folder, count, onOpen, onLongPress }) {
         style={{ backgroundColor: `${color}1F` }}
       >
         {folder.icon_type === "image" && isUrl(folder.emoji) ? (
-          <img src={folder.emoji} alt="" className="w-11 h-11 rounded-xl object-cover" />
+          <img src={folder.emoji} alt="" className="w-11 h-11 rounded-xl object-cover" style={posStyle(folder.photo_pos)} />
         ) : folder.icon_type === "emoji" && folder.emoji ? (
           <span className="text-[22px] leading-none">{folder.emoji}</span>
         ) : (

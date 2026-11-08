@@ -5,6 +5,7 @@ import { ent } from "@/lib/freshEntities";
 import { parseISO } from "date-fns";
 import ProjectDetail from "@/components/projects/ProjectDetail";
 import { Plus, ChevronRight, Briefcase, Trash2, Calendar } from "lucide-react";
+import { posStyle } from "@/lib/imagePos";
 
 const CATEGORIES = [
   { id: "event", label: "Event", emoji: "🎉" },
@@ -156,6 +157,7 @@ export default function Projects() {
                           src={project.cover_image_url}
                           alt=""
                           className="w-full h-full object-cover"
+                          style={posStyle(project.cover_image_pos)}
                           onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.nextSibling.style.display = "flex"; }}
                         />
                       ) : null}

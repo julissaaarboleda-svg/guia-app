@@ -1,4 +1,5 @@
 import { parseISO, format } from "date-fns";
+import AdjustableImage from "@/components/ui/AdjustableImage";
 
 export default function JourneyCard({ trip, progress, onOpen }) {
   const dateLabel = trip.start_date
@@ -11,7 +12,7 @@ export default function JourneyCard({ trip, progress, onOpen }) {
       className="relative flex-shrink-0 w-[180px] h-[240px] rounded-2xl overflow-hidden text-left group shadow-[0_12px_32px_-20px_rgba(0,0,0,0.35)]"
     >
       {trip.hero_image_url ? (
-        <img src={trip.hero_image_url} alt="" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+        <AdjustableImage src={trip.hero_image_url} pos={trip.hero_image_pos} className="absolute inset-0" />
       ) : (
         <div className="absolute inset-0 bg-gradient-to-br from-charcoal via-olive/40 to-forest/60" />
       )}

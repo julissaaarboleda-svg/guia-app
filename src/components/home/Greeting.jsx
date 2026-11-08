@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Target, Plane } from "lucide-react";
 export default function Greeting({ dateStr, greeting, firstName, status }) {
   return (
     <motion.div
@@ -11,8 +12,8 @@ export default function Greeting({ dateStr, greeting, firstName, status }) {
         {greeting}, {firstName}.
       </h1>
       {status ? (
-        <p className="font-body text-[13px] text-muted-foreground/80 mt-2.5 truncate font-normal leading-snug">
-          {status}
+        <p className="font-body text-[13px] text-muted-foreground/90 mt-2 truncate font-normal leading-snug flex items-center gap-1.5">
+          {status.startsWith("✈") ? <Plane className="w-3.5 h-3.5 flex-shrink-0 text-[#A7773F]" strokeWidth={1.5} /> : <Target className="w-3.5 h-3.5 flex-shrink-0 text-[#A7773F]" strokeWidth={1.5} />}{status.replace(/^[^\p{L}\p{N}]+/u, "")}
         </p>
       ) : null}
     </motion.div>

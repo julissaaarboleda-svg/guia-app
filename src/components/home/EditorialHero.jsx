@@ -1,14 +1,17 @@
 import { useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { Upload, ChevronDown, Check } from "lucide-react";
+import { Upload, ChevronDown, Check, Move } from "lucide-react";
+import AdjustableImage from "@/components/ui/AdjustableImage";
+import ImageAdjuster from "@/components/ui/ImageAdjuster";
 const MODES = [
   { id: "photo_quote", label: "Photo + Quote" },
   { id: "photo", label: "Photo Only" },
   { id: "quote", label: "Quote Only" },
   { id: "hide", label: "Hide Hero" },
 ];
-export default function EditorialHero({ image, quote, mode, setMode, onUpload }) {
+export default function EditorialHero({ image, imagePos, onAdjust, quote, mode, setMode, onUpload }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [adjusting, setAdjusting] = useState(false);
   const fileRef = useRef(null);
   if (mode === "hide") return null;
   const showQuote = mode === "photo_quote" || mode === "quote";
@@ -18,22 +21,22 @@ export default function EditorialHero({ image, quote, mode, setMode, onUpload })
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-      className="relative w-full h-[210px] lg:h-[240px] rounded-[24px]"
+      className="relative w-full h-[150px] lg:h-[190px] rounded-[24px]"
     >
       <div className="absolute inset-0 rounded-[24px] overflow-hidden bg-charcoal">
         {showPhoto && image && (
-          <img src={image} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          <AdjustableImage src={image} pos={imagePos} className="absolute inset-0" />
         )}
         {mode === "quote" && (
           <div className="absolute inset-0 bg-gradient-to-br from-charcoal via-olive/30 to-charcoal" />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-black/30" />
         {showQuote && quote && (
-          <div className="absolute bottom-5 left-6 right-6 max-w-[85%] z-10">
-            <p className="font-heading italic text-[#F5F1EB] text-lg sm:text-xl leading-relaxed drop-shadow-md">
+          <div className="absolute bottom-3.5 left-5 right-16 max-w-[85%] z-10">
+            <p className="font-heading italic text-[#F5F1EB] text-[15px] sm:text-xl leading-snug drop-shadow-md line-clamp-3">
               {quote.text}
             </p>
-            <p className="font-body text-[#F5F1EB]/70 text-xs mt-2 tracking-wide">— {quote.author}</p>
+            <p className="font-body text-[#F5F1EB]/70 text-[11px] mt-1 tracking-wide">— {quote.author}</p>
           </div>
         )}
       </div>
@@ -60,6 +63,14 @@ export default function EditorialHero({ image, quote, mode, setMode, onUpload })
                 </button>
               ))}
               <div className="border-t border-border my-1" />
+              {showPhoto && image && (
+                <button
+                  onClick={() => { setAdjusting(true); setMenuOpen(false); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-body text-foreground hover:bg-secondary transition-colors"
+                >
+                  <Move className="w-3.5 h-3.5" /> Adjust photo
+                </button>
+              )}
               <button
                 onClick={() => { fileRef.current?.click(); setMenuOpen(false); }}
                 className="w-full flex items-center gap-2 px-3 py-2 text-xs font-body text-foreground hover:bg-secondary transition-colors"
@@ -71,6 +82,7 @@ export default function EditorialHero({ image, quote, mode, setMode, onUpload })
         )}
         <input ref={fileRef} type="file" accept="image/*,image/heic,image/heif,.heic,.heif" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f); }} />
       </div>
+      <ImageAdjuster open={adjusting} src={image} pos={imagePos} aspect={3 / 1} title="Adjust banner photo" onClose={() => setAdjusting(false)} onSave={(p) => onAdjust?.(p)} />
     </motion.div>
   );
 }

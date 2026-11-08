@@ -1,5 +1,6 @@
 import { parseISO, differenceInCalendarDays, format } from "date-fns";
 import { Edit2, MapPin, ImageIcon } from "lucide-react";
+import AdjustableImage from "@/components/ui/AdjustableImage";
 
 export default function JourneyHero({ trip, onOpen, onCustomize, onEditTrip, generating }) {
   const daysRemaining = trip.start_date
@@ -20,7 +21,7 @@ export default function JourneyHero({ trip, onOpen, onCustomize, onEditTrip, gen
       className="relative w-full min-h-[200px] rounded-[24px] overflow-hidden cursor-pointer shadow-[0_20px_50px_-28px_rgba(0,0,0,0.4)]"
     >
       {trip.hero_image_url ? (
-        <img src={trip.hero_image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        <AdjustableImage src={trip.hero_image_url} pos={trip.hero_image_pos} className="absolute inset-0" />
       ) : (
         <div className="absolute inset-0 bg-gradient-to-br from-charcoal via-olive/40 to-forest/60" />
       )}

@@ -3,9 +3,9 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Check } from "lucide-react";
 import { getModule } from "@/lib/homeModules";
 const PRIORITY_CHIP = {
-  high: "bg-amber-100 text-amber-700",
-  urgent: "bg-rose-100 text-rose-700",
-  normal: "bg-olive/10 text-olive",
+  high: "bg-[#F3E8D6] text-[#8A5F27]",
+  urgent: "bg-[#F4E6E7] text-[#8F5F65]",
+  normal: "bg-[#E4E9D5] text-[#566033]",
   low: "bg-muted text-muted-foreground",
 };
 export default function TodaysFocus({ items, total = 0, onComplete }) {
@@ -41,15 +41,15 @@ export default function TodaysFocus({ items, total = 0, onComplete }) {
   return (
     <section>
       <div className="flex items-end justify-between mb-2.5">
-        <h2 className="font-heading text-[22px] text-foreground">Today’s Focus</h2>
-        <Link to="/goals" className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
+        <h2 className="font-heading text-[20px] text-foreground">Today’s Focus</h2>
+        <Link to="/goals" className="flex items-center gap-1 text-[11px] font-medium text-[#A7773F] transition-colors">
           {total > localItems.length ? `View All (${total})` : "View all"} <ArrowRight className="w-3 h-3" />
         </Link>
       </div>
       {localItems.length === 0 ? (
         <p className="text-[13px] text-muted-foreground font-body py-5 text-center">Nothing pressing today. A calm, open day.</p>
       ) : (
-        <div className="rounded-2xl bg-card overflow-hidden">
+        <div className="rounded-2xl bg-card border border-border/60 overflow-hidden">
           {localItems.map((it, i) => {
             const mod = getModule(it.module);
             const Icon = mod.Icon;

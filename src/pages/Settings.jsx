@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { Camera, ChevronDown, Target, FileText, Briefcase, Building2, CreditCard, Plane, FolderOpen, CheckCircle, X, LogOut, MessageSquare } from "lucide-react";
+import AdjustableImage from "@/components/ui/AdjustableImage";
+import ImageAdjuster from "@/components/ui/ImageAdjuster";
+import { Move, Camera, ChevronDown, Target, FileText, Briefcase, Building2, CreditCard, Plane, FolderOpen, CheckCircle, X, LogOut, MessageSquare } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import SectionOrderEditor from "@/components/settings/SectionOrderEditor";
 import FeedbackModal from "@/components/feedback/FeedbackModal";
@@ -49,6 +51,7 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [avatarPhoto, setAvatarPhoto] = useState(null);
+  const [adjustingAvatar, setAdjustingAvatar] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [sectionOrder, setSectionOrder] = useState(DEFAULT_ORDER);
   const [showOrderEditor, setShowOrderEditor] = useState(false);
@@ -66,7 +69,8 @@ export default function Settings() {
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       setAvatarPhoto(file_url);
-      await ent.UserPreferences.update(prefs.id, { avatar_url: file_url });
+      await ent.UserPreferences.update(prefs.id, { avatar_url: file_url, avatar_pos: null });
+      setPrefs(prev => ({ ...prev, avatar_url: file_url, avatar_pos: null }));
     } catch (err) {
       console.error(err);
       toast({ title: "Couldn't upload that photo — try again", variant: "destructive" });
@@ -206,7 +210,7 @@ export default function Settings() {
           <div className="relative flex-shrink-0">
             <div className="w-16 h-16 rounded-full flex items-center justify-center text-white text-lg font-semibold overflow-hidden"
               style={{ backgroundColor: avatarColor }}>
-              {avatarPhoto ? <img src={avatarPhoto} alt="avatar" className="w-full h-full object-cover" /> : initials}
+              {avatarPhoto ? <AdjustableImage src={avatarPhoto} pos={prefs?.avatar_pos} alt="avatar" /> : initials}
             </div>
             <button onClick={() => fileRef.current.click()} disabled={uploadingPhoto} aria-label="Change photo"
               className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#A7773F] text-white rounded-full flex items-center justify-center disabled:opacity-50">
@@ -231,9 +235,18 @@ export default function Settings() {
             ))}
           </div>
         ) : (
-          <button onClick={removePhoto} className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-body w-fit">
-            <X className="w-3 h-3" strokeWidth={1.5} /> Remove photo
-          </button>
+          <>
+          <div className="mt-4 flex items-center gap-4">
+            <button onClick={() => setAdjustingAvatar(true)} className="flex items-center gap-1.5 text-xs font-medium text-[#A7773F] font-body w-fit">
+              <Move className="w-3 h-3" strokeWidth={1.5} /> Adjust photo
+            </button>
+            <button onClick={removePhoto} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-body w-fit">
+              <X className="w-3 h-3" strokeWidth={1.5} /> Remove photo
+            </button>
+          </div>
+          <ImageAdjuster open={adjustingAvatar} src={avatarPhoto} pos={prefs?.avatar_pos} aspect={1} round title="Adjust profile photo" onClose={() => setAdjustingAvatar(false)}
+            onSave={async (p) => { setPrefs(prev => ({ ...prev, avatar_pos: p })); try { await ent.UserPreferences.update(prefs.id, { avatar_pos: p }); } catch (e) { console.error(e); } }} />
+          </>
         )}
 
         <div className="space-y-3 mt-5">

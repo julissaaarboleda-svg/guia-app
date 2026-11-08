@@ -125,7 +125,7 @@ export function buildUpNext({ trips = [], projects = [], bizEntries = [] }) {
       id: `trip-${t.id}`, title: t.title, module: "travel",
       dateLabel: tripRange(t), countdown: daysLabel(days) || `${days} days`,
       status: cap(t.status), path: "/travel", _days: days,
-      image: t.hero_image_url || null,
+      image: t.hero_image_url || null, imagePos: t.hero_image_pos || null,
     });
   });
   projects.forEach((p) => {
@@ -136,7 +136,7 @@ export function buildUpNext({ trips = [], projects = [], bizEntries = [] }) {
       id: `proj-${p.id}`, title: p.title, module: "projects",
       dateLabel: `Due ${format(parseISO(p.target_date), "MMM d")}`, countdown: daysLabel(days) || `${days} days`,
       status: cap(p.status), path: "/projects", _days: days,
-      image: p.cover_image_url || null, accentColor: p.accent_color || "#A7773F",
+      image: p.cover_image_url || null, imagePos: p.cover_image_pos || null, accentColor: p.accent_color || "#A7773F",
     });
   });
   bizEntries.forEach((b) => {
@@ -160,12 +160,12 @@ export function buildProgress({ goals = [], businessGoals = [], trips = [], proj
   if (activeGoal) {
     const st = activeGoal.sub_tasks || [];
     const pct = st.length ? Math.round((st.filter((t) => t.completed).length / st.length) * 100) : Math.round(activeGoal.progress || 0);
-    circles.push({ label: activeGoal.title, value: pct, display: `${pct}%`, action: "Continue", path: "/goals" });
+    circles.push({ label: activeGoal.title, value: pct, display: `${pct}%`, sub: pct >= 100 ? "Completed" : st.length ? `${st.filter((t) => t.completed).length} of ${st.length} steps` : "Goal", path: "/goals" });
   }
   const bg = businessGoals.find((g) => (g.status || "active") === "active") || businessGoals[0];
   if (bg) {
     const pct = bg.target_value ? Math.min(100, Math.round(((bg.current_value || 0) / bg.target_value) * 100)) : 0;
-    circles.push({ label: bg.title, value: pct, display: `${bg.current_value || 0} / ${bg.target_value || 0}`, action: "Continue", path: "/business" });
+    circles.push({ label: bg.title, value: pct, display: `${pct}%`, sub: `${bg.current_value || 0} of ${bg.target_value || 0}`, path: "/business" });
   }
   const nextTrip = [...trips]
     .filter((t) => t.start_date && parseISO(t.start_date) >= now)
@@ -173,14 +173,14 @@ export function buildProgress({ goals = [], businessGoals = [], trips = [], proj
   if (nextTrip && nextTrip.budget_target) {
     const spent = (nextTrip.expense_items || []).reduce((s, e) => s + (e.amount || 0), 0);
     const pct = Math.min(100, Math.round((spent / nextTrip.budget_target) * 100));
-    circles.push({ label: nextTrip.title, value: pct, display: `${pct}%`, action: "View Budget", path: "/travel" });
+    circles.push({ label: nextTrip.title, value: pct, display: `${pct}%`, sub: "Trip budget", path: "/travel" });
   }
   const activeProjects = projects.filter((p) => p.status === "active" || p.status === "planning");
   if (activeProjects.length) {
     let total = 0, done = 0;
     activeProjects.forEach((p) => (p.tasks || []).forEach((t) => { total++; if (t.completed) done++; }));
     const pct = total ? Math.round((done / total) * 100) : 0;
-    circles.push({ label: "Projects", value: pct, display: `${pct}%`, action: "View Projects", path: "/projects" });
+    circles.push({ label: "Projects", value: pct, display: `${pct}%`, sub: total ? `${done} of ${total} tasks done` : "No tasks yet", path: "/projects" });
   }
   return circles.slice(0, 4);
 }

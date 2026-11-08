@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import AdjustableImage from "@/components/ui/AdjustableImage";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
@@ -84,7 +85,7 @@ export default function Layout() {
       <div className="px-4 pb-4 border-b border-sidebar-border" style={{ paddingTop: 'calc(env(safe-area-inset-top, 20px) + 20px)' }}>
         <div className="flex items-center gap-3">
           <Link to="/settings" className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 hover:opacity-90 transition-opacity" style={{ backgroundColor: avatarUrl ? 'transparent' : avatarColor, boxShadow: `0 0 0 3px ${avatarColor}` }}>
-            {avatarUrl ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" /> : <span className="text-sm font-semibold text-white">{initials}</span>}
+            {avatarUrl ? <AdjustableImage src={avatarUrl} pos={prefs?.avatar_pos} /> : <span className="text-sm font-semibold text-white">{initials}</span>}
           </Link>
           <p className="font-heading text-base text-sidebar-foreground tracking-wide font-bold">Guía</p>
         </div>

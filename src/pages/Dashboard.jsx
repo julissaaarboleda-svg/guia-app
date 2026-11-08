@@ -53,6 +53,7 @@ export default function Dashboard() {
   });
 
   const dayOfYear = useMemo(() => Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000), []);
+  const [heroPositions, setHeroPositions] = useState(() => { try { return JSON.parse(localStorage.getItem("guia-hero-positions") || "{}"); } catch { return {}; } });
   const dailyQuote = QUOTES[dayOfYear % QUOTES.length];
   const dailyImage = userHeroImages[0] || HERO_IMAGES[dayOfYear % HERO_IMAGES.length];
 
@@ -76,6 +77,7 @@ export default function Dashboard() {
       if (p.length > 0) {
         setPrefs(p[0]);
         if (p[0].hero_mode) setHeroMode(p[0].hero_mode);
+        if (p[0].hero_positions && typeof p[0].hero_positions === "object") setHeroPositions(p[0].hero_positions);
         if (Array.isArray(p[0].hero_images) && p[0].hero_images.length > 0) setUserHeroImages(p[0].hero_images);
       }
       const [g, tr, biz, fin, tsk, proj, bg, career] = await Promise.all([
@@ -114,6 +116,13 @@ export default function Dashboard() {
     setHeroMode(m);
     localStorage.setItem("guia-hero-mode", m);
     if (prefs?.id) await ent.UserPreferences.update(prefs.id, { hero_mode: m });
+  };
+
+  const adjustHero = async (pos) => {
+    const next = { ...heroPositions, [dailyImage]: pos };
+    setHeroPositions(next);
+    try { localStorage.setItem("guia-hero-positions", JSON.stringify(next)); } catch { /* optional */ }
+    if (prefs?.id) await ent.UserPreferences.update(prefs.id, { hero_positions: next });
   };
 
   const onHeroUpload = async (file) => {
@@ -157,15 +166,18 @@ export default function Dashboard() {
 
   return (
     <div className="px-6 md:px-10 lg:px-12 pb-5 md:pb-7 max-w-[1180px] 2xl:max-w-[1400px] mx-auto w-full space-y-5" style={{ paddingTop: "1.25rem" }}>
+
+      <Greeting dateStr={dateStr} greeting={greeting} firstName={firstName} status={dailyStatus} />
+
       <EditorialHero
         image={dailyImage}
+        imagePos={heroPositions[dailyImage]}
+        onAdjust={adjustHero}
         quote={dailyQuote}
         mode={heroMode}
         setMode={persistMode}
         onUpload={onHeroUpload}
       />
-
-      <Greeting dateStr={dateStr} greeting={greeting} firstName={firstName} status={dailyStatus} />
 
       <div className="space-y-5 lg:space-y-0 lg:grid lg:grid-cols-[minmax(0,1fr)_400px] 2xl:grid-cols-[minmax(0,1fr)_460px] lg:gap-x-8 lg:gap-y-6 lg:items-start">
       <Reveal delay={0.06} className="lg:col-start-1 lg:row-start-1 min-w-0">
@@ -192,15 +204,15 @@ export default function Dashboard() {
         )}
       </Reveal>
 
+      <Reveal delay={0.08} className="lg:col-start-2 lg:row-start-1 min-w-0">
+        <UpNext items={upNext} />
+      </Reveal>
+
       {progress.length > 0 && (
-        <Reveal delay={0.08} className="lg:col-start-2 lg:row-start-1 min-w-0">
+        <Reveal delay={0.1} className="lg:col-start-2 lg:row-start-2 min-w-0">
           <LifeProgress circles={progress} />
         </Reveal>
       )}
-
-      <Reveal delay={0.1} className={`lg:col-start-2 min-w-0 ${progress.length > 0 ? "lg:row-start-2" : "lg:row-start-1"}`}>
-        <UpNext items={upNext} />
-      </Reveal>
 
       </div>
 

@@ -1,10 +1,13 @@
-import { X, Upload } from "lucide-react";
+import { X, Upload, Move } from "lucide-react";
+import AdjustableImage from "@/components/ui/AdjustableImage";
+import ImageAdjuster from "@/components/ui/ImageAdjuster";
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
 
 export default function CoverCustomizer({ trip, onClose, onUpdate }) {
   const [uploading, setUploading] = useState(false);
+  const [adjusting, setAdjusting] = useState(false);
 
   if (!trip) return null;
 
@@ -14,7 +17,7 @@ export default function CoverCustomizer({ trip, onClose, onUpdate }) {
     setUploading(true);
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      const updated = await ent.Trip.update(trip.id, { hero_image_url: file_url });
+      const updated = await ent.Trip.update(trip.id, { hero_image_url: file_url, hero_image_pos: null });
       onUpdate(updated);
     } catch (err) {
       console.error(err);
@@ -37,18 +40,26 @@ export default function CoverCustomizer({ trip, onClose, onUpdate }) {
           {/* Preview */}
           <div className="relative aspect-[16/10] rounded-2xl overflow-hidden bg-secondary">
             {trip.hero_image_url ? (
-              <img src={trip.hero_image_url} alt="" className="w-full h-full object-cover" />
+              <AdjustableImage src={trip.hero_image_url} pos={trip.hero_image_pos} />
             ) : (
               <div className="absolute inset-0 bg-gradient-to-br from-charcoal via-olive/40 to-forest/60" />
             )}
           </div>
 
+          {trip.hero_image_url && (
+            <button onClick={() => setAdjusting(true)} className="w-full flex items-center justify-center gap-2 border border-border py-3 rounded-xl text-[14px] text-foreground hover:bg-secondary transition-colors">
+              <Move className="w-4 h-4" strokeWidth={1.5} /> Adjust photo
+            </button>
+          )}
           <label className="w-full flex items-center justify-center gap-2 border border-border py-3 rounded-xl text-[14px] text-foreground hover:bg-secondary transition-colors cursor-pointer">
             <Upload className="w-4 h-4" /> {uploading ? "Uploading…" : "Upload Personal Photo"}
             <input type="file" accept="image/*,image/heic,image/heif,.heic,.heif" onChange={uploadPhoto} disabled={uploading} className="hidden" />
           </label>
         </div>
       </div>
+      <ImageAdjuster open={adjusting} src={trip.hero_image_url} pos={trip.hero_image_pos} aspect={16 / 10} title="Adjust cover photo"
+        onClose={() => setAdjusting(false)}
+        onSave={async (p) => { try { onUpdate(await ent.Trip.update(trip.id, { hero_image_pos: p })); } catch (e) { console.error(e); } }} />
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import AdjustableImage from "@/components/ui/AdjustableImage";
 import { parseISO, format } from "date-fns";
 import { Check } from "lucide-react";
 
@@ -12,7 +13,7 @@ export default function PastJourneyCard({ trip, onOpen }) {
       className="relative w-full aspect-[4/5] md:aspect-[4/3] rounded-[18px] overflow-hidden text-left group shadow-[0_10px_28px_-18px_rgba(0,0,0,0.3)]"
     >
       {trip.hero_image_url ? (
-        <img src={trip.hero_image_url} alt="" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+        <AdjustableImage src={trip.hero_image_url} pos={trip.hero_image_pos} className="absolute inset-0" />
       ) : (
         <div className="absolute inset-0 bg-gradient-to-br from-charcoal via-olive/40 to-forest/60" />
       )}

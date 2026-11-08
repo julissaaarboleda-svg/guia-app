@@ -17,7 +17,10 @@ import {
   FileDown,
   DollarSign,
   MoreVertical,
+  Move,
 } from "lucide-react";
+import AdjustableImage from "@/components/ui/AdjustableImage";
+import ImageAdjuster from "@/components/ui/ImageAdjuster";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import ProjectCollaborators from "@/components/projects/ProjectCollaborators";
 import ProjectResources from "@/components/projects/ProjectResources";
@@ -54,9 +57,12 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadError, setUploadError] = useState(null);
   const [coverImage, setCoverImage] = useState(project.cover_image_url || null);
+  const [coverPos, setCoverPos] = useState(project.cover_image_pos || null);
+  const [adjustingCover, setAdjustingCover] = useState(false);
   useEffect(() => {
     setCoverImage(project.cover_image_url || null);
-  }, [project.cover_image_url]);
+    setCoverPos(project.cover_image_pos || null);
+  }, [project.cover_image_url, project.cover_image_pos]);
   const [form, setForm] = useState({
     title: project.title,
     description: project.description || "",
@@ -216,7 +222,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
   const updateAccentColor = async (hex) => {
     setAccentColor(hex);
     setCoverImage(null);
-    const updated = await ent.Project.update(project.id, { accent_color: hex, cover_image_url: null });
+    const updated = await ent.Project.update(project.id, { accent_color: hex, cover_image_url: null, cover_image_pos: null });
     onUpdate(updated);
   };
 
@@ -228,7 +234,8 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       setCoverImage(file_url);
-      const updated = await ent.Project.update(project.id, { cover_image_url: file_url });
+      setCoverPos(null);
+      const updated = await ent.Project.update(project.id, { cover_image_url: file_url, cover_image_pos: null });
       onUpdate(updated);
     } catch (err) {
       console.error("Cover photo upload failed:", err);
@@ -353,6 +360,11 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
                 <DropdownMenuItem onClick={() => setShowCollabModal(true)} className="gap-2 cursor-pointer">
                   <UserPlus className="w-4 h-4" /> Add collaborator
                 </DropdownMenuItem>
+                {coverImage && (
+                  <DropdownMenuItem onClick={() => setAdjustingCover(true)} className="gap-2 cursor-pointer">
+                    <Move className="w-4 h-4" /> Adjust cover photo
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={() => setEditing(!editing)} className="gap-2 cursor-pointer">
                   <Edit2 className="w-4 h-4" /> Edit project
                 </DropdownMenuItem>
@@ -370,7 +382,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
 
           {coverImage && (
             <>
-              <img src={coverImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
+              <AdjustableImage src={coverImage} pos={coverPos} className="absolute inset-0" />
               <div className="absolute inset-0 bg-black/45" />
             </>
           )}
@@ -537,6 +549,9 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
             )}
           </div>
         )}
+
+        <ImageAdjuster open={adjustingCover} src={coverImage} pos={coverPos} aspect={16 / 7} title="Adjust cover photo" onClose={() => setAdjustingCover(false)}
+          onSave={async (p) => { setCoverPos(p); try { onUpdate(await ent.Project.update(project.id, { cover_image_pos: p })); } catch (e) { console.error(e); } }} />
 
         {/* Edit form */}
         {editing && (
