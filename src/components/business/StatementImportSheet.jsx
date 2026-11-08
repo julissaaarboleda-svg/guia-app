@@ -9,7 +9,7 @@ const dayLabel = (d) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString("en-US
 
 // Reads a business bank statement and proposes Business log entries.
 // Nothing saves until the person approves it, and the statement itself is not kept.
-export default function StatementImportSheet({ open, onClose, existing = [], onDone }) {
+export default function StatementImportSheet({ open, onClose, existing = [], businessId, onDone }) {
   const [step, setStep] = useState("pick"); // pick | reading | review | saving
   const [error, setError] = useState("");
   const [fileName, setFileName] = useState("");
@@ -58,6 +58,7 @@ export default function StatementImportSheet({ open, onClose, existing = [], onD
           revenue: r.kind === "sale" ? r.amount : null,
           expense: r.kind === "expense" ? r.amount : null,
           location: "", description: r.note || "", notes: "",
+          business_id: businessId || undefined,
         });
       }
       onDone && onDone();
@@ -85,7 +86,7 @@ export default function StatementImportSheet({ open, onClose, existing = [], onD
             <p className="font-heading italic text-[13px] text-muted-foreground">Sales and expenses, straight into your log.</p>
           </div>
           {step !== "reading" && step !== "saving" && (
-            <button onClick={close} className="text-muted-foreground hover:text-foreground" aria-label="Close"><X className="w-5 h-5" /></button>
+            <button onClick={close} className="text-muted-foreground hover:text-foreground" aria-label="Close"><X className="w-5 h-5" strokeWidth={1.5} /></button>
           )}
         </div>
 

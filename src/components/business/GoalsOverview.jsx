@@ -1,32 +1,31 @@
 import { useState } from "react";
 import { Edit2, Trash2, Plus, Check, X } from "lucide-react";
 
-const BROWN = "#A7773F";
 const LIM = 4;
 const VIEW_KEY = "guia_business_goals_view";
 
-const isCount = (g) => g.unit !== "milestone" && Number(g.target_value) > 0;
+export const isCount = (g) => g.unit !== "milestone" && Number(g.target_value) > 0;
 export const goalIsDone = (g) => g.status === "done" || (isCount(g) && Number(g.current_value || 0) >= Number(g.target_value));
-const goalPct = (g) => (goalIsDone(g) ? 100 : isCount(g) ? Math.min(100, Math.round((Number(g.current_value || 0) / Number(g.target_value)) * 100)) : 0);
-const daysLeft = (g) => (g.target_date ? Math.ceil((new Date(`${g.target_date}T23:59:59`) - new Date()) / 86400000) : null);
+export const goalPct = (g) => (goalIsDone(g) ? 100 : isCount(g) ? Math.min(100, Math.round((Number(g.current_value || 0) / Number(g.target_value)) * 100)) : 0);
+export const daysLeft = (g) => (g.target_date ? Math.ceil((new Date(`${g.target_date}T23:59:59`) - new Date()) / 86400000) : null);
 const isMoney = (g) => g.unit === "$";
 const fmtVal = (g, v) => (isMoney(g) ? `$${Number(v || 0).toLocaleString()}` : Number(v || 0).toLocaleString());
-const metaOf = (g) => {
+export const metaOf = (g) => {
   if (goalIsDone(g)) return "Done";
   if (!isCount(g)) return "Milestone";
   return isMoney(g) ? `${fmtVal(g, g.current_value)} of ${fmtVal(g, g.target_value)}` : `${fmtVal(g, g.current_value)} of ${fmtVal(g, g.target_value)} ${g.unit || ""}`.trim();
 };
 
-function Bar({ pct }) {
+export function Bar({ pct, done = false }) {
   return (
-    <div className="w-full h-1.5 bg-[#A7773F26] rounded-full overflow-hidden">
-      <div className="h-full bg-[#A7773F] rounded-full transition-all" style={{ width: `${Math.max(pct > 0 ? 2 : 0, pct)}%` }} />
+    <div className="w-full h-1.5 bg-[#E7D9C6] rounded-full overflow-hidden">
+      <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(pct > 0 ? 2 : 0, pct)}%`, background: done ? "#5A6F45" : "#A7773F" }} />
     </div>
   );
 }
 
 export default function GoalsOverview({
-  goals, totalRevenue, revenueGoal, editingRevenue, revenueInput, setRevenueInput,
+  goals, readOnly = false, totalRevenue, revenueGoal, editingRevenue, revenueInput, setRevenueInput,
   onEditRevenue, onSaveRevenue, onCancelRevenue, onNew, onEdit, onDelete, onPatch, editingGoalId, renderEditor,
 }) {
   const [filter, setFilter] = useState("active");
@@ -43,17 +42,15 @@ export default function GoalsOverview({
   const revDone = hasRevenue && revPct >= 100;
   const total = goals.length + (hasRevenue ? 1 : 0);
   const doneCount = done.length + (revDone ? 1 : 0);
-  const overall = total ? Math.round((goals.reduce((s, g) => s + goalPct(g), 0) + (hasRevenue ? revPct : 0)) / total) : 0;
-  const inProgress = total - doneCount;
+    const inProgress = total - doneCount;
 
   const list = (filter === "done" ? done : [...active].sort((a, b) => (daysLeft(a) ?? 1e9) - (daysLeft(b) ?? 1e9)));
   const shown = showAll ? list : list.slice(0, LIM);
   const rest = list.length - LIM;
 
-  const R = 38, C = 2 * Math.PI * R;
   const chip = (on, label, click) => (
     <button key={label} onClick={click}
-      className={`px-3.5 py-1.5 rounded-full text-[12.5px] font-medium whitespace-nowrap transition-colors ${on ? "bg-[#A7773F] text-[#F7F3EC]" : "border border-border text-muted-foreground hover:text-foreground"}`}>
+      className={`px-3.5 py-1.5 rounded-full text-[12.5px] font-medium whitespace-nowrap transition-colors ${on ? "bg-[#E7D9C6] text-foreground" : "border border-border text-muted-foreground hover:text-foreground"}`}>
       {label}
     </button>
   );
@@ -66,8 +63,8 @@ export default function GoalsOverview({
 
   const actions = (g) => (
     <div className="flex items-center gap-2.5 flex-shrink-0 lg:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-      <button onClick={() => onEdit(g)} aria-label="Edit goal" className="text-muted-foreground hover:text-foreground"><Edit2 className="w-4 h-4" /></button>
-      <button onClick={() => onDelete(g.id)} aria-label="Delete goal" className="text-muted-foreground hover:text-rose-400"><Trash2 className="w-4 h-4" /></button>
+      <button onClick={() => onEdit(g)} aria-label="Edit goal" className="text-muted-foreground hover:text-foreground"><Edit2 className="w-4 h-4" strokeWidth={1.5} /></button>
+      <button onClick={() => onDelete(g.id)} aria-label="Delete goal" className="text-muted-foreground hover:text-rose-400"><Trash2 className="w-4 h-4" strokeWidth={1.5} /></button>
     </div>
   );
 
@@ -91,14 +88,14 @@ export default function GoalsOverview({
         <p className="text-xs text-muted-foreground min-w-0">{metaOf(g)}{when(g) ? <> · {when(g)}</> : null}</p>
         {quick(g)}
       </div>
-      {isCount(g) && <div className="mt-2.5"><Bar pct={goalPct(g)} /></div>}
+      {isCount(g) && <div className="mt-2.5"><Bar pct={goalPct(g)} done={goalIsDone(g)} /></div>}
     </div>
   );
 
   const row = (g, i) => (
     <div key={g.id} className={`group flex items-center gap-3 px-4 py-2.5 ${i ? "border-t border-border/60" : ""}`}>
       <span className="font-heading text-[15px] text-foreground flex-1 min-w-0 truncate">{g.title}</span>
-      <div className="w-20 md:w-24 flex-shrink-0">{isCount(g) && <Bar pct={goalPct(g)} />}</div>
+      <div className="w-20 md:w-24 flex-shrink-0">{isCount(g) && <Bar pct={goalPct(g)} done={goalIsDone(g)} />}</div>
       <span className="text-xs text-muted-foreground w-24 text-right flex-shrink-0 hidden sm:block truncate">{metaOf(g)}</span>
       <span className="text-xs text-muted-foreground w-[74px] text-right flex-shrink-0 hidden md:block">{when(g)}</span>
       {quick(g)}
@@ -110,46 +107,31 @@ export default function GoalsOverview({
     <div className="mb-6">
       <div className="flex items-center justify-between mb-3">
         <h2 className="font-heading text-[18px] text-foreground">Business goals</h2>
-        <button onClick={onNew} className="inline-flex items-center gap-1.5 bg-[#A7773F] text-[#F7F3EC] px-3.5 py-1.5 rounded-full text-xs font-medium hover:opacity-90 transition-opacity">
-          <Plus className="w-3.5 h-3.5" strokeWidth={2} /> New goal
-        </button>
+        {!readOnly && (
+          <button onClick={onNew} className="inline-flex items-center gap-1 text-[13px] font-medium text-[#A7773F]">
+            <Plus className="w-4 h-4" strokeWidth={1.5} /> New goal
+          </button>
+        )}
       </div>
 
       {/* Overall progress + revenue */}
-      <div className="bg-card border border-border rounded-2xl p-5 mb-4">
-        <div className="flex items-center gap-5">
-          <div className="relative w-[88px] h-[88px] flex-shrink-0">
-            <svg viewBox="0 0 88 88" className="w-[88px] h-[88px] -rotate-90" aria-hidden="true">
-              <circle cx="44" cy="44" r={R} fill="none" stroke="#A7773F26" strokeWidth="6" />
-              <circle cx="44" cy="44" r={R} fill="none" stroke={BROWN} strokeWidth="6" strokeLinecap="round" strokeDasharray={`${(overall / 100) * C} ${C}`} className="transition-all" />
-            </svg>
-            <span className="absolute inset-0 flex items-center justify-center font-heading text-[22px] text-foreground">{overall}%</span>
-          </div>
-          <div className="min-w-0">
-            <p className="text-[9px] font-bold tracking-[0.14em] uppercase text-muted-foreground">Overall progress</p>
-            {total === 0 ? (
-              <p className="font-heading text-[18px] text-foreground leading-tight mt-1">Add a goal to start tracking</p>
-            ) : (
-              <>
-                <p className="font-heading text-[20px] text-foreground leading-tight mt-1">{doneCount} of {total} goal{total === 1 ? "" : "s"} done</p>
-                <p className="text-xs text-muted-foreground mt-1">{inProgress} in progress{hasRevenue ? ", including revenue" : ""}</p>
-              </>
-            )}
-          </div>
-        </div>
+      <div className="bg-card border border-border rounded-2xl p-4 mb-4">
+        <p className="text-xs text-muted-foreground mb-3">
+          {total === 0 ? "Add a goal to start tracking." : `${doneCount} of ${total} goal${total === 1 ? "" : "s"} done · ${inProgress} in progress`}
+        </p>
 
-        <div className="border-t border-border/60 mt-4 pt-3.5">
+        <div className="border-t border-border/60 pt-3.5">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-heading text-[15px] text-foreground">Revenue goal</h3>
             {editingRevenue ? (
               <div className="flex items-center gap-2">
                 <input type="number" value={revenueInput} onChange={(e) => setRevenueInput(e.target.value)} placeholder="Target ($)" autoFocus
                   className="w-28 bg-secondary border border-input rounded-lg px-2 py-1 text-foreground text-xs outline-none focus:border-ring" />
-                <button onClick={onSaveRevenue} aria-label="Save"><Check className="w-4 h-4 text-foreground" /></button>
-                <button onClick={onCancelRevenue} aria-label="Cancel"><X className="w-4 h-4 text-muted-foreground" /></button>
+                <button onClick={onSaveRevenue} aria-label="Save"><Check className="w-4 h-4 text-foreground" strokeWidth={1.5} /></button>
+                <button onClick={onCancelRevenue} aria-label="Cancel"><X className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} /></button>
               </div>
             ) : hasRevenue ? (
-              <button onClick={onEditRevenue} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"><Edit2 className="w-3 h-3" /> Edit</button>
+              <button onClick={onEditRevenue} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"><Edit2 className="w-3 h-3" strokeWidth={1.5} /> Edit</button>
             ) : null}
           </div>
           {!hasRevenue && !editingRevenue ? (
@@ -160,7 +142,7 @@ export default function GoalsOverview({
           ) : hasRevenue ? (
             <>
               <p className="font-heading text-[22px] text-foreground leading-none mb-2.5">${totalRevenue.toLocaleString()} <span className="font-body text-[13px] text-muted-foreground">of ${Number(revenueGoal).toLocaleString()}</span></p>
-              <Bar pct={revPct} />
+              <Bar pct={revPct} done={revDone} />
             </>
           ) : null}
         </div>

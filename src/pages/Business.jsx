@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { Plus, Upload } from "lucide-react";
+import { Plus, Upload, FilePlus2, Target, ReceiptText } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 
 // "Event" is a broad bucket — market shows, product launches, pop-ups,
 // vendor fairs, etc. all go here as the category, with the specific type
@@ -16,24 +17,39 @@ import DateInput from "@/components/DateInput";
 import StatementImportSheet from "@/components/business/StatementImportSheet";
 import BusinessDocuments from "@/components/business/BusinessDocuments";
 import BusinessLog from "@/components/business/BusinessLog";
-import GoalsOverview, { goalIsDone } from "@/components/business/GoalsOverview";
+import GoalsOverview, { goalIsDone, goalPct, isCount, metaOf, daysLeft, Bar } from "@/components/business/GoalsOverview";
+import BusinessSwitcher from "@/components/business/BusinessSwitcher";
+import { money } from "@/components/business/BusinessLog";
+
+const TABS = [["overview", "Overview"], ["goals", "Goals"], ["documents", "Documents"], ["log", "Log"]];
+const PERIODS = [["month", "Month"], ["year", "Year"], ["all", "All time"]];
+const lsGet = (k, d) => { try { return localStorage.getItem(k) || d; } catch { return d; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch { /* optional */ } };
 
 export default function Business() {
-  const [entries, setEntries] = useState([]);
-  const [goals, setGoals] = useState([]);
+  const [allEntries, setEntries] = useState([]);
+  const [allGoals, setGoals] = useState([]);
+  const [businesses, setBusinesses] = useState([]);
+  const [activeId, setActiveIdState] = useState(() => lsGet("guia_business_active", ""));
+  const [tab, setTabState] = useState(() => lsGet("guia_business_tab", "overview"));
+  const [period, setPeriod] = useState("year");
+  const [docAdd, setDocAdd] = useState(0);
+  const [loaded, setLoaded] = useState(false);
+  const bootRef = useRef(false);
+  const setActiveId = (id) => { setActiveIdState(id); lsSet("guia_business_active", id); };
+  const setTab = (t) => { setTabState(t); lsSet("guia_business_tab", t); };
   const [adding, setAdding] = useState(false);
   const [addTab, setAddTab] = useState("entry");
   const [form, setForm] = useState({ category: "", name: "", date: "", revenue: "", expense: "", location: "", description: "", notes: "" });
   const [goalForm, setGoalForm] = useState({ title: "", description: "", target_value: "", current_value: "0", unit: "$", target_date: "", notes: "" });
   const [goalType, setGoalType] = useState("revenue");
   const [editGoalType, setEditGoalType] = useState("revenue");
-  const [revenueGoal, setRevenueGoal] = useState("");
   const [editingGoal, setEditingGoal] = useState(false);
   const [goalInput, setGoalInput] = useState("");
   const [prefsId, setPrefsId] = useState(null);
   const [editingEntry, setEditingEntry] = useState(null);
   const [editingGoalId, setEditingGoalId] = useState(null);
-  const [docs, setDocs] = useState([]);
+  const [allDocs, setDocs] = useState([]);
   const [importing, setImporting] = useState(false);
 
   const loadDocs = async () => setDocs((await ent.BusinessDocument.list("-created_date")) || []);
@@ -49,10 +65,21 @@ export default function Business() {
       setGoals(g);
       ent.BusinessDocument.list("-created_date").then((d) => setDocs(d || [])).catch(() => {});
       const p = await ent.UserPreferences.filter({ user_email: u.email });
+      let legacyGoal = null;
       if (p.length > 0) {
         setPrefsId(p[0].id);
-        setRevenueGoal(p[0].business_revenue_goal || "");
+        legacyGoal = p[0].business_revenue_goal || null;
       }
+      // Businesses: the first time through, everything you already have becomes
+      // your first business so nothing is lost.
+      let list = (await ent.Business.list("created_date")) || [];
+      if (list.length === 0 && !bootRef.current) {
+        bootRef.current = true;
+        const first = await ent.Business.create({ name: "My business", is_default: true, revenue_goal: legacyGoal });
+        list = [first];
+      }
+      setBusinesses(list);
+      setLoaded(true);
     };
     load();
   }, []);
@@ -70,6 +97,7 @@ export default function Business() {
     if (!form.category || !form.name) return;
     await ent.BusinessEntry.create({
       ...form,
+      business_id: writeId,
       revenue: form.revenue ? Number(form.revenue) : null,
       expense: form.expense ? Number(form.expense) : null,
       date: form.date || new Date().toISOString().split("T")[0],
@@ -88,6 +116,7 @@ export default function Business() {
     else { unit = "milestone"; target_value = null; }
     await ent.BusinessGoal.create({
       ...goalForm,
+      business_id: writeId,
       status: "active",
       target_value,
       unit,
@@ -179,9 +208,11 @@ export default function Business() {
   };
 
   const saveGoal = async () => {
-    if (prefsId) {
-      await ent.UserPreferences.update(prefsId, { business_revenue_goal: Number(goalInput) || null });
-      setRevenueGoal(goalInput);
+    if (activeBusiness) {
+      const v = Number(goalInput) || null;
+      setBusinesses((bs) => bs.map((b) => (b.id === activeBusiness.id ? { ...b, revenue_goal: v } : b)));
+      await ent.Business.update(activeBusiness.id, { revenue_goal: v });
+      if (prefsId && activeBusiness.is_default) { try { await ent.UserPreferences.update(prefsId, { business_revenue_goal: v }); } catch { /* optional mirror */ } }
     }
     setEditingGoal(false);
   };
@@ -193,9 +224,60 @@ export default function Business() {
     await ent.BusinessGoal.update(id, { ...goal, ...patch });
   };
 
+  const defaultId = (businesses.find((b) => b.is_default) || businesses[0] || {}).id;
+  const validActive = activeId === "all" || businesses.some((b) => b.id === activeId) ? activeId : defaultId;
+  const readOnly = validActive === "all";
+  const writeId = readOnly ? defaultId : validActive;
+  const activeBusiness = businesses.find((b) => b.id === validActive);
+  const inScope = (r) => validActive === "all" || (r.business_id || defaultId) === validActive;
+  const entries = useMemo(() => allEntries.filter(inScope), [allEntries, validActive, defaultId]);
+  const goals = useMemo(() => allGoals.filter(inScope), [allGoals, validActive, defaultId]);
+  const docs = useMemo(() => allDocs.filter(inScope), [allDocs, validActive, defaultId]);
+
+  const createBusiness = async (name) => {
+    const b = await ent.Business.create({ name, revenue_goal: null });
+    setBusinesses((bs) => [...bs, b]);
+    setActiveId(b.id);
+  };
+  const renameBusiness = async (id, name) => {
+    setBusinesses((bs) => bs.map((b) => (b.id === id ? { ...b, name } : b)));
+    await ent.Business.update(id, { name });
+  };
+  const deleteBusiness = async (b) => {
+    const owned = (r) => (r.business_id || defaultId) === b.id;
+    const n = allEntries.filter(owned).length + allGoals.filter(owned).length + allDocs.filter(owned).length;
+    const msg = n > 0
+      ? `Delete “${b.name}” and its ${n} entries, goals and documents? This can't be undone.`
+      : `Delete “${b.name}”?`;
+    if (!window.confirm(msg)) return;
+    await Promise.all([
+      ...allEntries.filter(owned).map((r) => ent.BusinessEntry.delete(r.id)),
+      ...allGoals.filter(owned).map((r) => ent.BusinessGoal.delete(r.id)),
+      ...allDocs.filter(owned).map((r) => { try { base44.integrations.Core.DeletePrivateFile({ file_url: r.file_url }); } catch { /* record still goes */ } return ent.BusinessDocument.delete(r.id); }),
+    ]);
+    await ent.Business.delete(b.id);
+    setBusinesses((bs) => bs.filter((x) => x.id !== b.id));
+    if (validActive === b.id) setActiveId(defaultId === b.id ? "" : defaultId);
+    loadEntries(); loadDocs();
+  };
+
+  const revenueGoalValue = readOnly ? "" : (activeBusiness?.revenue_goal || "");
+
+  const inPeriod = (e) => {
+    if (period === "all") return true;
+    const d = e.date || "";
+    const now = new Date().toLocaleDateString("en-CA");
+    return period === "year" ? d.slice(0, 4) === now.slice(0, 4) : d.slice(0, 7) === now.slice(0, 7);
+  };
+  const periodEntries = entries.filter(inPeriod);
+  const periodRevenue = periodEntries.reduce((s, e) => s + (e.revenue || 0), 0);
+  const periodExpenses = periodEntries.reduce((s, e) => s + (e.expense || 0), 0);
+  const periodProfit = periodRevenue - periodExpenses;
+  const activeGoals = goals.filter((g) => !goalIsDone(g)).sort((a, b) => (daysLeft(a) ?? 1e9) - (daysLeft(b) ?? 1e9));
+  const recent = [...entries].sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 4);
+  const dayLabel = (d) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "");
+
   const totalRevenue = entries.reduce((s, e) => s + (e.revenue || 0), 0);
-  const totalExpenses = entries.reduce((s, e) => s + (e.expense || 0), 0);
-  const profit = totalRevenue - totalExpenses;
 
   const GoalTypeInputs = ({ type, setType, form: gForm, setForm: setGForm }) => (
     <>
@@ -204,7 +286,7 @@ export default function Business() {
         <div className="flex flex-wrap gap-1.5">
           {[["revenue", "Revenue"], ["quantity", "Count"], ["milestone", "Milestone"]].map(([v, label]) => (
             <button key={v} type="button" onClick={() => setType(v)}
-              className={`px-3.5 py-1.5 rounded-full text-[12.5px] font-medium transition-colors ${type === v ? "bg-[#A7773F] text-[#F7F3EC]" : "border border-border text-muted-foreground hover:text-foreground"}`}>
+              className={`px-3.5 py-1.5 rounded-full text-[12.5px] font-medium transition-colors ${type === v ? "bg-[#E7D9C6] text-foreground" : "border border-border text-muted-foreground hover:text-foreground"}`}>
               {label}
             </button>
           ))}
@@ -298,6 +380,14 @@ export default function Business() {
     </div>
   );
 
+  const openAdd = (which) => {
+    if (which === "document") { setTab("documents"); setDocAdd((n) => n + 1); return; }
+    setAddTab(which === "goal" ? "goal" : "entry");
+    setAdding(true);
+  };
+
+  const menuItem = "gap-2.5 cursor-pointer text-[13.5px] py-2";
+
   return (
     <>
       <div className="max-w-[1200px] 2xl:max-w-[1400px] mx-auto w-full">
@@ -305,60 +395,60 @@ export default function Business() {
         title="Business"
         subtitle="Your numbers, in one place."
         actions={
-          <button
-            onClick={() => setAdding(true)}
-            className="w-9 h-9 flex items-center justify-center rounded-full bg-[#A7773F] text-[#F7F3EC] hover:opacity-90 transition-opacity"
-            aria-label="Add entry"
-            title="Add entry"
-          >
-            <Plus className="w-[18px] h-[18px]" strokeWidth={1.8} />
-          </button>
+          readOnly ? null : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="w-9 h-9 flex items-center justify-center rounded-full bg-[#A7773F] text-[#F7F3EC] hover:opacity-90 transition-opacity"
+                  aria-label="Add"
+                  title="Add"
+                >
+                  <Plus className="w-[18px] h-[18px]" strokeWidth={1.5} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52 rounded-xl">
+                <DropdownMenuItem onClick={() => openAdd("entry")} className={menuItem}><ReceiptText className="w-4 h-4" strokeWidth={1.5} /> Add entry</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => openAdd("goal")} className={menuItem}><Target className="w-4 h-4" strokeWidth={1.5} /> Add goal</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => openAdd("document")} className={menuItem}><FilePlus2 className="w-4 h-4" strokeWidth={1.5} /> Add document</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setImporting(true)} className={menuItem}><Upload className="w-4 h-4" strokeWidth={1.5} /> Import statement</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )
         }
       />
       <div className="p-4 md:p-8">
 
-      {/* Stats */}
-      <div className="bg-card border border-border rounded-2xl p-4 mb-5">
-        <p className="text-[9px] font-bold tracking-[0.14em] uppercase text-muted-foreground">So far</p>
-        <p className={`font-heading text-[26px] mt-0.5 ${profit >= 0 ? "text-foreground" : "text-destructive"}`}>${profit.toLocaleString()} <span className="font-body text-xs text-muted-foreground">profit</span></p>
-        <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-xs text-muted-foreground">
-          <span>Revenue <b className="text-foreground font-medium">${totalRevenue.toLocaleString()}</b></span>
-          <span>Expenses <b className="text-destructive font-medium">${totalExpenses.toLocaleString()}</b></span>
-          <span>Active goals <b className="text-foreground font-medium">{goals.filter(g => (g.status || "active") === "active" && !goalIsDone(g)).length}</b></span>
+      {loaded && (
+        <div className="mb-4">
+          <BusinessSwitcher
+            businesses={businesses}
+            activeId={validActive}
+            onSelect={setActiveId}
+            onCreate={createBusiness}
+            onRename={renameBusiness}
+            onDelete={deleteBusiness}
+            hasData={allEntries.length + allGoals.length + allDocs.length > 0}
+          />
         </div>
+      )}
+
+      {/* Tabs */}
+      <div className="flex gap-6 border-b border-border mb-5 overflow-x-auto no-scrollbar">
+        {TABS.map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)} className={`relative pb-2.5 pt-1 text-[14px] whitespace-nowrap transition-colors ${tab === id ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground"}`}>
+            {label}
+            {tab === id && <span className="absolute left-0 right-0 -bottom-px h-0.5 rounded-full bg-[#A7773F]" />}
+          </button>
+        ))}
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-6 -mt-1">
-        <button onClick={() => setImporting(true)}
-          className="inline-flex items-center gap-1.5 border border-[#A7773F] text-[#A7773F] px-3.5 py-1.5 rounded-full text-xs font-medium hover:bg-[#A7773F]/10 transition-colors">
-          <Upload className="w-3.5 h-3.5" strokeWidth={1.8} /> Import a statement
-        </button>
-      </div>
-
-      <GoalsOverview
-        goals={goals}
-        totalRevenue={totalRevenue}
-        revenueGoal={revenueGoal}
-        editingRevenue={editingGoal}
-        revenueInput={goalInput}
-        setRevenueInput={setGoalInput}
-        onEditRevenue={() => { setGoalInput(revenueGoal || ""); setEditingGoal(true); }}
-        onSaveRevenue={saveGoal}
-        onCancelRevenue={() => setEditingGoal(false)}
-        onNew={() => { setAddTab("goal"); setAdding(true); }}
-        onEdit={startEditGoal}
-        onDelete={removeGoal}
-        onPatch={patchGoal}
-        editingGoalId={editingGoalId}
-        renderEditor={renderGoalEditor}
-      />
-
-      {/* Add form */}
+      {/* Add form (any tab) */}
       {adding && (
         <div className="bg-card border border-border rounded-2xl p-4 md:p-5 mb-5 lg:max-w-2xl">
           <div className="flex gap-2 mb-4">
-            <button onClick={() => setAddTab("entry")} className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${addTab === "entry" ? "bg-[#A7773F] text-[#F7F3EC]" : "bg-muted text-foreground hover:bg-muted"}`}>Business Entry</button>
-            <button onClick={() => setAddTab("goal")} className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${addTab === "goal" ? "bg-[#A7773F] text-[#F7F3EC]" : "bg-muted text-foreground hover:bg-muted"}`}>Goal</button>
+            <button onClick={() => setAddTab("entry")} className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${addTab === "entry" ? "bg-[#E7D9C6] text-foreground" : "bg-muted text-muted-foreground"}`}>Business Entry</button>
+            <button onClick={() => setAddTab("goal")} className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${addTab === "goal" ? "bg-[#E7D9C6] text-foreground" : "bg-muted text-muted-foreground"}`}>Goal</button>
           </div>
 
           {addTab === "entry" && (
@@ -419,19 +509,117 @@ export default function Business() {
         </div>
       )}
 
-      <BusinessDocuments docs={docs} onChange={loadDocs} />
+      {tab === "overview" && (
+        <>
+          <div className="bg-card border border-border rounded-2xl p-4 mb-5">
+            <p className="text-[10px] font-semibold tracking-[0.14em] uppercase text-muted-foreground">{period === "month" ? "This month" : period === "year" ? "This year" : "All time"}</p>
+            <p className="font-heading text-[32px] leading-tight mt-1" style={{ color: periodProfit < 0 ? "#8F6368" : undefined }}>
+              {periodProfit < 0 ? "−" : ""}{money(Math.abs(periodProfit))} <span className="font-body text-[13px] text-muted-foreground">profit</span>
+            </p>
+            <div className="flex flex-wrap gap-x-5 gap-y-1 mt-1.5 text-[13px] text-muted-foreground">
+              <span>Revenue <b className="font-semibold" style={{ color: "#5A6F45" }}>{money(periodRevenue)}</b></span>
+              <span>Expenses <b className="font-semibold" style={{ color: "#8F6368" }}>{money(periodExpenses)}</b></span>
+            </div>
+            <div className="flex gap-1.5 mt-3.5">
+              {PERIODS.map(([id, label]) => (
+                <button key={id} onClick={() => setPeriod(id)}
+                  className={`text-[12px] px-3 py-1 rounded-full transition-colors ${period === id ? "bg-[#E7D9C6] text-foreground font-medium" : "border border-border text-muted-foreground"}`}>{label}</button>
+              ))}
+            </div>
+          </div>
 
-      <StatementImportSheet open={importing} onClose={() => setImporting(false)} existing={entries} onDone={loadEntries} />
+          <div className="flex items-baseline justify-between mb-2">
+            <h2 className="font-heading text-[18px] text-foreground">Goals</h2>
+            <button onClick={() => setTab("goals")} className="text-[13px] font-medium text-[#A7773F]">See all</button>
+          </div>
+          <div className="bg-card border border-border rounded-2xl p-4 mb-5 space-y-4">
+            {Number(revenueGoalValue) > 0 && (
+              <div>
+                <div className="flex items-baseline justify-between mb-1.5">
+                  <span className="text-[14px] text-foreground">Revenue goal</span>
+                  <span className="text-[12.5px] text-muted-foreground">{money(totalRevenue)} of {money(revenueGoalValue)}</span>
+                </div>
+                <Bar pct={Math.min(100, Math.round((totalRevenue / Number(revenueGoalValue)) * 100))} done={totalRevenue >= Number(revenueGoalValue)} />
+              </div>
+            )}
+            {activeGoals.slice(0, 2).map((g) => (
+              <div key={g.id}>
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="font-heading text-[15.5px] text-foreground truncate">{g.title}</span>
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "#F0E6D6", color: "#8B6B3E" }}>In progress</span>
+                </div>
+                <p className="text-[12.5px] text-muted-foreground mt-0.5 mb-1.5">
+                  {metaOf(g)}{daysLeft(g) != null && daysLeft(g) >= 0 ? ` · ${daysLeft(g)} day${daysLeft(g) === 1 ? "" : "s"} left` : ""}
+                </p>
+                {isCount(g) && <Bar pct={goalPct(g)} />}
+              </div>
+            ))}
+            {!Number(revenueGoalValue) && activeGoals.length === 0 && (
+              <p className="text-[13px] text-muted-foreground">{readOnly ? "No goals yet." : "No goals yet. Use + to add one."}</p>
+            )}
+          </div>
 
-      <BusinessLog
-        entries={entries}
-        categories={BUSINESS_CATEGORIES}
-        editingEntry={editingEntry}
-        renderEditor={renderEntryEditor}
-        onEdit={startEditEntry}
-        onDelete={remove}
-        onNew={() => { setAddTab("entry"); setAdding(true); }}
-      />
+          <div className="flex items-baseline justify-between mb-2">
+            <h2 className="font-heading text-[18px] text-foreground">Recent</h2>
+            <button onClick={() => setTab("log")} className="text-[13px] font-medium text-[#A7773F]">Open log</button>
+          </div>
+          <div className="bg-card border border-border rounded-2xl px-4 py-1 mb-2">
+            {recent.length === 0 ? (
+              <p className="text-[13px] text-muted-foreground py-3">{readOnly ? "No entries yet." : "No entries yet. Add a sale or expense, or import a statement from the + menu."}</p>
+            ) : recent.map((e, i) => (
+              <div key={e.id} className={`flex items-center justify-between gap-3 py-2.5 ${i ? "border-t border-border/60" : ""}`}>
+                <div className="min-w-0">
+                  <p className="font-heading text-[15px] text-foreground truncate">{e.name}</p>
+                  <p className="text-[11.5px] text-muted-foreground">{dayLabel(e.date)} · {e.category}</p>
+                </div>
+                <span className="text-[13.5px] font-semibold flex-shrink-0" style={{ color: e.revenue ? "#5A6F45" : "#8F6368" }}>
+                  {e.revenue ? `+${money(e.revenue)}` : e.expense ? `−${money(e.expense)}` : ""}
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {tab === "goals" && (
+        <GoalsOverview
+          goals={goals}
+          readOnly={readOnly}
+          totalRevenue={totalRevenue}
+          revenueGoal={revenueGoalValue}
+          editingRevenue={editingGoal}
+          revenueInput={goalInput}
+          setRevenueInput={setGoalInput}
+          onEditRevenue={() => { if (readOnly) return; setGoalInput(revenueGoalValue || ""); setEditingGoal(true); }}
+          onSaveRevenue={saveGoal}
+          onCancelRevenue={() => setEditingGoal(false)}
+          onNew={() => { setAddTab("goal"); setAdding(true); }}
+          onEdit={startEditGoal}
+          onDelete={removeGoal}
+          onPatch={patchGoal}
+          editingGoalId={editingGoalId}
+          renderEditor={renderGoalEditor}
+        />
+      )}
+
+      {tab === "documents" && (
+        <BusinessDocuments docs={docs} onChange={loadDocs} businessId={writeId} addSignal={docAdd} readOnly={readOnly} />
+      )}
+
+      <StatementImportSheet open={importing} onClose={() => setImporting(false)} existing={entries} businessId={writeId} onDone={loadEntries} />
+
+      {tab === "log" && (
+        <BusinessLog
+          entries={entries}
+          categories={BUSINESS_CATEGORIES}
+          editingEntry={editingEntry}
+          renderEditor={renderEntryEditor}
+          onEdit={startEditEntry}
+          onDelete={remove}
+          onNew={() => { setAddTab("entry"); setAdding(true); }}
+          readOnly={readOnly}
+        />
+      )}
     </div>
     </div>
     </>

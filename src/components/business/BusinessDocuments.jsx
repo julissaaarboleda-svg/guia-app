@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { FileText, Image as ImageIcon, Plus, Trash2, X, Upload } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
@@ -10,7 +10,7 @@ const sizeLabel = (b) => (b >= 1024 * 1024 ? `${(b / 1024 / 1024).toFixed(1)} MB
 const stem = (n) => (n || "").replace(/\.[^.]+$/, "");
 
 // Files here are stored privately: only the signed-in owner can open them.
-export default function BusinessDocuments({ docs, onChange }) {
+export default function BusinessDocuments({ docs, onChange, businessId, addSignal = 0, readOnly = false }) {
   const [filter, setFilter] = useState("All");
   const [sheet, setSheet] = useState(false);
   const [file, setFile] = useState(null);
@@ -20,6 +20,7 @@ export default function BusinessDocuments({ docs, onChange }) {
   const [error, setError] = useState("");
   const [openingId, setOpeningId] = useState(null);
   const fileRef = useRef(null);
+  useEffect(() => { if (addSignal > 0) setSheet(true); }, [addSignal]);
 
   const shown = filter === "All" ? docs : docs.filter((d) => d.category === filter);
   const counts = (c) => docs.filter((d) => d.category === c).length;
@@ -41,6 +42,7 @@ export default function BusinessDocuments({ docs, onChange }) {
         title: title.trim() || stem(file.name), category, file_url,
         filename: file.name, content_type: file.type || "", size: file.size,
         added: new Date().toISOString().split("T")[0],
+        business_id: businessId || undefined,
       });
       onChange && onChange();
       closeSheet();
@@ -75,7 +77,7 @@ export default function BusinessDocuments({ docs, onChange }) {
 
   const chip = (label, active, onClick, n) => (
     <button key={label} onClick={onClick}
-      className={`px-3.5 py-1.5 rounded-full text-[12.5px] font-medium whitespace-nowrap transition-colors ${active ? "bg-[#A7773F] text-[#F7F3EC]" : "border border-border text-muted-foreground hover:text-foreground"}`}>
+      className={`px-3.5 py-1.5 rounded-full text-[12.5px] font-medium whitespace-nowrap transition-colors ${active ? "bg-[#E7D9C6] text-foreground" : "border border-border text-muted-foreground hover:text-foreground"}`}>
       {label}{n ? ` · ${n}` : ""}
     </button>
   );
@@ -84,10 +86,12 @@ export default function BusinessDocuments({ docs, onChange }) {
     <div className="mb-6">
       <div className="flex items-center justify-between mb-3">
         <h2 className="font-heading text-[18px] text-foreground">Documents</h2>
-        <button onClick={() => { setCategory(filter !== "All" ? filter : DOC_CATEGORIES[0]); setSheet(true); }}
-          className="inline-flex items-center gap-1.5 bg-[#A7773F] text-[#F7F3EC] px-3.5 py-1.5 rounded-full text-xs font-medium hover:opacity-90 transition-opacity">
-          <Plus className="w-3.5 h-3.5" strokeWidth={2} /> Add document
-        </button>
+        {!readOnly && (
+          <button onClick={() => { setCategory(filter !== "All" ? filter : DOC_CATEGORIES[0]); setSheet(true); }}
+            className="inline-flex items-center gap-1 text-[13px] font-medium text-[#A7773F]">
+            <Plus className="w-4 h-4" strokeWidth={1.5} /> Add document
+          </button>
+        )}
       </div>
 
       <div className="flex gap-1.5 overflow-x-auto pb-1 mb-3 -mx-1 px-1">
@@ -117,7 +121,7 @@ export default function BusinessDocuments({ docs, onChange }) {
                 </button>
                 {openingId === d.id && <span className="text-[11px] text-muted-foreground">Opening…</span>}
                 <button onClick={() => remove(d)} aria-label="Delete document" className="text-muted-foreground hover:text-rose-400 lg:opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-4 h-4" strokeWidth={1.5} />
                 </button>
               </div>
             );
@@ -135,7 +139,7 @@ export default function BusinessDocuments({ docs, onChange }) {
                 <h2 className="font-heading text-[20px] text-foreground leading-tight">Add a document</h2>
                 <p className="font-heading italic text-[13px] text-muted-foreground">Stored privately. Only you can open it.</p>
               </div>
-              {!busy && <button onClick={closeSheet} className="text-muted-foreground hover:text-foreground" aria-label="Close"><X className="w-5 h-5" /></button>}
+              {!busy && <button onClick={closeSheet} className="text-muted-foreground hover:text-foreground" aria-label="Close"><X className="w-5 h-5" strokeWidth={1.5} /></button>}
             </div>
 
             <button onClick={() => fileRef.current?.click()}
