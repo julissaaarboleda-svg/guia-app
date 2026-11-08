@@ -85,3 +85,6 @@ export function needsReview(sub) {
   const ageDays = (Date.now() - new Date(ref).getTime()) / 86400000;
   return ageDays > 90;
 }
+
+// A canceled subscription stays on record but no longer counts toward any total.
+export const isCanceled = (i) => !!i.canceled_on;

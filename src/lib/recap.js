@@ -46,7 +46,7 @@ export function counters(all) {
 // The part of a month that is only knowable while the month is current.
 export function liveFinance(all, key) {
   const bills = all.finance.filter((i) => i.type === "bill" && billInMonth(i, key));
-  const subs = all.finance.filter((i) => i.type === "subscription");
+  const subs = all.finance.filter((i) => i.type === "subscription" && !i.canceled_on);
   const loans = all.finance.filter((i) => i.type === "loan");
   const loanMonth = loans.reduce((s, l) => s + scheduleOf(l).filter((p) => inMonth(p.date, key)).reduce((a, p) => a + num(p.amount), 0), 0);
   const manual = all.buckets.filter((b) => b.month === key).reduce((s, b) => s + num(b.allocated_amount), 0);

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, Fragment } from "react";
 import { createPortal } from "react-dom";
 import { ent } from "@/lib/freshEntities";
 import { Trash2, ChevronDown, ChevronUp, ChevronRight, Pencil, X, MoreHorizontal, Check, Plus } from "lucide-react";
-import { isPaid, paidPatch, dueInfo, TONE_CLASS, monthKeyOf, billInMonth, monthlyEquivalent, needsReview } from "@/lib/financeHelpers";
+import { isPaid, paidPatch, dueInfo, TONE_CLASS, monthKeyOf, billInMonth, isCanceled, monthlyEquivalent, needsReview } from "@/lib/financeHelpers";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import PageHeader from "@/components/PageHeader";
@@ -110,7 +110,7 @@ export default function Finance() {
   useEffect(() => { load(); }, []);
 
   const tabItems = activeTab === "bill"
-    ? items.filter(i => i.type === "bill" || i.type === "subscription")
+    ? items.filter(i => (i.type === "bill" || i.type === "subscription") && !isCanceled(i))
     : items.filter(i => i.type === activeTab);
   if (activeTab === "bill") {
     tabItems.sort((a, b) => {
@@ -120,7 +120,7 @@ export default function Finance() {
     });
   }
   const subMonthlyEquivalent = items
-    .filter(i => i.type === "subscription")
+    .filter(i => i.type === "subscription" && !isCanceled(i))
     .reduce((sum, sub) => {
       const amt = sub.amount || 0;
       if (sub.billing_cycle === "yearly") return sum + amt / 12;
@@ -335,7 +335,7 @@ export default function Finance() {
 
       {/* Summary tab */}
       {activeTab === "summary" && (
-        <FinanceSummary items={items} buckets={buckets} onNavigate={(t) => { if (t === "spending") { setActiveTab("budget"); setBudgetView("spending"); } else { setActiveTab(t); if (t === "budget") setBudgetView("budget"); } setAdding(false); setEditingItemId(null); }} onAddFirst={() => { setActiveTab("bill"); openAdd("bill"); }} />
+        <FinanceSummary items={items.filter(i => !isCanceled(i))} buckets={buckets} onNavigate={(t) => { if (t === "spending") { setActiveTab("budget"); setBudgetView("spending"); } else { setActiveTab(t); if (t === "budget") setBudgetView("budget"); } setAdding(false); setEditingItemId(null); }} onAddFirst={() => { setActiveTab("bill"); openAdd("bill"); }} />
       )}
 
       {/* Budget tab — self-contained */}
@@ -347,7 +347,7 @@ export default function Finance() {
                 className={`flex-1 py-1.5 rounded-full text-[13px] transition-all ${budgetView === id ? "bg-card text-foreground shadow-sm font-medium" : "text-muted-foreground"}`}>{l}</button>
             ))}
           </div>
-          {budgetView === "budget" ? <BudgetTab key={`b${spendKey}`} /> : <SpendingTab key={`s${spendKey}`} items={items} onImport={() => setImporting(true)} />}
+          {budgetView === "budget" ? <BudgetTab key={`b${spendKey}`} /> : <SpendingTab key={`s${spendKey}`} items={items.filter(i => !isCanceled(i))} onImport={() => setImporting(true)} />}
         </>
       )}
 
@@ -879,6 +879,7 @@ export default function Finance() {
                     <RowMenu open={menuId === item.id} onToggle={() => setMenuId(menuId === item.id ? null : item.id)} onClose={() => setMenuId(null)}>
                       <button className={menuBtn} onClick={() => { setMenuId(null); openEditItem(item); }}><Pencil className="w-3.5 h-3.5" /> Edit</button>
                       {!isBill && <button className={menuBtn} onClick={async () => { setMenuId(null); await ent.FinanceItem.update(item.id, { reviewed_at: new Date().toISOString() }); load(); }}><Check className="w-3.5 h-3.5" /> Still using it</button>}
+                      {!isBill && <button className={menuBtn} onClick={async () => { setMenuId(null); if (confirm(`Mark ${item.name} as canceled? It stays on record but stops counting in your totals.`)) { await ent.FinanceItem.update(item.id, { canceled_on: new Date().toISOString().slice(0, 10) }); load(); } }}><X className="w-3.5 h-3.5" /> Cancel subscription</button>}
                       <button className={`${menuBtn} text-[#8F5F65]`} onClick={() => { setMenuId(null); if (confirm(`Delete ${item.name}?`)) remove(item.id); }}><Trash2 className="w-3.5 h-3.5" /> Delete</button>
                     </RowMenu>
                   </div>
@@ -1041,6 +1042,35 @@ export default function Finance() {
         })}
       </div>
       )}
+      {activeTab === "bill" && items.some(i => i.type === "subscription" && isCanceled(i)) && (() => {
+        const canceled = items.filter(i => i.type === "subscription" && isCanceled(i));
+        const saved = canceled.reduce((t, x) => t + monthlyEquivalent(x), 0);
+        return (
+          <div className="mt-3">
+            <button type="button" onClick={() => setCollapsed(c => ({ ...c, canceled: !c.canceled }))} className="flex items-center gap-1.5 w-full py-1">
+              {collapsed.canceled === false ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
+              <h3 className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground">Canceled</h3>
+              <span className="text-xs text-muted-foreground ml-auto">Saving ${saved.toLocaleString(undefined, { maximumFractionDigits: 2 })}/mo · ${Math.round(saved * 12).toLocaleString()}/yr</span>
+            </button>
+            {collapsed.canceled === false && (
+              <div className="bg-card border border-border rounded-2xl divide-y divide-border/50 mt-1">
+                {canceled.map(c => (
+                  <div key={c.id} className="flex items-center gap-3 px-4 py-2.5">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[14.5px] text-muted-foreground line-through truncate">{c.name}</p>
+                      <p className="text-[11.5px] text-muted-foreground">Canceled {fmtDate(c.canceled_on)} · was ${Number(c.amount || 0).toLocaleString()}/{c.billing_cycle === "yearly" ? "yr" : c.billing_cycle === "quarterly" ? "qtr" : c.billing_cycle === "weekly" ? "wk" : "mo"}</p>
+                    </div>
+                    <RowMenu open={menuId === c.id} onToggle={() => setMenuId(menuId === c.id ? null : c.id)} onClose={() => setMenuId(null)}>
+                      <button className={menuBtn} onClick={async () => { setMenuId(null); await ent.FinanceItem.update(c.id, { canceled_on: null }); load(); }}><Check className="w-3.5 h-3.5" /> Restore</button>
+                      <button className={`${menuBtn} text-[#8F5F65]`} onClick={() => { setMenuId(null); if (confirm(`Delete ${c.name}?`)) remove(c.id); }}><Trash2 className="w-3.5 h-3.5" /> Delete</button>
+                    </RowMenu>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
     </div>
     </>

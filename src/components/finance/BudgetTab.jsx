@@ -82,7 +82,7 @@ export default function BudgetTab() {
         month: mk,
         _auto: true,
       }));
-    const activeSubs = allSubs.filter(s => !manualNames.includes(s.name?.toLowerCase().trim()));
+    const activeSubs = allSubs.filter(s => !s.canceled_on).filter(s => !manualNames.includes(s.name?.toLowerCase().trim()));
     const subMonthlyTotal = activeSubs.reduce((sum, s) => {
       const amt = s.amount || 0;
       if (s.billing_cycle === "yearly") return sum + amt / 12;

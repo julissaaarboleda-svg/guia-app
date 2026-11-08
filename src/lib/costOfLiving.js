@@ -50,7 +50,7 @@ Be realistic and consistent; round to whole numbers. Respond as JSON only:
 // What the person's monthly bills + subscriptions come to, from their Finance tab.
 export function financeBaseline(items) {
   const bills = items.filter((i) => i.type === "bill" && i.billing_cycle && i.billing_cycle !== "one_time").reduce((s, b) => s + monthlyEquivalent(b), 0);
-  const subs = items.filter((i) => i.type === "subscription").reduce((s, b) => s + monthlyEquivalent(b), 0);
+  const subs = items.filter((i) => i.type === "subscription" && !i.canceled_on).reduce((s, b) => s + monthlyEquivalent(b), 0);
   return { bills: Math.round(bills), subs: Math.round(subs) };
 }
 
