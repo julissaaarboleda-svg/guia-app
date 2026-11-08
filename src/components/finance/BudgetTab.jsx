@@ -238,14 +238,14 @@ export default function BudgetTab() {
             <button onClick={() => { setEditingIncome(false); setIncomeInput(income?.amount?.toString() || ""); }} className="text-xs text-muted-foreground">Cancel</button>
           </div>
         ) : (
-          <p className="font-heading text-[30px] leading-tight text-foreground mt-0.5">{fmt(incomeAmount)}</p>
+          <p className="font-heading text-[22px] leading-tight text-foreground mt-0.5">{fmt(incomeAmount)}</p>
         )}
         <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-3 mb-2.5">
           <div className="h-full bg-[#A7773F] rounded-full transition-all duration-300" style={{ width: `${allocPct}%` }} />
         </div>
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span><span className="font-heading text-[15px] text-foreground">{fmt(allocated)}</span> allocated</span>
-          <span><span className={`font-heading text-[15px] ${remaining < 0 ? "text-destructive" : "text-foreground"}`}>{fmt(Math.abs(remaining))}</span> {remaining < 0 ? "over" : "left"}</span>
+          <span><span className="font-heading text-sm text-foreground">{fmt(allocated)}</span> allocated</span>
+          <span><span className={`font-heading text-sm ${remaining < 0 ? "text-destructive" : "text-foreground"}`}>{fmt(Math.abs(remaining))}</span> {remaining < 0 ? "over" : "left"}</span>
         </div>
         {fixedAllocated > 0 && <p className="text-xs text-muted-foreground mt-1">incl. {fmt(fixedAllocated)} fixed</p>}
       </div>

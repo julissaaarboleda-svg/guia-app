@@ -122,7 +122,7 @@ Format your response as JSON with this structure:
           >
             <Icon className="w-5 h-5 text-[#A7773F]" strokeWidth={1.5} />
             <span className="font-heading text-[13px] text-foreground leading-none mt-0.5">{label}</span>
-            <span className="font-heading text-[15px] font-bold text-foreground leading-none">{value}</span>
+            <span className="font-heading text-sm text-foreground leading-none">{value}</span>
           </button>
         ))}
       </div>

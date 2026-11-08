@@ -548,8 +548,8 @@ export default function Finance() {
         return (
           <div className="bg-card border border-border rounded-2xl px-4 py-3 mb-3">
             <div className="flex items-start justify-between text-xs text-muted-foreground">
-              <div>{new Date().toLocaleDateString("en-US", { month: "long" })}<p className="font-heading text-base text-foreground mt-0.5">{money0(total)} in bills</p></div>
-              <div className="text-right">Paid so far<p className="font-heading text-base mt-0.5" style={{ color: "#566033" }}>{money0(paid)}</p></div>
+              <div>{new Date().toLocaleDateString("en-US", { month: "long" })}<p className="font-heading text-[15px] text-foreground mt-0.5">{money0(total)} in bills</p></div>
+              <div className="text-right">Paid so far<p className="font-heading text-[15px] mt-0.5" style={{ color: "#566033" }}>{money0(paid)}</p></div>
             </div>
             <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-2.5"><div className="h-full rounded-full" style={{ width: `${total ? Math.min(100, (paid / total) * 100) : 0}%`, background: "#A7773F" }} /></div>
           </div>
@@ -877,7 +877,7 @@ export default function Finance() {
                       return (
                         <div className="mt-2" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-2.5">
-                            <span className="font-heading text-[34px] leading-none text-foreground">{sc || "—"}</span>
+                            <span className="font-heading text-[28px] leading-none text-foreground">{sc || "—"}</span>
                             {rating && <span className={`text-[11px] px-2 py-0.5 rounded-full ${rating.cls}`}>{rating.label}</span>}
                             {delta != null && delta !== 0 && <span className={`text-[12px] font-medium ${delta > 0 ? "text-[#566033]" : "text-[#8F5F65]"}`}>{delta > 0 ? "▲" : "▼"} {Math.abs(delta)}</span>}
                           </div>

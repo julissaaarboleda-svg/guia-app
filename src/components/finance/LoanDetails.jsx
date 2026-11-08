@@ -45,8 +45,8 @@ export function UpcomingLoans({ items }) {
     <div className="mb-4 space-y-3">
       <div className="bg-card border border-border rounded-2xl p-4">
         <div className="flex items-start justify-between">
-          <div><p className="text-xs text-muted-foreground">Total owed</p><p className="font-heading text-xl text-foreground mt-0.5">{money(owed)}</p></div>
-          <div className="text-right"><p className="text-xs text-muted-foreground">Next 30 days</p><p className="font-heading text-xl text-foreground mt-0.5">{money(next30)}</p></div>
+          <div><p className="text-xs text-muted-foreground">Total owed</p><p className="font-heading text-lg text-foreground mt-0.5">{money(owed)}</p></div>
+          <div className="text-right"><p className="text-xs text-muted-foreground">Next 30 days</p><p className="font-heading text-lg text-foreground mt-0.5">{money(next30)}</p></div>
         </div>
         {allPays.length > 0 && (
           <>
