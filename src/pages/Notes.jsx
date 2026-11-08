@@ -38,6 +38,7 @@ export default function Notes() {
   const [selected, setSelected] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [newItemText, setNewItemText] = useState("");
+  const [showCheckedItems, setShowCheckedItems] = useState(false);
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sharing, setSharing] = useState(false);
@@ -403,12 +404,13 @@ export default function Notes() {
 
             {isList ? (
               <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <input ref={newItemRef} value={newItemText} onChange={(e) => setNewItemText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addListItem()} placeholder="Add item…" enterKeyHint="done" className="flex-1 bg-card border border-border rounded-xl px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-[#A7773F] transition-colors" />
+                  <button onClick={addListItem} aria-label="Add item" className="bg-[#A7773F] text-[#F7F3EC] w-10 h-10 flex items-center justify-center rounded-xl hover:opacity-90 transition-colors flex-shrink-0"><Plus className="w-4 h-4" /></button>
+                </div>
                 {totalCount > 0 && (
                   <div className="flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground">{checkedCount}/{totalCount} done</p>
-                    {checkedCount > 0 && (
-                      <button onClick={async () => { const items = (selected.list_items || []).filter((i) => !i.checked); setSelected({ ...selected, list_items: items }); await ent.Note.update(selected.id, { list_items: items }); }} className="text-xs text-muted-foreground hover:text-destructive transition-colors">Clear completed</button>
-                    )}
+                    <p className="text-xs text-muted-foreground">{totalCount - checkedCount} to do · {checkedCount} done</p>
                   </div>
                 )}
                 {(() => {
@@ -423,10 +425,18 @@ export default function Notes() {
                           <button onClick={() => removeItem(idx)} className="opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-destructive transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
                         </li>
                       ))}
-                      {checked.length > 0 && unchecked.length > 0 && <li className="border-t border-border my-1" />}
-                      {checked.map(({ item, idx }) => (
-                        <li key={idx} className="flex items-center gap-3 group opacity-50">
-                          <button onClick={() => toggleItem(idx)} className="w-5 h-5 rounded-full border-2 bg-muted-foreground/40 border-muted-foreground flex items-center justify-center flex-shrink-0 transition-all"><Check className="w-3 h text-background" /></button>
+                      {unchecked.length === 0 && checked.length > 0 && <li className="text-sm text-muted-foreground py-1">All done. Nice work.</li>}
+                      {checked.length > 0 && (
+                        <li className="flex items-center justify-between border-t border-border pt-2.5 mt-1">
+                          <button onClick={() => setShowCheckedItems((v) => !v)} className="text-[10.5px] tracking-[0.16em] uppercase font-semibold text-muted-foreground flex items-center gap-1.5">
+                            Completed · {checked.length} <span className="text-[9px]">{showCheckedItems ? "▲" : "▼"}</span>
+                          </button>
+                          <button onClick={async () => { if (!confirm(`Clear ${checked.length} completed ${checked.length === 1 ? "item" : "items"}?`)) return; const items = (selected.list_items || []).filter((i) => !i.checked); setSelected({ ...selected, list_items: items }); setNotes(prev => prev.map(n => n.id === selected.id ? { ...n, list_items: items } : n)); await ent.Note.update(selected.id, { list_items: items }); }} className="text-xs font-medium text-[#A7773F]">Clear {checked.length}</button>
+                        </li>
+                      )}
+                      {showCheckedItems && checked.map(({ item, idx }) => (
+                        <li key={idx} className="flex items-center gap-3 group opacity-70">
+                          <button onClick={() => toggleItem(idx)} className="w-5 h-5 rounded-full bg-[#5A6F45] border border-[#5A6F45] flex items-center justify-center flex-shrink-0 transition-all"><Check className="w-3 h-3 text-white" strokeWidth={2.4} /></button>
                           <span className="text-sm flex-1 line-through text-muted-foreground">{item.text}</span>
                           <button onClick={() => removeItem(idx)} className="opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-destructive transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
                         </li>
@@ -434,10 +444,6 @@ export default function Notes() {
                     </ul>
                   );
                 })()}
-                <div className="flex items-center gap-2 mt-2">
-                  <input ref={newItemRef} value={newItemText} onChange={(e) => setNewItemText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addListItem()} placeholder="Add item…" className="flex-1 bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-ring transition-colors" />
-                  <button onClick={addListItem} className="bg-[#A7773F] text-[#F7F3EC] p-2 rounded-xl hover:opacity-90 transition-colors"><Plus className="w-4 h-4" /></button>
-                </div>
                 <NoteAttachments attachments={selected.attachments} onRemove={removeAttachment} onPreview={setViewerAttachment} />
                 <div className="flex items-center gap-2 mt-2">
                   <span className="text-[11px] text-[#A7773F] px-1">Saved automatically</span>
