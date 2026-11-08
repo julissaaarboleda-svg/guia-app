@@ -28,6 +28,12 @@ const CATEGORY_QUERIES = {
   nightlife: "nightlife and bars in",
   shopping: "shopping and boutiques in",
   relax: "spas and relaxing spots in",
+  // Tours (used by the Explore "Tours & experiences" section)
+  tours: "best guided group tours in",
+  tours_walking: "guided walking tours in",
+  tours_boat: "boat tours and cruises in",
+  tours_food: "food tours in",
+  tours_daytrips: "day trips and excursions from",
 };
 
 function priceLevelToSymbol(level) {

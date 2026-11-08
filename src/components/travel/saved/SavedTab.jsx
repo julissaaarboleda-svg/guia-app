@@ -6,6 +6,7 @@ import { parseISO, format } from "date-fns";
 import CitySelector from "../CitySelector";
 import TopPicksCarousel from "./TopPicksCarousel";
 import WishlistSection from "./WishlistSection";
+import ToursSection from "./ToursSection";
 
 import ManualItemModal from "./ManualItemModal";
 import ActivityModal from "../ActivityModal";
@@ -189,6 +190,14 @@ export default function SavedTab({ trip, onUpdate, cityOrder }) {
         onRefresh={refreshPicks}
         onWishlist={addToWishlist}
         isSaved={isSaved}
+        onAddToItinerary={(pick) => openItinModal({ name: pick.name, category: pick.category, categoryLabel: categoryMeta(pick.category).label, description: pick.description || "", city, website: pick.website || "" })}
+      />
+
+      <ToursSection
+        trip={trip}
+        city={city}
+        isSaved={isSaved}
+        onWishlist={addToWishlist}
         onAddToItinerary={(pick) => openItinModal({ name: pick.name, category: pick.category, categoryLabel: categoryMeta(pick.category).label, description: pick.description || "", city, website: pick.website || "" })}
       />
 
