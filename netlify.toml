@@ -10,6 +10,10 @@
 [functions."generate-text"]
   timeout = 26
 
+# Reading a long statement line by line can take a while.
+[functions."import-finance"]
+  timeout = 26
+
 # Backups read every record, which can take a few seconds.
 [functions."backup"]
   timeout = 26

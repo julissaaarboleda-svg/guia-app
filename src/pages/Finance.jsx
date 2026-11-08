@@ -8,11 +8,12 @@ import PageHeader from "@/components/PageHeader";
 import DateInput from "@/components/DateInput";
 
 import BudgetTab from "@/components/finance/BudgetTab";
+import SpendingTab from "@/components/finance/SpendingTab";
 import FinanceSummary from "@/components/finance/FinanceSummary";
 import ImportSheet from "@/components/finance/ImportSheet";
 import LoanDetails, { UpcomingLoans } from "@/components/finance/LoanDetails";
 
-const TABS = ["summary", "budget", "bill", "savings_goal", "loan", "credit_score"];
+const TABS = ["summary", "budget", "bill", "spending", "savings_goal", "loan", "credit_score"];
 
 const PRESET_CATEGORIES = [
   "Housing", "Utilities", "Groceries", "Dining", "Transportation",
@@ -60,7 +61,7 @@ function RowMenu({ open, onToggle, onClose, children }) {
 const menuBtn = "w-full flex items-center gap-2 text-left px-3 py-2 text-xs hover:bg-secondary";
 
 const ADD_LABELS = { credit_score: "score", savings_goal: "goal", bill: "bill", loan: "loan", subscription: "subscription", budget: "bucket" };
-const TAB_LABELS = { summary: "Summary", credit_score: "Credit Scores", savings_goal: "Savings Goals", bill: "Bills", loan: "Loans", subscription: "Subscriptions", budget: "Budget" };
+const TAB_LABELS = { summary: "Summary", credit_score: "Credit Scores", savings_goal: "Savings Goals", bill: "Bills", loan: "Loans", subscription: "Subscriptions", budget: "Budget", spending: "Spending" };
 
 export default function Finance() {
   const [items, setItems] = useState([]);
@@ -313,9 +314,10 @@ export default function Finance() {
 
       {/* Budget tab — self-contained */}
       {activeTab === "budget" && <BudgetTab />}
+      {activeTab === "spending" && <SpendingTab items={items} />}
 
       {/* Add button */}
-      {activeTab !== "budget" && activeTab !== "summary" && (
+      {activeTab !== "budget" && activeTab !== "spending" && activeTab !== "summary" && (
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-heading text-xl text-foreground">{TAB_LABELS[activeTab]}</h2>
         {!adding && (
@@ -327,7 +329,7 @@ export default function Finance() {
       )}
 
       {/* Add form */}
-      {adding && activeTab !== "budget" && (
+      {adding && activeTab !== "budget" && activeTab !== "spending" && (
         <div className="bg-card border border-border rounded-2xl p-4 mb-4 space-y-3">
           {activeTab === "credit_score" && (
             <>
@@ -559,7 +561,7 @@ export default function Finance() {
       {activeTab === "loan" && <UpcomingLoans items={items} />}
 
       {/* Items */}
-      {activeTab !== "budget" && (
+      {activeTab !== "budget" && activeTab !== "spending" && (
       <div className={`grid grid-cols-1 lg:grid-cols-2 ${activeTab === "bill" ? "gap-2" : "gap-3"} [&>*:only-child]:col-span-full`}>
         {tabItems.length === 0 && !adding && activeTab !== "summary" && (
           <div className="text-center py-10 text-muted-foreground bg-card border border-border rounded-2xl">

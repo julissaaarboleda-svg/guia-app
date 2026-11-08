@@ -5,7 +5,7 @@ export const ENTITY_NAMES = [
   "Trip", "UserPreferences", "FinanceItem", "Note", "Folder", "Project", "Goal", "Task",
   "BusinessGoal", "BusinessEntry", "Business", "BusinessDocument", "CareerEntry", "TargetRole",
   "LivingProfile", "JobRating", "PerformanceCalibration", "BudgetBucket", "MonthlyIncome",
-  "SavedPlace", "RecapSnapshot",
+  "SavedPlace", "RecapSnapshot", "SpendingStatement",
 ];
 
 const LABELS = {
@@ -14,7 +14,7 @@ const LABELS = {
   Business: "businesses", BusinessDocument: "business documents", CareerEntry: "career entries",
   TargetRole: "target roles", LivingProfile: "living profile", JobRating: "job ratings",
   PerformanceCalibration: "performance notes", BudgetBucket: "budget buckets", MonthlyIncome: "income entries",
-  SavedPlace: "saved places", UserPreferences: "settings", RecapSnapshot: "recap snapshots",
+  SavedPlace: "saved places", UserPreferences: "settings", RecapSnapshot: "recap snapshots", SpendingStatement: "spending statements",
 };
 
 export const countOf = (data) => Object.values(data || {}).reduce((n, a) => n + (Array.isArray(a) ? a.length : 0), 0);
