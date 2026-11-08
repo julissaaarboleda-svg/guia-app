@@ -9,7 +9,7 @@ import "react-quill/dist/quill.snow.css";
 import PageHeader from "@/components/PageHeader";
 import CareerImportSheet from "@/components/career/CareerImportSheet";
 import TargetRoles from "@/components/career/TargetRoles";
-import { fmtMonth, monthsBetween, spanLabel, stripHtml, sameCompany, TAGS } from "@/lib/careerFormat";
+import { fmtMonth, monthsBetween, spanLabel, stripHtml, sameEmployer, parseLocal, TAGS } from "@/lib/careerFormat";
 import DateInput from "@/components/DateInput";
 
 const ENTRY_TYPES = [
@@ -35,6 +35,7 @@ export default function Career() {
   const [achievementSubtype, setAchievementSubtype] = useState("milestone");
   const [title, setTitle] = useState("");
   const [company, setCompany] = useState("");
+  const [formerly, setFormerly] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [salary, setSalary] = useState("");
@@ -69,7 +70,7 @@ export default function Career() {
   };
 
   const resetForm = () => {
-    setTitle(""); setCompany(""); setStartDate(""); setEndDate(""); setSalary(""); setRating("");
+    setTitle(""); setCompany(""); setFormerly(""); setStartDate(""); setEndDate(""); setSalary(""); setRating("");
     setRatingScale("10");
     setDescription(""); setSkillsGained(""); setNotes(""); setCurrent(false);
     setAchievementSubtype("milestone");
@@ -83,6 +84,7 @@ export default function Career() {
       entry_type: actualType,
       title: title.trim(),
       company: company.trim() || undefined,
+      formerly: (entryType === "job" && formerly.trim()) || undefined,
       start_date: startDate || undefined,
       end_date: endDate || undefined,
       salary: salary ? parseFloat(salary) : undefined,
@@ -113,6 +115,7 @@ export default function Career() {
     setAchievementSubtype(["milestone", "skill", "certification"].includes(entry.entry_type) ? entry.entry_type : "milestone");
     setTitle(entry.title);
     setCompany(entry.company || "");
+    setFormerly(entry.formerly || "");
     setStartDate(entry.start_date || "");
     setEndDate(entry.end_date || "");
     setSalary(entry.salary?.toString() || "");
@@ -133,6 +136,7 @@ export default function Career() {
       entry_type: actualType,
       title: title.trim(),
       company: company.trim() || undefined,
+      formerly: (entryType === "job" && formerly.trim()) || undefined,
       start_date: startDate || undefined,
       end_date: endDate || undefined,
       salary: salary ? parseFloat(salary) : undefined,
@@ -198,7 +202,7 @@ export default function Career() {
     const out = [];
     const inRole = monthsBetween(currentJob.start_date);
     if (inRole !== null) out.push([spanLabel(inRole), "In role"]);
-    const sameCo = jobs.filter(j => currentJob.company && j.company && sameCompany(j.company, currentJob.company) && j.start_date);
+    const sameCo = jobs.filter(j => currentJob.company && j.company && sameEmployer(j, currentJob) && j.start_date);
     if (sameCo.length) {
       const earliest = sameCo.map(j => j.start_date).sort()[0];
       out.push([spanLabel(monthsBetween(earliest)), `At ${String(currentJob.company).split(/[\s(\/]/)[0]}`]);
@@ -381,6 +385,26 @@ export default function Career() {
           {(entryType === "job" || entryType === "education") && (
             <input value={company} onChange={e => setCompany(e.target.value)} placeholder="Company / Institution"
               className="w-full bg-card border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors" />
+          )}
+          {entryType === "job" && (
+            <>
+              <input value={formerly} onChange={e => setFormerly(e.target.value)} placeholder="Formerly known as (optional)"
+                className="w-full bg-card border border-border rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors" />
+              {(() => {
+                if (formerly.trim() || !company.trim() || !startDate) return null;
+                const here = { company, formerly };
+                const start = parseLocal(startDate);
+                const prev = jobs.find(j => j.id !== editing && j.company && j.end_date && !sameEmployer(j, here)
+                  && (start - parseLocal(j.end_date)) / 86400000 >= -31 && (start - parseLocal(j.end_date)) / 86400000 <= 62);
+                if (!prev) return null;
+                return (
+                  <div className="flex items-center justify-between gap-3 bg-secondary border border-border rounded-lg px-3 py-2">
+                    <p className="text-xs text-foreground">Your role at {prev.company} ended just before this one. Same employer under a new name?</p>
+                    <button type="button" onClick={() => setFormerly(prev.company)} className="text-xs text-[#A7773F] whitespace-nowrap">Yes, same</button>
+                  </div>
+                );
+              })()}
+            </>
           )}
 
           {entryType === "job" && (

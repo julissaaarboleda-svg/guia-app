@@ -52,6 +52,16 @@ export function sameCompany(a, b) {
   return norm(a) !== "" && norm(a) === norm(b);
 }
 
+// Two job entries are the same employer if the names match, or either one lists the
+// other's name under "formerly" (rebrands, acquisitions, mergers).
+export function sameEmployer(a, b) {
+  if (!a || !b) return false;
+  if (sameCompany(a.company, b.company)) return true;
+  if (a.formerly && (sameCompany(a.formerly, b.company) || sameCompany(a.formerly, b.formerly))) return true;
+  if (b.formerly && sameCompany(b.formerly, a.company)) return true;
+  return false;
+}
+
 export const escapeHtml = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 export const bulletsToHtml = (items) => (items && items.length ? `<ul>${items.map((h) => `<li>${escapeHtml(h)}</li>`).join("")}</ul>` : "");
 
