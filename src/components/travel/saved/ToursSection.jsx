@@ -53,41 +53,42 @@ export default function ToursSection({ trip, city, isSaved, onWishlist, onAddToI
         ))}
       </div>
 
-      {tours === null ? (
-        <div className="space-y-2">
-          {[0, 1].map((i) => <div key={i} className="h-[112px] rounded-xl border border-border bg-muted/50 animate-pulse" />)}
-        </div>
-      ) : tours.length === 0 ? (
-        <p className="font-body text-[13px] text-muted-foreground flex items-center gap-1.5 py-3">
-          <MapPin className="w-3.5 h-3.5" /> {failed ? "Couldn't load tours right now. Try another filter or come back later." : "No tours found for this filter."}
-        </p>
-      ) : (
-        <div className="space-y-2.5">
-          {tours.map((t) => (
-            <div key={t.place_id || t.name} className="rounded-xl border border-border bg-card p-3">
-              <button onClick={() => setOpen(t)} className="text-left w-full">
-                <p className="font-heading text-[15px] text-foreground font-semibold leading-tight">{t.name}</p>
-                <p className="font-body text-[11.5px] text-muted-foreground mt-0.5 flex items-center gap-1 flex-wrap">
+      <div className="flex gap-2.5 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
+        {tours === null ? (
+          [0, 1, 2].map((i) => <div key={i} className="flex-shrink-0 w-[200px] h-[150px] rounded-xl border border-border bg-muted/50 animate-pulse" />)
+        ) : tours.length === 0 ? (
+          <p className="font-body text-[13px] text-muted-foreground flex items-center gap-1.5 py-3">
+            <MapPin className="w-3.5 h-3.5" /> {failed ? "Couldn't load tours right now. Try another filter or come back later." : "No tours found for this filter."}
+          </p>
+        ) : (
+          tours.map((t) => (
+            <div key={t.place_id || t.name} className="flex-shrink-0 w-[200px] rounded-xl border border-border bg-card p-3 flex flex-col">
+              <button onClick={() => setOpen(t)} className="text-left flex-1">
+                <p className="font-heading text-[14px] text-foreground font-semibold leading-tight line-clamp-2 min-h-[34px]">{t.name}</p>
+                <p className="font-body text-[11.5px] text-muted-foreground mt-1.5 flex items-center gap-1 flex-wrap">
                   {t.rating ? (<><Star className="w-3 h-3 text-accent fill-accent" /><span className="text-foreground">{t.rating}</span>{t.reviewCount ? <span>({t.reviewCount.toLocaleString()})</span> : null}</>) : null}
-                  {[t.price, t.neighborhood].filter(Boolean).map((x) => <span key={x}>· {x}</span>)}
                 </p>
-                {t.description && <p className="font-body text-[12px] text-foreground leading-snug mt-1.5 line-clamp-2">{t.description}</p>}
+                <p className="font-body text-[11px] text-muted-foreground mt-0.5 truncate">
+                  {[t.price, t.neighborhood].filter(Boolean).join(" · ") || "Tap for details"}
+                </p>
               </button>
               <div className="flex items-center gap-1.5 mt-2.5">
-                {t.website && (
-                  <a href={t.website} target="_blank" rel="noopener noreferrer" className="font-body text-[11px] rounded-full px-3 h-7 inline-flex items-center bg-[#A7773F] text-[#F7F3EC]">Website</a>
+                {t.website ? (
+                  <a href={t.website} target="_blank" rel="noopener noreferrer" className="font-body text-[11px] rounded-full px-3 h-8 inline-flex items-center bg-[#A7773F] text-[#F7F3EC]">Website</a>
+                ) : (
+                  <button onClick={() => setOpen(t)} className="font-body text-[11px] rounded-full px-3 h-8 inline-flex items-center bg-[#A7773F] text-[#F7F3EC]">Details</button>
                 )}
-                <button onClick={() => onAddToItinerary(t)} className="font-body text-[11px] rounded-full px-3 h-7 inline-flex items-center gap-1 border border-[#A7773F] text-[#A7773F]">
-                  <CalendarPlus className="w-3 h-3" /> Add to itinerary
+                <button onClick={() => onAddToItinerary(t)} aria-label="Add to itinerary" className="ml-auto w-8 h-8 rounded-full border border-[#A7773F] text-[#A7773F] flex items-center justify-center">
+                  <CalendarPlus className="w-3.5 h-3.5" />
                 </button>
-                <button onClick={() => onWishlist(t)} aria-label="Save to wishlist" className="ml-auto w-7 h-7 rounded-full border border-border flex items-center justify-center">
+                <button onClick={() => onWishlist(t)} aria-label="Save to wishlist" className="w-8 h-8 rounded-full border border-border flex items-center justify-center">
                   <Heart className={`w-3.5 h-3.5 ${isSaved(t) ? "fill-accent text-accent" : "text-muted-foreground"}`} />
                 </button>
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
 
       <div className="mt-3 rounded-xl border border-border bg-card">
         <button onClick={() => setPlanOpen((o) => !o)} className="w-full flex items-center justify-between px-3.5 py-3">
