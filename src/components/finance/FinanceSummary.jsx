@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { isPaid, dueInfo, TONE_CLASS, monthlyEquivalent } from "@/lib/financeHelpers";
+import { isPaid, dueInfo, TONE_CLASS, monthlyEquivalent, isRecurringBill } from "@/lib/financeHelpers";
+import { monthView, monthsWithData } from "@/lib/spending";
 import { Receipt, RefreshCw, PiggyBank, Landmark, TrendingUp, Sparkles, Lightbulb, Banknote } from "lucide-react";
 
 function monthKey(date) {
@@ -18,6 +19,30 @@ export default function FinanceSummary({ items, buckets, onNavigate, onAddFirst 
   const [failed, setFailed] = useState(false);
   const [retry, setRetry] = useState(0);
   const [allTips, setAllTips] = useState(false);
+  const [statements, setStatements] = useState([]);
+  const [incomes, setIncomes] = useState([]);
+  useEffect(() => {
+    ent.SpendingStatement.list().then(r => setStatements(r || [])).catch(() => {});
+    ent.MonthlyIncome.list().then(r => setIncomes(r || [])).catch(() => {});
+  }, []);
+
+  // "Money this month": income, fixed costs, loans and everyday spending in one view.
+  const nowKey = monthKey(new Date());
+  const spendMonths = monthsWithData(statements).filter(k => k <= nowKey);
+  const moneyKey = spendMonths[spendMonths.length - 1] || null;
+  const moneyView = moneyKey ? monthView(statements, moneyKey) : null;
+  const money = (() => {
+    if (!moneyView) return null;
+    const inc = Number(incomes.find(i => i.month === moneyKey)?.amount) || 0;
+    if (!(inc > 0)) return null;
+    const bills = items.filter(i => i.type === "bill" && (isRecurringBill(i) || String(i.due_date || "").slice(0, 7) === moneyKey)).reduce((t, b) => t + (Number(b.amount) || 0), 0);
+    const subsM = items.filter(i => i.type === "subscription").reduce((t, x) => t + monthlyEquivalent(x), 0);
+    const loansM = items.filter(i => i.type === "loan").reduce((t, l) => t + (Array.isArray(l.schedule) ? l.schedule.filter(p => String(p.date || "").slice(0, 7) === moneyKey).reduce((a, p) => a + (Number(p.amount) || 0), 0) : 0), 0);
+    const covered = ["Housing", "Utilities", "Insurance", "Subscriptions"];
+    const everyday = moneyView.categories.filter(c => !covered.includes(c.name)).reduce((t, c) => t + c.total, 0);
+    const fixed = bills + subsM;
+    return { inc, fixed, loansM, everyday, left: inc - fixed - loansM - everyday, label: new Date(Number(moneyKey.slice(0, 4)), Number(moneyKey.slice(5)) - 1, 1).toLocaleDateString("en-US", { month: "long" }) };
+  })();
 
   useEffect(() => {
     ent.MonthlyIncome.filter({ month: monthKey(new Date()) }).then(res => {
@@ -140,6 +165,26 @@ Format your response as JSON with this structure:
           </button>
         ))}
       </div>
+
+      {money && (
+        <div className="bg-card border border-border rounded-2xl p-4 mb-3">
+          <p className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground">Money in {money.label}</p>
+          <p className="font-heading text-xl text-foreground mt-0.5">{fmt(money.inc)}</p>
+          <div className="flex h-2.5 rounded-full overflow-hidden bg-muted mt-2.5 mb-2">
+            {[["#A7773F", money.fixed], ["#D8C3A0", money.loansM], ["#CFC8B8", money.everyday]].map(([c, v], i) => (
+              <div key={i} style={{ width: `${Math.max(0, Math.min(100, (v / money.inc) * 100))}%`, background: c }} />
+            ))}
+          </div>
+          {[["Fixed bills & subs", money.fixed], ["Loan payments", money.loansM], ["Everyday spending", money.everyday]].map(([k, v]) => (
+            <div key={k} className="flex justify-between py-1 text-[13.5px]"><span className="text-muted-foreground">{k}</span><span className="text-foreground">{fmt(v)}</span></div>
+          ))}
+          <div className="flex justify-between pt-2 mt-1 border-t border-border text-[13.5px]">
+            <span className="text-foreground">Left over</span>
+            <span className="font-medium" style={{ color: money.left < 0 ? "#8F5F65" : "#566033" }}>{money.left < 0 ? "−" : ""}{fmt(Math.abs(money.left))}</span>
+          </div>
+          <p className="text-[11.5px] text-muted-foreground mt-2 leading-snug">Everyday spending leaves out housing, utilities, insurance and subscriptions, which are already in fixed bills.</p>
+        </div>
+      )}
 
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-4 lg:items-start">
       <div className="min-w-0">

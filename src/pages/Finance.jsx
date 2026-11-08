@@ -69,6 +69,9 @@ export default function Finance() {
   const [activeTab, setActiveTab] = useState("summary");
   const [adding, setAdding] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [spendKey, setSpendKey] = useState(0);
+  const [statements, setStatements] = useState([]);
+  useEffect(() => { ent.SpendingStatement.list().then((s) => setStatements(s || [])).catch(() => {}); }, [spendKey]);
   const [form, setForm] = useState({});
   const [expandedItem, setExpandedItem] = useState(null);
   const [editingNotes, setEditingNotes] = useState(null);
@@ -290,7 +293,7 @@ export default function Finance() {
       />
       <div className="p-6 md:p-8 pb-12">
 
-      <ImportSheet open={importing} onClose={() => setImporting(false)} existing={items} onDone={() => { setActiveTab("bill"); load(); }} />
+      <ImportSheet open={importing} onClose={() => setImporting(false)} existing={items} statements={statements} onDone={(r) => { setActiveTab(r?.spending ? "spending" : "bill"); setSpendKey((k) => k + 1); load(); }} />
 
       {/* Tabs */}
       <div className="sticky top-[84px] z-20 bg-background -mx-6 md:-mx-8 px-6 md:px-8 py-2 flex gap-1.5 overflow-x-auto no-scrollbar mb-5">
@@ -314,7 +317,7 @@ export default function Finance() {
 
       {/* Budget tab — self-contained */}
       {activeTab === "budget" && <BudgetTab />}
-      {activeTab === "spending" && <SpendingTab items={items} />}
+      {activeTab === "spending" && <SpendingTab key={spendKey} items={items} onImport={() => setImporting(true)} />}
 
       {/* Add button */}
       {activeTab !== "budget" && activeTab !== "spending" && activeTab !== "summary" && (

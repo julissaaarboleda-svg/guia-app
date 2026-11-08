@@ -11,7 +11,7 @@ const { GoogleGenAI } = require("@google/genai");
 const { claudeEnabled, claudeText, fileBlock } = require("../lib/ai.cjs");
 const { getStore, connectLambda } = require("@netlify/blobs");
 
-const RATE_LIMIT = 10;
+const RATE_LIMIT = 20;
 const WINDOW_MS = 60 * 60 * 1000;
 const MAX_BYTES = 4.2 * 1024 * 1024;
 

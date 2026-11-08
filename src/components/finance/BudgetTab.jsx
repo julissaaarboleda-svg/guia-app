@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import { ent } from "@/lib/freshEntities";
 import { ChevronLeft, ChevronRight, ChevronDown, Pencil, Trash2, X } from "lucide-react";
 import BudgetChart from "@/components/finance/BudgetChart";
+import { monthView } from "@/lib/spending";
+
+const nk = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
 function monthKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
@@ -28,18 +31,26 @@ export default function BudgetTab() {
   const [incomeInput, setIncomeInput] = useState("");
   const [bills, setBills] = useState([]);
   const [fixedCollapsed, setFixedCollapsed] = useState(true);
+  const [unbudgeted, setUnbudgeted] = useState([]);
 
   const mk = monthKey(monthDate);
 
   const load = async () => {
-    const [allBuckets, allIncome, allBills, allSubs, allLoans] = await Promise.all([
+    const [allBuckets, allIncome, allBills, allSubs, allLoans, allStatements] = await Promise.all([
       ent.BudgetBucket.list("-created_date"),
       ent.MonthlyIncome.list("-created_date"),
       ent.FinanceItem.filter({ type: "bill" }),
       ent.FinanceItem.filter({ type: "subscription" }),
       ent.FinanceItem.filter({ type: "loan" }),
+      ent.SpendingStatement.list().catch(() => []),
     ]);
-    const manualBuckets = allBuckets.filter(b => b.month === mk);
+    const view = monthView(allStatements || [], mk);
+    // A bucket with no amount typed in takes its "spent" from the matching statement category.
+    const manualBuckets = allBuckets.filter(b => b.month === mk).map(b => {
+      if (!view || b.spent_manual || Number(b.spent_amount) > 0) return b;
+      const c = view.categories.find(x => nk(x.name) === nk(b.name) || (b.category && nk(x.name) === nk(b.category)));
+      return c ? { ...b, spent_amount: Math.round(c.total), _spentAuto: true } : b;
+    });
     const manualNames = manualBuckets.map(b => b.name?.toLowerCase().trim());
     const fixedBills = allBills.filter(b => b.is_fixed && b.billing_cycle && b.billing_cycle !== "one_time");
     const billAutoBuckets = fixedBills
@@ -92,7 +103,9 @@ export default function BudgetTab() {
       _auto: true,
       _from: "loans",
     }] : [];
-    setBuckets([...billAutoBuckets, ...subAutoBuckets, ...loanAutoBuckets, ...manualBuckets]);
+    const all = [...billAutoBuckets, ...subAutoBuckets, ...loanAutoBuckets, ...manualBuckets];
+    setBuckets(all);
+    setUnbudgeted(view ? view.categories.filter(c => !all.some(b => nk(b.name) === nk(c.name) || (b.category && nk(b.category) === nk(c.name)))) : []);
     const inc = allIncome.find(i => i.month === mk);
     setIncome(inc || null);
     setIncomeInput(inc?.amount?.toString() || "");
@@ -144,6 +157,7 @@ export default function BudgetTab() {
       name: form.name,
       allocated_amount: Number(form.allocated_amount) || 0,
       spent_amount: Number(form.spent_amount) || 0,
+      spent_manual: Number(form.spent_amount) > 0,
       is_fixed: form.is_fixed,
       due_day: form.due_day ? Number(form.due_day) : null,
       category: form.category === "__new__" ? (form.customCategory || "") : (form.category || ""),
@@ -209,6 +223,7 @@ export default function BudgetTab() {
           <>
             <div className="flex items-baseline gap-2 mb-1.5">
               <span className="text-sm text-foreground">{fmt(b.spent_amount)} of {fmt(b.allocated_amount)}</span>
+              {b._spentAuto && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#E4E9D5] text-[#566033] font-body">from statements</span>}
             </div>
             <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-1.5">
               <div className={`h-full rounded-full transition-all duration-300 ${left < 0 ? "bg-destructive" : "bg-[#A7773F]"}`} style={{ width: `${pct}%` }} />
@@ -295,6 +310,21 @@ export default function BudgetTab() {
           <div className="space-y-3">
             {variableBuckets.map(b => <BucketCard key={b.id} b={b} />)}
           </div>
+        </div>
+      )}
+
+      {unbudgeted.length > 0 && (
+        <div className="bg-card border border-border rounded-2xl p-4">
+          <h3 className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground mb-2">Unbudgeted spending</h3>
+          {unbudgeted.map(c => (
+            <div key={c.name} className="flex items-center justify-between py-1 text-[13.5px]"><span className="text-muted-foreground">{c.name}</span><span className="text-foreground">{fmt(Math.round(c.total))}</span></div>
+          ))}
+          <button
+            onClick={async () => {
+              for (const c of unbudgeted) await ent.BudgetBucket.create({ name: c.name, allocated_amount: Math.ceil(c.total / 10) * 10, spent_amount: 0, is_fixed: false, category: c.name, month: mk });
+              load();
+            }}
+            className="text-xs text-[#A7773F] mt-2">Create buckets for these</button>
         </div>
       )}
 
