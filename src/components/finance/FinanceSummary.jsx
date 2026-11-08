@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
 import { isPaid, dueInfo, TONE_CLASS, monthlyEquivalent, isRecurringBill } from "@/lib/financeHelpers";
 import { monthView, monthsWithData } from "@/lib/spending";
-import { Receipt, RefreshCw, PiggyBank, Landmark, TrendingUp, Sparkles, Lightbulb, Banknote } from "lucide-react";
+import { Receipt, ShoppingBag, PiggyBank, Landmark, TrendingUp, Sparkles, Lightbulb, Banknote } from "lucide-react";
 
 function monthKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
@@ -88,7 +88,7 @@ export default function FinanceSummary({ items, buckets, onNavigate, onAddFirst 
   const stats = [
     { tab: "bill", label: "Bills due", value: unpaidBills.length > 0 ? fmt(billsTotal) : "$0", Icon: Receipt },
     { tab: "budget", label: "Income", value: income > 0 ? fmt(income) : "—", Icon: Banknote },
-    { tab: "bill", label: "Subs", value: subs.length > 0 ? fmt(subMonthly) : "—", Icon: RefreshCw },
+    { tab: "spending", label: "Spending", value: moneyView ? fmt(moneyView.total) : "—", Icon: ShoppingBag },
     { tab: "savings_goal", label: "Savings", value: savings.length > 0 ? fmt(savingsCurrent) : "—", Icon: PiggyBank },
     { tab: "loan", label: "Debt", value: loans.length > 0 ? fmt(loansOutstanding) : "—", Icon: Landmark },
     { tab: "credit_score", label: "Credit", value: topScore > 0 ? topScore : "—", Icon: TrendingUp },
