@@ -36,6 +36,7 @@ export default function Goals() {
   const [subTaskInputs, setSubTaskInputs] = useState({});
   const [showDoneTasks, setShowDoneTasks] = useState(false);
   const [showDoneGoals, setShowDoneGoals] = useState(false);
+  const [showDoneSteps, setShowDoneSteps] = useState(false);
 
   // Add form state
   const [title, setTitle] = useState("");
@@ -441,6 +442,20 @@ export default function Goals() {
                     <div className="h-full rounded-full bg-accent transition-all duration-300" style={{ width: `${pct}%` }} />
                   </div>
                 )}
+                <div className="flex items-center gap-2 ">
+                  <input
+                    value={subTaskInputs[selectedGoal.id] || ""}
+                    onChange={e => setSubTaskInputs(prev => ({ ...prev, [selectedGoal.id]: e.target.value }))}
+                    onKeyDown={e => e.key === "Enter" && addSubTask(selectedGoal, subTaskInputs[selectedGoal.id] || "")}
+                    placeholder="Add a step…"
+                    enterKeyHint="done"
+                    className="flex-1 bg-card border border-border rounded-xl px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-[#A7773F] transition-colors"
+                  />
+                  <button onClick={() => addSubTask(selectedGoal, subTaskInputs[selectedGoal.id] || "")} className="bg-[#A7773F] text-[#F7F3EC] w-10 h-10 flex items-center justify-center rounded-xl hover:opacity-90 transition-colors flex-shrink-0" aria-label="Add step">
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+
                 {(() => {
                   const open = sub.map((t, idx) => ({ t, idx })).filter(({ t }) => !t.completed);
                   const done = sub.map((t, idx) => ({ t, idx })).filter(({ t }) => t.completed);
@@ -457,8 +472,13 @@ export default function Goals() {
                           </button>
                         </div>
                       ))}
-                      {done.length > 0 && <p className="text-[10.5px] tracking-[0.16em] uppercase font-semibold text-muted-foreground mt-3">Done</p>}
-                      {done.map(({ t, idx }) => (
+                      {done.length > 0 && (
+                        <button onClick={() => setShowDoneSteps(v => !v)} className="self-start mt-3 flex items-center gap-1.5 text-[10.5px] tracking-[0.16em] uppercase font-semibold text-muted-foreground">
+                          Done · {done.length}
+                          {showDoneSteps ? <ChevronUp className="w-3.5 h-3.5" strokeWidth={1.5} /> : <ChevronDown className="w-3.5 h-3.5" strokeWidth={1.5} />}
+                        </button>
+                      )}
+                      {showDoneSteps && done.map(({ t, idx }) => (
                         <div key={idx} className="flex items-center gap-3 group opacity-70">
                           <button onClick={() => toggleSubTask(selectedGoal, idx)} aria-label="Mark step not done" className="flex-shrink-0"><Tick done /></button>
                           <span className="text-sm flex-1 line-through text-muted-foreground">{t.text}</span>
@@ -470,18 +490,6 @@ export default function Goals() {
                     </>
                   );
                 })()}
-                <div className="flex items-center gap-2 mt-1">
-                  <input
-                    value={subTaskInputs[selectedGoal.id] || ""}
-                    onChange={e => setSubTaskInputs(prev => ({ ...prev, [selectedGoal.id]: e.target.value }))}
-                    onKeyDown={e => e.key === "Enter" && addSubTask(selectedGoal, subTaskInputs[selectedGoal.id] || "")}
-                    placeholder="Add a step..."
-                    className="flex-1 bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-ring transition-colors"
-                  />
-                  <button onClick={() => addSubTask(selectedGoal, subTaskInputs[selectedGoal.id] || "")} className="bg-[#A7773F] text-[#F7F3EC] p-2 rounded-xl hover:opacity-90 transition-colors">
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
               </div>
 
               <div className="bg-card rounded-xl overflow-hidden border border-border quill-notes">
