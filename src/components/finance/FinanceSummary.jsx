@@ -261,7 +261,7 @@ Format your response as JSON with this structure:
 
       {(() => {
         const rows = [
-          ...items.filter(i => i.type === "bill").map(b => ({ id: b.id, name: b.name, amount: b.amount, info: dueInfo(b) })),
+          ...items.filter(i => i.type === "bill" && !(i.billing_cycle === "yearly" && (!i.due_date || (dueInfo(i).date - new Date()) / 86400000 > 45))).map(b => ({ id: b.id, name: b.name, amount: b.amount, info: dueInfo(b) })),
           ...items.filter(i => i.type === "subscription" && i.renewal_date).map(sub => {
             const d = new Date(`${sub.renewal_date}T00:00:00`); d.setHours(0, 0, 0, 0);
             const days = Math.round((d - new Date(new Date().setHours(0, 0, 0, 0))) / 86400000);

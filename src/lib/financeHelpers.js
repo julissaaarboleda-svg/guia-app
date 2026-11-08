@@ -52,7 +52,8 @@ export function dueInfo(item) {
     date = startOfDay(new Date(item.due_date + "T00:00:00"));
   }
   if (isPaid(item)) {
-    return { date, days: null, tone: "paid", label: item.paid_month === monthKeyOf() ? "Paid" : "Paid" };
+    const renews = isYearlyBill(item) && date ? ` · renews ${date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : "";
+    return { date, days: null, tone: "paid", label: `Paid${renews}` };
   }
   if (!date) return { date: null, days: null, tone: "none", label: "No date" };
   const days = Math.round((date - today) / 86400000);
