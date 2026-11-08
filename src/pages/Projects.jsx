@@ -4,29 +4,19 @@ import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
 import { parseISO } from "date-fns";
 import ProjectDetail from "@/components/projects/ProjectDetail";
-import { Plus, ChevronRight, Briefcase, Trash2, Calendar } from "lucide-react";
+import { Plus, ChevronRight, ChevronDown, Briefcase, Calendar, Circle } from "lucide-react";
 import { posStyle } from "@/lib/imagePos";
+import { PROJECT_CATEGORIES, PROJECT_STATUS_CHIP, projectCategory } from "@/lib/projectCategories";
+import { differenceInCalendarDays } from "date-fns";
 
-const CATEGORIES = [
-  { id: "event", label: "Event", emoji: "🎉" },
-  { id: "home", label: "Home", emoji: "🏠" },
-  { id: "work", label: "Work", emoji: "💼" },
-  { id: "personal", label: "Personal", emoji: "✨" },
-  { id: "financial", label: "Financial", emoji: "💰" },
-  { id: "other", label: "Other", emoji: "•••" },
-];
-const categoryInfo = (id) => CATEGORIES.find((c) => c.id === id);
+const CATEGORIES = PROJECT_CATEGORIES;
+const categoryInfo = projectCategory;
 const DEFAULT_VISIBLE_TABS = { tasks: true, resources: true, notes: true, support: false, budget: true };
 const TAB_LABELS = { tasks: "Tasks", resources: "Resources", notes: "Notes", support: "Support", budget: "Budget" };
 import PageHeader from "@/components/PageHeader";
 import DateInput from "@/components/DateInput";
 
-const statusColors = {
-  planning:  "bg-muted text-foreground border-border",
-  active:    "bg-muted text-foreground border-border",
-  on_hold:   "bg-muted text-muted-foreground border-border",
-  completed: "bg-muted text-foreground border-border",
-};
+const statusColors = PROJECT_STATUS_CHIP;
 
 const CHIP_COLORS = ["#A7773F", "#7D8A53", "#A77C81", "#6B655D", "#8A6530"];
 function colorForPerson(email) {
@@ -44,6 +34,7 @@ export default function Projects() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
   const [form, setForm] = useState({ title: "", description: "", status: "planning", target_date: "", category: "", visible_tabs: DEFAULT_VISIBLE_TABS });
   const [currentEmail, setCurrentEmail] = useState("");
   const [currentId, setCurrentId] = useState("");
@@ -104,7 +95,8 @@ export default function Projects() {
     );
   }
 
-  const active = projects.filter(p => p.status !== "completed");
+  const active = projects.filter(p => p.status !== "completed" && p.status !== "on_hold");
+  const onHold = projects.filter(p => p.status === "on_hold");
   const completed = projects.filter(p => p.status === "completed");
 
   return (
@@ -140,11 +132,11 @@ export default function Projects() {
         </div>
       ) : null}
 
-      {!loading && active.length > 0 && (
+      {!loading && (active.length > 0 || onHold.length > 0) && (
         <div className="mb-8">
-          <h2 className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground mb-3">Active Projects</h2>
+          <h2 className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground mb-3">Active</h2>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,380px),1fr))] gap-3">
-            {active.map(project => {
+            {[...active, ...onHold].map(project => {
               const progress = calculateProgress(project.tasks);
               return (
                 <div key={project.id}
@@ -162,12 +154,13 @@ export default function Projects() {
                         />
                       ) : null}
                       {project.category && categoryInfo(project.category) ? (
-                        <span
-                          className="text-xl leading-none"
-                          style={{ display: project.cover_image_url ? "none" : "flex" }}
-                        >
-                          {categoryInfo(project.category).emoji}
-                        </span>
+                        (() => { const CI = categoryInfo(project.category).Icon; return (
+                          <CI
+                            className="w-6 h-6 text-white/90"
+                            strokeWidth={1.4}
+                            style={{ display: project.cover_image_url ? "none" : "flex" }}
+                          />
+                        ); })()
                       ) : (
                         <Briefcase
                           className="w-5 h-5 text-white/80"
@@ -185,6 +178,15 @@ export default function Projects() {
                         )}
                       </div>
                       {project.description && <p className="text-muted-foreground text-xs line-clamp-1">{project.description}</p>}
+                      {(() => {
+                        const next = (project.tasks || []).find((t) => !t.completed);
+                        return next ? (
+                          <p className="flex items-center gap-1.5 text-[12px] text-foreground/80 truncate">
+                            <Circle className="w-3 h-3 text-[#A7773F] flex-shrink-0" strokeWidth={1.8} />
+                            <span className="truncate"><span className="text-muted-foreground">Next: </span>{next.title}</span>
+                          </p>
+                        ) : null;
+                      })()}
                       <div className="flex items-center gap-2.5">
                         {project.category && categoryInfo(project.category) && (
                           <span className="text-muted-foreground text-[11.5px]">{categoryInfo(project.category).label}</span>
@@ -194,12 +196,16 @@ export default function Projects() {
                             <Calendar className="w-3 h-3" strokeWidth={1.8} />
                             Ongoing
                           </span>
-                        ) : project.target_date && (
-                          <span className="inline-flex items-center gap-1 text-muted-foreground text-[11.5px]">
-                            <Calendar className="w-3 h-3" strokeWidth={1.8} />
-                            {parseISO(project.target_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                          </span>
-                        )}
+                        ) : project.target_date && (() => {
+                          const d = differenceInCalendarDays(parseISO(project.target_date + "T12:00:00"), new Date());
+                          const late = d < 0;
+                          return (
+                            <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full ${late ? "bg-[#F4E6E7] text-[#8F5F65]" : "bg-[#F3E8D6] text-[#8A5F27]"}`}>
+                              <Calendar className="w-3 h-3" strokeWidth={1.8} />
+                              {late ? `${-d} day${d === -1 ? "" : "s"} overdue` : d === 0 ? "Due today" : `${d} day${d === 1 ? "" : "s"} left`}
+                            </span>
+                          );
+                        })()}
                         <div className="flex -space-x-1.5">
                           <div
                             className="w-5 h-5 rounded-full border-2 border-card flex items-center justify-center text-white text-[8px] font-bold"
@@ -227,7 +233,7 @@ export default function Projects() {
                             <span className="font-medium text-foreground">{progress}%</span>
                           </div>
                           <div className="h-2 bg-muted rounded-full overflow-hidden">
-                            <div className="h-full bg-green-600 rounded-full transition-all" style={{ width: `${progress}%` }} />
+                            <div className="h-full bg-[#A7773F] rounded-full transition-all" style={{ width: `${progress}%` }} />
                           </div>
                           <p className="text-xs text-muted-foreground mt-1">
                             {project.tasks.filter(t => t.completed).length} of {project.tasks.length} tasks complete
@@ -236,24 +242,6 @@ export default function Projects() {
                       )}
                     </div>
                     <div className="flex items-center gap-2 ml-4">
-                      <button
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          if (!confirm("Delete this project?")) return;
-                          const previous = projects;
-                          setProjects((prev) => prev.filter((p) => p.id !== project.id));
-                          try {
-                            await ent.Project.delete(project.id);
-                          } catch (err) {
-                            console.error("Failed to delete project:", err);
-                            setProjects(previous);
-                            alert("Couldn't delete this project — please try again.");
-                          }
-                        }}
-                        className="text-muted-foreground/60 hover:text-rose-400 transition-colors p-1"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
                       <ChevronRight className="w-4 h-4 text-muted-foreground/60 group-hover:text-muted-foreground" />
                     </div>
                   </div>
@@ -266,20 +254,25 @@ export default function Projects() {
 
       {!loading && completed.length > 0 && (
         <div>
-          <h2 className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground mb-3">Completed Projects</h2>
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,380px),1fr))] gap-2">
-            {completed.map(project => (
-              <button key={project.id} onClick={() => setSelected(project)}
-                className="w-full bg-card border border-border rounded-xl p-4 text-left hover:border-border transition-all group flex items-center gap-3"
-              >
-                <div className="flex-1 min-w-0">
-                  <span className="text-foreground block truncate">{project.title}</span>
-                  {project.target_date && <span className="text-muted-foreground text-xs">{parseISO(project.target_date).getFullYear()}</span>}
-                </div>
-                <ChevronRight className="w-4 h-4 text-muted-foreground/60 group-hover:text-muted-foreground" />
-              </button>
-            ))}
-          </div>
+          <button onClick={() => setShowCompleted((v) => !v)} className="flex items-center gap-1.5 text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground mb-3">
+            Completed · {completed.length}
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showCompleted ? "rotate-180" : ""}`} />
+          </button>
+          {showCompleted && (
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,380px),1fr))] gap-2">
+              {completed.map(project => (
+                <button key={project.id} onClick={() => setSelected(project)}
+                  className="w-full bg-card border border-border rounded-xl p-4 text-left hover:border-border transition-all group flex items-center gap-3"
+                >
+                  <div className="flex-1 min-w-0">
+                    <span className="text-foreground block truncate">{project.title}</span>
+                    {project.target_date && <span className="text-muted-foreground text-xs">{parseISO(project.target_date).getFullYear()}</span>}
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground/60 group-hover:text-muted-foreground" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -288,7 +281,7 @@ export default function Projects() {
         <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center bg-black/30 backdrop-blur-sm" onClick={() => setShowAdd(false)}>
           <div className="bg-card border border-border rounded-t-3xl md:rounded-2xl p-6 w-full max-w-md shadow-lg" onClick={e => e.stopPropagation()}>
             <h2 className="font-heading text-xl text-foreground mb-4 flex items-center gap-2">
-              <span>✨</span> Add New Project
+              Add New Project
             </h2>
             <div className="space-y-3">
               <div>
@@ -304,7 +297,7 @@ export default function Projects() {
                       }`}
                       style={form.category === c.id ? { backgroundColor: "#A7773F" } : undefined}
                     >
-                      <span className="text-base leading-none">{c.emoji}</span>
+                      <c.Icon className="w-4 h-4" strokeWidth={1.5} />
                       {c.label}
                     </button>
                   ))}
@@ -312,7 +305,7 @@ export default function Projects() {
               </div>
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Project name</label>
-                <input placeholder="e.g. Home Renovation 🏠" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                <input placeholder="e.g. Home Renovation" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                   className="w-full bg-card border border-border rounded-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-ring transition-colors" autoFocus />
               </div>
               <div>

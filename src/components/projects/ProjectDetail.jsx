@@ -30,25 +30,14 @@ import ProjectBudget from "@/components/projects/ProjectBudget";
 import ProjectContributions from "@/components/projects/ProjectContributions";
 import { StickyNote, HandHeart } from "lucide-react";
 import { initialsFor as initialsOf, nameFor, sameEmail } from "@/lib/collab";
+import { PROJECT_CATEGORIES, PROJECT_STATUS_CHIP } from "@/lib/projectCategories";
 import { exportProjectPdf } from "@/lib/projectPdfExport";
 
 const DEFAULT_VISIBLE_TABS = { tasks: true, resources: true, notes: true, support: false, budget: true };
-const CATEGORIES = [
-  { id: "event", label: "Event", emoji: "🎉" },
-  { id: "home", label: "Home", emoji: "🏠" },
-  { id: "work", label: "Work", emoji: "💼" },
-  { id: "personal", label: "Personal", emoji: "✨" },
-  { id: "financial", label: "Financial", emoji: "💰" },
-  { id: "other", label: "Other", emoji: "•••" },
-];
+const CATEGORIES = PROJECT_CATEGORIES;
 const TAB_LABELS = { tasks: "Tasks", resources: "Resources", notes: "Notes", support: "Support", budget: "Budget" };
 
-const statusColors = {
-  planning: "bg-amber-50 text-amber-700 border-amber-100",
-  active: "bg-[#7D8A53]/15 text-[#5F6A3F] border-[#7D8A53]/25",
-  on_hold: "bg-secondary text-muted-foreground border-border",
-  completed: "bg-blue-50 text-blue-700 border-blue-100",
-};
+const statusColors = PROJECT_STATUS_CHIP;
 
 export default function ProjectDetail({ project, onBack, onUpdate }) {
   const [editing, setEditing] = useState(false);
@@ -402,7 +391,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
             </span>
             {project.category && CATEGORIES.find((c) => c.id === project.category) && (
               <span className="self-start font-body text-[9px] px-2.5 py-1 rounded-full bg-white/90 text-foreground flex-shrink-0 flex items-center gap-1">
-                {CATEGORIES.find((c) => c.id === project.category).emoji} {CATEGORIES.find((c) => c.id === project.category).label}
+                {(() => { const CI = CATEGORIES.find((c) => c.id === project.category).Icon; return <CI className="w-3 h-3" strokeWidth={1.6} />; })()} {CATEGORIES.find((c) => c.id === project.category).label}
               </span>
             )}
             {daysLeft !== null && project.status !== "completed" && (
@@ -658,7 +647,7 @@ export default function ProjectDetail({ project, onBack, onUpdate }) {
                       }`}
                       style={form.category === c.id ? { backgroundColor: "#A7773F" } : undefined}
                     >
-                      <span className="text-base leading-none">{c.emoji}</span>
+                      <c.Icon className="w-4 h-4" strokeWidth={1.5} />
                       {c.label}
                     </button>
                   ))}
