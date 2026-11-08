@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ent } from "@/lib/freshEntities";
 import { ChevronLeft, ChevronRight, ChevronDown, Pencil, Trash2, X } from "lucide-react";
 import BudgetChart from "@/components/finance/BudgetChart";
-import { monthView } from "@/lib/spending";
+import { monthView, monthsWithData } from "@/lib/spending";
 
 const nk = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -31,6 +31,8 @@ export default function BudgetTab() {
   const [incomeInput, setIncomeInput] = useState("");
   const [bills, setBills] = useState([]);
   const [fixedCollapsed, setFixedCollapsed] = useState(true);
+  const jumped = useRef(false);
+  const [showedLatest, setShowedLatest] = useState(false);
 
   const mk = monthKey(monthDate);
 
@@ -43,6 +45,18 @@ export default function BudgetTab() {
       ent.FinanceItem.filter({ type: "loan" }),
       ent.SpendingStatement.list().catch(() => []),
     ]);
+    // Statements are usually for last month, so open on the latest month that has spending.
+    if (!jumped.current) {
+      jumped.current = true;
+      const ms = monthsWithData(allStatements || []);
+      const last = ms[ms.length - 1];
+      if (last && !ms.includes(mk) && last < mk) {
+        const [yy, mm] = last.split("-").map(Number);
+        setShowedLatest(true);
+        setMonthDate(new Date(yy, mm - 1, 1));
+        return;
+      }
+    }
     const view = monthView(allStatements || [], mk);
     // A bucket with no amount typed in takes its "spent" from the matching statement category.
     const manualBuckets = allBuckets.filter(b => b.month === mk).map(b => {
@@ -122,6 +136,7 @@ export default function BudgetTab() {
   useEffect(() => { load(); }, [mk]);
 
   const changeMonth = (delta) => {
+    setShowedLatest(false);
     const d = new Date(monthDate);
     d.setMonth(d.getMonth() + delta);
     setMonthDate(d);
@@ -272,6 +287,8 @@ export default function BudgetTab() {
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>
+
+      {showedLatest && <p className="text-[12px] text-muted-foreground text-center -mt-2">Showing your latest statement month. Use the arrows for other months.</p>}
 
       {/* Income + allocation */}
       <div className="bg-card border border-border rounded-2xl p-4">
