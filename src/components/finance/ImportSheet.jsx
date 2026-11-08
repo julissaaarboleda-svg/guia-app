@@ -9,6 +9,7 @@ const KIND_LABEL = { bill: "Bill", subscription: "Subscription", loan: "Loan", c
 const PICKABLE = ["bill", "subscription", "loan", "credit_card", "savings_goal"];
 const fmt = (n) => (n == null ? "—" : `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: Number.isInteger(Number(n)) ? 0 : 2, maximumFractionDigits: 2 })}`);
 const norm = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+const MAX_FILES = 10;
 const money0 = (n) => `$${Math.round(Number(n) || 0).toLocaleString()}`;
 const CATS = ["Groceries", "Dining", "Transportation", "Utilities", "Housing", "Insurance", "Healthcare", "Personal", "Shopping", "Entertainment", "Travel", "Subscriptions", "Other"];
 const monthName = (k) => new Date(Number(k.slice(0, 4)), Number(k.slice(5)) - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
@@ -69,7 +70,8 @@ export default function ImportSheet({ open, onClose, existing = [], statements =
   const [matches, setMatches] = useState([]);
   const [usedIdx, setUsedIdx] = useState(new Set());
   const [note, setNote] = useState("");
-  const [fileObj, setFileObj] = useState(null);
+  const [fileObjs, setFileObjs] = useState([]);
+  const [progress, setProgress] = useState([]);
   const fileRef = useRef(null);
 
   if (!open) return null;
@@ -77,26 +79,61 @@ export default function ImportSheet({ open, onClose, existing = [], statements =
   const mergeable = existing.filter((e) => AMOUNT_FIELD[e.type]);
   const byId = (id) => existing.find((e) => e.id === id);
 
-  const reset = () => { setStep("pick"); setError(""); setRows([]); setFileName(""); setEditing(null); setSpendRows([]); setFixes({}); setIncludeSpend(true); setMatches([]); setUsedIdx(new Set()); setNote(""); setFileObj(null); };
+  const reset = () => { setStep("pick"); setError(""); setRows([]); setFileName(""); setEditing(null); setSpendRows([]); setFixes({}); setIncludeSpend(true); setMatches([]); setUsedIdx(new Set()); setNote(""); setFileObjs([]); setProgress([]); };
   const close = () => { reset(); onClose(); };
   const setRow = (id, patch) => setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
 
-  const readFile = async (file) => {
-    if (!file) return;
-    setFileName(file.name); setFileObj(file); setError(""); setNote(""); setStep("reading");
+  const readFiles = async (list) => {
+    const totalPicked = list?.length || 0;
+    const picked = Array.from(list || []).slice(0, MAX_FILES);
+    if (!picked.length) return;
+    setFileObjs(picked); setFileName(picked.length === 1 ? picked[0].name : `${picked.length} files`);
+    setError(""); setNote(""); setProgress(picked.map((f) => ({ name: f.name, state: "reading" }))); setStep("reading");
+    const results = new Array(picked.length);
+    const existingArg = mergeable.map((e) => ({ name: e.name, amount: amtOf(e), type: e.type }));
+    let next = 0;
+    const worker = async () => {
+      while (next < picked.length) {
+        const i = next++;
+        const [a, b] = await Promise.allSettled([
+          base44.integrations.Core.ImportFinanceFile({ file: picked[i], existing: existingArg }),
+          base44.integrations.Core.ImportFinanceFile({ file: picked[i], mode: "spending" }),
+        ]);
+        results[i] = { a, b };
+        const state = a.status === "rejected" && b.status === "rejected" ? "failed" : a.status === "rejected" || b.status === "rejected" ? "partial" : "done";
+        setProgress((p) => p.map((x, j) => (j === i ? { ...x, state } : x)));
+      }
+    };
     try {
-      const [itemsRes, spendRes] = await Promise.allSettled([
-        base44.integrations.Core.ImportFinanceFile({
-          file,
-          existing: mergeable.map((e) => ({ name: e.name, amount: amtOf(e), type: e.type })),
-        }),
-        base44.integrations.Core.ImportFinanceFile({ file, mode: "spending" }),
-      ]);
-      if (itemsRes.status === "rejected" && spendRes.status === "rejected") throw itemsRes.reason;
-      const items = itemsRes.status === "fulfilled" ? itemsRes.value.items || [] : [];
-      const tx = spendRes.status === "fulfilled" ? spendRes.value.transactions || [] : [];
-      if (itemsRes.status === "rejected") setNote("Spending was read, but bills and loans couldn't be. You can try the file again for those.");
-      if (spendRes.status === "rejected") setNote("Bills and loans were read, but spending couldn't be. You can try the file again for that.");
+      await Promise.all(Array.from({ length: Math.min(3, picked.length) }, worker));
+      if (!results.some((r) => r.a.status === "fulfilled" || r.b.status === "fulfilled")) throw results[0].a.reason;
+      const notes = [];
+      const failed = picked.filter((_, i) => results[i].a.status === "rejected" && results[i].b.status === "rejected").map((f) => f.name);
+      if (failed.length) notes.push(`Couldn't read: ${failed.join(", ")}.`);
+      const partial = picked.filter((_, i) => (results[i].a.status === "rejected") !== (results[i].b.status === "rejected")).map((f) => f.name);
+      if (partial.length) notes.push(`Only part of ${partial.join(", ")} could be read. Try it again on its own.`);
+      if (totalPicked > MAX_FILES) notes.push(`Only the first ${MAX_FILES} files were used.`);
+      setNote(notes.join(" "));
+
+      // Bills, subscriptions and loans: the same item from two files is one item.
+      const seen = new Set();
+      const items = [];
+      results.forEach((r) => (r.a.status === "fulfilled" ? r.a.value.items || [] : []).forEach((it) => {
+        const k = `${norm(it.name)}|${it.amount}`;
+        if (!seen.has(k)) { seen.add(k); items.push(it); }
+      }));
+
+      // Spending: the same purchase in two files counts once (use the file that lists it most).
+      const per = results.map((r, f) => (r.b.status === "fulfilled" ? r.b.value.transactions || [] : []).map((t) => ({ ...t, f })));
+      const byKey = {};
+      per.forEach((rowsF, f) => rowsF.forEach((t) => { const k = `${t.d}|${norm(t.m)}|${t.a}`; ((byKey[k] = byKey[k] || {})[f] = byKey[k][f] || []).push(t); }));
+      const tx = [];
+      Object.values(byKey).forEach((byFile) => {
+        const best = Object.keys(byFile).map(Number).sort((x, y) => byFile[y].length - byFile[x].length || x - y)[0];
+        tx.push(...byFile[best]);
+      });
+      tx.sort((x, y) => String(x.d).localeCompare(String(y.d)));
+
       const prepared = items.map((it, i) => {
         const exact = mergeable.find((e) => norm(e.name) === norm(it.name));
         const guess = !exact && it.matches_existing ? mergeable.find((e) => norm(e.name) === norm(it.matches_existing)) : null;
@@ -116,7 +153,7 @@ export default function ImportSheet({ open, onClose, existing = [], statements =
       setIncludeSpend(tx.filter((r) => r.t === "purchase").length > 0);
       setStep("review");
     } catch (err) {
-      setError(err.message || "Couldn't read that file.");
+      setError(err.message || "Couldn't read those files.");
       setStep("pick");
     }
   };
@@ -153,7 +190,8 @@ export default function ImportSheet({ open, onClose, existing = [], statements =
     if (r.t !== "purchase" || usedIdx.has(i)) return m;
     const k = norm(r.m); (m[k] = m[k] || { k, name: r.m, total: 0, c: r.c }).total += r.a; return m;
   }, {})).sort((a, b) => b.total - a.total).slice(0, 8);
-  const dupStatement = fileObj && spendCount > 0 && statements.find((x) => x.filename === fileObj.name && x.count === spendRows.filter((r) => r.t === "purchase").length);
+  const rawCount = (f) => spendRows.filter((r) => r.f === f && r.t === "purchase").length;
+  const dupFiles = fileObjs.filter((fo, i) => rawCount(i) > 0 && statements.some((x) => x.filename === fo.name && x.count === rawCount(i))).map((fo) => fo.name);
   const total = willCreate + willUpdate + willPay + willSpend;
 
   const save = async () => {
@@ -175,10 +213,14 @@ export default function ImportSheet({ open, onClose, existing = [], statements =
         else await ent.FinanceItem.update(t.id, { schedule: (t.schedule || []).map((p) => (p.id === m.payId ? { ...p, paid: true } : p)) });
       }
       if (willSpend) {
-        await ent.SpendingStatement.create({
-          label: (fileObj?.name || "Statement").replace(/\.[^.]+$/, "").slice(0, 60), filename: fileObj?.name || "",
-          count: spendRows.filter((r) => r.t === "purchase").length, months: built,
-        });
+        for (let i = 0; i < fileObjs.length; i++) {
+          const mine = fixedSpend.filter((r) => r.f === i);
+          if (!mine.some((r) => r.t === "purchase")) continue;
+          await ent.SpendingStatement.create({
+            label: fileObjs[i].name.replace(/\.[^.]+$/, "").slice(0, 60), filename: fileObjs[i].name,
+            count: rawCount(i), months: buildMonths(mine),
+          });
+        }
       }
       onDone && onDone({ spending: !!willSpend, items: willCreate + willUpdate, paid: willPay });
       close();
@@ -247,12 +289,12 @@ export default function ImportSheet({ open, onClose, existing = [], statements =
 
         {(step === "pick" || step === "reading") && (
           <div>
-            <input ref={fileRef} type="file" accept=".pdf,.csv,.txt,image/*" className="hidden" onChange={(e) => { readFile(e.target.files?.[0]); e.target.value = ""; }} />
+            <input ref={fileRef} type="file" multiple accept=".pdf,.csv,.txt,image/*,image/heic,image/heif,.heic,.heif" className="hidden" onChange={(e) => { readFiles(e.target.files); e.target.value = ""; }} />
             <button onClick={() => fileRef.current?.click()} disabled={step === "reading"}
               className="w-full border border-dashed border-border bg-card rounded-2xl py-8 flex flex-col items-center gap-2 text-center disabled:opacity-60">
               {step === "reading"
-                ? <><span className="w-5 h-5 border-2 border-muted border-t-[#A7773F] rounded-full animate-spin" /><span className="font-heading text-base text-foreground">Reading {fileName}…</span><span className="text-xs text-muted-foreground">Reading both your bills and spending, this can take up to a minute.</span></>
-                : <><Upload className="w-5 h-5 text-[#A7773F]" strokeWidth={1.5} /><span className="font-heading text-base text-foreground">Choose a file</span><span className="text-xs text-muted-foreground px-6">A statement or bill as PDF, a photo or screenshot, or a CSV.</span></>}
+                ? <><span className="w-5 h-5 border-2 border-muted border-t-[#A7773F] rounded-full animate-spin" /><span className="font-heading text-base text-foreground">Reading {fileName}…</span><span className="text-xs text-muted-foreground">Reading both your bills and spending, this can take up to a minute.</span>{progress.length > 1 && <span className="mt-2 space-y-1 text-left">{progress.map((p) => <span key={p.name} className="flex items-center gap-2 text-xs text-muted-foreground"><span className="w-3.5 text-center" style={{ color: p.state === "failed" ? "#8F5F65" : "#A7773F" }}>{p.state === "reading" ? "…" : p.state === "failed" ? "✕" : "✓"}</span><span className="truncate max-w-[220px]">{p.name}</span></span>)}</span>}</>
+                : <><Upload className="w-5 h-5 text-[#A7773F]" strokeWidth={1.5} /><span className="font-heading text-base text-foreground">Choose files</span><span className="text-xs text-muted-foreground px-6">Statements or bills as PDF, photos or screenshots, or CSV. You can pick up to 10 at once, such as a checking and a card statement.</span></>}
             </button>
             {error && <p className="text-xs text-destructive mt-3">{error}</p>}
             <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
@@ -265,7 +307,7 @@ export default function ImportSheet({ open, onClose, existing = [], statements =
           <div>
             <div className="bg-card border border-border rounded-2xl p-3 mb-3 flex items-center gap-3">
               <FileText className="w-5 h-5 text-[#A7773F]" strokeWidth={1.5} />
-              <div className="flex-1 min-w-0"><p className="text-[13px] text-foreground truncate">{fileName}</p></div>
+              <div className="flex-1 min-w-0"><p className="text-[13px] text-foreground truncate">{fileObjs.length > 1 ? `${fileObjs.length} files` : fileName}</p>{fileObjs.length > 1 && <p className="text-[11.5px] text-muted-foreground truncate">{fileObjs.map((f) => f.name).join(", ")}</p>}</div>
               <button onClick={reset} className="text-xs text-[#A7773F]">Change</button>
             </div>
 
@@ -377,7 +419,7 @@ export default function ImportSheet({ open, onClose, existing = [], statements =
                 </div>
                 <div className={`bg-card border border-border rounded-2xl p-3 ${includeSpend ? "" : "opacity-50"}`}>
                   <p className="text-[13px] text-foreground mb-2">Found <b className="font-medium">{spendCount} purchases</b> totaling <b className="font-medium">{money0(spendTotal)}</b>.</p>
-                  {dupStatement && <p className="text-[12.5px] text-[#8A5F27] bg-[#F3E8D6] rounded-lg px-3 py-2 mb-2">This looks like a statement you already added ({dupStatement.label}). Saving it again would count it twice.</p>}
+                  {dupFiles.length > 0 && <p className="text-[12.5px] text-[#8A5F27] bg-[#F3E8D6] rounded-lg px-3 py-2 mb-2">{dupFiles.join(", ")} look{dupFiles.length === 1 ? "s" : ""} like {dupFiles.length === 1 ? "a statement" : "statements"} you already added. Saving again would count {dupFiles.length === 1 ? "it" : "them"} twice.</p>}
                   {builtKeys.map((k) => (
                     <div key={k} className="mb-2">
                       <p className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground mb-1">{monthName(k)} · {money0(built[k].total)}</p>
