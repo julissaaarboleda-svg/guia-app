@@ -1,4 +1,5 @@
 import { Toaster } from "@/components/ui/toaster"
+import LoadingMark from "@/components/LoadingMark";
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
@@ -55,8 +56,8 @@ const AuthenticatedApp = () => {
 
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-border border-t-[#A7773F] rounded-full animate-spin"></div>
+      <div className="fixed inset-0 flex items-center justify-center bg-background">
+        <LoadingMark />
       </div>
     );
   }
@@ -73,7 +74,7 @@ const AuthenticatedApp = () => {
   if (onboardingDone === null) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-background">
-        <div className="w-8 h-8 border-4 border-border border-t-[#A7773F] rounded-full animate-spin"></div>
+        <LoadingMark />
       </div>
     );
   }

@@ -1,10 +1,11 @@
 import { Outlet } from 'react-router-dom';
+import LoadingMark from "@/components/LoadingMark";
 import { useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 
 const DefaultFallback = () => (
-  <div className="fixed inset-0 flex items-center justify-center">
-    <div className="w-8 h-8 border-4 border-border border-t-[#A7773F] rounded-full animate-spin"></div>
+  <div className="fixed inset-0 flex items-center justify-center bg-background">
+    <LoadingMark />
   </div>
 );
 
