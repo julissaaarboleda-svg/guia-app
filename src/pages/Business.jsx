@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { Plus, Upload, FilePlus2, Target, ReceiptText } from "lucide-react";
+import { Plus, Upload, FilePlus2, Target, ReceiptText, ChevronDown, ChevronRight } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 
 // "Event" is a broad bucket — market shows, product launches, pop-ups,
@@ -64,6 +64,17 @@ export default function Business() {
   const [editingGoalId, setEditingGoalId] = useState(null);
   const [allDocs, setDocs] = useState([]);
   const [importing, setImporting] = useState(false);
+  const [shut, setShut] = useState(() => { try { return JSON.parse(localStorage.getItem("guia-biz-shut") || "{}"); } catch { return {}; } });
+  const toggleShut = (k) => setShut((c) => { const n = { ...c, [k]: !c[k] }; try { localStorage.setItem("guia-biz-shut", JSON.stringify(n)); } catch { /* optional */ } return n; });
+  const sectionHead = (k, title, action, onAction) => (
+    <div className="flex items-center justify-between mb-2">
+      <button type="button" onClick={() => toggleShut(k)} className="flex items-center gap-1.5" aria-expanded={!shut[k]}>
+        {shut[k] ? <ChevronRight className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} /> : <ChevronDown className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />}
+        <h2 className="font-heading text-[18px] text-foreground">{title}</h2>
+      </button>
+      <button onClick={onAction} className="text-[13px] font-medium text-[#A7773F]">{action}</button>
+    </div>
+  );
 
   const loadDocs = async () => setDocs((await ent.BusinessDocument.list("-created_date")) || []);
 
@@ -556,11 +567,8 @@ export default function Business() {
             </div>
           </div>
 
-          <div className="flex items-baseline justify-between mb-2">
-            <h2 className="font-heading text-[18px] text-foreground">Goals</h2>
-            <button onClick={() => setTab("goals")} className="text-[13px] font-medium text-[#A7773F]">See all</button>
-          </div>
-          <div className="bg-card border border-border rounded-2xl p-4 mb-5 space-y-4">
+          {sectionHead("goals", "Goals", "See all", () => setTab("goals"))}
+          {!shut.goals && <div className="bg-card border border-border rounded-2xl p-4 mb-5 space-y-4">
             {Number(revenueGoalValue) > 0 && (
               <div>
                 <div className="flex items-baseline justify-between mb-1.5">
@@ -585,13 +593,11 @@ export default function Business() {
             {!Number(revenueGoalValue) && activeGoals.length === 0 && (
               <p className="text-[13px] text-muted-foreground">{readOnly ? "No goals yet." : "No goals yet. Use + to add one."}</p>
             )}
-          </div>
+          </div>}
+          {shut.goals && <div className="mb-5" />}
 
-          <div className="flex items-baseline justify-between mb-2">
-            <h2 className="font-heading text-[18px] text-foreground">Recent</h2>
-            <button onClick={() => setTab("log")} className="text-[13px] font-medium text-[#A7773F]">Open log</button>
-          </div>
-          <div className="bg-card border border-border rounded-2xl px-4 py-1 mb-2">
+          {sectionHead("recent", "Recent", "Open log", () => setTab("log"))}
+          {!shut.recent && <div className="bg-card border border-border rounded-2xl px-4 py-1 mb-2">
             {recent.length === 0 ? (
               <p className="text-[13px] text-muted-foreground py-3">{readOnly ? "No entries yet." : "No entries yet. Add a sale or expense, or import a statement from the + menu."}</p>
             ) : recent.map((e, i) => (
@@ -605,7 +611,7 @@ export default function Business() {
                 </span>
               </div>
             ))}
-          </div>
+          </div>}
         </>
       )}
 
