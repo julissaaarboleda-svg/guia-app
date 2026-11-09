@@ -64,7 +64,7 @@ export default function Business() {
   const [editingGoalId, setEditingGoalId] = useState(null);
   const [allDocs, setDocs] = useState([]);
   const [importing, setImporting] = useState(false);
-  const [shut, setShut] = useState(() => { try { return JSON.parse(localStorage.getItem("guia-biz-shut") || "{}"); } catch { return {}; } });
+  const [shut, setShut] = useState(() => { try { return { recent: true, ...JSON.parse(localStorage.getItem("guia-biz-shut") || "{}") }; } catch { return { recent: true }; } });
   const toggleShut = (k) => setShut((c) => { const n = { ...c, [k]: !c[k] }; try { localStorage.setItem("guia-biz-shut", JSON.stringify(n)); } catch { /* optional */ } return n; });
   const sectionHead = (k, title, action, onAction) => (
     <div className="flex items-center justify-between mb-2">
