@@ -1,13 +1,16 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
-export default function LifeProgress({ circles }) {
+export default function LifeProgress({ circles, onCustomize }) {
   const navigate = useNavigate();
   if (!circles.length) return null;
 
   return (
     <section>
-      <h2 className="font-heading text-[20px] text-foreground mb-2.5">Life Progress</h2>
+      <div className="flex items-baseline justify-between mb-2.5">
+        <h2 className="font-heading text-[20px] text-foreground">Life Progress</h2>
+        {onCustomize && <button onClick={onCustomize} className="text-[13px] font-medium text-[#A7773F]">Customize</button>}
+      </div>
       <div className="grid grid-cols-2 gap-2.5">
         {circles.map((c, i) => {
           const r = 20;

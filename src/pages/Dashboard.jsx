@@ -8,6 +8,9 @@ import TodaysFocus from "@/components/home/TodaysFocus";
 import UpNext from "@/components/home/UpNext";
 import LifeProgress from "@/components/home/LifeProgress";
 import Reveal from "@/components/home/Reveal";
+import RingsCustomizer from "@/components/home/RingsCustomizer";
+import { monthView } from "@/lib/spending";
+import { monthKeyOf } from "@/lib/financeHelpers";
 import { buildFocusItems, buildUpNext, buildProgress, buildDailyStatus } from "@/lib/homeData";
 
 const HERO_IMAGES = [
@@ -45,6 +48,8 @@ export default function Dashboard() {
   const [businessGoals, setBusinessGoals] = useState([]);
   const [careerEntries, setCareerEntries] = useState([]);
   const [allFin, setAllFin] = useState([]);
+  const [spendingProgress, setSpendingProgress] = useState(null);
+  const [ringsOpen, setRingsOpen] = useState(false);
   const [bizProgress, setBizProgress] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
@@ -82,11 +87,18 @@ export default function Dashboard() {
         if (p[0].hero_positions && typeof p[0].hero_positions === "object") setHeroPositions(p[0].hero_positions);
         if (Array.isArray(p[0].hero_images) && p[0].hero_images.length > 0) setUserHeroImages(p[0].hero_images);
       }
-      const [bizAll, bizList, finAll] = await Promise.all([
+      const [bizAll, bizList, finAll, stmts, buckets] = await Promise.all([
         ent.BusinessEntry.list("-date"),
         ent.Business.list(),
         ent.FinanceItem.list("-created_date", 300),
+        ent.SpendingStatement.list().catch(() => []),
+        ent.BudgetBucket.list().catch(() => []),
       ]);
+      const mkNow = monthKeyOf();
+      setSpendingProgress({
+        spent: monthView(stmts, mkNow)?.total || 0,
+        planned: buckets.filter((b) => b.month === mkNow).reduce((t, b) => t + (Number(b.allocated_amount) || 0), 0),
+      });
       const defBiz = bizList.find((b) => b.is_default) || bizList[0];
       const defId = defBiz?.id;
       setAllFin(finAll);
@@ -117,7 +129,7 @@ export default function Dashboard() {
     [tasks, goals, projects, finItems, trips, businessGoals, careerEntries]
   );
   const upNext = useMemo(() => buildUpNext({ trips, projects, bizEntries }), [trips, projects, bizEntries]);
-  const progress = useMemo(() => buildProgress({ trips, projects, finItems: allFin, business: bizProgress }), [trips, projects, allFin, bizProgress]);
+  const progress = useMemo(() => buildProgress({ selection: prefs?.life_rings, trips, projects, goals, finItems: allFin, business: bizProgress, spending: spendingProgress }), [prefs, trips, projects, goals, allFin, bizProgress, spendingProgress]);
 
   const dailyStatus = useMemo(() => buildDailyStatus({ tasks, trips, finItems, goals }), [tasks, trips, finItems, goals]);
 
@@ -224,11 +236,28 @@ export default function Dashboard() {
 
       {progress.length > 0 && (
         <Reveal delay={0.1} className="lg:col-start-2 lg:row-start-2 min-w-0">
-          <LifeProgress circles={progress} />
+          <LifeProgress circles={progress} onCustomize={() => setRingsOpen(true)} />
         </Reveal>
       )}
 
       </div>
+
+      {ringsOpen && (
+        <RingsCustomizer
+          open
+          onClose={() => setRingsOpen(false)}
+          selection={prefs?.life_rings}
+          goals={goals}
+          projects={projects}
+          onSave={async (life_rings) => {
+            setPrefs((p) => ({ ...(p || {}), life_rings }));
+            try {
+              if (prefs?.id) await ent.UserPreferences.update(prefs.id, { life_rings });
+              else if (user?.email) { const c = await ent.UserPreferences.create({ user_email: user.email, life_rings }); setPrefs(c); }
+            } catch { /* keeps the choice for this session */ }
+          }}
+        />
+      )}
 
       {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
     </div>

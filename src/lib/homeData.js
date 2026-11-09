@@ -1,5 +1,6 @@
 import { parseISO, differenceInCalendarDays, format } from "date-fns";
 import { categoryToModule } from "@/lib/homeModules";
+import { monthKeyOf, isPaid, billInMonth, isCanceled } from "@/lib/financeHelpers";
 
 const PRIORITY_WEIGHT = { urgent: 4, high: 3, normal: 2, low: 1 };
 const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
@@ -155,66 +156,107 @@ export function buildUpNext({ trips = [], projects = [], bizEntries = [] }) {
 
 const money0 = (n) => `$${Math.round(n).toLocaleString()}`;
 
-// Four fixed high-level rings: Projects, Business, Trip planning, Finance.
-// An area with nothing set up yet still gets its ring (dim, "Set up") so the layout never shifts.
-export function buildProgress({ trips = [], projects = [], finItems = [], business = null }) {
+// Everything a person can pick for the Life Progress card. "pick" means the ring can follow one specific item.
+export const RING_CATALOG = [
+  { id: "projects", label: "Projects", desc: "Tasks done across active projects", group: "area" },
+  { id: "business", label: "Business", desc: "Revenue toward your goal", group: "area" },
+  { id: "trip", label: "Trip planning", desc: "Packing and itinerary for the next trip", group: "area" },
+  { id: "finance", label: "Finance", desc: "Savings goals saved so far", group: "area" },
+  { id: "goal", label: "Personal goals", desc: "Steps done on a goal you pick", group: "more", pick: "goal" },
+  { id: "project", label: "One project", desc: "Tasks done in a single project", group: "more", pick: "project" },
+  { id: "loans", label: "Loan pay-down", desc: "How much of your loans you've paid", group: "more" },
+  { id: "bills", label: "Bills this month", desc: "Bills paid out of bills due", group: "more" },
+  { id: "spending", label: "Spending vs plan", desc: "Budget used this month", group: "more" },
+];
+export const DEFAULT_RINGS = [{ id: "projects" }, { id: "business" }, { id: "trip" }, { id: "finance" }];
+export const MAX_RINGS = 4;
+
+const taskPct = (list) => {
+  let total = 0, done = 0;
+  list.forEach((p) => (p.tasks || []).forEach((t) => { total++; if (t.completed) done++; }));
+  return { total, done };
+};
+
+// Builds the rings the person chose (or the four defaults). An area with nothing set up still gets
+// its ring, dimmed with a "Set up" hint, so the layout never shifts.
+export function buildProgress({ selection = null, trips = [], projects = [], goals = [], finItems = [], business = null, spending = null }) {
   const now = new Date();
   const ring = (label, pct, sub, path) => ({ label, value: pct, display: `${pct}%`, sub, path });
   const empty = (label, sub, path) => ({ label, value: 0, display: "–", sub, path, empty: true });
+  const mk = monthKeyOf();
 
-  // Projects: tasks done across active and planning projects.
-  const activeProjects = projects.filter((p) => p.status === "active" || p.status === "planning");
-  let total = 0, done = 0;
-  activeProjects.forEach((p) => (p.tasks || []).forEach((t) => { total++; if (t.completed) done++; }));
-  const projectsRing = total
-    ? ring("Projects", Math.round((done / total) * 100), `${done} of ${total} tasks`, "/projects")
-    : empty("Projects", activeProjects.length ? "Add tasks" : "Set up", "/projects");
-
-  // Business: revenue toward the revenue goal.
-  const goal = Number(business?.revenueGoal) || 0;
-  const businessRing = goal > 0
-    ? ring("Business", Math.min(100, Math.round(((business.revenue || 0) / goal) * 100)), `${money0(business.revenue || 0)} of ${money0(goal)}`, "/business")
-    : empty("Business", "Set a revenue goal", "/business");
-
-  // Trip planning: how ready the next trip is, averaging packing and itinerary.
-  const nextTrip = [...trips]
-    .filter((t) => t.start_date && parseISO(t.start_date) >= now)
-    .sort((a, b) => parseISO(a.start_date) - parseISO(b.start_date))[0];
-  let tripRing;
-  if (nextTrip) {
-    const pack = nextTrip.packing_items || [];
-    const days = nextTrip.itinerary || [];
-    const parts = [];
-    if (pack.length) parts.push(pack.filter((i) => i.packed).length / pack.length);
-    else parts.push(0);
-    if (days.length) parts.push(days.filter((d) => (d.activities || []).length > 0).length / days.length);
-    else parts.push(0);
-    const pct = Math.round((parts.reduce((a, b) => a + b, 0) / parts.length) * 100);
-    const away = differenceInCalendarDays(parseISO(nextTrip.start_date), now);
-    tripRing = ring(nextTrip.title || "Trip planning", pct, `${away === 0 ? "Today" : away === 1 ? "Tomorrow" : `${away} days away`}`, "/travel");
-  } else {
-    tripRing = empty("Trip planning", "Plan a trip", "/travel");
-  }
-
-  // Finance: savings goals saved so far; falls back to loan pay-down.
-  const saves = finItems.filter((f) => f.type === "savings_goal" && Number(f.target_amount) > 0);
-  const targetSum = saves.reduce((t, f) => t + Number(f.target_amount), 0);
-  let financeRing;
-  if (targetSum > 0) {
-    const saved = saves.reduce((t, f) => t + Math.min(Number(f.current_amount) || 0, Number(f.target_amount)), 0);
-    financeRing = ring("Finance", Math.round((saved / targetSum) * 100), `${money0(saved)} of ${money0(targetSum)} saved`, "/finance");
-  } else {
-    const loans = finItems.filter((f) => f.type === "loan" && Number(f.total_amount) > 0);
-    const totalLoan = loans.reduce((t, l) => t + Number(l.total_amount), 0);
-    if (totalLoan > 0) {
+  const builders = {
+    projects: () => {
+      const act = projects.filter((p) => p.status === "active" || p.status === "planning");
+      const { total, done } = taskPct(act);
+      return total ? ring("Projects", Math.round((done / total) * 100), `${done} of ${total} tasks`, "/projects")
+        : empty("Projects", act.length ? "Add tasks" : "Set up", "/projects");
+    },
+    project: (ref) => {
+      const p = projects.find((x) => x.id === ref) || projects.find((x) => x.status === "active") || projects[0];
+      if (!p) return empty("One project", "Set up", "/projects");
+      const { total, done } = taskPct([p]);
+      return total ? ring(p.title, Math.round((done / total) * 100), `${done} of ${total} tasks`, "/projects") : empty(p.title, "Add tasks", "/projects");
+    },
+    business: () => {
+      const goal = Number(business?.revenueGoal) || 0;
+      return goal > 0
+        ? ring("Business", Math.min(100, Math.round(((business.revenue || 0) / goal) * 100)), `${money0(business.revenue || 0)} of ${money0(goal)}`, "/business")
+        : empty("Business", "Set a revenue goal", "/business");
+    },
+    trip: () => {
+      const nextTrip = [...trips].filter((t) => t.start_date && parseISO(t.start_date) >= now)
+        .sort((a, b) => parseISO(a.start_date) - parseISO(b.start_date))[0];
+      if (!nextTrip) return empty("Trip planning", "Plan a trip", "/travel");
+      const pack = nextTrip.packing_items || [];
+      const days = nextTrip.itinerary || [];
+      const parts = [pack.length ? pack.filter((i) => i.packed).length / pack.length : 0, days.length ? days.filter((d) => (d.activities || []).length > 0).length / days.length : 0];
+      const pct = Math.round((parts[0] + parts[1]) / 2 * 100);
+      const away = differenceInCalendarDays(parseISO(nextTrip.start_date), now);
+      return ring(nextTrip.title || "Trip planning", pct, away === 0 ? "Today" : away === 1 ? "Tomorrow" : `${away} days away`, "/travel");
+    },
+    finance: () => {
+      const saves = finItems.filter((f) => f.type === "savings_goal" && Number(f.target_amount) > 0);
+      const targetSum = saves.reduce((t, f) => t + Number(f.target_amount), 0);
+      if (targetSum > 0) {
+        const saved = saves.reduce((t, f) => t + Math.min(Number(f.current_amount) || 0, Number(f.target_amount)), 0);
+        return ring("Finance", Math.round((saved / targetSum) * 100), `${money0(saved)} of ${money0(targetSum)} saved`, "/finance");
+      }
+      const l = builders.loans();
+      return l.empty ? empty("Finance", "Add a savings goal", "/finance") : { ...l, label: "Finance" };
+    },
+    goal: (ref) => {
+      const open = goals.filter((g) => g.status !== "completed");
+      const g = goals.find((x) => x.id === ref)
+        || [...open].sort((a, b) => (a.target_date || "9999").localeCompare(b.target_date || "9999"))[0];
+      if (!g) return empty("Personal goals", "Add a goal", "/goals");
+      const st = g.sub_tasks || [];
+      const pct = st.length ? Math.round((st.filter((t) => t.completed).length / st.length) * 100) : Math.round(g.progress || 0);
+      return ring(g.title, pct, pct >= 100 ? "Completed" : st.length ? `${st.filter((t) => t.completed).length} of ${st.length} steps` : "Goal", "/goals");
+    },
+    loans: () => {
+      const loans = finItems.filter((f) => f.type === "loan" && Number(f.total_amount) > 0);
+      const total = loans.reduce((t, l) => t + Number(l.total_amount), 0);
+      if (!total) return empty("Loan pay-down", "Add loan balances", "/finance");
       const owed = loans.reduce((t, l) => t + (l.payoff_amount != null ? Number(l.payoff_amount) : Number(l.total_amount) - (Number(l.amount_paid) || 0)), 0);
-      const pct = Math.max(0, Math.min(100, Math.round(((totalLoan - owed) / totalLoan) * 100)));
-      financeRing = ring("Finance", pct, "Loans paid down", "/finance");
-    } else {
-      financeRing = empty("Finance", "Add a savings goal", "/finance");
-    }
-  }
-  return [projectsRing, businessRing, tripRing, financeRing];
+      return ring("Loan pay-down", Math.max(0, Math.min(100, Math.round(((total - owed) / total) * 100))), "Loans paid down", "/finance");
+    },
+    bills: () => {
+      const due = finItems.filter((f) => f.type === "bill" && !isCanceled(f) && billInMonth(f, mk));
+      if (!due.length) return empty("Bills this month", "No bills due", "/finance");
+      const paid = due.filter((f) => isPaid(f)).length;
+      return ring("Bills this month", Math.round((paid / due.length) * 100), `${paid} of ${due.length} paid`, "/finance");
+    },
+    spending: () => {
+      const planned = Number(spending?.planned) || 0;
+      if (!planned) return empty("Spending vs plan", "Set a budget", "/finance");
+      const spent = Number(spending?.spent) || 0;
+      return ring("Spending vs plan", Math.min(100, Math.round((spent / planned) * 100)), `${money0(spent)} of ${money0(planned)}`, "/finance");
+    },
+  };
+
+  const picks = (selection && selection.length ? selection : DEFAULT_RINGS).filter((r) => builders[r.id]).slice(0, MAX_RINGS);
+  return picks.map((r) => builders[r.id](r.ref));
 }
 
 const ACT_LABEL = { notes: "Note", finance: "Finance", goals: "Goal", travel: "Trip", business: "Business", projects: "Project", career: "Career" };
