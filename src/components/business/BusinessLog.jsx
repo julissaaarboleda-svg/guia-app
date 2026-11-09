@@ -5,6 +5,34 @@ import { Edit2, Trash2, MapPin, Paperclip, Plus, ChevronDown, ChevronUp, Search 
 export const money = (n) => `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: Number.isInteger(Number(n)) ? 0 : 2, maximumFractionDigits: 2 })}`;
 const monthKey = (d) => (d ? d.slice(0, 7) : "undated");
 const monthLabel = (k) => (k === "undated" ? "No date" : new Date(`${k}-15T12:00:00`).toLocaleDateString("en-US", { month: "long", year: "numeric" }));
+const nrm = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+const amountOf = (e) => Number(e.revenue) || Number(e.expense) || 0;
+
+// Entries with the same date, same amount and a similar name are likely the same transaction saved twice.
+export function findDuplicateGroups(entries) {
+  const buckets = {};
+  entries.forEach((e) => {
+    const amt = amountOf(e);
+    if (!e.date || !amt) return;
+    (buckets[`${e.date}|${e.revenue ? "in" : "out"}|${amt}`] = buckets[`${e.date}|${e.revenue ? "in" : "out"}|${amt}`] || []).push(e);
+  });
+  const groups = [];
+  Object.values(buckets).forEach((list) => {
+    const used = new Set();
+    list.forEach((a, i) => {
+      if (used.has(i)) return;
+      const same = [a];
+      list.forEach((b, j) => {
+        if (j <= i || used.has(j)) return;
+        const x = nrm(a.name); const y = nrm(b.name);
+        if (x === y || (x && y && (x.includes(y.slice(0, 6)) || y.includes(x.slice(0, 6))))) { same.push(b); used.add(j); }
+      });
+      if (same.length > 1) { used.add(i); groups.push(same.sort((p, q) => String(p.created_date || "").localeCompare(String(q.created_date || "")))); }
+    });
+  });
+  return groups.sort((p, q) => String(q[0].date).localeCompare(String(p[0].date)));
+}
+
 const dayLabel = (d) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "");
 
 // The log, grouped by month. The current month starts open; every month can be toggled.
@@ -20,6 +48,13 @@ export default function BusinessLog({ entries, docs = [], categories, editingEnt
   };
   const [toggled, setToggled] = useState({}); // monthKey -> true/false, overrides the default
   const [openRow, setOpenRow] = useState(null);
+  const [showDups, setShowDups] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const dupGroups = findDuplicateGroups(entries);
+  const removeExtras = async (groups) => {
+    setRemoving(true);
+    try { for (const g of groups) for (const e of g.slice(1)) await onDelete(e.id); } finally { setRemoving(false); }
+  };
 
   const nowKey = new Date().toLocaleDateString("en-CA").slice(0, 7);
   const searching = q.trim().length > 0;
@@ -44,9 +79,42 @@ export default function BusinessLog({ entries, docs = [], categories, editingEnt
     <div className="flex items-center justify-between mb-3">
       <h2 className="font-heading text-[18px] text-foreground">Business log</h2>
       {!readOnly && (
-        <button onClick={onNew} className="inline-flex items-center gap-1 text-[13px] font-medium text-[#A7773F]">
-          <Plus className="w-4 h-4" strokeWidth={1.5} /> Add entry
-        </button>
+        <div className="flex items-center gap-4">
+          {entries.length > 1 && (
+            <button onClick={() => setShowDups((v) => !v)} className="text-[13px] text-muted-foreground hover:text-foreground">
+              Find duplicates{dupGroups.length ? ` · ${dupGroups.length}` : ""}
+            </button>
+          )}
+          <button onClick={onNew} className="inline-flex items-center gap-1 text-[13px] font-medium text-[#A7773F]">
+            <Plus className="w-4 h-4" strokeWidth={1.5} /> Add entry
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  const dupPanel = showDups && !readOnly && (
+    <div className="bg-card border border-border rounded-2xl p-4 mb-3">
+      {dupGroups.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No duplicates found. Nothing shares the same date, amount and name.</p>
+      ) : (
+        <>
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <p className="text-sm text-foreground">{dupGroups.length} possible duplicate{dupGroups.length === 1 ? "" : "s"}. The earliest copy is kept.</p>
+            <button disabled={removing} onClick={() => { if (confirm(`Remove the extra copies in all ${dupGroups.length}?`)) removeExtras(dupGroups); }} className="text-xs text-[#8F5F65] whitespace-nowrap disabled:opacity-50">Remove all extras</button>
+          </div>
+          <div className="divide-y divide-border/60">
+            {dupGroups.map((g) => (
+              <div key={g[0].id} className="flex items-center justify-between gap-3 py-2">
+                <div className="min-w-0">
+                  <p className="text-sm text-foreground truncate">{g[0].name || g[0].category} <span className="text-muted-foreground">× {g.length}</span></p>
+                  <p className="text-[11px] text-muted-foreground">{dayLabel(g[0].date)} · {g[0].revenue ? "+" : "-"}{money(amountOf(g[0]))} each</p>
+                </div>
+                <button disabled={removing} onClick={() => removeExtras([g])} className="text-xs text-[#A7773F] whitespace-nowrap disabled:opacity-50">Remove {g.length - 1} extra</button>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
@@ -68,6 +136,7 @@ export default function BusinessLog({ entries, docs = [], categories, editingEnt
   return (
     <div className="mb-6">
       {header}
+      {dupPanel}
       <div className="flex flex-wrap items-center gap-2 mb-2.5">
         <label className="relative flex-1 min-w-[160px]">
           <Search className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" strokeWidth={1.8} />

@@ -96,7 +96,7 @@ Rules:
 - Amounts are always positive; "kind" says which direction.
 - Never include account numbers, card numbers, addresses or any other personal identifiers anywhere in the output.
 - When unsure, lower the confidence rather than guessing.
-- Return at most 80 entries, most recent first. If nothing relevant is found, return {"entries": []}.`;
+- Return at most 150 entries, most recent first. If nothing relevant is found, return {"entries": []}.`;
 
 const CAREER_PROMPT = `You are helping someone build their career history in a personal app. Read the attached document (a resume, a performance review, an offer letter, a certificate or a transcript) and extract the career entries worth keeping.
 
@@ -291,7 +291,7 @@ exports.handler = async (event, context) => {
     }
     if (mode === "business") {
       if (!parsed || !Array.isArray(parsed.entries)) return reply(502, { error: "The file was read, but the result wasn't usable. Try again, or try a clearer copy." });
-      const entries = parsed.entries.slice(0, 80).map((it) => {
+      const entries = parsed.entries.slice(0, 150).map((it) => {
         const amt = Number(it.amount);
         const kind = ["sale", "expense", "skip"].includes(it.kind) ? it.kind : "skip";
         return {

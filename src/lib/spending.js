@@ -107,3 +107,21 @@ export function statementRange(s) {
   if (!ms.length) return "";
   return rangeLabel(ms.map((m) => m.from).sort()[0], ms.map((m) => m.to).sort().slice(-1)[0]);
 }
+
+// Is this file's spending already in a saved statement? Same month, overlapping dates, and
+// mostly the same merchants. Works whatever the file is called (screenshots, re-exports).
+export function findOverlaps(built, statements) {
+  const out = [];
+  for (const [key, m] of Object.entries(built || {})) {
+    for (const st of statements || []) {
+      const old = st.months?.[key];
+      if (!old || !old.from || !old.to || !m.from || !m.to) continue;
+      if (!(m.from <= old.to && old.from <= m.to)) continue;
+      const oldSet = new Set((old.merchants || []).map((e) => mkey(e.name)));
+      const total = (m.merchants || []).reduce((t, e) => t + e.total, 0) || 1;
+      const shared = (m.merchants || []).filter((e) => oldSet.has(mkey(e.name))).reduce((t, e) => t + e.total, 0);
+      if (shared / total >= 0.6) { out.push({ key, label: st.label || st.filename || "an earlier statement", from: m.from, to: m.to }); break; }
+    }
+  }
+  return out;
+}

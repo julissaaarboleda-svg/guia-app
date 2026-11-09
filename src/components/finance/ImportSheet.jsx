@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { X, FileText, Upload, Check, ChevronDown } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { buildMonths, monthOf } from "@/lib/spending";
+import { findOverlaps, buildMonths, monthOf } from "@/lib/spending";
 import { paidPatch, monthKeyOf, isPaid } from "@/lib/financeHelpers";
 
 const KIND_LABEL = { bill: "Bill", subscription: "Subscription", loan: "Loan", credit_card: "Credit card", savings_goal: "Savings goal" };
@@ -12,6 +12,7 @@ const norm = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 const MAX_FILES = 10;
 const money0 = (n) => `$${Math.round(Number(n) || 0).toLocaleString()}`;
 const CATS = ["Groceries", "Dining", "Transportation", "Utilities", "Housing", "Insurance", "Healthcare", "Personal", "Shopping", "Entertainment", "Travel", "Subscriptions", "Other"];
+const shortDay = (d) => new Date(`${d}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 const monthName = (k) => new Date(Number(k.slice(0, 4)), Number(k.slice(5)) - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
 const nameHit = (a, b) => { const x = norm(a), y = norm(b); return x.length >= 4 && y.length >= 4 && (x.includes(y) || y.includes(x)); };
 
@@ -67,6 +68,7 @@ export default function ImportSheet({ open, onClose, existing = [], statements =
   const [spendRows, setSpendRows] = useState([]);
   const [fixes, setFixes] = useState({});
   const [includeSpend, setIncludeSpend] = useState(true);
+  const [allowFiles, setAllowFiles] = useState(() => new Set()); // files the person chose to add despite an overlap
   const [matches, setMatches] = useState([]);
   const [usedIdx, setUsedIdx] = useState(new Set());
   const [note, setNote] = useState("");
@@ -79,7 +81,7 @@ export default function ImportSheet({ open, onClose, existing = [], statements =
   const mergeable = existing.filter((e) => AMOUNT_FIELD[e.type]);
   const byId = (id) => existing.find((e) => e.id === id);
 
-  const reset = () => { setStep("pick"); setError(""); setRows([]); setFileName(""); setEditing(null); setSpendRows([]); setFixes({}); setIncludeSpend(true); setMatches([]); setUsedIdx(new Set()); setNote(""); setFileObjs([]); setProgress([]); };
+  const reset = () => { setStep("pick"); setError(""); setRows([]); setFileName(""); setEditing(null); setSpendRows([]); setFixes({}); setIncludeSpend(true); setAllowFiles(new Set()); setMatches([]); setUsedIdx(new Set()); setNote(""); setFileObjs([]); setProgress([]); };
   const close = () => { reset(); onClose(); };
   const setRow = (id, patch) => setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
 
@@ -185,12 +187,16 @@ export default function ImportSheet({ open, onClose, existing = [], statements =
   const builtKeys = Object.keys(built).sort();
   const spendCount = fixedSpend.filter((r) => r.t === "purchase").length;
   const spendTotal = builtKeys.reduce((t, k) => t + built[k].total, 0);
-  const willSpend = includeSpend && spendCount > 0 ? 1 : 0;
+  const rawCount = (f) => spendRows.filter((r) => r.f === f && r.t === "purchase").length;
+  // A file whose dates and merchants are already in a saved statement is left out unless the person says otherwise.
+  const overlapByFile = fileObjs.map((_, i) => findOverlaps(buildMonths(fixedSpend.filter((r) => r.f === i)), statements));
+  const fileSkipped = (i) => overlapByFile[i].length > 0 && !allowFiles.has(i);
+  const activeFiles = fileObjs.map((_, i) => i).filter((i) => rawCount(i) > 0 && !fileSkipped(i));
+  const willSpend = includeSpend && spendCount > 0 && activeFiles.length > 0 ? 1 : 0;
   const topMerch = Object.values(spendRows.reduce((m, r, i) => {
     if (r.t !== "purchase" || usedIdx.has(i)) return m;
     const k = norm(r.m); (m[k] = m[k] || { k, name: r.m, total: 0, c: r.c }).total += r.a; return m;
   }, {})).sort((a, b) => b.total - a.total).slice(0, 8);
-  const rawCount = (f) => spendRows.filter((r) => r.f === f && r.t === "purchase").length;
   const dupFiles = fileObjs.filter((fo, i) => rawCount(i) > 0 && statements.some((x) => x.filename === fo.name && x.count === rawCount(i))).map((fo) => fo.name);
   const total = willCreate + willUpdate + willPay + willSpend;
 
@@ -215,7 +221,7 @@ export default function ImportSheet({ open, onClose, existing = [], statements =
       if (willSpend) {
         for (let i = 0; i < fileObjs.length; i++) {
           const mine = fixedSpend.filter((r) => r.f === i);
-          if (!mine.some((r) => r.t === "purchase")) continue;
+          if (!mine.some((r) => r.t === "purchase") || fileSkipped(i)) continue;
           await ent.SpendingStatement.create({
             label: fileObjs[i].name.replace(/\.[^.]+$/, "").slice(0, 60), filename: fileObjs[i].name,
             count: rawCount(i), months: buildMonths(mine),
@@ -419,6 +425,14 @@ export default function ImportSheet({ open, onClose, existing = [], statements =
                 </div>
                 <div className={`bg-card border border-border rounded-2xl p-3 ${includeSpend ? "" : "opacity-50"}`}>
                   <p className="text-[13px] text-foreground mb-2">Found <b className="font-medium">{spendCount} purchases</b> totaling <b className="font-medium">{money0(spendTotal)}</b>.</p>
+                  {fileObjs.map((fo, i) => overlapByFile[i].length > 0 && (
+                    <div key={`ov${i}`} className="text-[12.5px] text-[#8A5F27] bg-[#F3E8D6] rounded-lg px-3 py-2 mb-2">
+                      <p>{fo.name} looks already added: {overlapByFile[i].map((o) => `${monthName(o.key)} (${shortDay(o.from)} to ${shortDay(o.to)}) matches ${o.label}`).join("; ")}. {allowFiles.has(i) ? "It will be added again." : "It will be left out so nothing counts twice."}</p>
+                      <button type="button" onClick={() => setAllowFiles((a) => { const n = new Set(a); n.has(i) ? n.delete(i) : n.add(i); return n; })} className="underline mt-1">
+                        {allowFiles.has(i) ? "Leave it out" : "Add it anyway"}
+                      </button>
+                    </div>
+                  ))}
                   {dupFiles.length > 0 && <p className="text-[12.5px] text-[#8A5F27] bg-[#F3E8D6] rounded-lg px-3 py-2 mb-2">{dupFiles.join(", ")} look{dupFiles.length === 1 ? "s" : ""} like {dupFiles.length === 1 ? "a statement" : "statements"} you already added. Saving again would count {dupFiles.length === 1 ? "it" : "them"} twice.</p>}
                   {builtKeys.map((k) => (
                     <div key={k} className="mb-2">

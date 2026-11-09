@@ -13,28 +13,63 @@ export default function StatementImportSheet({ open, onClose, existing = [], bus
   const [step, setStep] = useState("pick"); // pick | reading | review | saving
   const [error, setError] = useState("");
   const [fileName, setFileName] = useState("");
+  const [note, setNote] = useState("");
   const [rows, setRows] = useState([]);
   const fileRef = useRef(null);
 
   if (!open) return null;
 
-  const reset = () => { setStep("pick"); setError(""); setRows([]); setFileName(""); };
+  const reset = () => { setStep("pick"); setError(""); setRows([]); setFileName(""); setNote(""); };
   const close = () => { reset(); onClose(); };
   const setRow = (id, patch) => setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
 
-  const readFile = async (file) => {
-    if (!file) return;
-    if (file.size > 4 * 1024 * 1024) { setError("That file is over 4 MB. Try one statement month at a time."); return; }
-    setFileName(file.name); setError(""); setStep("reading");
+  const readFiles = async (list) => {
+    const files = Array.from(list || []).slice(0, 10);
+    if (!files.length) return;
+    const tooBig = files.filter((f) => f.size > 4 * 1024 * 1024);
+    const ok = files.filter((f) => f.size <= 4 * 1024 * 1024);
+    if (!ok.length) { setError("Those files are over 4 MB. Try one statement month at a time."); return; }
+    setFileName(ok.length === 1 ? ok[0].name : `${ok.length} files`); setError(""); setStep("reading");
     try {
-      const { entries } = await base44.integrations.Core.ImportFinanceFile({ file, mode: "business" });
-      const prepared = entries.map((it, i) => {
-        const dup = existing.some((e) => (e.date || "") === it.date
-          && Number(it.kind === "sale" ? e.revenue : e.expense) === it.amount
-          && (norm(e.name).includes(norm(it.name).slice(0, 6)) || norm(it.name).includes(norm(e.name).slice(0, 6))));
-        return { ...it, id: i, dup, include: it.kind !== "skip" && !dup };
+      const results = new Array(ok.length);
+      let next = 0;
+      const worker = async () => {
+        while (next < ok.length) {
+          const i = next++;
+          try { results[i] = { entries: (await base44.integrations.Core.ImportFinanceFile({ file: ok[i], mode: "business" })).entries || [] }; }
+          catch (err) { results[i] = { error: err.message || "Couldn't read it" }; }
+        }
+      };
+      await Promise.all([worker(), worker(), worker()]);
+
+      const seen = new Set();
+      const prepared = [];
+      let dupAcross = 0;
+      const full = [];
+      results.forEach((r, f) => {
+        if (r.error) return;
+        if (r.entries.length >= 150) full.push(ok[f].name);
+        r.entries.forEach((it) => {
+          const key = `${it.date}|${it.amount}|${norm(it.name)}`;
+          const dupFile = seen.has(key);
+          seen.add(key);
+          if (dupFile) { dupAcross += 1; return; }
+          const dup = existing.some((e) => (e.date || "") === it.date
+            && Number(it.kind === "sale" ? e.revenue : e.expense) === it.amount
+            && (norm(e.name).includes(norm(it.name).slice(0, 6)) || norm(it.name).includes(norm(e.name).slice(0, 6))));
+          prepared.push({ ...it, id: prepared.length, dup, include: it.kind !== "skip" && !dup });
+        });
       });
-      if (prepared.length === 0) { setError("No business transactions were found in that file."); setStep("pick"); return; }
+      prepared.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+      prepared.forEach((r, i) => { r.id = i; });
+      const failed = results.filter((r) => r.error).length;
+      if (prepared.length === 0) { setError(failed ? "Couldn't read those files. Try again, or try clearer copies." : "No business transactions were found in those files."); setStep("pick"); return; }
+      const notes = [];
+      if (tooBig.length) notes.push(`${tooBig.length} file${tooBig.length === 1 ? " was" : "s were"} over 4 MB and skipped`);
+      if (failed) notes.push(`${failed} couldn't be read`);
+      if (dupAcross) notes.push(`${dupAcross} repeated transaction${dupAcross === 1 ? "" : "s"} across files counted once`);
+      if (full.length) notes.push(`${full.join(", ")} may have more transactions than could be read. Try one month at a time to be sure`);
+      setNote(notes.join(". "));
       setRows(prepared);
       setStep("review");
     } catch (err) {
@@ -95,11 +130,11 @@ export default function StatementImportSheet({ open, onClose, existing = [], bus
             <button onClick={() => fileRef.current?.click()}
               className="w-full border border-dashed border-[#A7773F]/60 rounded-2xl py-9 flex flex-col items-center gap-2 text-[#A7773F] hover:bg-secondary/50 transition-colors">
               <Upload className="w-6 h-6" strokeWidth={1.5} />
-              <span className="text-sm font-medium">Choose a statement</span>
-              <span className="text-xs text-muted-foreground">PDF, screenshot or CSV · under 4 MB</span>
+              <span className="text-sm font-medium">Choose statements</span>
+              <span className="text-xs text-muted-foreground">Up to 10 files · PDF, screenshot or CSV · under 4 MB each</span>
             </button>
-            <input ref={fileRef} type="file" accept="application/pdf,image/*,.csv,.txt,.tsv" className="hidden"
-              onChange={(e) => { readFile(e.target.files?.[0]); e.target.value = ""; }} />
+            <input ref={fileRef} type="file" multiple accept="application/pdf,image/*,.csv,.txt,.tsv" className="hidden"
+              onChange={(e) => { const picked = Array.from(e.target.files || []); e.target.value = ""; readFiles(picked); }} />
             <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
               Guía reads it once, suggests what to log, and lets you check everything before it saves. The statement itself isn't stored, and account numbers are left out.
             </p>
@@ -117,6 +152,7 @@ export default function StatementImportSheet({ open, onClose, existing = [], bus
 
         {(step === "review" || step === "saving") && (
           <>
+            {note && <p className="text-[12.5px] text-[#8A5F27] bg-[#F3E8D6] rounded-lg px-3 py-2 mb-3">{note}.</p>}
             <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground mb-3">
               <span>{chosen.length} of {rows.length} selected</span>
               <span>Sales <b className="text-foreground font-medium">{money(income)}</b></span>
