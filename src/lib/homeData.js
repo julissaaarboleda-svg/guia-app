@@ -153,36 +153,68 @@ export function buildUpNext({ trips = [], projects = [], bizEntries = [] }) {
   return items.slice(0, 4);
 }
 
-export function buildProgress({ goals = [], businessGoals = [], trips = [], projects = [] }) {
+const money0 = (n) => `$${Math.round(n).toLocaleString()}`;
+
+// Four fixed high-level rings: Projects, Business, Trip planning, Finance.
+// An area with nothing set up yet still gets its ring (dim, "Set up") so the layout never shifts.
+export function buildProgress({ trips = [], projects = [], finItems = [], business = null }) {
   const now = new Date();
-  const circles = [];
-  const activeGoal = goals.find((g) => g.status === "in_progress") || goals[0];
-  if (activeGoal) {
-    const st = activeGoal.sub_tasks || [];
-    const pct = st.length ? Math.round((st.filter((t) => t.completed).length / st.length) * 100) : Math.round(activeGoal.progress || 0);
-    circles.push({ label: activeGoal.title, value: pct, display: `${pct}%`, sub: pct >= 100 ? "Completed" : st.length ? `${st.filter((t) => t.completed).length} of ${st.length} steps` : "Goal", path: "/goals" });
-  }
-  const bg = businessGoals.find((g) => (g.status || "active") === "active") || businessGoals[0];
-  if (bg) {
-    const pct = bg.target_value ? Math.min(100, Math.round(((bg.current_value || 0) / bg.target_value) * 100)) : 0;
-    circles.push({ label: bg.title, value: pct, display: `${pct}%`, sub: `${bg.current_value || 0} of ${bg.target_value || 0}`, path: "/business" });
-  }
+  const ring = (label, pct, sub, path) => ({ label, value: pct, display: `${pct}%`, sub, path });
+  const empty = (label, sub, path) => ({ label, value: 0, display: "–", sub, path, empty: true });
+
+  // Projects: tasks done across active and planning projects.
+  const activeProjects = projects.filter((p) => p.status === "active" || p.status === "planning");
+  let total = 0, done = 0;
+  activeProjects.forEach((p) => (p.tasks || []).forEach((t) => { total++; if (t.completed) done++; }));
+  const projectsRing = total
+    ? ring("Projects", Math.round((done / total) * 100), `${done} of ${total} tasks`, "/projects")
+    : empty("Projects", activeProjects.length ? "Add tasks" : "Set up", "/projects");
+
+  // Business: revenue toward the revenue goal.
+  const goal = Number(business?.revenueGoal) || 0;
+  const businessRing = goal > 0
+    ? ring("Business", Math.min(100, Math.round(((business.revenue || 0) / goal) * 100)), `${money0(business.revenue || 0)} of ${money0(goal)}`, "/business")
+    : empty("Business", "Set a revenue goal", "/business");
+
+  // Trip planning: how ready the next trip is, averaging packing and itinerary.
   const nextTrip = [...trips]
     .filter((t) => t.start_date && parseISO(t.start_date) >= now)
     .sort((a, b) => parseISO(a.start_date) - parseISO(b.start_date))[0];
-  if (nextTrip && nextTrip.budget_target) {
-    const spent = (nextTrip.expense_items || []).reduce((s, e) => s + (e.amount || 0), 0);
-    const pct = Math.min(100, Math.round((spent / nextTrip.budget_target) * 100));
-    circles.push({ label: nextTrip.title, value: pct, display: `${pct}%`, sub: "Trip budget", path: "/travel" });
+  let tripRing;
+  if (nextTrip) {
+    const pack = nextTrip.packing_items || [];
+    const days = nextTrip.itinerary || [];
+    const parts = [];
+    if (pack.length) parts.push(pack.filter((i) => i.packed).length / pack.length);
+    else parts.push(0);
+    if (days.length) parts.push(days.filter((d) => (d.activities || []).length > 0).length / days.length);
+    else parts.push(0);
+    const pct = Math.round((parts.reduce((a, b) => a + b, 0) / parts.length) * 100);
+    const away = differenceInCalendarDays(parseISO(nextTrip.start_date), now);
+    tripRing = ring(nextTrip.title || "Trip planning", pct, `${away === 0 ? "Today" : away === 1 ? "Tomorrow" : `${away} days away`}`, "/travel");
+  } else {
+    tripRing = empty("Trip planning", "Plan a trip", "/travel");
   }
-  const activeProjects = projects.filter((p) => p.status === "active" || p.status === "planning");
-  if (activeProjects.length) {
-    let total = 0, done = 0;
-    activeProjects.forEach((p) => (p.tasks || []).forEach((t) => { total++; if (t.completed) done++; }));
-    const pct = total ? Math.round((done / total) * 100) : 0;
-    circles.push({ label: "Projects", value: pct, display: `${pct}%`, sub: total ? `${done} of ${total} tasks done` : "No tasks yet", path: "/projects" });
+
+  // Finance: savings goals saved so far; falls back to loan pay-down.
+  const saves = finItems.filter((f) => f.type === "savings_goal" && Number(f.target_amount) > 0);
+  const targetSum = saves.reduce((t, f) => t + Number(f.target_amount), 0);
+  let financeRing;
+  if (targetSum > 0) {
+    const saved = saves.reduce((t, f) => t + Math.min(Number(f.current_amount) || 0, Number(f.target_amount)), 0);
+    financeRing = ring("Finance", Math.round((saved / targetSum) * 100), `${money0(saved)} of ${money0(targetSum)} saved`, "/finance");
+  } else {
+    const loans = finItems.filter((f) => f.type === "loan" && Number(f.total_amount) > 0);
+    const totalLoan = loans.reduce((t, l) => t + Number(l.total_amount), 0);
+    if (totalLoan > 0) {
+      const owed = loans.reduce((t, l) => t + (l.payoff_amount != null ? Number(l.payoff_amount) : Number(l.total_amount) - (Number(l.amount_paid) || 0)), 0);
+      const pct = Math.max(0, Math.min(100, Math.round(((totalLoan - owed) / totalLoan) * 100)));
+      financeRing = ring("Finance", pct, "Loans paid down", "/finance");
+    } else {
+      financeRing = empty("Finance", "Add a savings goal", "/finance");
+    }
   }
-  return circles.slice(0, 4);
+  return [projectsRing, businessRing, tripRing, financeRing];
 }
 
 const ACT_LABEL = { notes: "Note", finance: "Finance", goals: "Goal", travel: "Trip", business: "Business", projects: "Project", career: "Career" };

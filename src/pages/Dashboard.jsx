@@ -44,6 +44,8 @@ export default function Dashboard() {
   const [projects, setProjects] = useState([]);
   const [businessGoals, setBusinessGoals] = useState([]);
   const [careerEntries, setCareerEntries] = useState([]);
+  const [allFin, setAllFin] = useState([]);
+  const [bizProgress, setBizProgress] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
 
@@ -80,6 +82,18 @@ export default function Dashboard() {
         if (p[0].hero_positions && typeof p[0].hero_positions === "object") setHeroPositions(p[0].hero_positions);
         if (Array.isArray(p[0].hero_images) && p[0].hero_images.length > 0) setUserHeroImages(p[0].hero_images);
       }
+      const [bizAll, bizList, finAll] = await Promise.all([
+        ent.BusinessEntry.list("-date"),
+        ent.Business.list(),
+        ent.FinanceItem.list("-created_date", 300),
+      ]);
+      const defBiz = bizList.find((b) => b.is_default) || bizList[0];
+      const defId = defBiz?.id;
+      setAllFin(finAll);
+      setBizProgress({
+        revenueGoal: defBiz?.revenue_goal || 0,
+        revenue: bizAll.filter((e) => !defId || (e.business_id || defId) === defId).reduce((t, e) => t + (e.revenue || 0), 0),
+      });
       const [g, tr, biz, fin, tsk, proj, bg, career] = await Promise.all([
         ent.Goal.list("-created_date", 20),
         ent.Trip.list("-start_date", 8),
@@ -103,7 +117,7 @@ export default function Dashboard() {
     [tasks, goals, projects, finItems, trips, businessGoals, careerEntries]
   );
   const upNext = useMemo(() => buildUpNext({ trips, projects, bizEntries }), [trips, projects, bizEntries]);
-  const progress = useMemo(() => buildProgress({ goals, businessGoals, trips, projects }), [goals, businessGoals, trips, projects]);
+  const progress = useMemo(() => buildProgress({ trips, projects, finItems: allFin, business: bizProgress }), [trips, projects, allFin, bizProgress]);
 
   const dailyStatus = useMemo(() => buildDailyStatus({ tasks, trips, finItems, goals }), [tasks, trips, finItems, goals]);
 

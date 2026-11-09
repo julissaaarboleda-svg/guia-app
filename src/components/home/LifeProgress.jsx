@@ -17,7 +17,7 @@ export default function LifeProgress({ circles }) {
             <button
               key={i}
               onClick={() => navigate(c.path)}
-              className="flex items-center gap-3 p-3 rounded-2xl border border-border/60 bg-card text-left hover:border-[#A7773F]/50 transition-colors min-w-0"
+              className={`flex items-center gap-3 p-3 rounded-2xl border border-border/60 bg-card text-left hover:border-[#A7773F]/50 transition-colors min-w-0 ${c.empty ? "opacity-60" : ""}`}
             >
               <div className="relative w-[48px] h-[48px] flex-shrink-0">
                 <svg width="48" height="48" className="-rotate-90">
