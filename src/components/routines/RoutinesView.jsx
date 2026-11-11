@@ -311,16 +311,26 @@ export default function RoutinesView({ addSignal = 0 }) {
                   const c = colorOf(r); const s = streaks(r); const sched = isScheduled(r);
                   const n = (r.steps || []).length; const d = doneOn(r, today);
                   return (
-                    <button key={r.id} onClick={() => setOpenId(r.id)}
-                      className="w-full text-left bg-card border border-border rounded-2xl px-4 py-3 mb-2 hover:border-[#A7773F]/40 transition-colors"
+                    <div key={r.id} className="flex items-stretch bg-card border border-border rounded-2xl mb-2 hover:border-[#A7773F]/40 transition-colors overflow-hidden"
                       style={{ borderLeft: `4px solid ${c}` }}>
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="font-heading text-[17px] text-foreground truncate">{r.name}</span>
-                        {s.current > 0 && <span className="text-[11.5px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap inline-flex items-center gap-1" style={{ color: c, background: `${c}1F` }}><Flame className="w-3 h-3" strokeWidth={2} />{s.current}</span>}
-                      </div>
-                      <p className="text-[11.5px] text-muted-foreground mt-0.5">{scheduleLabel(r)} · {sched ? (d >= n && n ? "done today" : `${d} of ${n} steps today`) : "rest day"}</p>
-                      <div className="h-[5px] rounded-full bg-[#EFE8DC] mt-2 overflow-hidden"><div className="h-full rounded-full" style={{ width: sched && n ? `${Math.round((d / n) * 100)}%` : 0, background: c }} /></div>
-                    </button>
+                      <button onClick={() => setOpenId(r.id)} className="flex-1 min-w-0 text-left pl-4 pr-2 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className="font-heading text-[17px] text-foreground truncate">{r.name}</span>
+                          {s.current > 0 && <span className="text-[11.5px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap inline-flex items-center gap-1" style={{ color: c, background: `${c}1F` }}><Flame className="w-3 h-3" strokeWidth={2} />{s.current}</span>}
+                        </div>
+                        <p className="text-[11.5px] text-muted-foreground mt-0.5">{scheduleLabel(r)} · {sched ? (d >= n && n ? "done today" : `${d} of ${n} steps today`) : "rest day"}</p>
+                        <div className="h-[5px] rounded-full bg-[#EFE8DC] mt-2 overflow-hidden"><div className="h-full rounded-full" style={{ width: sched && n ? `${Math.round((d / n) * 100)}%` : 0, background: c }} /></div>
+                      </button>
+                      {n > 0 && (
+                        <button onClick={() => setAll(r, !(d >= n))} aria-label={d >= n ? `Undo ${r.name}` : `Complete ${r.name}`} title={d >= n ? "Undo" : "Complete all steps"}
+                          className="px-4 flex items-center justify-center">
+                          <span className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
+                            style={d >= n ? { background: c } : { border: `1.5px solid ${c}` }}>
+                            <Check className="w-[18px] h-[18px]" strokeWidth={2.2} style={{ color: d >= n ? "#fff" : c }} />
+                          </span>
+                        </button>
+                      )}
+                    </div>
                   );
                 })}
               </div>
