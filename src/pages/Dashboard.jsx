@@ -71,8 +71,9 @@ export default function Dashboard() {
   const dailyImage = userHeroImages[0] || HERO_IMAGES[dayOfYear % HERO_IMAGES.length];
 
   useEffect(() => {
-    const checkWelcome = async () => {
+    const load = async () => {
       const u = await base44.auth.me();
+      setUser(u);
       // Everything loads at once: preferences, the main cards and the progress rings.
       const extras = Promise.all([
         ent.Business.list().catch(() => []),
@@ -91,6 +92,10 @@ export default function Dashboard() {
         ent.BusinessGoal.list("-created_date", 10),
         ent.CareerEntry.list("-updated_date", 10),
       ]);
+      if (p.length > 0 && !p[0].welcome_shown) {
+        setShowWelcome(true);
+        ent.UserPreferences.update(p[0].id, { welcome_shown: true }).catch(() => {});
+      }
       if (p.length > 0) {
         setPrefs(p[0]);
         if (p[0].hero_mode2) setHeroMode(p[0].hero_mode2);
@@ -117,7 +122,7 @@ export default function Dashboard() {
         revenue: bizAll.filter((e) => !defId || (e.business_id || defId) === defId).reduce((t, e) => t + (e.revenue || 0), 0),
       });
     };
-    load();
+    load().catch((e) => { console.error("Home failed to load:", e); setLoaded(true); });
   }, []);
 
   const focus = useMemo(
