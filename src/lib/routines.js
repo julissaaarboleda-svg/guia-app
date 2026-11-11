@@ -17,11 +17,16 @@ export const dayKey = (d = new Date()) =>
 const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
 
 export const isScheduled = (r, d = new Date()) => !r.days || r.days.length === 0 || r.days.includes(d.getDay());
+const dateOfKey = (key) => new Date(`${key}T12:00:00`);
+// A step can be limited to certain weekdays (e.g. exfoliate Tue · Fri). These are the steps for one day.
+export const stepOn = (st, d) => !st.days || st.days.length === 0 || st.days.includes(d.getDay());
+export const stepsFor = (r, d = new Date()) => (r.steps || []).filter((st) => stepOn(st, d));
 export const doneOn = (r, key) => {
   const ids = new Set(r.log?.[key] || []);
-  return (r.steps || []).filter((s) => ids.has(s.id)).length;
+  return stepsFor(r, dateOfKey(key)).filter((s) => ids.has(s.id)).length;
 };
-export const completeOn = (r, key) => (r.steps || []).length > 0 && doneOn(r, key) >= r.steps.length;
+export const completeOn = (r, key) => { const n = stepsFor(r, dateOfKey(key)).length; return n > 0 && doneOn(r, key) >= n; };
+export const daysLabel = (days) => [...days].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((d) => DAY_SHORT[d]).join(" · ");
 
 export const scheduleLabel = (r) => {
   if (!r.days || r.days.length === 0 || r.days.length === 7) return "Every day";
@@ -94,6 +99,25 @@ export function weekSummary(routines, today = new Date()) {
 // Mark every step done for today, or clear today if done is false.
 export function setAllToday(r, done, key = dayKey()) {
   const log = { ...(r.log || {}) };
-  if (done) log[key] = (r.steps || []).map((st) => st.id); else delete log[key];
+  if (done) log[key] = stepsFor(r, dateOfKey(key)).map((st) => st.id); else delete log[key];
   return log;
+}
+
+// Fold routine `other` into `base`: steps both share appear once; steps only in `other`
+// are limited to `days`. Steps only in `base` that `other` lacks are limited to the remaining days.
+export function combineRoutines(base, other, days) {
+  const norm = (t) => String(t || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const otherKeys = new Set((other.steps || []).map((s) => norm(s.text)));
+  const baseKeys = new Set((base.steps || []).map((s) => norm(s.text)));
+  const rest = [0, 1, 2, 3, 4, 5, 6].filter((d) => !days.includes(d));
+  const out = (base.steps || []).map((s) => (otherKeys.has(norm(s.text)) ? s : { ...s, days: s.days && s.days.length ? s.days : rest }));
+  // Keep the other routine's order: insert its extra steps after the step that precedes them there.
+  (other.steps || []).forEach((s, i) => {
+    if (baseKeys.has(norm(s.text))) return;
+    const prev = (other.steps || []).slice(0, i).reverse().find((p) => baseKeys.has(norm(p.text)));
+    const at = prev ? out.findIndex((x) => norm(x.text) === norm(prev.text)) + 1 : 0;
+    out.splice(at, 0, { id: Math.random().toString(36).slice(2, 10), text: s.text, note: s.note || "", days });
+    baseKeys.add(norm(s.text));
+  });
+  return out;
 }

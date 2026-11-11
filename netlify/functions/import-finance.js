@@ -135,10 +135,11 @@ Rules:
 const ROUTINE_PROMPT = `You are helping someone set up routines in a personal app. Read the attached document (a workout plan, a skincare routine from a dermatologist or esthetician, a physical therapy sheet, a meal or wellness plan, or similar) and turn it into routines with ordered steps.
 
 Return ONLY JSON in this shape, nothing else:
-{"routines":[{"name":"","slot":"morning|evening|anytime","days":[1,3,5],"steps":[{"text":"","note":""}]}]}
+{"routines":[{"name":"","slot":"morning|evening|anytime","days":[1,3,5],"steps":[{"text":"","note":"","days":[]}]}]}
 
 Rules:
 - One routine per distinct session in the document: separate AM and PM skincare, separate workout days (for example "Day A · Upper body" and "Day B · Lower body") as separate routines.
+- Do NOT split a routine just because some steps happen only on some days (for example exfoliating or a retinol "2-3 nights a week"). Keep one routine and give those steps a "days" list. If the document doesn't name the days, choose sensible ones (twice a week -> [2,5]; three times -> [1,3,5]) and say "suggested days" in that step's note. Steps done every time get "days": [].
 - name: short and clear, under 40 characters.
 - slot: "morning" for AM/morning, "evening" for PM/night/bedtime, otherwise "anytime".
 - days: weekday numbers with Sunday=0 ... Saturday=6, only if the document says which days (e.g. "Mon/Wed/Fri" -> [1,3,5]; "twice a week" with no days -> []). Use [] for every day or unknown.
@@ -266,7 +267,10 @@ exports.handler = async (event, context) => {
         slot: ["morning", "evening", "anytime"].includes(r.slot) ? r.slot : "anytime",
         days: (Array.isArray(r.days) ? r.days : []).map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6).filter((d, i, a) => a.indexOf(d) === i),
         steps: (Array.isArray(r.steps) ? r.steps : []).slice(0, 25)
-          .map((st) => ({ text: String(st?.text || "").trim().slice(0, 80), note: String(st?.note || "").trim().slice(0, 120) }))
+          .map((st) => {
+            const sd = (Array.isArray(st?.days) ? st.days : []).map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6).filter((d, i, a) => a.indexOf(d) === i);
+            return { text: String(st?.text || "").trim().slice(0, 80), note: String(st?.note || "").trim().slice(0, 120), days: sd.length && sd.length < 7 ? sd : null };
+          })
           .filter((st) => st.text),
       })).filter((r) => r.name && r.steps.length);
       return reply(200, { routines });

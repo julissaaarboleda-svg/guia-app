@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Check } from "lucide-react";
 import { getModule } from "@/lib/homeModules";
-import { colorOf, dayKey, isScheduled, doneOn, completeOn } from "@/lib/routines";
+import { colorOf, dayKey, isScheduled, doneOn, completeOn, stepsFor } from "@/lib/routines";
 const PRIORITY_CHIP = {
   high: "bg-[#F3E8D6] text-[#8A5F27]",
   urgent: "bg-[#F4E6E7] text-[#8F5F65]",
@@ -49,7 +49,7 @@ export default function TodaysFocus({ items, total = 0, onComplete, routines = [
       </div>
       {(() => {
         const today = dayKey();
-        const due = routines.filter((r) => isScheduled(r) && (r.steps || []).length);
+        const due = routines.filter((r) => isScheduled(r) && stepsFor(r).length);
         const doneCount = due.filter((r) => completeOn(r, today)).length;
         const head = "flex items-center justify-between px-3.5 pt-2.5 pb-1 text-[10px] tracking-[0.14em] uppercase text-muted-foreground";
         return (
@@ -111,7 +111,7 @@ export default function TodaysFocus({ items, total = 0, onComplete, routines = [
                 </div>
                 <div className="grid grid-cols-2 gap-2 px-3 pt-1 pb-3">
                   {due.map((r) => {
-                    const c = colorOf(r); const n = r.steps.length; const d = doneOn(r, today); const fin = d >= n;
+                    const c = colorOf(r); const n = stepsFor(r).length; const d = doneOn(r, today); const fin = d >= n;
                     const slot = { morning: "Morning", evening: "Evening" }[r.slot] || "Anytime";
                     return (
                       <div key={r.id} className="rounded-xl border border-border/60 bg-background/40 p-2.5 flex flex-col">

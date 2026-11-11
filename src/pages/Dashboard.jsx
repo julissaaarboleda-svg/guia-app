@@ -9,7 +9,7 @@ import UpNext from "@/components/home/UpNext";
 import LifeProgress from "@/components/home/LifeProgress";
 import Reveal from "@/components/home/Reveal";
 import RingsCustomizer from "@/components/home/RingsCustomizer";
-import { isScheduled, completeOn, dayKey, setAllToday } from "@/lib/routines";
+import { isScheduled, completeOn, dayKey, setAllToday, stepsFor } from "@/lib/routines";
 import { monthView } from "@/lib/spending";
 import { monthKeyOf } from "@/lib/financeHelpers";
 import { buildFocusItems, buildUpNext, buildProgress, buildDailyStatus } from "@/lib/homeData";
@@ -134,7 +134,7 @@ export default function Dashboard() {
   const upNext = useMemo(() => buildUpNext({ trips, projects, bizEntries }), [trips, projects, bizEntries]);
   const progress = useMemo(() => buildProgress({ routines, selection: prefs?.life_rings, trips, projects, goals, finItems: allFin, business: bizProgress, spending: spendingProgress }), [routines, prefs, trips, projects, goals, allFin, bizProgress, spendingProgress]);
 
-  const routinesLeft = useMemo(() => routines.filter((r) => isScheduled(r) && (r.steps || []).length && !completeOn(r, dayKey())).length, [routines]);
+  const routinesLeft = useMemo(() => routines.filter((r) => isScheduled(r) && stepsFor(r).length && !completeOn(r, dayKey())).length, [routines]);
   const dailyStatus = useMemo(() => {
     const base = buildDailyStatus({ tasks, trips, finItems, goals });
     return routinesLeft ? `${base} · ${routinesLeft} routine${routinesLeft === 1 ? "" : "s"} left` : base;

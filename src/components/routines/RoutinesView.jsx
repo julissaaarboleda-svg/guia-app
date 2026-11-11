@@ -4,7 +4,7 @@ import { ent } from "@/lib/freshEntities";
 import { Plus, Check, ArrowLeft, X, Trash2, Flame, Upload, Loader2 } from "lucide-react";
 import {
   ROUTINE_COLORS, SLOTS, DAY_LETTERS, colorOf, dayKey, isScheduled, doneOn, completeOn,
-  scheduleLabel, streaks, completionRate, weekDays, toggleStep,
+  scheduleLabel, streaks, completionRate, weekDays, toggleStep, stepsFor, stepOn, daysLabel, setAllToday, combineRoutines,
 } from "@/lib/routines";
 
 const newId = () => Math.random().toString(36).slice(2, 10);
@@ -42,7 +42,7 @@ export default function RoutinesView({ addSignal = 0 }) {
         ...r, include: true,
         color: ROUTINE_COLORS[i % ROUTINE_COLORS.length].key,
         days: r.days && r.days.length && r.days.length < 7 ? r.days : null,
-        steps: r.steps.map((st) => ({ id: newId(), text: st.text, note: st.note || "" })),
+        steps: r.steps.map((st) => ({ id: newId(), text: st.text, note: st.note || "", days: st.days || null })),
       }));
       if (!list.length) setImportErr("No routine steps were found in that file.");
       else if (list.length === 1) setForm(list[0]);
@@ -89,17 +89,19 @@ export default function RoutinesView({ addSignal = 0 }) {
 
   // Tick every step at once (or clear them all if the routine is already done today).
   const setAll = (r, done) => {
-    const log = { ...(r.log || {}) };
-    if (done) log[today] = (r.steps || []).map((st) => st.id); else delete log[today];
+    const log = setAllToday(r, done, today);
     const s = streaks({ ...r, log });
     save(r, { log, best_streak: Math.max(Number(r.best_streak) || 0, s.longest) });
   };
 
   const submit = async () => {
-    const steps = (form.steps || []).filter((s) => s.text.trim()).map((s) => ({ ...s, text: s.text.trim(), note: (s.note || "").trim() }));
+    const steps = (form.steps || []).filter((s) => s.text.trim()).map((s) => ({ id: s.id, text: s.text.trim(), note: (s.note || "").trim(), days: s.days && s.days.length && s.days.length < 7 ? s.days : null }));
     if (!form.name.trim() || !steps.length) return;
     const data = { name: form.name.trim(), color: form.color, slot: form.slot, days: form.days && form.days.length && form.days.length < 7 ? form.days : null, steps };
-    if (form.id) await ent.Routine.update(form.id, data);
+    if (form.id) {
+      await ent.Routine.update(form.id, data);
+      if (form._mergeFrom) { try { await ent.Routine.delete(form._mergeFrom); } catch { /* still saved */ } }
+    }
     else { const c = await ent.Routine.create({ ...data, log: {}, best_streak: 0 }); setOpenId(c.id); }
     setForm(null); load();
   };
@@ -164,6 +166,16 @@ export default function RoutinesView({ addSignal = 0 }) {
               <div className="flex-1 space-y-1.5">
                 <input value={s.text} onChange={(e) => setStep(i, { text: e.target.value })} placeholder="Step, e.g. Cleanser or Shoulder press" className={FIELD} />
                 <input value={s.note || ""} onChange={(e) => setStep(i, { note: e.target.value })} placeholder="Note (optional), e.g. 3 × 10 · 15 lb" className={`${FIELD} text-[13px] py-2`} />
+                <div className="flex items-center gap-1 flex-wrap">
+                  <span className="text-[11px] text-muted-foreground mr-1">{s.days && s.days.length ? "Only on" : "Every time · or only on"}</span>
+                  {[1, 2, 3, 4, 5, 6, 0].map((d) => {
+                    const on = (s.days || []).includes(d);
+                    return (
+                      <button key={d} type="button" onClick={() => setStep(i, { days: on ? (s.days || []).filter((x) => x !== d) : [...(s.days || []), d] })}
+                        className={`w-6 h-6 rounded-full text-[10.5px] border ${on ? "bg-[#2E2A27] border-[#2E2A27] text-[#F7F3EC]" : "border-border text-muted-foreground"}`}>{DAY_LETTERS[d]}</button>
+                    );
+                  })}
+                </div>
               </div>
               <button type="button" onClick={() => set({ steps: form.steps.filter((_, j) => j !== i) })} aria-label="Remove step" className="p-2 mt-1 text-muted-foreground"><X className="w-4 h-4" strokeWidth={1.5} /></button>
             </div>
@@ -171,6 +183,38 @@ export default function RoutinesView({ addSignal = 0 }) {
         </div>
         <button type="button" onClick={() => set({ steps: [...form.steps, { id: newId(), text: "", note: "" }] })}
           className="mt-2 inline-flex items-center gap-1 text-[13px] font-medium text-[#A7773F]"><Plus className="w-4 h-4" strokeWidth={1.5} /> Add step</button>
+
+        {form.id && routines.some((r) => r.id !== form.id) && !form._mergeFrom && (
+          <div className="mt-5 bg-card border border-border rounded-2xl p-3.5">
+            {!form._combining ? (
+              <button type="button" onClick={() => set({ _combining: { otherId: "", days: [] } })} className="text-[13px] font-medium text-[#A7773F]">Combine with another routine</button>
+            ) : (
+              <>
+                <p className="text-[13px] text-foreground mb-2">Fold another routine into this one. Shared steps appear once; its extra steps only show on the days you pick.</p>
+                <select value={form._combining.otherId} onChange={(e) => set({ _combining: { ...form._combining, otherId: e.target.value } })}
+                  className="w-full bg-background border border-border rounded-lg px-2 py-2 text-[13px] mb-2">
+                  <option value="">Choose a routine</option>
+                  {routines.filter((r) => r.id !== form.id).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+                <p className="text-[11.5px] text-muted-foreground mb-1.5">Its extra steps happen on</p>
+                <div className="flex gap-1.5 mb-3">
+                  {[1, 2, 3, 4, 5, 6, 0].map((d) => {
+                    const on = form._combining.days.includes(d);
+                    return <button key={d} type="button" onClick={() => set({ _combining: { ...form._combining, days: on ? form._combining.days.filter((x) => x !== d) : [...form._combining.days, d] } })}
+                      className={`w-8 h-8 rounded-full text-[12px] border ${on ? "bg-[#2E2A27] border-[#2E2A27] text-[#F7F3EC]" : "border-border text-muted-foreground"}`}>{DAY_LETTERS[d]}</button>;
+                  })}
+                </div>
+                <div className="flex gap-4">
+                  <button type="button" disabled={!form._combining.otherId || !form._combining.days.length}
+                    onClick={() => { const other = routines.find((r) => r.id === form._combining.otherId); set({ steps: combineRoutines(form, other, form._combining.days), _mergeFrom: other.id, _combining: null }); }}
+                    className="text-[13px] font-medium text-[#F7F3EC] bg-[#2E2A27] px-4 py-1.5 rounded-full disabled:opacity-40">Combine</button>
+                  <button type="button" onClick={() => set({ _combining: null })} className="text-[13px] text-muted-foreground">Cancel</button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+        {form._mergeFrom && <p className="mt-4 text-[12.5px] text-[#8A5F27] bg-[#F3E8D6] rounded-lg px-3 py-2">Combined. Check the steps above, then Save. "{routines.find((r) => r.id === form._mergeFrom)?.name}" will be removed when you save.</p>}
 
         <div className="flex items-center gap-4 mt-6">
           <button onClick={submit} disabled={!form.name.trim() || !form.steps.some((s) => s.text.trim())}
@@ -249,24 +293,32 @@ export default function RoutinesView({ addSignal = 0 }) {
 
         <div className="flex items-center justify-between mb-1.5">
           <p className={label}>{todayOn ? "Today's steps" : "Steps · not scheduled today"}</p>
-          {(open.steps || []).length > 1 && (completeOn(open, today)
+          {stepsFor(open).length > 1 && (completeOn(open, today)
             ? <button onClick={() => setAll(open, false)} className="text-[12.5px] text-muted-foreground">Clear all</button>
             : <button onClick={() => setAll(open, true)} className="inline-flex items-center gap-1 text-[12.5px] font-medium px-3 py-1 rounded-full text-white" style={{ background: c }}><Check className="w-3.5 h-3.5" strokeWidth={2.4} /> Complete all</button>)}
         </div>
         <div className="bg-card border border-border rounded-2xl px-4">
-          {(open.steps || []).map((st) => {
+          {stepsFor(open).map((st) => {
             const on = ids.has(st.id);
             return (
               <button key={st.id} onClick={() => tick(open, st.id)} className="w-full flex items-center gap-3 py-3 border-b border-border/60 last:border-0 text-left">
                 <Tick on={on} color={c} />
                 <span className="min-w-0">
                   <span className={`block text-[14.5px] ${on ? "line-through text-muted-foreground" : "text-foreground"}`}>{st.text}</span>
-                  {st.note && <span className="block text-[11.5px] text-muted-foreground">{st.note}</span>}
+                  {(st.note || st.days) && <span className="block text-[11.5px] text-muted-foreground">{[st.days && st.days.length ? daysLabel(st.days) : "", st.note].filter(Boolean).join(" · ")}</span>}
                 </span>
               </button>
             );
           })}
         </div>
+        {(open.steps || []).some((st) => !stepOn(st, new Date())) && (
+          <div className="mt-3">
+            <p className={`${label} mb-1`}>Not today</p>
+            {(open.steps || []).filter((st) => !stepOn(st, new Date())).map((st) => (
+              <p key={st.id} className="text-[13px] text-muted-foreground py-1">{st.text} <span className="text-[11px]">· {daysLabel(st.days)}</span></p>
+            ))}
+          </div>
+        )}
         {completeOn(open, today) && <p className="text-[13px] text-[#566033] mt-3">All done for today.</p>}
       </div>
     );
@@ -274,7 +326,7 @@ export default function RoutinesView({ addSignal = 0 }) {
 
   // ---------- list ----------
   const dueToday = routines.filter((r) => isScheduled(r));
-  const totalSteps = dueToday.reduce((t, r) => t + (r.steps || []).length, 0);
+  const totalSteps = dueToday.reduce((t, r) => t + stepsFor(r).length, 0);
   const doneSteps = dueToday.reduce((t, r) => t + doneOn(r, today), 0);
   const left = dueToday.filter((r) => !completeOn(r, today)).length;
 
@@ -309,7 +361,7 @@ export default function RoutinesView({ addSignal = 0 }) {
                 <p className={`${label} mb-2`}>{slotLabel}</p>
                 {list.map((r) => {
                   const c = colorOf(r); const s = streaks(r); const sched = isScheduled(r);
-                  const n = (r.steps || []).length; const d = doneOn(r, today);
+                  const n = stepsFor(r).length; const d = doneOn(r, today);
                   return (
                     <div key={r.id} className="flex items-stretch bg-card border border-border rounded-2xl mb-2 hover:border-[#A7773F]/40 transition-colors overflow-hidden"
                       style={{ borderLeft: `4px solid ${c}` }}>
