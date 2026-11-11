@@ -90,7 +90,7 @@ function LetterSheet({ letter, onClose, onSent }) {
   const mail = `mailto:?subject=${encodeURIComponent(letter.title)}&body=${encodeURIComponent(text)}`;
   return createPortal(
     <div className="fixed inset-0 z-[80] bg-black/40 flex items-end sm:items-center justify-center" onClick={onClose}>
-      <div className="bg-background w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[92vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-background w-full sm:max-w-2xl rounded-t-3xl sm:rounded-3xl max-h-[92vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 pt-4 pb-2">
           <h3 className="font-heading text-lg text-foreground">{letter.title}</h3>
           <button onClick={onClose} aria-label="Close" className="p-1 text-muted-foreground"><X className="w-5 h-5" /></button>
@@ -98,7 +98,7 @@ function LetterSheet({ letter, onClose, onSent }) {
         <div className="px-5 overflow-y-auto flex-1 space-y-3 pb-3">
           <p className="text-xs text-muted-foreground">Fill in anything in [brackets], read it over, then send it yourself. Certified mail with return receipt gives you proof it arrived.</p>
           <textarea value={text} onChange={(e) => setText(e.target.value)} rows={16}
-            className="w-full bg-card border border-input rounded-xl p-3 text-[13px] leading-relaxed font-body text-foreground outline-none focus:border-ring" />
+            className="w-full sm:min-h-[460px] bg-card border border-input rounded-xl p-3 text-[13px] leading-relaxed font-body text-foreground outline-none focus:border-ring" />
           <div className="flex gap-2">
             <button onClick={copy} className="flex-1 flex items-center justify-center gap-1.5 border border-border rounded-xl py-2.5 text-sm text-foreground">{copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}{copied ? "Copied" : "Copy"}</button>
             <a href={mail} className="flex-1 flex items-center justify-center gap-1.5 border border-border rounded-xl py-2.5 text-sm text-foreground"><Mail className="w-4 h-4" />Email to myself</a>
@@ -248,7 +248,8 @@ export default function CreditAssistant({ scoreItems = [] }) {
   if (!loaded) return null;
 
   return (
-    <div className="space-y-3 mb-4">
+    <div className="mb-4 grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
+      <div className="lg:col-span-7 space-y-3 min-w-0">
       {/* Intro + upload */}
       <div className="bg-card border border-border rounded-2xl p-4">
         <div className="flex items-start gap-3">
@@ -276,21 +277,6 @@ export default function CreditAssistant({ scoreItems = [] }) {
         )}
         <p className="text-[11px] text-muted-foreground mt-2">Files aren't kept. Guía saves only what it reads (names, dates, balances, last 4 digits), never your SSN or full account numbers.</p>
       </div>
-
-      {docs.length > 0 && (
-        <Section id="files" title="Your credit file" count={docs.length} defaultOpen={false}>
-          <div className="space-y-1.5">
-            {docs.map((d) => (
-              <div key={d.id} className="flex items-center gap-2 text-sm">
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground shrink-0">{DOC_LABEL[d.doc_type] || "Doc"}</span>
-                <span className="truncate text-foreground">{d.from || d.bureau || d.filename}</span>
-                <span className="text-xs text-muted-foreground shrink-0">{niceDate(d.doc_date)}</span>
-                <button onClick={() => removeDoc(d)} aria-label="Remove" className="ml-auto p-1 text-muted-foreground/70"><Trash2 className="w-3.5 h-3.5" /></button>
-              </div>
-            ))}
-          </div>
-        </Section>
-      )}
 
       {docs.length > 0 && (
         <Section id="items" title="What's affecting your credit" count={items.length}>
@@ -395,6 +381,24 @@ export default function CreditAssistant({ scoreItems = [] }) {
         </Section>
       )}
 
+      </div>
+
+      <div className="lg:col-span-5 space-y-3 min-w-0">
+      {docs.length > 0 && (
+        <Section id="files" title="Your credit file" count={docs.length} defaultOpen={false}>
+          <div className="space-y-1.5">
+            {docs.map((d) => (
+              <div key={d.id} className="flex items-center gap-2 text-sm">
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground shrink-0">{DOC_LABEL[d.doc_type] || "Doc"}</span>
+                <span className="truncate text-foreground">{d.from || d.bureau || d.filename}</span>
+                <span className="text-xs text-muted-foreground shrink-0">{niceDate(d.doc_date)}</span>
+                <button onClick={() => removeDoc(d)} aria-label="Remove" className="ml-auto p-1 text-muted-foreground/70"><Trash2 className="w-3.5 h-3.5" /></button>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
+
       {docs.length > 0 && (
         <Section id="progress" title="Progress">
           <ScoreChart scores={prog.scores} />
@@ -434,6 +438,8 @@ export default function CreditAssistant({ scoreItems = [] }) {
           </div>
         </Section>
       )}
+
+      </div>
 
       {letter && <LetterSheet letter={letter} onClose={() => setLetter(null)} onSent={markSent} />}
       {toast && createPortal(<div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[85] bg-foreground text-background text-sm px-4 py-2 rounded-full shadow">{toast}</div>, document.body)}
