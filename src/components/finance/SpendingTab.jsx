@@ -73,9 +73,17 @@ Return JSON: {"review": "..."}`,
     setReviewBusy(false);
   };
 
+  const [viewer, setViewer] = useState(null); // { url, type, label }
+  const openFile = async (s) => {
+    try { setViewer({ url: await base44.integrations.Core.GetPrivateFile({ file_url: s.file_url }), type: s.file_type || "", label: s.label }); }
+    catch { alert("Couldn't open that file."); }
+  };
+  const closeViewer = () => { if (viewer?.url) URL.revokeObjectURL(viewer.url); setViewer(null); };
+
   const removeStatement = async (s) => {
     if (!confirm(`Remove ${s.label}? Its totals will be deleted.`)) return;
     try { await ent.SpendingStatement.delete(s.id); } catch { /* ignore */ }
+    if (s.file_url) { try { await base44.integrations.Core.DeletePrivateFile({ file_url: s.file_url }); } catch { /* ignore */ } }
     load();
   };
 
@@ -216,11 +224,28 @@ Return JSON: {"review": "..."}`,
           )}
           {showStatements && statements.map((s) => (
             <div key={s.id} className="flex items-center justify-between py-2 border-b border-border last:border-0 mt-1">
-              <div className="min-w-0"><p className="text-[13.5px] text-foreground truncate">{s.label}</p>
-                <p className="text-[11.5px] text-muted-foreground">{statementRange(s) || Object.keys(s.months || {}).sort().map((k) => monthLabel(k).split(" ")[0].slice(0, 3)).join(", ")} · {s.count} purchases</p></div>
+              <div className="min-w-0">{s.file_url
+                ? <button onClick={() => openFile(s)} className="text-[13.5px] text-foreground truncate block max-w-full text-left underline decoration-[#A7773F]/50 underline-offset-2">{s.label}</button>
+                : <p className="text-[13.5px] text-foreground truncate">{s.label}</p>}
+                <p className="text-[11.5px] text-muted-foreground">{statementRange(s) || Object.keys(s.months || {}).sort().map((k) => monthLabel(k).split(" ")[0].slice(0, 3)).join(", ")} · {s.count} purchases{s.file_url ? "" : " · file not kept"}</p></div>
               <button onClick={() => removeStatement(s)} className="text-[12px] text-[#8F5F65] flex-shrink-0 ml-3">Remove</button>
             </div>
           ))}
+        </div>
+      )}
+      {viewer && (
+        <div className="fixed inset-0 z-[80] bg-black/80 flex flex-col" onClick={closeViewer}>
+          <div className="flex items-center justify-between px-4 py-3 text-white" onClick={(e) => e.stopPropagation()}>
+            <span className="text-sm truncate pr-3">{viewer.label}</span>
+            <button onClick={closeViewer} className="text-sm">Close</button>
+          </div>
+          <div className="flex-1 overflow-auto flex items-start justify-center p-3" onClick={(e) => e.stopPropagation()}>
+            {viewer.type === "application/pdf"
+              ? <iframe title={viewer.label} src={viewer.url} className="w-full h-full bg-white rounded-lg" />
+              : viewer.type.startsWith("image/") || !viewer.type
+                ? <img src={viewer.url} alt={viewer.label} className="max-w-full h-auto rounded-lg" />
+                : <a href={viewer.url} download className="text-white underline mt-10">Download file</a>}
+          </div>
         </div>
       )}
     </div>

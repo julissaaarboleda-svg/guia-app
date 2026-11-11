@@ -229,7 +229,11 @@ export default function ImportSheet({ open, onClose, existing = [], statements =
         for (let i = 0; i < fileObjs.length; i++) {
           const mine = fixedSpend.filter((r) => r.f === i);
           if (!mine.some((r) => r.t === "purchase") || fileSkipped(i)) continue;
+          // Keep a private copy of the file so it can be opened later from Statements added.
+          let fileUrl = null;
+          try { fileUrl = (await base44.integrations.Core.UploadFile({ file: fileObjs[i], private: true })).file_url; } catch { /* totals still save */ }
           await ent.SpendingStatement.create({
+            file_url: fileUrl, file_type: fileObjs[i].type || "",
             label: fileObjs[i].name.replace(/\.[^.]+$/, "").slice(0, 60), filename: fileObjs[i].name,
             count: mine.filter((r) => r.t === "purchase").length, months: buildMonths(mine), rows: compactRows(mine),
           });
