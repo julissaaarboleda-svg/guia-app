@@ -90,3 +90,10 @@ export function weekSummary(routines, today = new Date()) {
   routines.forEach((r) => { const c = completionRate(r, weekStart(today), today); sched += c.sched; done += c.done; });
   return { sched, done };
 }
+
+// Mark every step done for today, or clear today if done is false.
+export function setAllToday(r, done, key = dayKey()) {
+  const log = { ...(r.log || {}) };
+  if (done) log[key] = (r.steps || []).map((st) => st.id); else delete log[key];
+  return log;
+}

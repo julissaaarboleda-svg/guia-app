@@ -28,7 +28,7 @@ export default function LifeProgress({ circles, onCustomize }) {
                   <motion.circle
                     cx="24" cy="24" r={r}
                     fill="none"
-                    stroke="#A7773F"
+                    stroke={c.color || "#A7773F"}
                     strokeWidth="4"
                     strokeLinecap="round"
                     strokeDasharray={circ}

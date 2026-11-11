@@ -58,6 +58,16 @@ export default function UpNext({ items }) {
                   <p className="font-body text-[11px] text-muted-foreground mt-0.5">{it.dateLabel}</p>
                   <div className="flex items-end justify-between mt-2">
                     {countdownEl}
+                    {it.readiness && (
+                      <span className="flex gap-3 text-[10.5px] text-muted-foreground font-body">
+                        {[["Packing", it.readiness.packed, it.readiness.pack], ["Itinerary", it.readiness.planned, it.readiness.days]].map(([l, a, b]) => (
+                          <span key={l} className="flex flex-col">
+                            <span>{l} {a} of {b}{l === "Itinerary" ? " days" : ""}</span>
+                            <span className="h-1 w-16 rounded-full bg-[#EFE9DF] mt-0.5 overflow-hidden"><span className="block h-full bg-[#7D8A53]" style={{ width: b ? `${Math.round((a / b) * 100)}%` : 0 }} /></span>
+                          </span>
+                        ))}
+                      </span>
+                    )}
                     {it.amount != null && (
                       <span className="text-[11px] font-body text-muted-foreground">${Number(it.amount).toLocaleString()}</span>
                     )}

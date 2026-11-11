@@ -125,6 +125,10 @@ export function buildUpNext({ trips = [], projects = [], bizEntries = [] }) {
     if (days < 0) return;
     items.push({
       id: `trip-${t.id}`, title: t.title, module: "travel",
+      readiness: {
+        packed: (t.packing_items || []).filter((i) => i.packed).length, pack: (t.packing_items || []).length,
+        planned: (t.itinerary || []).filter((d) => (d.activities || []).length > 0).length, days: (t.itinerary || []).length,
+      },
       dateLabel: tripRange(t), countdown: daysLabel(days) || `${days} days`,
       status: cap(t.status), path: "/travel", _days: days,
       image: t.hero_image_url || null, imagePos: t.hero_image_pos || null,
@@ -170,7 +174,7 @@ export const RING_CATALOG = [
   { id: "spending", label: "Spending vs plan", desc: "Budget used this month", group: "more" },
   { id: "routines", label: "Routines this week", desc: "Scheduled routine days completed", group: "more" },
 ];
-export const DEFAULT_RINGS = [{ id: "projects" }, { id: "business" }, { id: "trip" }, { id: "finance" }];
+export const DEFAULT_RINGS = [{ id: "business" }, { id: "finance" }, { id: "routines" }, { id: "projects" }];
 export const MAX_RINGS = 4;
 
 const taskPct = (list) => {
@@ -265,7 +269,8 @@ export function buildProgress({ routines = [], selection = null, trips = [], pro
   };
 
   const picks = (selection && selection.length ? selection : DEFAULT_RINGS).filter((r) => builders[r.id]).slice(0, MAX_RINGS);
-  return picks.map((r) => builders[r.id](r.ref));
+  const RING_COLOR = { business: "#A7773F", finance: "#7D8A53", routines: "#A77C81", projects: "#2E2A27", project: "#2E2A27", trip: "#A7773F", goal: "#7D8A53", loans: "#7D8A53", bills: "#A77C81", spending: "#A77C81" };
+  return picks.map((r) => ({ ...builders[r.id](r.ref), color: RING_COLOR[r.id] || "#A7773F", short: r.id }));
 }
 
 const ACT_LABEL = { notes: "Note", finance: "Finance", goals: "Goal", travel: "Trip", business: "Business", projects: "Project", career: "Career" };

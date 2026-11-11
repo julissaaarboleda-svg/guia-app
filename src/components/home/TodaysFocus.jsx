@@ -2,13 +2,14 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Check } from "lucide-react";
 import { getModule } from "@/lib/homeModules";
+import { colorOf, dayKey, isScheduled, doneOn, completeOn } from "@/lib/routines";
 const PRIORITY_CHIP = {
   high: "bg-[#F3E8D6] text-[#8A5F27]",
   urgent: "bg-[#F4E6E7] text-[#8F5F65]",
   normal: "bg-[#E4E9D5] text-[#566033]",
   low: "bg-muted text-muted-foreground",
 };
-export default function TodaysFocus({ items, total = 0, onComplete }) {
+export default function TodaysFocus({ items, total = 0, onComplete, routines = [], onRoutineToggle, overdue = 0 }) {
   // The bug: sub-item ids (goal sub-tasks, project tasks, packing items)
   // are built from their array index. Completing one shifts every later
   // item's index down by one, so a completely different item can inherit
@@ -41,15 +42,28 @@ export default function TodaysFocus({ items, total = 0, onComplete }) {
   return (
     <section>
       <div className="flex items-end justify-between mb-2.5">
-        <h2 className="font-heading text-[20px] text-foreground">Today’s Focus</h2>
+        <h2 className="font-heading text-[20px] text-foreground">Today</h2>
         <Link to="/goals" className="flex items-center gap-1 text-[11px] font-medium text-[#A7773F] transition-colors">
           {total > localItems.length ? `View All (${total})` : "View all"} <ArrowRight className="w-3 h-3" />
         </Link>
       </div>
+      {(() => {
+        const today = dayKey();
+        const due = routines.filter((r) => isScheduled(r) && (r.steps || []).length);
+        const doneCount = due.filter((r) => completeOn(r, today)).length;
+        const head = "flex items-center justify-between px-3.5 pt-2.5 pb-1 text-[10px] tracking-[0.14em] uppercase text-muted-foreground";
+        return (
+          <div className="rounded-2xl bg-card border border-border/60 overflow-hidden">
+            {(localItems.length > 0 || due.length > 0) && (
+              <div className={head}>
+                <span>Tasks</span>
+                {overdue > 0 && <Link to="/goals?view=tasks" className="normal-case tracking-normal text-[11px] font-medium text-[#8F5F65]">{overdue} overdue</Link>}
+              </div>
+            )}
       {localItems.length === 0 ? (
-        <p className="text-[13px] text-muted-foreground font-body py-5 text-center">Nothing pressing today. A calm, open day.</p>
+        <p className="text-[13px] text-muted-foreground font-body py-4 text-center">Nothing pressing today. A calm, open day.</p>
       ) : (
-        <div className="rounded-2xl bg-card border border-border/60 overflow-hidden">
+        <div>
           {localItems.map((it, i) => {
             const mod = getModule(it.module);
             const Icon = mod.Icon;
@@ -89,6 +103,33 @@ export default function TodaysFocus({ items, total = 0, onComplete }) {
           })}
         </div>
       )}
+            {due.length > 0 && (
+              <>
+                <div className={`${head} border-t border-border/60 mt-1`}>
+                  <span>Routines</span>
+                  <span className="normal-case tracking-normal text-[11px]">{doneCount} of {due.length} done</span>
+                </div>
+                {due.map((r) => {
+                  const c = colorOf(r); const n = r.steps.length; const d = doneOn(r, today); const fin = d >= n;
+                  return (
+                    <div key={r.id} className="flex items-center gap-3 px-3.5 py-2 border-t border-border/40">
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: c }} />
+                      <Link to="/goals?view=routines" className="flex-1 min-w-0 font-body text-[13.5px] text-foreground truncate">
+                        {r.name} <span className="text-muted-foreground text-[12px]">· {fin ? "done" : `${d} of ${n}`}</span>
+                      </Link>
+                      <button onClick={() => onRoutineToggle?.(r, !fin)} aria-label={fin ? `Undo ${r.name}` : `Complete ${r.name}`}
+                        className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
+                        style={fin ? { background: c } : { border: `1.5px solid ${c}` }}>
+                        <Check className="w-3.5 h-3.5" strokeWidth={2.4} style={{ color: fin ? "#fff" : c }} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </>
+            )}
+          </div>
+        );
+      })()}
     </section>
   );
 }

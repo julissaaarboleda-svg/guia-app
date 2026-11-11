@@ -9,7 +9,7 @@ import UpNext from "@/components/home/UpNext";
 import LifeProgress from "@/components/home/LifeProgress";
 import Reveal from "@/components/home/Reveal";
 import RingsCustomizer from "@/components/home/RingsCustomizer";
-import TodaysRoutines from "@/components/home/TodaysRoutines";
+import { isScheduled, completeOn, dayKey, setAllToday } from "@/lib/routines";
 import { monthView } from "@/lib/spending";
 import { monthKeyOf } from "@/lib/financeHelpers";
 import { buildFocusItems, buildUpNext, buildProgress, buildDailyStatus } from "@/lib/homeData";
@@ -56,7 +56,7 @@ export default function Dashboard() {
   const [loaded, setLoaded] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
 
-  const [heroMode, setHeroMode] = useState(() => localStorage.getItem("guia-hero-mode") || "photo_quote");
+  const [heroMode, setHeroMode] = useState(() => { try { return localStorage.getItem("guia-hero-mode2") || "photo_rings"; } catch { return "photo_rings"; } });
   const [userHeroImages, setUserHeroImages] = useState(() => {
     try { return JSON.parse(localStorage.getItem("guia-hero-images") || "[]"); } catch { return []; }
   });
@@ -85,7 +85,7 @@ export default function Dashboard() {
       const p = await ent.UserPreferences.filter({ user_email: u.email });
       if (p.length > 0) {
         setPrefs(p[0]);
-        if (p[0].hero_mode) setHeroMode(p[0].hero_mode);
+        if (p[0].hero_mode2) setHeroMode(p[0].hero_mode2);
         if (p[0].hero_positions && typeof p[0].hero_positions === "object") setHeroPositions(p[0].hero_positions);
         if (Array.isArray(p[0].hero_images) && p[0].hero_images.length > 0) setUserHeroImages(p[0].hero_images);
       }
@@ -134,7 +134,21 @@ export default function Dashboard() {
   const upNext = useMemo(() => buildUpNext({ trips, projects, bizEntries }), [trips, projects, bizEntries]);
   const progress = useMemo(() => buildProgress({ routines, selection: prefs?.life_rings, trips, projects, goals, finItems: allFin, business: bizProgress, spending: spendingProgress }), [routines, prefs, trips, projects, goals, allFin, bizProgress, spendingProgress]);
 
-  const dailyStatus = useMemo(() => buildDailyStatus({ tasks, trips, finItems, goals }), [tasks, trips, finItems, goals]);
+  const routinesLeft = useMemo(() => routines.filter((r) => isScheduled(r) && (r.steps || []).length && !completeOn(r, dayKey())).length, [routines]);
+  const dailyStatus = useMemo(() => {
+    const base = buildDailyStatus({ tasks, trips, finItems, goals });
+    return routinesLeft ? `${base} · ${routinesLeft} routine${routinesLeft === 1 ? "" : "s"} left` : base;
+  }, [tasks, trips, finItems, goals, routinesLeft]);
+  const overdue = useMemo(() => {
+    const t0 = dayKey();
+    return tasks.filter((t) => !t.completed && t.due_date && String(t.due_date).slice(0, 10) < t0).length;
+  }, [tasks]);
+  const toggleRoutine = async (r, done) => {
+    const log = setAllToday(r, done);
+    setRoutines((list) => list.map((x) => (x.id === r.id ? { ...x, log } : x)));
+    try { await ent.Routine.update(r.id, { log }); } catch { /* will reload next visit */ }
+  };
+  const ringsInHero = heroMode === "photo_rings" && progress.length > 0;
 
   const now = new Date();
   const dateStr = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
@@ -143,8 +157,8 @@ export default function Dashboard() {
 
   const persistMode = async (m) => {
     setHeroMode(m);
-    localStorage.setItem("guia-hero-mode", m);
-    if (prefs?.id) await ent.UserPreferences.update(prefs.id, { hero_mode: m });
+    try { localStorage.setItem("guia-hero-mode2", m); } catch { /* optional */ }
+    if (prefs?.id) await ent.UserPreferences.update(prefs.id, { hero_mode2: m });
   };
 
   const adjustHero = async (pos) => {
@@ -206,16 +220,18 @@ export default function Dashboard() {
         mode={heroMode}
         setMode={persistMode}
         onUpload={onHeroUpload}
+        rings={progress}
+        onCustomizeRings={() => setRingsOpen(true)}
       />
 
       <div className="space-y-5 lg:space-y-0 lg:grid lg:grid-cols-[minmax(0,1fr)_400px] 2xl:grid-cols-[minmax(0,1fr)_460px] lg:gap-x-8 lg:gap-y-6 lg:items-start">
       <Reveal delay={0.06} className="lg:col-start-1 lg:row-start-1 min-w-0">
         {loaded ? (
-          <TodaysFocus items={focus.items} total={focus.total} onComplete={completeFocus} />
+          <TodaysFocus items={focus.items} total={focus.total} onComplete={completeFocus} routines={routines} onRoutineToggle={toggleRoutine} overdue={overdue} />
         ) : (
           <section>
             <div className="flex items-end justify-between mb-2.5">
-              <h2 className="font-heading text-lg text-foreground font-semibold">Today’s Focus</h2>
+              <h2 className="font-heading text-lg text-foreground font-semibold">Today</h2>
             </div>
             <div className="rounded-2xl bg-card overflow-hidden">
               {[0, 1, 2].map((i) => (
@@ -237,9 +253,8 @@ export default function Dashboard() {
         <UpNext items={upNext} />
       </Reveal>
 
-      {progress.length > 0 && (
+      {progress.length > 0 && !ringsInHero && (
         <Reveal delay={0.1} className="lg:col-start-2 lg:row-start-2 min-w-0">
-          <TodaysRoutines routines={routines} />
           <LifeProgress circles={progress} onCustomize={() => setRingsOpen(true)} />
         </Reveal>
       )}

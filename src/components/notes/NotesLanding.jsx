@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { Search, SlidersHorizontal, FileText, MoreHorizontal, MapPin, ArrowRight, Pin, ChevronDown, ChevronRight } from "lucide-react";
 import { isToday, isYesterday, format } from "date-fns";
 import CollectionCard from "./CollectionCard";
+import { accentHex, COLLECTION_ACCENTS } from "./collectionAccents";
 
 const noteDateLabel = (d) => {
   const date = new Date(d);
@@ -48,6 +49,10 @@ export default function NotesLanding({
 
   const countFor = (folderId) => plainNotes.filter((n) => n.folder_id === folderId).length;
   const folderName = (id) => folders.find((f) => f.id === id)?.name;
+  const folderColor = (id) => { const f = folders.find((x) => x.id === id); return f ? accentHex(f.accent_color) : "#A7773F"; };
+  // Checklists have no color setting yet, so each gets a steady brand color from its id.
+  const LIST_COLORS = Object.values(COLLECTION_ACCENTS);
+  const listColor = (id = "") => LIST_COLORS[[...String(id)].reduce((t, ch) => t + ch.charCodeAt(0), 0) % LIST_COLORS.length];
 
   const sortNotes = (list) => list.sort((x, y) => new Date(sortNewest ? y.updated_date : x.updated_date) - new Date(sortNewest ? x.updated_date : y.updated_date));
   const searching = !!query.trim();
@@ -69,8 +74,8 @@ export default function NotesLanding({
     return (
       <div key={n.id} className={`flex items-start transition-colors ${i !== 0 ? "border-t border-border/40" : ""}`}>
         <button onClick={() => onOpenNote(n)} className="flex-1 min-w-0 py-3 pl-4 pr-2 flex items-start gap-3 text-left hover:bg-secondary/50 transition-colors">
-          <span className="w-9 h-9 rounded-xl bg-[#F0E6D6] flex items-center justify-center flex-shrink-0 mt-0.5">
-            <FileText className="w-[17px] h-[17px] text-[#8B6B3E]" strokeWidth={1.5} />
+          <span className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: n.folder_id ? folderColor(n.folder_id) : "#A7773F" }}>
+            <FileText className="w-[17px] h-[17px] text-white" strokeWidth={1.5} />
           </span>
           <div className="flex-1 min-w-0">
             <p className="font-heading text-[16px] text-foreground truncate leading-snug">{n.title || "Untitled"}</p>
@@ -78,7 +83,7 @@ export default function NotesLanding({
             <div className="flex items-center gap-1.5 mt-1.5 min-w-0">
               {n.pinned && <Pin className="w-3 h-3 text-[#A7773F] flex-shrink-0" strokeWidth={1.8} />}
               <span className="font-body text-[11px] text-muted-foreground flex-shrink-0">{noteDateLabel(n.updated_date)}</span>
-              {fname && <span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full bg-[#E4E9D5] text-[#566033] truncate">{fname}</span>}
+              {fname && <span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full truncate" style={{ background: `${folderColor(n.folder_id)}1F`, color: folderColor(n.folder_id) === "#7D8A53" ? "#566033" : folderColor(n.folder_id) === "#A77C81" ? "#8F5F65" : folderColor(n.folder_id) }}>{fname}</span>}
             </div>
           </div>
         </button>
@@ -140,7 +145,7 @@ export default function NotesLanding({
             key={t.id}
             onClick={() => setView(t.id)}
             className={`px-3.5 py-1.5 rounded-full font-body text-[12.5px] font-medium whitespace-nowrap flex-shrink-0 transition-colors ${
-              view === t.id ? "bg-[#A7773F] text-[#F7F3EC]" : "border border-border text-muted-foreground hover:text-foreground"
+              view === t.id ? "bg-[#2E2A27] text-[#F7F3EC]" : "border border-border bg-card text-muted-foreground hover:text-foreground"
             }`}
           >
             {t.label}
@@ -169,9 +174,9 @@ export default function NotesLanding({
         </button>
         <button
           onClick={onAdd}
-          className="h-10 px-4 rounded-full bg-[#A7773F] text-[#F7F3EC] font-body text-[13px] font-medium flex-shrink-0 hover:opacity-90 transition-opacity"
+          className="h-10 px-1.5 font-body text-[13px] font-medium text-[#A7773F] flex-shrink-0 whitespace-nowrap hover:opacity-80 transition-opacity"
         >
-          + {addLabel}
+          + New {addLabel.toLowerCase()}
         </button>
       </div>
 
@@ -255,9 +260,10 @@ export default function NotesLanding({
                 const done = items.filter((it) => it.checked).length;
                 const pct = items.length ? Math.round((done / items.length) * 100) : 0;
                 const complete = items.length > 0 && done === items.length;
-                const next = items.find((it) => !it.checked);
+                const left = items.filter((it) => !it.checked);
+                const lc = listColor(n.id);
                 return (
-                  <div key={n.id} className="bg-card border border-border/60 rounded-2xl flex items-start">
+                  <div key={n.id} className="bg-card border border-border/60 rounded-2xl flex items-start" style={{ borderLeft: `4px solid ${lc}` }}>
                     <button onClick={() => onOpenNote(n)} className="flex-1 min-w-0 p-3.5 text-left">
                       <div className="flex items-baseline justify-between gap-2">
                         <p className="font-heading text-[16px] text-foreground truncate leading-snug">{n.title || "Untitled"}</p>
@@ -265,12 +271,18 @@ export default function NotesLanding({
                       </div>
                       {items.length > 0 && (
                         <div className="h-1 rounded-full bg-[#EFE9DF] overflow-hidden mt-2.5">
-                          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: complete ? "#5A6F45" : "#A7773F" }} />
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: lc }} />
                         </div>
                       )}
-                      <p className="font-body text-[12.5px] mt-2 flex items-center gap-1.5 min-w-0" style={{ color: complete ? "#5A6F45" : undefined }}>
-                        {complete ? "All done" : next ? (<><span className="w-3 h-3 rounded-full border-[1.5px] border-muted-foreground/40 flex-shrink-0" /><span className="truncate text-foreground">{next.text}</span></>) : <span className="text-muted-foreground">Empty list</span>}
-                      </p>
+                      {complete ? <p className="font-body text-[12.5px] mt-2 text-[#566033]">All done</p>
+                        : left.length ? (
+                          <div className="mt-2 space-y-1">
+                            {left.slice(0, 3).map((it, k) => (
+                              <p key={k} className="font-body text-[12.5px] flex items-center gap-1.5 min-w-0"><span className="w-3 h-3 rounded-full border-[1.5px] border-muted-foreground/40 flex-shrink-0" /><span className="truncate text-foreground">{it.text}</span></p>
+                            ))}
+                            {left.length > 3 && <p className="font-body text-[11.5px] text-muted-foreground pl-[18px]">+{left.length - 3} more</p>}
+                          </div>
+                        ) : <p className="font-body text-[12.5px] mt-2 text-muted-foreground">Empty list</p>}
                     </button>
                     <button onClick={() => onNoteMenu(n)} aria-label="Checklist options" className="w-8 h-8 mt-2 mr-2 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
                       <MoreHorizontal className="w-4 h-4" />
@@ -313,7 +325,7 @@ export default function NotesLanding({
               {placeGroups.filter((g) => g.list.length).map((g, gi) => (
                 <div key={g.key} className={gi ? "border-t border-border/60" : ""}>
                   <button onClick={() => togglePlaceGroup(g.key)} aria-expanded={!placeShut[g.key]}
-                    className="w-full flex items-center gap-1.5 px-4 py-2.5 text-left bg-secondary/40">
+                    className="w-full flex items-center gap-1.5 px-4 py-2.5 text-left">
                     {placeShut[g.key] ? <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} />}
                     <span className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-muted-foreground">{g.label} · {g.list.length}</span>
                   </button>

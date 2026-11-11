@@ -356,8 +356,8 @@ export default function Finance() {
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-heading text-xl text-foreground">{TAB_LABELS[activeTab]}</h2>
         {!adding && (
-          <button onClick={() => openAdd()} className="bg-[#A7773F] text-[#F7F3EC] rounded-full font-heading text-[13px] px-4 py-1.5 hover:opacity-90 transition-opacity">
-            + Add {ADD_LABELS[activeTab]}
+          <button onClick={() => openAdd()} className="font-body text-[13px] font-medium text-[#A7773F] px-1 py-1.5 hover:opacity-80 transition-opacity">
+            + New {String(ADD_LABELS[activeTab] || "").toLowerCase()}
           </button>
         )}
       </div>

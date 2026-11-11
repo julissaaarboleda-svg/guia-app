@@ -30,7 +30,7 @@ const Tick = ({ done, size = 20 }) => (
 
 export default function Goals() {
   const [activeTab, setActiveTab] = useState(() => {
-    try { return new URLSearchParams(window.location.search).get("view") === "routines" ? "routines" : "goals"; } catch { return "goals"; }
+    try { return new URLSearchParams(window.location.search).get("view") === "routines" ? "routines" : new URLSearchParams(window.location.search).get("view") === "tasks" ? "tasks" : "goals"; } catch { return "goals"; }
   });
   const [routineAdd, setRoutineAdd] = useState(0);
   const [goals, setGoals] = useState([]);
