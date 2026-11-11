@@ -190,14 +190,14 @@ export async function getAiUsage() {
   return res.json();
 }
 
-async function InvokeLLM({ prompt, add_context_from_internet, response_json_schema, model, files }) {
+async function InvokeLLM({ prompt, add_context_from_internet, response_json_schema, model, files, quality }) {
   const headers = await authHeaders();
   const filePayloads = files && files.length ? await Promise.all(files.map(fileToPayload)) : undefined;
   const res = await checkOk(
     await fetchWithRetry(`${API_BASE}/generate-text`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ prompt, grounded: !!add_context_from_internet, wantJson: !!response_json_schema, files: filePayloads }),
+      body: JSON.stringify({ prompt, grounded: !!add_context_from_internet, wantJson: !!response_json_schema, files: filePayloads, quality }),
     })
   );
   const data = await res.json();

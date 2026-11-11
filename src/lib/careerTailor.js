@@ -37,7 +37,7 @@ export function buildProfileText(entries) {
 // ---------- AI ----------
 export async function analyzePosting(entries, posting) {
   const profile = buildProfileText(entries);
-  const res = await base44.integrations.Core.InvokeLLM({
+  const res = await base44.integrations.Core.InvokeLLM({ quality: "high",
     prompt: `You are a careful resume coach. Compare a job posting with the candidate's career profile.
 
 RULES
@@ -73,7 +73,7 @@ Respond as JSON:
 export async function writeCoverLetter(entries, role, applied) {
   const profile = buildProfileText(entries);
   const extra = Object.values(applied || {}).filter(Boolean).join("\n");
-  const text = await base44.integrations.Core.InvokeLLM({
+  const text = await base44.integrations.Core.InvokeLLM({ quality: "high",
     prompt: `Write a concise, warm, professional cover letter (about 220-280 words, 3 short paragraphs) for the role "${role.title}"${role.company ? ` at ${role.company}` : ""}.
 Use ONLY facts from the PROFILE. Never invent numbers, employers or achievements. Connect the candidate's real experience to what the posting asks for. No placeholders except where a fact is truly missing; start with "Dear Hiring Team," and end with "Sincerely," followed by nothing else.
 

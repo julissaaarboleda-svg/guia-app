@@ -23,7 +23,7 @@ const WINDOW_MS = 60 * 60 * 1000;   // window length: 1 hour
 // someone's well within the general 30/hour limit.
 const GROUNDED_RATE_LIMIT = 8;      // max grounded requests per window, per user
 
-const { claudeEnabled, claudeText, fileBlock } = require("../lib/ai.cjs");
+const { claudeEnabled, claudeText, fileBlock, CLAUDE_MODEL, CLAUDE_FAST_MODEL } = require("../lib/ai.cjs");
 
 const CORS = {
   "Content-Type": "application/json",
@@ -72,7 +72,7 @@ const handler = async (event, context) => {
   const useClaude = claudeEnabled();
   if (!apiKey && !useClaude) return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: "No AI key set" }) };
 
-  const { prompt, grounded, wantJson, files } = JSON.parse(event.body || "{}");
+  const { prompt, grounded, wantJson, files, quality } = JSON.parse(event.body || "{}");
   const attachments = (Array.isArray(files) ? files : []).slice(0, 3).filter((f) => f && f.base64Data);
   if (!prompt) return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "Missing 'prompt'" }) };
 
@@ -124,7 +124,10 @@ const handler = async (event, context) => {
     if (useClaude && !grounded) {
       try {
         const instruction = wantJson ? `${prompt}\n\nReturn only valid JSON, with no commentary or code fences.` : prompt;
+        // Short everyday tasks (summaries, suggestions, packing lists) use the faster, cheaper
+        // model. Writing that needs care (quality: "high") and anything with an attached file use the full one.
         text = await claudeText({
+          model: quality === "high" || attachments.length ? CLAUDE_MODEL : CLAUDE_FAST_MODEL,
           content: attachments.length ? [...attachments.map((f) => fileBlock(f.mimeType, f.base64Data)), { type: "text", text: instruction }] : instruction,
           timeoutMs: 20000,
         });
