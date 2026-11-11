@@ -74,7 +74,7 @@ export default function Notes() {
       name: data.name,
       icon_type: data.icon_type || "folder",
       emoji: data.emoji,
-      accent_color: data.accent_color || "sage",
+      accent_color: data.accent_color || "sand",
     });
     setFolders((prev) => [created, ...prev]);
     setShowNewCollection(false);

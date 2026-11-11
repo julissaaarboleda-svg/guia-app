@@ -109,22 +109,31 @@ export default function TodaysFocus({ items, total = 0, onComplete, routines = [
                   <span>Routines</span>
                   <span className="normal-case tracking-normal text-[11px]">{doneCount} of {due.length} done</span>
                 </div>
-                {due.map((r) => {
-                  const c = colorOf(r); const n = r.steps.length; const d = doneOn(r, today); const fin = d >= n;
-                  return (
-                    <div key={r.id} className="flex items-center gap-3 px-3.5 py-2 border-t border-border/40">
-                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: c }} />
-                      <Link to="/goals?view=routines" className="flex-1 min-w-0 font-body text-[13.5px] text-foreground truncate">
-                        {r.name} <span className="text-muted-foreground text-[12px]">· {fin ? "done" : `${d} of ${n}`}</span>
-                      </Link>
-                      <button onClick={() => onRoutineToggle?.(r, !fin)} aria-label={fin ? `Undo ${r.name}` : `Complete ${r.name}`}
-                        className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
-                        style={fin ? { background: c } : { border: `1.5px solid ${c}` }}>
-                        <Check className="w-3.5 h-3.5" strokeWidth={2.4} style={{ color: fin ? "#fff" : c }} />
-                      </button>
-                    </div>
-                  );
-                })}
+                <div className="grid grid-cols-2 gap-2 px-3 pt-1 pb-3">
+                  {due.map((r) => {
+                    const c = colorOf(r); const n = r.steps.length; const d = doneOn(r, today); const fin = d >= n;
+                    const slot = { morning: "Morning", evening: "Evening" }[r.slot] || "Anytime";
+                    return (
+                      <div key={r.id} className="rounded-xl border border-border/60 bg-background/40 p-2.5 flex flex-col">
+                        <div className="flex items-start gap-2">
+                          <Link to="/goals?view=routines" className="flex-1 min-w-0">
+                            <span className="block text-[9.5px] tracking-[0.14em] uppercase font-medium" style={{ color: c }}>{slot}</span>
+                            <span className="block font-heading text-[14px] leading-[1.2] text-foreground line-clamp-2 min-h-[2.4em] mt-0.5">{r.name.replace(/^(morning|evening)\s*[·:-]\s*/i, "")}</span>
+                          </Link>
+                          <button onClick={() => onRoutineToggle?.(r, !fin)} aria-label={fin ? `Undo ${r.name}` : `Complete ${r.name}`}
+                            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
+                            style={fin ? { background: c } : { border: `1.5px solid ${c}` }}>
+                            <Check className="w-4 h-4" strokeWidth={2.4} style={{ color: fin ? "#fff" : c }} />
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="flex-1 h-1 rounded-full bg-[#EFE9DF] overflow-hidden"><span className="block h-full rounded-full transition-all" style={{ width: `${Math.round((d / n) * 100)}%`, background: c }} /></span>
+                          <span className="text-[10.5px] text-muted-foreground whitespace-nowrap">{fin ? "Done" : `${d} of ${n}`}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </>
             )}
           </div>

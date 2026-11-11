@@ -74,8 +74,8 @@ export default function NotesLanding({
     return (
       <div key={n.id} className={`flex items-start transition-colors ${i !== 0 ? "border-t border-border/40" : ""}`}>
         <button onClick={() => onOpenNote(n)} className="flex-1 min-w-0 py-3 pl-4 pr-2 flex items-start gap-3 text-left hover:bg-secondary/50 transition-colors">
-          <span className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: n.folder_id ? folderColor(n.folder_id) : "#A7773F" }}>
-            <FileText className="w-[17px] h-[17px] text-white" strokeWidth={1.5} />
+          <span className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: `${n.folder_id ? folderColor(n.folder_id) : "#A7773F"}1F` }}>
+            <FileText className="w-[17px] h-[17px]" style={{ color: n.folder_id ? folderColor(n.folder_id) : "#A7773F" }} strokeWidth={1.5} />
           </span>
           <div className="flex-1 min-w-0">
             <p className="font-heading text-[16px] text-foreground truncate leading-snug">{n.title || "Untitled"}</p>

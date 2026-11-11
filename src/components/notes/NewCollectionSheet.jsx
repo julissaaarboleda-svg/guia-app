@@ -9,7 +9,7 @@ export default function NewCollectionSheet({ open, onClose, onCreate }) {
   const [name, setName] = useState("");
   const [iconType, setIconType] = useState("folder");
   const [emoji, setEmoji] = useState("📁");
-  const [accent, setAccent] = useState("sage");
+  const [accent, setAccent] = useState("sand");
   const [section, setSection] = useState("name");
   const [photoUrl, setPhotoUrl] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -30,7 +30,7 @@ export default function NewCollectionSheet({ open, onClose, onCreate }) {
   };
 
   useEffect(() => {
-    if (open) { setName(""); setIconType("folder"); setEmoji("📁"); setAccent("sage"); setSection("name"); setPhotoUrl(""); }
+    if (open) { setName(""); setIconType("folder"); setEmoji("📁"); setAccent("sand"); setSection("name"); setPhotoUrl(""); }
   }, [open]);
 
   if (!open) return null;

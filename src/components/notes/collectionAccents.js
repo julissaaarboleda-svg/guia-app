@@ -5,4 +5,4 @@ export const COLLECTION_ACCENTS = {
   charcoal: "#2E2A27",
 };
 
-export const accentHex = (key) => COLLECTION_ACCENTS[key] || COLLECTION_ACCENTS.sage;
+export const accentHex = (key) => COLLECTION_ACCENTS[key] || COLLECTION_ACCENTS.sand;
