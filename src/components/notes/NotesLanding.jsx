@@ -27,7 +27,7 @@ export default function NotesLanding({
   notes, folders, savedPlaces = [], loading,
   onQuickCapture, onOpenCollection, onOpenNote,
   onNewCollection, onLongPressCollection, onNoteMenu,
-  onAddPlace, onPlaceMenu,
+  onAddPlace, onPlaceMenu, onPlaceOpen,
 }) {
   const [view, setView] = useState("notes"); // "notes" | "checklists" | "places"
   const [showAllRecent, setShowAllRecent] = useState(false);
@@ -334,7 +334,7 @@ export default function NotesLanding({
                       <span className="w-11 h-11 rounded-xl bg-[#A7773F1F] flex items-center justify-center flex-shrink-0 overflow-hidden">
                         {p.photo_url ? <img src={p.photo_url} alt="" className="w-full h-full object-cover" /> : <MapPin className="w-4 h-4 text-[#A7773F]" strokeWidth={1.8} />}
                       </span>
-                      <button onClick={() => onPlaceMenu(p)} className="flex-1 min-w-0 text-left">
+                      <button onClick={() => (onPlaceOpen ? onPlaceOpen(p) : onPlaceMenu(p))} className="flex-1 min-w-0 text-left">
                         <p className="font-heading text-[16px] text-foreground truncate leading-snug">{p.name || "Untitled place"}</p>
                         <p className="font-body text-[12px] text-muted-foreground mt-0.5 truncate">
                           {p.visited && Number(p.rating) > 0 && <span className="text-[#A7773F] tracking-[1px] mr-1.5">{"★".repeat(p.rating)}<span className="text-[#D9CBB3]">{"★".repeat(5 - p.rating)}</span></span>}

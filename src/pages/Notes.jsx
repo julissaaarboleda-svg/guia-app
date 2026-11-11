@@ -50,6 +50,7 @@ export default function Notes() {
   const [showNewCollection, setShowNewCollection] = useState(false);
   const [placeForm, setPlaceForm] = useState(null); // { id?, name, type, address } | null
   const [placeMenu, setPlaceMenu] = useState(null);
+  const [placeView, setPlaceView] = useState(null);
   const newItemRef = useRef(null);
   const autoSaveTimer = useRef(null);
   const { toast } = useToast();
@@ -276,6 +277,13 @@ export default function Notes() {
       setSavedPlaces(prev => [created, ...prev]);
     }
     setPlaceForm(null);
+  };
+
+  // Quick changes from the place view (Been there, stars) save right away.
+  const patchPlace = async (id, patch) => {
+    setSavedPlaces(prev => prev.map(p => p.id === id ? { ...p, ...patch } : p));
+    setPlaceView(v => (v && v.id === id ? { ...v, ...patch } : v));
+    try { await ent.SavedPlace.update(id, patch); } catch (e) { console.error(e); }
   };
 
   const deletePlace = async (id) => {
@@ -568,6 +576,7 @@ export default function Notes() {
         onNoteMenu={(n) => setNoteMenu(n)}
         onAddPlace={openAddPlace}
         onPlaceMenu={(p) => setPlaceMenu(p)}
+        onPlaceOpen={(p) => setPlaceView(p)}
       />
       <NewCollectionSheet
         open={showNewCollection}
@@ -594,6 +603,12 @@ export default function Notes() {
         onChange={setPlaceForm}
         onClose={() => setPlaceForm(null)}
         onSave={savePlace}
+      />
+      <PlaceViewSheet
+        place={placeView}
+        onClose={() => setPlaceView(null)}
+        onEdit={(p) => { setPlaceView(null); openEditPlace(p); }}
+        onPatch={patchPlace}
       />
       <PlaceMenuSheet
         place={placeMenu}
@@ -883,6 +898,64 @@ function PlaceFormSheet({ form, onChange, onClose, onSave }) {
           >
             <Check className="w-4 h-4" /> {filling ? "One moment…" : "Save"}
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlaceViewSheet({ place, onClose, onEdit, onPatch }) {
+  if (!place) return null;
+  const rating = Number(place.rating) || 0;
+  const visitedLabel = place.visited_on ? new Date(`${place.visited_on}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
+  const href = place.maps_url || (place.address ? mapsUrl(place.address) : null);
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="relative w-full sm:max-w-md bg-card rounded-t-3xl sm:rounded-3xl shadow-2xl border border-border overflow-hidden max-h-[88vh] overflow-y-auto">
+        {place.photo_url ? (
+          <div className="relative h-44 bg-charcoal">
+            <img src={place.photo_url} alt="" className="w-full h-full object-cover" />
+            <button onClick={onClose} aria-label="Close" className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/45 text-white flex items-center justify-center"><X className="w-4 h-4" /></button>
+            {place.photo_credit && <span className="absolute bottom-2 right-3 text-[10px] text-white/80">{place.photo_credit}</span>}
+          </div>
+        ) : (
+          <div className="flex justify-end px-4 pt-3"><button onClick={onClose} aria-label="Close" className="w-8 h-8 flex items-center justify-center text-muted-foreground"><X className="w-4 h-4" /></button></div>
+        )}
+        <div className="px-5 pt-4 pb-6">
+          <h3 className="font-heading text-[24px] leading-tight text-foreground">{place.name || "Untitled place"}</h3>
+          <p className="text-[13px] text-muted-foreground mt-1">{[place.type, place.address].filter(Boolean).join(" · ")}</p>
+
+          <div className="flex items-center gap-3 mt-4">
+            <button type="button" onClick={() => onPatch(place.id, place.visited ? { visited: false, rating: 0, visited_on: null } : { visited: true, visited_on: new Date().toISOString().slice(0, 10) })}
+              className={`px-3.5 py-1.5 rounded-full text-[12.5px] font-medium border ${place.visited ? "bg-[#E8EBDD] border-[#C9D0B0] text-[#566033]" : "border-border text-muted-foreground"}`}>
+              {place.visited ? `✓ Been there${visitedLabel ? ` · ${visitedLabel}` : ""}` : "Mark as been there"}
+            </button>
+            {place.visited && (
+              <div className="flex gap-0.5" aria-label="Your rating">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button key={n} type="button" aria-label={`${n} star${n === 1 ? "" : "s"}`} onClick={() => onPatch(place.id, { rating: rating === n ? 0 : n })}
+                    className="text-[22px] leading-none" style={{ color: n <= rating ? "#A7773F" : "#D9CBB3" }}>★</button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <p className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-muted-foreground mt-5 mb-1.5">Notes</p>
+          {place.notes
+            ? <p className="text-[14.5px] text-foreground whitespace-pre-wrap leading-relaxed">{place.notes}</p>
+            : <button onClick={() => onEdit(place)} className="text-[13.5px] text-muted-foreground">No notes yet. <span className="text-[#A7773F]">Add a note</span></button>}
+
+          <div className="flex gap-2 mt-6">
+            {href && (
+              <a href={href} target="_blank" rel="noopener noreferrer" className="flex-1 inline-flex items-center justify-center gap-2 bg-[#A7773F] text-[#F7F3EC] rounded-full py-2.5 text-[14px] font-medium">
+                <Navigation className="w-4 h-4" /> Directions
+              </a>
+            )}
+            <button onClick={() => onEdit(place)} className="flex-1 inline-flex items-center justify-center gap-2 border border-border rounded-full py-2.5 text-[14px] text-foreground">
+              <Pencil className="w-4 h-4" /> Edit
+            </button>
+          </div>
         </div>
       </div>
     </div>
