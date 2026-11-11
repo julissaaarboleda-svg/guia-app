@@ -87,6 +87,14 @@ export default function RoutinesView({ addSignal = 0 }) {
     save(r, { log: next.log, best_streak: Math.max(Number(r.best_streak) || 0, s.longest) });
   };
 
+  // Tick every step at once (or clear them all if the routine is already done today).
+  const setAll = (r, done) => {
+    const log = { ...(r.log || {}) };
+    if (done) log[today] = (r.steps || []).map((st) => st.id); else delete log[today];
+    const s = streaks({ ...r, log });
+    save(r, { log, best_streak: Math.max(Number(r.best_streak) || 0, s.longest) });
+  };
+
   const submit = async () => {
     const steps = (form.steps || []).filter((s) => s.text.trim()).map((s) => ({ ...s, text: s.text.trim(), note: (s.note || "").trim() }));
     if (!form.name.trim() || !steps.length) return;
@@ -239,7 +247,12 @@ export default function RoutinesView({ addSignal = 0 }) {
           })}
         </div>
 
-        <p className={`${label} mb-1`}>{todayOn ? "Today's steps" : "Steps · not scheduled today"}</p>
+        <div className="flex items-center justify-between mb-1.5">
+          <p className={label}>{todayOn ? "Today's steps" : "Steps · not scheduled today"}</p>
+          {(open.steps || []).length > 1 && (completeOn(open, today)
+            ? <button onClick={() => setAll(open, false)} className="text-[12.5px] text-muted-foreground">Clear all</button>
+            : <button onClick={() => setAll(open, true)} className="inline-flex items-center gap-1 text-[12.5px] font-medium px-3 py-1 rounded-full text-white" style={{ background: c }}><Check className="w-3.5 h-3.5" strokeWidth={2.4} /> Complete all</button>)}
+        </div>
         <div className="bg-card border border-border rounded-2xl px-4">
           {(open.steps || []).map((st) => {
             const on = ids.has(st.id);
