@@ -434,5 +434,12 @@ const handler = async (event, context) => {
 
 // Counts each successful request toward the monthly AI-use limit (see netlify/lib/usage.cjs).
 const modeOf = (event) => JSON.parse(event.body || "{}").mode;
-const partOf = (event) => Number(JSON.parse(event.body || "{}").part) || 0;
-exports.handler = withUsage(handler, (event) => (modeOf(event) === "spending" || (modeOf(event) === "credit" && partOf(event) > 0) ? 0 : 1), { plusOnly: (event) => modeOf(event) === "credit" });
+const bodyOf = (event) => JSON.parse(event.body || "{}");
+// Credit reports are read page by page: the first page is charged for the whole file at 1 AI use per 5 pages.
+const costOf = (event) => {
+  const b = bodyOf(event);
+  if (b.mode === "spending") return 0;
+  if (b.mode === "credit") return Number(b.part) > 0 ? 0 : Math.max(1, Math.ceil((Number(b.parts) || 1) / 5));
+  return 1;
+};
+exports.handler = withUsage(handler, costOf, { plusOnly: (event) => modeOf(event) === "credit" });

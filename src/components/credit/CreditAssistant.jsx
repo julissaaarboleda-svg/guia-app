@@ -30,6 +30,17 @@ async function splitPdf(file) {
   } catch { return [file]; }
 }
 
+// Fingerprint of a file's bytes, to skip uploading the exact same file twice.
+async function fileHash(file) {
+  try {
+    const buf = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+    return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  } catch { return ""; }
+}
+
+// Docs that look like copies of each other (same bureau, date and accounts), for older uploads without a fingerprint.
+const docSig = (d) => [d.doc_type, d.bureau, d.doc_date, (d.accounts || []).length, (d.accounts || []).map((a) => a.creditor).sort().join(",")].join("|");
+
 // Run tasks a few at a time.
 async function pool(tasks, size) {
   const results = new Array(tasks.length);
@@ -197,8 +208,12 @@ export default function CreditAssistant({ scoreItems = [] }) {
     const update = (i, patch) => setBusy((b) => b.map((x, j) => (j === i ? { ...x, ...patch } : x)));
     const saved = [];
     let failed = 0;
+    const known = new Set(docs.map((d) => d.file_hash).filter(Boolean));
     for (let i = 0; i < picked.length; i++) {
       const file = picked[i];
+      const hash = await fileHash(file);
+      if (hash && known.has(hash)) { update(i, { status: "done", note: "Already in your credit file · skipped, no AI used" }); continue; }
+      if (hash) known.add(hash);
       const pieces = await splitPdf(file);
       let done = 0, lastErr = "";
       update(i, { note: pieces.length > 1 ? `Reading ${pieces.length} parts…` : "Reading…" });
@@ -223,7 +238,7 @@ export default function CreditAssistant({ scoreItems = [] }) {
       const lockedTip = "This PDF is locked. Open it, choose Print → Save as PDF, and upload the new copy.";
       if (!doc) { failed += 1; update(i, { status: "failed", note: pieces.locked ? lockedTip : lastErr || "Couldn't read this file." }); continue; }
       try {
-        const rec = await ent.CreditDoc.create({ ...doc, filename: file.name });
+        const rec = await ent.CreditDoc.create({ ...doc, filename: file.name, file_hash: hash || null, pages: pieces.length });
         saved.push(rec);
         update(i, { status: "done", type: doc.doc_type, note: missed ? `Read, but ${missed} of ${pieces.length} parts were skipped. Re-upload to fill gaps.` : "" });
       } catch {
@@ -233,6 +248,14 @@ export default function CreditAssistant({ scoreItems = [] }) {
     setDocs((d) => [...saved, ...d]);
     flash(failed ? `Read ${saved.length} of ${picked.length}. See the note on each file.` : `Read ${saved.length} ${saved.length === 1 ? "document" : "documents"}.`);
     if (!failed) setTimeout(() => setBusy((b) => (b.some((x) => x.status !== "done" || x.note) ? b : [])), 2500);
+  };
+
+  const copies = docs.filter((d, idx) => docs.slice(idx + 1).some((o) => (d.file_hash && o.file_hash === d.file_hash) || docSig(o) === docSig(d)));
+  const removeCopies = async () => {
+    const ids = new Set(copies.map((c) => c.id));
+    setDocs((x) => x.filter((y) => !ids.has(y.id)));
+    await Promise.all(copies.map((c) => ent.CreditDoc.delete(c.id).catch(() => {})));
+    flash(`Removed ${ids.size} ${ids.size === 1 ? "copy" : "copies"}.`);
   };
 
   const removeDoc = async (d) => {
@@ -457,16 +480,26 @@ export default function CreditAssistant({ scoreItems = [] }) {
 
       <div className="lg:col-span-5 space-y-3 min-w-0">
       {docs.length > 0 && (
-        <Section id="files" title="Your credit file" count={docs.length} defaultOpen={false}>
+        <Section id="files" title="Your credit file" count={docs.length} defaultOpen={copies.length > 0}>
+          {copies.length > 0 && (
+            <div className="mb-2.5 rounded-xl bg-[#F3E6E8] p-2.5 flex items-center gap-2">
+              <p className="text-xs text-[#6E4A4F] flex-1">{copies.length === 1 ? "1 document looks like a copy" : `${copies.length} documents look like copies`} of another one.</p>
+              <button onClick={removeCopies} className="text-xs font-medium text-[#8F5F65] shrink-0">Remove copies</button>
+            </div>
+          )}
           <div className="space-y-1.5">
-            {docs.map((d) => (
+            {docs.map((d, idx) => {
+              const copy = docs.slice(idx + 1).some((o) => (d.file_hash && o.file_hash === d.file_hash) || docSig(o) === docSig(d));
+              return (
               <div key={d.id} className="flex items-center gap-2 text-sm">
                 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground shrink-0">{DOC_LABEL[d.doc_type] || "Doc"}</span>
                 <span className="truncate text-foreground">{d.from || d.bureau || d.filename}</span>
                 <span className="text-xs text-muted-foreground shrink-0">{niceDate(d.doc_date)}</span>
+                {copy && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#F3E6E8] text-[#8F5F65] shrink-0">Copy</span>}
                 <button onClick={() => removeDoc(d)} aria-label="Remove" className="ml-auto p-1 text-muted-foreground/70"><Trash2 className="w-3.5 h-3.5" /></button>
               </div>
-            ))}
+              );
+            })}
           </div>
         </Section>
       )}
