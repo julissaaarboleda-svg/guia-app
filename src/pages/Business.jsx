@@ -39,7 +39,7 @@ function Chips({ options, value, onChange }) {
   );
 }
 
-export default function Business() {
+export default function Business({ switcher = null }) {
   const [allEntries, setEntries] = useState([]);
   const [allGoals, setGoals] = useState([]);
   const [businesses, setBusinesses] = useState([]);
@@ -422,6 +422,7 @@ export default function Business() {
     <>
       <div className="max-w-[1200px] 2xl:max-w-[1400px] mx-auto w-full">
       <PageHeader
+        below={switcher}
         title="Business"
         subtitle="Your numbers, in one place."
         actions={

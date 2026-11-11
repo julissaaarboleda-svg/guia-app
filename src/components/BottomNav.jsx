@@ -1,19 +1,11 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Target, FileText, Briefcase, Building2, CreditCard, Plane, FolderOpen, Settings, MessageCircle, MoreHorizontal, X, LogOut, BarChart3, ShieldCheck } from "lucide-react";
+import { Home, Settings, MessageCircle, MoreHorizontal, X, LogOut, BarChart3 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
+import { SECTION_META, DEFAULT_SECTION_ORDER, normalizeSections, normalizeOrder, isSectionActive } from "@/lib/navSections";
 
-const SECTION_META = {
-  goals:    { label: "Goals",    Icon: Target,     path: "/goals" },
-  notes:    { label: "Notes",    Icon: FileText,   path: "/notes" },
-  career:   { label: "Career",   Icon: Briefcase,  path: "/career" },
-  business: { label: "Business", Icon: Building2,  path: "/business" },
-  finance:  { label: "Finance",  Icon: CreditCard, path: "/finance" },
-  travel:   { label: "Journeys", Icon: Plane,      path: "/travel" },
-  projects: { label: "Projects", Icon: FolderOpen, path: "/projects" },
-};
 
-const DEFAULT_SECTION_ORDER = ["goals", "notes", "career", "business", "finance", "travel", "projects"];
+
 
 export default function BottomNav({ prefs, onFeedback }) {
   const { user, logout } = useAuth();
@@ -22,16 +14,14 @@ export default function BottomNav({ prefs, onFeedback }) {
 
   const enabledSections = (!prefs?.enabled_sections || prefs.enabled_sections.length === 0)
     ? DEFAULT_SECTION_ORDER
-    : prefs.enabled_sections;
-  const sectionOrder = (prefs?.section_order && prefs.section_order.length > 0)
-    ? prefs.section_order
-    : DEFAULT_SECTION_ORDER;
+    : normalizeSections(prefs.enabled_sections);
+  const sectionOrder = normalizeOrder(prefs?.section_order);
 
   const orderedSections = sectionOrder.filter(id => enabledSections.includes(id));
   const visibleSections = orderedSections.slice(0, 4);
   const moreSections = orderedSections.slice(4);
 
-  const isActive = (path) => location.pathname === path;
+  const isActive = (path) => location.pathname === path || Object.values(SECTION_META).some((m) => m.path === path && isSectionActive(m, location.pathname));
 
   const NavButton = ({ path, Icon, label }) => {
     const active = isActive(path);
@@ -110,7 +100,7 @@ export default function BottomNav({ prefs, onFeedback }) {
                 );
               })}
               <div className="border-t border-border my-2" />
-              {[["/recap", "Recap", BarChart3], ["/backup", "Backup & export", ShieldCheck]].map(([path, label, I]) => (
+              {[["/recap", "Recap", BarChart3]].map(([path, label, I]) => (
                 <Link key={path} to={path} onClick={() => setShowMore(false)}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${isActive(path) ? "bg-accent text-accent-foreground font-medium" : "text-foreground hover:bg-secondary"}`}>
                   <I className="w-4 h-4" />

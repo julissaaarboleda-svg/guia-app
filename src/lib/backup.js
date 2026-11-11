@@ -5,7 +5,7 @@ export const ENTITY_NAMES = [
   "Trip", "UserPreferences", "FinanceItem", "Note", "Folder", "Project", "Goal", "Task",
   "BusinessGoal", "BusinessEntry", "Business", "BusinessDocument", "CareerEntry", "TargetRole",
   "LivingProfile", "JobRating", "PerformanceCalibration", "BudgetBucket", "MonthlyIncome",
-  "SavedPlace", "RecapSnapshot", "SpendingStatement",
+  "SavedPlace", "RecapSnapshot", "SpendingStatement", "Routine",
 ];
 
 const LABELS = {

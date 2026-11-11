@@ -3,25 +3,17 @@ import AdjustableImage from "@/components/ui/AdjustableImage";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { Settings, LogOut, Home, Target, Briefcase, Building2, CreditCard, Plane, FolderOpen, FileText, MessageCircle, BarChart3, ShieldCheck } from "lucide-react";
+import { Settings, LogOut, Home, MessageCircle, BarChart3 } from "lucide-react";
 import FeedbackModal from "@/components/feedback/FeedbackModal";
 import BottomNav from "@/components/BottomNav";
 import GuiaHeader from "@/components/GuiaHeader";
 import { useAuth } from "@/lib/AuthContext";
+import { SECTION_META, DEFAULT_SECTION_ORDER, normalizeSections, normalizeOrder, isSectionActive } from "@/lib/navSections";
 import { maybeAutoBackup } from "@/lib/backup";
 import { saveCurrentSnapshot } from "@/lib/recap";
 
-const DEFAULT_SECTION_ORDER = ["goals", "notes", "career", "business", "finance", "travel", "projects"];
 
-const SECTION_META = {
-  goals:    { label: "Goals",    Icon: Target, path: "/goals" },
-  notes:    { label: "Notes",    Icon: FileText,    path: "/notes" },
-  career:   { label: "Career",   Icon: Briefcase,   path: "/career" },
-  business: { label: "Business", Icon: Building2,   path: "/business" },
-  finance:  { label: "Finance",  Icon: CreditCard,  path: "/finance" },
-  travel:   { label: "Journeys", Icon: Plane,       path: "/travel" },
-  projects: { label: "Projects", Icon: FolderOpen,  path: "/projects" },
-};
+
 
 export default function Layout() {
   const { logout } = useAuth();
@@ -62,15 +54,15 @@ export default function Layout() {
     return () => { alive = false; };
   }, []);
 
-  const enabledSections = (!prefs || !prefs.enabled_sections || prefs.enabled_sections.length === 0) ? DEFAULT_SECTION_ORDER : prefs.enabled_sections;
-  const sectionOrder = (prefs?.section_order && prefs.section_order.length > 0) ? prefs.section_order : DEFAULT_SECTION_ORDER;
+  const enabledSections = (!prefs || !prefs.enabled_sections || prefs.enabled_sections.length === 0) ? DEFAULT_SECTION_ORDER : normalizeSections(prefs.enabled_sections);
+  const sectionOrder = normalizeOrder(prefs?.section_order);
   const displayName = prefs?.display_name || user?.full_name || "Life Hub";
   const initials = displayName.slice(0, 2).toUpperCase();
   const avatarColor = prefs?.avatar_color || "#1A1A1A";
   const avatarUrl = prefs?.avatar_url || null;
 
   const NavLink = ({ path, Icon, label }) => {
-    const active = location.pathname === path;
+    const active = location.pathname === path || Object.values(SECTION_META).some((m) => m.path === path && isSectionActive(m, location.pathname));
     return (
       <Link
         to={path}
@@ -119,10 +111,6 @@ export default function Layout() {
         <Link to="/recap" className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors">
           <BarChart3 className="w-3.5 h-3.5" />
           <span>Recap</span>
-        </Link>
-        <Link to="/backup" className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors">
-          <ShieldCheck className="w-3.5 h-3.5" />
-          <span>Backup</span>
         </Link>
         <Link
           to="/settings"

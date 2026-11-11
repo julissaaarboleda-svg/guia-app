@@ -15,10 +15,9 @@ import Dashboard from './pages/Dashboard';
 import Goals from './pages/Goals';
 import Notes from './pages/Notes';
 import Settings from './pages/Settings';
-import Career from './pages/Career';
 import SectionPlaceholder from './pages/SectionPlaceholder';
 import Travel from './pages/Travel';
-import Business from './pages/Business';
+import Work from "@/pages/Work";
 import Finance from './pages/Finance';
 import OnboardingDemo from './pages/OnboardingDemo';
 import Projects from './pages/Projects';
@@ -114,8 +113,9 @@ const AuthenticatedApp = () => {
         <Route path="/goals" element={<Goals />} />
         <Route path="/notes" element={<Notes />} />
         <Route path="/settings" element={<Settings />} />
-        <Route path="/career" element={<Career />} />
-        <Route path="/business" element={<Business />} />
+        <Route path="/work" element={<Work />} />
+        <Route path="/career" element={<Work />} />
+        <Route path="/business" element={<Work />} />
         <Route path="/finance" element={<Finance />} />
         <Route path="/travel" element={<Travel />} />
         <Route path="/projects" element={<Projects />} />

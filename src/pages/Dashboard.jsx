@@ -9,6 +9,7 @@ import UpNext from "@/components/home/UpNext";
 import LifeProgress from "@/components/home/LifeProgress";
 import Reveal from "@/components/home/Reveal";
 import RingsCustomizer from "@/components/home/RingsCustomizer";
+import TodaysRoutines from "@/components/home/TodaysRoutines";
 import { monthView } from "@/lib/spending";
 import { monthKeyOf } from "@/lib/financeHelpers";
 import { buildFocusItems, buildUpNext, buildProgress, buildDailyStatus } from "@/lib/homeData";
@@ -50,6 +51,7 @@ export default function Dashboard() {
   const [allFin, setAllFin] = useState([]);
   const [spendingProgress, setSpendingProgress] = useState(null);
   const [ringsOpen, setRingsOpen] = useState(false);
+  const [routines, setRoutines] = useState([]);
   const [bizProgress, setBizProgress] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
@@ -87,6 +89,7 @@ export default function Dashboard() {
         if (p[0].hero_positions && typeof p[0].hero_positions === "object") setHeroPositions(p[0].hero_positions);
         if (Array.isArray(p[0].hero_images) && p[0].hero_images.length > 0) setUserHeroImages(p[0].hero_images);
       }
+      ent.Routine.list().then(setRoutines).catch(() => {});
       const [bizAll, bizList, finAll, stmts, buckets] = await Promise.all([
         ent.BusinessEntry.list("-date"),
         ent.Business.list(),
@@ -129,7 +132,7 @@ export default function Dashboard() {
     [tasks, goals, projects, finItems, trips, businessGoals, careerEntries]
   );
   const upNext = useMemo(() => buildUpNext({ trips, projects, bizEntries }), [trips, projects, bizEntries]);
-  const progress = useMemo(() => buildProgress({ selection: prefs?.life_rings, trips, projects, goals, finItems: allFin, business: bizProgress, spending: spendingProgress }), [prefs, trips, projects, goals, allFin, bizProgress, spendingProgress]);
+  const progress = useMemo(() => buildProgress({ routines, selection: prefs?.life_rings, trips, projects, goals, finItems: allFin, business: bizProgress, spending: spendingProgress }), [routines, prefs, trips, projects, goals, allFin, bizProgress, spendingProgress]);
 
   const dailyStatus = useMemo(() => buildDailyStatus({ tasks, trips, finItems, goals }), [tasks, trips, finItems, goals]);
 
@@ -236,6 +239,7 @@ export default function Dashboard() {
 
       {progress.length > 0 && (
         <Reveal delay={0.1} className="lg:col-start-2 lg:row-start-2 min-w-0">
+          <TodaysRoutines routines={routines} />
           <LifeProgress circles={progress} onCustomize={() => setRingsOpen(true)} />
         </Reveal>
       )}

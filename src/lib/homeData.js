@@ -1,6 +1,7 @@
 import { parseISO, differenceInCalendarDays, format } from "date-fns";
 import { categoryToModule } from "@/lib/homeModules";
 import { monthKeyOf, isPaid, billInMonth, isCanceled } from "@/lib/financeHelpers";
+import { weekSummary } from "@/lib/routines";
 
 const PRIORITY_WEIGHT = { urgent: 4, high: 3, normal: 2, low: 1 };
 const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
@@ -167,6 +168,7 @@ export const RING_CATALOG = [
   { id: "loans", label: "Loan pay-down", desc: "How much of your loans you've paid", group: "more" },
   { id: "bills", label: "Bills this month", desc: "Bills paid out of bills due", group: "more" },
   { id: "spending", label: "Spending vs plan", desc: "Budget used this month", group: "more" },
+  { id: "routines", label: "Routines this week", desc: "Scheduled routine days completed", group: "more" },
 ];
 export const DEFAULT_RINGS = [{ id: "projects" }, { id: "business" }, { id: "trip" }, { id: "finance" }];
 export const MAX_RINGS = 4;
@@ -179,7 +181,7 @@ const taskPct = (list) => {
 
 // Builds the rings the person chose (or the four defaults). An area with nothing set up still gets
 // its ring, dimmed with a "Set up" hint, so the layout never shifts.
-export function buildProgress({ selection = null, trips = [], projects = [], goals = [], finItems = [], business = null, spending = null }) {
+export function buildProgress({ routines = [], selection = null, trips = [], projects = [], goals = [], finItems = [], business = null, spending = null }) {
   const now = new Date();
   const ring = (label, pct, sub, path) => ({ label, value: pct, display: `${pct}%`, sub, path });
   const empty = (label, sub, path) => ({ label, value: 0, display: "–", sub, path, empty: true });
@@ -253,6 +255,13 @@ export function buildProgress({ selection = null, trips = [], projects = [], goa
       const spent = Number(spending?.spent) || 0;
       return ring("Spending vs plan", Math.min(100, Math.round((spent / planned) * 100)), `${money0(spent)} of ${money0(planned)}`, "/finance");
     },
+  };
+
+  builders.routines = () => {
+    const w = weekSummary(routines);
+    if (!routines.length) return empty("Routines", "Add a routine", "/goals?view=routines");
+    if (!w.sched) return empty("Routines", "Nothing due yet", "/goals?view=routines");
+    return ring("Routines", Math.round((w.done / w.sched) * 100), `${w.done} of ${w.sched} this week`, "/goals?view=routines");
   };
 
   const picks = (selection && selection.length ? selection : DEFAULT_RINGS).filter((r) => builders[r.id]).slice(0, MAX_RINGS);

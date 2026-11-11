@@ -8,8 +8,7 @@ import { Check } from "lucide-react";
 const ALL_SECTIONS = [
   { id: "tasks",    label: "Tasks",    emoji: "✅", description: "Daily to-dos, reminders, priorities" },
   { id: "goals",    label: "Goals",    emoji: "🎯", description: "Track long-term goals and milestones" },
-  { id: "career",   label: "Career",   emoji: "💼", description: "Work, comp & growth" },
-  { id: "business", label: "Business", emoji: "🏢", description: "Revenue, expenses, clients" },
+  { id: "work",     label: "Work",     emoji: "💼", description: "Career and business, together" },
   { id: "finance",  label: "Finance",  emoji: "💳", description: "Credit scores & bills" },
   { id: "travel",   label: "Journeys", emoji: "✈️", description: "Trips & itineraries" },
   { id: "projects", label: "Projects", emoji: "🗂️", description: "Tasks & timelines" },

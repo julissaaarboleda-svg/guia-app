@@ -1,0 +1,248 @@
+import { useState, useEffect } from "react";
+import { ent } from "@/lib/freshEntities";
+import { Plus, Check, ArrowLeft, X, Trash2, Flame } from "lucide-react";
+import {
+  ROUTINE_COLORS, SLOTS, DAY_LETTERS, colorOf, dayKey, isScheduled, doneOn, completeOn,
+  scheduleLabel, streaks, completionRate, weekDays, toggleStep,
+} from "@/lib/routines";
+
+const newId = () => Math.random().toString(36).slice(2, 10);
+const blank = () => ({ name: "", color: "cognac", slot: "morning", days: null, steps: [{ id: newId(), text: "", note: "" }] });
+const label = "text-[10.5px] font-semibold tracking-[0.14em] uppercase text-muted-foreground";
+const FIELD = "w-full bg-card border border-border rounded-xl px-3 py-2.5 text-sm text-foreground outline-none focus:border-[#A7773F]";
+
+function Tick({ on, color }) {
+  return (
+    <span className="w-[22px] h-[22px] rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
+      style={on ? { background: color, border: `1.5px solid ${color}` } : { border: "1.5px solid #CDBFA8" }}>
+      {on && <Check className="w-3 h-3 text-white" strokeWidth={2.6} />}
+    </span>
+  );
+}
+
+export default function RoutinesView({ addSignal = 0 }) {
+  const [routines, setRoutines] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+  const [openId, setOpenId] = useState(null);
+  const [form, setForm] = useState(null); // { ...routine } while adding/editing
+  const today = dayKey();
+
+  const load = async () => {
+    try { setRoutines(await ent.Routine.list("created_date")); } catch { setRoutines([]); }
+    setLoaded(true);
+  };
+  useEffect(() => { load(); }, []);
+  useEffect(() => { if (addSignal) setForm(blank()); }, [addSignal]);
+
+  const save = async (r, patch) => {
+    setRoutines((list) => list.map((x) => (x.id === r.id ? { ...x, ...patch } : x)));
+    try { await ent.Routine.update(r.id, patch); } catch { load(); }
+  };
+  const tick = (r, stepId) => {
+    const next = { ...r, log: toggleStep(r, stepId, today) };
+    const s = streaks(next);
+    save(r, { log: next.log, best_streak: Math.max(Number(r.best_streak) || 0, s.longest) });
+  };
+
+  const submit = async () => {
+    const steps = (form.steps || []).filter((s) => s.text.trim()).map((s) => ({ ...s, text: s.text.trim(), note: (s.note || "").trim() }));
+    if (!form.name.trim() || !steps.length) return;
+    const data = { name: form.name.trim(), color: form.color, slot: form.slot, days: form.days && form.days.length && form.days.length < 7 ? form.days : null, steps };
+    if (form.id) await ent.Routine.update(form.id, data);
+    else { const c = await ent.Routine.create({ ...data, log: {}, best_streak: 0 }); setOpenId(c.id); }
+    setForm(null); load();
+  };
+  const remove = async (id) => {
+    if (!confirm("Delete this routine and its history?")) return;
+    await ent.Routine.delete(id); setForm(null); setOpenId(null); load();
+  };
+
+  // ---------- form ----------
+  if (form) {
+    const set = (p) => setForm((f) => ({ ...f, ...p }));
+    const setStep = (i, p) => set({ steps: form.steps.map((s, j) => (j === i ? { ...s, ...p } : s)) });
+    const picking = Array.isArray(form.days);
+    return (
+      <div className="px-4 py-4 max-w-xl">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-heading text-[24px] text-foreground">{form.id ? "Edit routine" : "New routine"}</h2>
+          <button onClick={() => setForm(null)} aria-label="Close" className="p-1 text-muted-foreground"><X className="w-5 h-5" strokeWidth={1.5} /></button>
+        </div>
+        <input value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="Name, e.g. Facial routine" className={FIELD} />
+
+        <p className={`${label} mt-4 mb-2`}>Color</p>
+        <div className="flex gap-2 flex-wrap">
+          {ROUTINE_COLORS.map((c) => (
+            <button key={c.key} type="button" onClick={() => set({ color: c.key })}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-[12.5px] ${form.color === c.key ? "border-foreground/50 text-foreground" : "border-border text-muted-foreground"}`}>
+              <span className="w-3.5 h-3.5 rounded-full" style={{ background: c.hex }} />{c.label}
+            </button>
+          ))}
+        </div>
+
+        <p className={`${label} mt-4 mb-2`}>When</p>
+        <div className="flex gap-2">
+          {SLOTS.map(([k, l]) => (
+            <button key={k} type="button" onClick={() => set({ slot: k })}
+              className={`px-3.5 py-1.5 rounded-full text-[12.5px] border ${form.slot === k ? "bg-[#A7773F] border-[#A7773F] text-[#F7F3EC]" : "border-border text-muted-foreground"}`}>{l}</button>
+          ))}
+        </div>
+
+        <p className={`${label} mt-4 mb-2`}>Days</p>
+        <div className="flex gap-2 mb-2">
+          <button type="button" onClick={() => set({ days: null })} className={`px-3.5 py-1.5 rounded-full text-[12.5px] border ${!picking ? "bg-[#A7773F] border-[#A7773F] text-[#F7F3EC]" : "border-border text-muted-foreground"}`}>Every day</button>
+          <button type="button" onClick={() => set({ days: picking ? form.days : [1, 3, 5] })} className={`px-3.5 py-1.5 rounded-full text-[12.5px] border ${picking ? "bg-[#A7773F] border-[#A7773F] text-[#F7F3EC]" : "border-border text-muted-foreground"}`}>Pick days</button>
+        </div>
+        {picking && (
+          <div className="flex gap-1.5">
+            {[1, 2, 3, 4, 5, 6, 0].map((d) => {
+              const on = form.days.includes(d);
+              return (
+                <button key={d} type="button" onClick={() => set({ days: on ? form.days.filter((x) => x !== d) : [...form.days, d] })}
+                  className={`w-9 h-9 rounded-full text-[12.5px] border ${on ? "bg-[#2E2A27] border-[#2E2A27] text-[#F7F3EC]" : "border-border text-muted-foreground"}`}>{DAY_LETTERS[d]}</button>
+              );
+            })}
+          </div>
+        )}
+
+        <p className={`${label} mt-4 mb-2`}>Steps</p>
+        <div className="space-y-2">
+          {form.steps.map((s, i) => (
+            <div key={s.id} className="flex gap-2 items-start">
+              <span className="text-xs text-muted-foreground w-4 pt-3 text-right">{i + 1}</span>
+              <div className="flex-1 space-y-1.5">
+                <input value={s.text} onChange={(e) => setStep(i, { text: e.target.value })} placeholder="Step, e.g. Cleanser or Shoulder press" className={FIELD} />
+                <input value={s.note || ""} onChange={(e) => setStep(i, { note: e.target.value })} placeholder="Note (optional), e.g. 3 × 10 · 15 lb" className={`${FIELD} text-[13px] py-2`} />
+              </div>
+              <button type="button" onClick={() => set({ steps: form.steps.filter((_, j) => j !== i) })} aria-label="Remove step" className="p-2 mt-1 text-muted-foreground"><X className="w-4 h-4" strokeWidth={1.5} /></button>
+            </div>
+          ))}
+        </div>
+        <button type="button" onClick={() => set({ steps: [...form.steps, { id: newId(), text: "", note: "" }] })}
+          className="mt-2 inline-flex items-center gap-1 text-[13px] font-medium text-[#A7773F]"><Plus className="w-4 h-4" strokeWidth={1.5} /> Add step</button>
+
+        <div className="flex items-center gap-4 mt-6">
+          <button onClick={submit} disabled={!form.name.trim() || !form.steps.some((s) => s.text.trim())}
+            className="bg-[#A7773F] text-[#F7F3EC] px-6 py-2.5 rounded-full text-sm font-medium disabled:opacity-40">Save routine</button>
+          {form.id && <button onClick={() => remove(form.id)} className="inline-flex items-center gap-1 text-sm text-[#8F5F65]"><Trash2 className="w-4 h-4" strokeWidth={1.5} /> Delete</button>}
+        </div>
+      </div>
+    );
+  }
+
+  // ---------- one routine ----------
+  const open = routines.find((r) => r.id === openId);
+  if (open) {
+    const c = colorOf(open);
+    const s = streaks(open);
+    const month = completionRate(open, new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+    const todayOn = isScheduled(open);
+    const ids = new Set(open.log?.[today] || []);
+    return (
+      <div className="px-4 py-4 max-w-xl">
+        <button onClick={() => setOpenId(null)} className="inline-flex items-center gap-1 text-[13px] text-muted-foreground mb-3"><ArrowLeft className="w-4 h-4" strokeWidth={1.5} /> Routines</button>
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-heading text-[26px] text-foreground leading-tight">{open.name}</h2>
+          <button onClick={() => setForm({ ...open, steps: open.steps?.length ? open.steps : [{ id: newId(), text: "", note: "" }] })} className="text-[13px] font-medium text-[#A7773F]">Edit</button>
+        </div>
+        <p className="font-heading italic text-[14px] text-muted-foreground mb-4">{SLOTS.find(([k]) => k === open.slot)?.[1] || "Anytime"} · {scheduleLabel(open).toLowerCase()}</p>
+
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          <div className="rounded-2xl p-3 text-white" style={{ background: c }}>
+            <p className="font-heading text-[22px] leading-none flex items-center gap-1"><Flame className="w-4 h-4" strokeWidth={1.8} />{s.current}</p>
+            <p className="text-[11px] opacity-85 mt-1">{open.days ? "in a row" : "day streak"}</p>
+          </div>
+          <div className="rounded-2xl p-3 bg-card border border-border"><p className="font-heading text-[22px] leading-none">{s.longest}</p><p className="text-[11px] text-muted-foreground mt-1">longest</p></div>
+          <div className="rounded-2xl p-3 bg-card border border-border"><p className="font-heading text-[22px] leading-none">{month.sched ? `${month.pct}%` : "–"}</p><p className="text-[11px] text-muted-foreground mt-1">this month</p></div>
+        </div>
+
+        <div className="flex gap-2 mb-5">
+          {weekDays().map((d) => {
+            const k = dayKey(d); const sched = isScheduled(open, d); const fin = completeOn(open, k); const isToday = k === today;
+            return (
+              <div key={k} className="flex-1 text-center">
+                <p className="text-[10.5px] text-muted-foreground">{DAY_LETTERS[d.getDay()]}</p>
+                <span className="block mx-auto mt-1 rounded-full w-8 h-8 max-w-full"
+                  style={fin ? { background: c } : { border: `1.5px ${sched ? "solid" : "dashed"} ${isToday ? "#2E2A27" : "#E4DACB"}` }} />
+              </div>
+            );
+          })}
+        </div>
+
+        <p className={`${label} mb-1`}>{todayOn ? "Today's steps" : "Steps · not scheduled today"}</p>
+        <div className="bg-card border border-border rounded-2xl px-4">
+          {(open.steps || []).map((st) => {
+            const on = ids.has(st.id);
+            return (
+              <button key={st.id} onClick={() => tick(open, st.id)} className="w-full flex items-center gap-3 py-3 border-b border-border/60 last:border-0 text-left">
+                <Tick on={on} color={c} />
+                <span className="min-w-0">
+                  <span className={`block text-[14.5px] ${on ? "line-through text-muted-foreground" : "text-foreground"}`}>{st.text}</span>
+                  {st.note && <span className="block text-[11.5px] text-muted-foreground">{st.note}</span>}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {completeOn(open, today) && <p className="text-[13px] text-[#566033] mt-3">All done for today.</p>}
+      </div>
+    );
+  }
+
+  // ---------- list ----------
+  const dueToday = routines.filter((r) => isScheduled(r));
+  const totalSteps = dueToday.reduce((t, r) => t + (r.steps || []).length, 0);
+  const doneSteps = dueToday.reduce((t, r) => t + doneOn(r, today), 0);
+  const left = dueToday.filter((r) => !completeOn(r, today)).length;
+
+  return (
+    <div className="px-4 py-4 max-w-2xl">
+      {loaded && routines.length === 0 && (
+        <div className="text-center py-10">
+          <p className="font-heading text-[20px] text-foreground mb-1">Small steps, every day</p>
+          <p className="text-sm text-muted-foreground mb-4">Build a facial routine, a workout, or anything you repeat.</p>
+          <button onClick={() => setForm(blank())} className="bg-[#A7773F] text-[#F7F3EC] px-5 py-2.5 rounded-full text-sm font-medium">+ New routine</button>
+        </div>
+      )}
+      {routines.length > 0 && (
+        <>
+          {totalSteps > 0 && (
+            <div className="rounded-2xl bg-[#2E2A27] text-[#F7F3EC] px-4 py-3.5 mb-4">
+              <p className="text-[12px] opacity-75">Today</p>
+              <p className="font-heading text-[24px] leading-tight">{doneSteps} of {totalSteps} steps <span className="font-body text-[12px] opacity-75">· {left ? `${left} routine${left === 1 ? "" : "s"} left` : "all done"}</span></p>
+              <div className="h-1.5 rounded-full bg-white/15 mt-2.5 overflow-hidden">
+                <div className="h-full rounded-full" style={{ width: `${Math.round((doneSteps / totalSteps) * 100)}%`, background: "linear-gradient(90deg,#A77C81,#A7773F,#7D8A53)" }} />
+              </div>
+            </div>
+          )}
+          {SLOTS.map(([slot, slotLabel]) => {
+            const list = routines.filter((r) => (r.slot || "anytime") === slot);
+            if (!list.length) return null;
+            return (
+              <div key={slot} className="mb-3">
+                <p className={`${label} mb-2`}>{slotLabel}</p>
+                {list.map((r) => {
+                  const c = colorOf(r); const s = streaks(r); const sched = isScheduled(r);
+                  const n = (r.steps || []).length; const d = doneOn(r, today);
+                  return (
+                    <button key={r.id} onClick={() => setOpenId(r.id)}
+                      className="w-full text-left bg-card border border-border rounded-2xl px-4 py-3 mb-2 hover:border-[#A7773F]/40 transition-colors"
+                      style={{ borderLeft: `4px solid ${c}` }}>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-heading text-[17px] text-foreground truncate">{r.name}</span>
+                        {s.current > 0 && <span className="text-[11.5px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap inline-flex items-center gap-1" style={{ color: c, background: `${c}1F` }}><Flame className="w-3 h-3" strokeWidth={2} />{s.current}</span>}
+                      </div>
+                      <p className="text-[11.5px] text-muted-foreground mt-0.5">{scheduleLabel(r)} · {sched ? (d >= n && n ? "done today" : `${d} of ${n} steps today`) : "rest day"}</p>
+                      <div className="h-[5px] rounded-full bg-[#EFE8DC] mt-2 overflow-hidden"><div className="h-full rounded-full" style={{ width: sched && n ? `${Math.round((d / n) * 100)}%` : 0, background: c }} /></div>
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
+          <button onClick={() => setForm(blank())} className="mt-2 inline-flex items-center gap-1 text-[13px] font-medium text-[#A7773F]"><Plus className="w-4 h-4" strokeWidth={1.5} /> New routine</button>
+        </>
+      )}
+    </div>
+  );
+}

@@ -26,7 +26,7 @@ const ACHIEVEMENT_SUBTYPES = [
   { id: "certification", label: "Certification", icon: BadgeCheck, description: "Courses, credentials, certificates" },
 ];
 
-export default function Career() {
+export default function Career({ switcher = null }) {
   const [entries, setEntries] = useState([]);
   const [adding, setAdding] = useState(false);
   const [showPay, setShowPay] = useState(false);
@@ -258,6 +258,7 @@ export default function Career() {
     <>
       <div className="max-w-[1200px] 2xl:max-w-[1400px] mx-auto w-full">
       <PageHeader
+        below={switcher}
         title="Career"
         subtitle="Where you've been, where you're going."
         actions={

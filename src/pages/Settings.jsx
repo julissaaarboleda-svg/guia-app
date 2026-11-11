@@ -3,16 +3,17 @@ import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
 import AdjustableImage from "@/components/ui/AdjustableImage";
 import ImageAdjuster from "@/components/ui/ImageAdjuster";
-import { Move, Camera, ChevronDown, Target, FileText, Briefcase, Building2, CreditCard, Plane, FolderOpen, CheckCircle, X, LogOut, MessageSquare } from "lucide-react";
+import { ShieldCheck, Move, Camera, ChevronDown, Target, FileText, Briefcase, CreditCard, Plane, FolderOpen, CheckCircle, X, LogOut, MessageSquare } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import SectionOrderEditor from "@/components/settings/SectionOrderEditor";
 import FeedbackModal from "@/components/feedback/FeedbackModal";
+import { Link } from "react-router-dom";
+import { DEFAULT_SECTION_ORDER, normalizeSections, normalizeOrder } from "@/lib/navSections";
 
 const ALL_SECTIONS = [
   { id: "tasks",    label: "Tasks",    icon: CheckCircle, description: "Daily to-dos and reminders" },
   { id: "goals",    label: "Goals",    icon: Target, description: "Long-term goals and milestones" },
-  { id: "career",   label: "Career",   icon: Briefcase, description: "Work, comp & growth" },
-  { id: "business", label: "Business", icon: Building2, description: "Revenue, expenses, clients" },
+  { id: "work",     label: "Work",     icon: Briefcase, description: "Career and business, together" },
   { id: "finance",  label: "Finance",  icon: CreditCard, description: "Credit, savings, loans, subscriptions, budget" },
   { id: "travel",   label: "Journeys", icon: Plane, description: "Trips and itineraries" },
   { id: "projects", label: "Projects", icon: FolderOpen, description: "Personal projects and phases" },
@@ -27,7 +28,7 @@ const AVATAR_COLORS = [
   { hex: "#A77C81", label: "Dusty mauve" },
   { hex: "#6B655D", label: "Warm grey" },
 ];
-const DEFAULT_ORDER = ["goals", "notes", "career", "business", "finance", "travel", "projects"];
+const DEFAULT_ORDER = DEFAULT_SECTION_ORDER;
 const FIELD = "w-full bg-card border border-border rounded-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-[#A7773F] transition-colors font-body";
 
 function Switch({ on }) {
@@ -117,8 +118,8 @@ export default function Settings() {
       const t = pref?.tagline || "";
       const w = pref?.monthly_word || "";
       const i = pref?.monthly_intention || "";
-      const sel = new Set(pref?.enabled_sections || []);
-      const ord = pref?.section_order || DEFAULT_ORDER;
+      const sel = new Set(normalizeSections(pref?.enabled_sections || []));
+      const ord = normalizeOrder(pref?.section_order);
       setPrefs(pref);
       setName(n); setTagline(t); setWord(w); setIntention(i);
       setAvatarColor(pref?.avatar_color || "#1F1F1F");
@@ -323,6 +324,10 @@ export default function Settings() {
       {/* About */}
       <section className="bg-card border border-border rounded-2xl p-5 mb-6">
         <h2 className="font-heading text-lg text-foreground mb-1">About</h2>
+        <Link to="/backup" className="w-full flex items-center justify-between py-3 text-left border-b border-border/60">
+          <span className="flex items-center gap-3 text-sm font-body text-foreground"><ShieldCheck className="w-[18px] h-[18px] text-muted-foreground" strokeWidth={1.5} /> Backup & export</span>
+          <span className="text-muted-foreground">›</span>
+        </Link>
         <button onClick={() => setShowFeedback(true)} className="w-full flex items-center justify-between py-3 text-left">
           <span className="flex items-center gap-3 text-sm font-body text-foreground"><MessageSquare className="w-[18px] h-[18px] text-muted-foreground" strokeWidth={1.5} /> Send feedback</span>
           <span className="text-muted-foreground">›</span>
