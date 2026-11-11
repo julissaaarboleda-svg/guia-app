@@ -73,34 +73,38 @@ export default function Dashboard() {
   useEffect(() => {
     const checkWelcome = async () => {
       const u = await base44.auth.me();
-      const p = await ent.UserPreferences.filter({ user_email: u.email });
-      if (p.length > 0 && !p[0].welcome_shown) {
-        setShowWelcome(true);
-        await ent.UserPreferences.update(p[0].id, { welcome_shown: true });
-      }
-    };
-    checkWelcome();
-  }, []);
-
-  useEffect(() => {
-    const load = async () => {
-      const u = await base44.auth.me();
-      setUser(u);
-      const p = await ent.UserPreferences.filter({ user_email: u.email });
+      // Everything loads at once: preferences, the main cards and the progress rings.
+      const extras = Promise.all([
+        ent.Business.list().catch(() => []),
+        ent.SpendingStatement.list().catch(() => []),
+        ent.BudgetBucket.list().catch(() => []),
+      ]);
+      ent.Routine.list().then(setRoutines).catch(() => {});
+      const [p, g, tr, bizAll, finAll, tsk, proj, bg, career] = await Promise.all([
+        ent.UserPreferences.filter({ user_email: u.email }),
+        ent.Goal.list("-created_date", 20),
+        ent.Trip.list("-start_date", 8),
+        ent.BusinessEntry.list("-date"),
+        ent.FinanceItem.list("-created_date", 300),
+        ent.Task.list("-due_date", 40),
+        ent.Project.list("-updated_date", 20),
+        ent.BusinessGoal.list("-created_date", 10),
+        ent.CareerEntry.list("-updated_date", 10),
+      ]);
       if (p.length > 0) {
         setPrefs(p[0]);
         if (p[0].hero_mode2) setHeroMode(p[0].hero_mode2);
         if (p[0].hero_positions && typeof p[0].hero_positions === "object") setHeroPositions(p[0].hero_positions);
         if (Array.isArray(p[0].hero_images) && p[0].hero_images.length > 0) setUserHeroImages(p[0].hero_images);
       }
-      ent.Routine.list().then(setRoutines).catch(() => {});
-      const [bizAll, bizList, finAll, stmts, buckets] = await Promise.all([
-        ent.BusinessEntry.list("-date"),
-        ent.Business.list(),
-        ent.FinanceItem.list("-created_date", 300),
-        ent.SpendingStatement.list().catch(() => []),
-        ent.BudgetBucket.list().catch(() => []),
-      ]);
+      setGoals(g); setTrips(tr); setBizEntries(bizAll.slice(0, 30));
+      setFinItems(finAll.slice(0, 30)); setTasks(tsk); setProjects(proj);
+      setBusinessGoals(bg); setCareerEntries(career);
+      setAllFin(finAll);
+      setLoaded(true);
+
+      // Ring numbers that need a few more lists fill in a moment later, without holding up the page.
+      const [bizList, stmts, buckets] = await extras;
       const mkNow = monthKeyOf();
       setSpendingProgress({
         spent: monthView(stmts, mkNow)?.total || 0,
@@ -108,25 +112,10 @@ export default function Dashboard() {
       });
       const defBiz = bizList.find((b) => b.is_default) || bizList[0];
       const defId = defBiz?.id;
-      setAllFin(finAll);
       setBizProgress({
         revenueGoal: defBiz?.revenue_goal || 0,
         revenue: bizAll.filter((e) => !defId || (e.business_id || defId) === defId).reduce((t, e) => t + (e.revenue || 0), 0),
       });
-      const [g, tr, biz, fin, tsk, proj, bg, career] = await Promise.all([
-        ent.Goal.list("-created_date", 20),
-        ent.Trip.list("-start_date", 8),
-        ent.BusinessEntry.list("-date", 30),
-        ent.FinanceItem.list("-created_date", 30),
-        ent.Task.list("-due_date", 40),
-        ent.Project.list("-updated_date", 20),
-        ent.BusinessGoal.list("-created_date", 10),
-        ent.CareerEntry.list("-updated_date", 10),
-      ]);
-      setGoals(g); setTrips(tr); setBizEntries(biz);
-      setFinItems(fin); setTasks(tsk); setProjects(proj);
-      setBusinessGoals(bg); setCareerEntries(career);
-      setLoaded(true);
     };
     load();
   }, []);
