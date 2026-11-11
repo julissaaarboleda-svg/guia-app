@@ -8,6 +8,7 @@ import {
 } from "@/lib/routines";
 
 const newId = () => Math.random().toString(36).slice(2, 10);
+const fmtTime = (t) => { const [h, m] = String(t).split(":").map(Number); return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`; };
 const blank = () => ({ name: "", color: "cognac", slot: "morning", days: null, steps: [{ id: newId(), text: "", note: "" }] });
 const label = "text-[10.5px] font-semibold tracking-[0.14em] uppercase text-muted-foreground";
 const FIELD = "w-full bg-card border border-border rounded-xl px-3 py-2.5 text-sm text-foreground outline-none focus:border-[#A7773F]";
@@ -97,7 +98,7 @@ export default function RoutinesView({ addSignal = 0 }) {
   const submit = async () => {
     const steps = (form.steps || []).filter((s) => s.text.trim()).map((s) => ({ id: s.id, text: s.text.trim(), note: (s.note || "").trim(), days: s.days && s.days.length && s.days.length < 7 ? s.days : null }));
     if (!form.name.trim() || !steps.length) return;
-    const data = { name: form.name.trim(), color: form.color, slot: form.slot, days: form.days && form.days.length && form.days.length < 7 ? form.days : null, steps };
+    const data = { name: form.name.trim(), color: form.color, slot: form.slot, days: form.days && form.days.length && form.days.length < 7 ? form.days : null, steps, remind_at: form.remind_at || null };
     if (form.id) {
       await ent.Routine.update(form.id, data);
       if (form._mergeFrom) { try { await ent.Routine.delete(form._mergeFrom); } catch { /* still saved */ } }
@@ -157,6 +158,18 @@ export default function RoutinesView({ addSignal = 0 }) {
             })}
           </div>
         )}
+
+        <p className={`${label} mt-4 mb-2`}>Reminder</p>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button type="button" onClick={() => set({ remind_at: null })} className={`px-3.5 py-1.5 rounded-full text-[12.5px] border ${!form.remind_at ? "bg-[#A7773F] border-[#A7773F] text-[#F7F3EC]" : "border-border text-muted-foreground"}`}>Off</button>
+          <button type="button" onClick={() => set({ remind_at: form.remind_at || (form.slot === "evening" ? "21:00" : form.slot === "anytime" ? "12:00" : "07:00") })}
+            className={`px-3.5 py-1.5 rounded-full text-[12.5px] border ${form.remind_at ? "bg-[#A7773F] border-[#A7773F] text-[#F7F3EC]" : "border-border text-muted-foreground"}`}>Remind me</button>
+          {form.remind_at && (
+            <input type="time" value={form.remind_at} onChange={(e) => set({ remind_at: e.target.value || null })}
+              className="bg-secondary border border-input rounded-full px-3 py-1 text-[13px] text-foreground outline-none focus:border-ring" />
+          )}
+        </div>
+        {form.remind_at && <p className="text-[11.5px] text-muted-foreground mt-1.5">Shows up with an alert in your calendar on the days above, once Calendar sync is on (Settings).</p>}
 
         <p className={`${label} mt-4 mb-2`}>Steps</p>
         <div className="space-y-2">
@@ -267,7 +280,7 @@ export default function RoutinesView({ addSignal = 0 }) {
           <h2 className="font-heading text-[26px] text-foreground leading-tight">{open.name}</h2>
           <button onClick={() => setForm({ ...open, steps: open.steps?.length ? open.steps : [{ id: newId(), text: "", note: "" }] })} className="text-[13px] font-medium text-[#A7773F]">Edit</button>
         </div>
-        <p className="font-heading italic text-[14px] text-muted-foreground mb-4">{SLOTS.find(([k]) => k === open.slot)?.[1] || "Anytime"} · {scheduleLabel(open).toLowerCase()}</p>
+        <p className="font-heading italic text-[14px] text-muted-foreground mb-4">{SLOTS.find(([k]) => k === open.slot)?.[1] || "Anytime"} · {scheduleLabel(open).toLowerCase()}{open.remind_at ? ` · reminder ${fmtTime(open.remind_at)}` : ""}</p>
 
         <div className="grid grid-cols-3 gap-2 mb-4">
           <div className="rounded-2xl p-3 text-white" style={{ background: c }}>

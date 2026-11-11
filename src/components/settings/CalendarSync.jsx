@@ -5,11 +5,12 @@ const OPTIONS = [
   ["bills", "Bills and loan payments"],
   ["trips", "Trips"],
   ["tasks", "Tasks with a due date"],
+  ["routines", "Routine reminders"],
   ["goals", "Goal target dates"],
 ];
 
 async function call(action, include) {
-  const res = await fetch(`${API_BASE}/calendar`, { method: "POST", headers: await authHeaders(), body: JSON.stringify({ action, include }) });
+  const res = await fetch(`${API_BASE}/calendar`, { method: "POST", headers: await authHeaders(), body: JSON.stringify({ action, include, tz: (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return undefined; } })() }) });
   if (!res.ok) throw new Error("Couldn't load calendar sync.");
   return res.json();
 }

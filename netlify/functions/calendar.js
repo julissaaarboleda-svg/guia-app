@@ -10,7 +10,7 @@ const { getStore, connectLambda } = require("@netlify/blobs");
 const { randomBytes } = require("node:crypto");
 
 const CORS = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
-const DEFAULT_INCLUDE = { bills: true, trips: true, tasks: true, goals: false };
+const DEFAULT_INCLUDE = { bills: true, trips: true, tasks: true, goals: false, routines: true };
 
 const newToken = () => randomBytes(18).toString("base64url");
 const json = (statusCode, body) => ({ statusCode, headers: CORS, body: JSON.stringify(body) });
@@ -34,6 +34,26 @@ function allDay(uid, title, start, endExclusive, { rrule, desc, alarm } = {}) {
     `DTSTART;VALUE=DATE:${ymd(start)}`, `DTEND;VALUE=DATE:${ymd(endExclusive || nextDay(start))}`,
     `SUMMARY:${esc(title)}`, ...(desc ? [`DESCRIPTION:${esc(desc)}`] : []), ...(rrule ? [`RRULE:${rrule}`] : []),
     "TRANSP:TRANSPARENT", ...(alarm ? ALARM : []), "END:VEVENT",
+  ].map(fold).join("\r\n");
+}
+// Routine reminder: a short repeating event at the person's own local time ("floating" time,
+// so 7:00 stays 7:00 wherever their phone is), with an alert when it starts.
+const BYDAY = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+function routineEvent(r, tz) {
+  const m = String(r.remind_at || "").match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  const start = String(r.created_date || new Date().toISOString()).slice(0, 10).replace(/-/g, "");
+  const hhmm = `${m[1].padStart(2, "0")}${m[2]}00`;
+  const days = Array.isArray(r.days) && r.days.length && r.days.length < 7 ? r.days : null;
+  const rrule = days ? `FREQ=WEEKLY;BYDAY=${days.map((d) => BYDAY[d]).join(",")}` : "FREQ=DAILY";
+  const steps = (r.steps || []).map((st) => `• ${st.text}`).join("\n");
+  return [
+    "BEGIN:VEVENT", `UID:routine-${r.id}@guia`, `DTSTAMP:${stamp}`,
+    tz ? `DTSTART;TZID=${tz}:${start}T${hhmm}` : `DTSTART:${start}T${hhmm}`, "DURATION:PT15M", `RRULE:${rrule}`,
+    `SUMMARY:${esc(`${r.name || "Routine"}`)}`, ...(steps ? [`DESCRIPTION:${esc(steps)}`] : []),
+    "TRANSP:TRANSPARENT",
+    "BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${esc(`Time for ${r.name || "your routine"}`)}`, "TRIGGER:PT0M", "END:VALARM",
+    "END:VEVENT",
   ].map(fold).join("\r\n");
 }
 const money = (n) => (Number(n) > 0 ? ` · $${Number(n).toLocaleString("en-US", { maximumFractionDigits: 2 })}` : "");
@@ -87,6 +107,9 @@ async function feed(token) {
       events.push(allDay(`task-${t.id}`, t.title || "Task", t.due_date, null, { desc: t.notes || "", alarm: t.source === "credit" }));
     });
   }
+  if (inc.routines) {
+    (await readAll(data, rec.userId, "Routine")).forEach((r) => { const e = routineEvent(r, rec.tz); if (e) events.push(e); });
+  }
   if (inc.goals) {
     (await readAll(data, rec.userId, "Goal")).filter((g) => g.target_date && g.status !== "completed").forEach((g) => {
       events.push(allDay(`goal-${g.id}`, `Goal: ${g.title || ""}`, g.target_date));
@@ -94,7 +117,7 @@ async function feed(token) {
   }
   return [
     "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Guia//Calendar sync//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
-    "X-WR-CALNAME:Guía", "X-PUBLISHED-TTL:PT1H", "REFRESH-INTERVAL;VALUE=DURATION:PT1H",
+    "X-WR-CALNAME:Guía", ...(rec.tz ? [`X-WR-TIMEZONE:${rec.tz}`] : []), "X-PUBLISHED-TTL:PT1H", "REFRESH-INTERVAL;VALUE=DURATION:PT1H",
     ...events, "END:VCALENDAR",
   ].join("\r\n");
 }
@@ -134,8 +157,9 @@ exports.handler = async (event, context) => {
     if (body.action === "save" && body.include && typeof body.include === "object") {
       me.include = Object.fromEntries(Object.keys(DEFAULT_INCLUDE).map((k) => [k, !!body.include[k]]));
     }
+    if (typeof body.tz === "string" && /^[A-Za-z_]+(\/[A-Za-z0-9_+-]+)*$/.test(body.tz)) me.tz = body.tz;
     await users.setJSON(userId, me);
-    await tokens.setJSON(me.token, { userId, include: me.include });
+    await tokens.setJSON(me.token, { userId, include: me.include, tz: me.tz || null });
     return json(200, { token: me.token, include: { ...DEFAULT_INCLUDE, ...me.include } });
   } catch (err) {
     console.error("calendar settings failed:", err);
