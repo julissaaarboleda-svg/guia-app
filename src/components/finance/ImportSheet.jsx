@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { X, FileText, Upload, Check, ChevronDown } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { findOverlaps, buildMonths, monthOf } from "@/lib/spending";
+import { findOverlaps, buildMonths, monthOf, rowKey, compactRows } from "@/lib/spending";
 import { paidPatch, monthKeyOf, isPaid } from "@/lib/financeHelpers";
 
 const KIND_LABEL = { bill: "Bill", subscription: "Subscription", loan: "Loan", credit_card: "Credit card", savings_goal: "Savings goal" };
@@ -178,8 +178,12 @@ export default function ImportSheet({ open, onClose, existing = [], statements =
   const willPay = matches.filter((m) => m.tick).length;
 
   // Spending: bill and loan payments found above are left out so nothing is counted twice.
+  // Purchases already in a saved statement (same day, place and amount) are left out, so two
+  // screenshots that overlap by a few days only count the overlap once.
+  const savedKeys = new Set(statements.flatMap((x) => (Array.isArray(x.rows) ? x.rows : [])).map(rowKey));
   const fixedSpend = spendRows.map((r, i) => {
     if (usedIdx.has(i)) return { ...r, t: "skip" };
+    if (r.t === "purchase" && savedKeys.has(rowKey(r))) return { ...r, t: "skip", already: true };
     const f = fixes[norm(r.m)];
     return f ? (f === "skip" ? { ...r, t: "skip" } : { ...r, c: f }) : r;
   });
@@ -189,7 +193,10 @@ export default function ImportSheet({ open, onClose, existing = [], statements =
   const spendTotal = builtKeys.reduce((t, k) => t + built[k].total, 0);
   const rawCount = (f) => spendRows.filter((r) => r.f === f && r.t === "purchase").length;
   // A file whose dates and merchants are already in a saved statement is left out unless the person says otherwise.
-  const overlapByFile = fileObjs.map((_, i) => findOverlaps(buildMonths(fixedSpend.filter((r) => r.f === i)), statements));
+  const alreadyCount = fixedSpend.filter((r) => r.already).length;
+  // The looser date-and-places check is only needed for statements saved before purchases were kept.
+  const oldStatements = statements.filter((x) => !Array.isArray(x.rows));
+  const overlapByFile = fileObjs.map((_, i) => findOverlaps(buildMonths(fixedSpend.filter((r) => r.f === i)), oldStatements));
   const fileSkipped = (i) => overlapByFile[i].length > 0 && !allowFiles.has(i);
   const activeFiles = fileObjs.map((_, i) => i).filter((i) => rawCount(i) > 0 && !fileSkipped(i));
   const willSpend = includeSpend && spendCount > 0 && activeFiles.length > 0 ? 1 : 0;
@@ -224,7 +231,7 @@ export default function ImportSheet({ open, onClose, existing = [], statements =
           if (!mine.some((r) => r.t === "purchase") || fileSkipped(i)) continue;
           await ent.SpendingStatement.create({
             label: fileObjs[i].name.replace(/\.[^.]+$/, "").slice(0, 60), filename: fileObjs[i].name,
-            count: rawCount(i), months: buildMonths(mine),
+            count: mine.filter((r) => r.t === "purchase").length, months: buildMonths(mine), rows: compactRows(mine),
           });
         }
       }
@@ -425,6 +432,7 @@ export default function ImportSheet({ open, onClose, existing = [], statements =
                 </div>
                 <div className={`bg-card border border-border rounded-2xl p-3 ${includeSpend ? "" : "opacity-50"}`}>
                   <p className="text-[13px] text-foreground mb-2">Found <b className="font-medium">{spendCount} purchases</b> totaling <b className="font-medium">{money0(spendTotal)}</b>.</p>
+                  {alreadyCount > 0 && <p className="text-[12.5px] text-[#566033] bg-[#E8EBDD] rounded-lg px-3 py-2 mb-2">{alreadyCount} purchase{alreadyCount === 1 ? " is" : "s are"} already saved from an earlier upload and will be left out, so overlapping days count once.</p>}
                   {fileObjs.map((fo, i) => overlapByFile[i].length > 0 && (
                     <div key={`ov${i}`} className="text-[12.5px] text-[#8A5F27] bg-[#F3E8D6] rounded-lg px-3 py-2 mb-2">
                       <p>{fo.name} looks already added: {overlapByFile[i].map((o) => `${monthName(o.key)} (${shortDay(o.from)} to ${shortDay(o.to)}) matches ${o.label}`).join("; ")}. {allowFiles.has(i) ? "It will be added again." : "It will be left out so nothing counts twice."}</p>

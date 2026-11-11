@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { monthView, monthsWithData, habits, throughLabel, statementRange } from "@/lib/spending";
+import { monthView, monthsWithData, habits, throughLabel, statementRange, findRepeatedRows, overlappingOldStatements, buildMonths } from "@/lib/spending";
 
 const money = (n) => `$${Math.round(Number(n) || 0).toLocaleString()}`;
 const monthLabel = (k) => new Date(Number(k.slice(0, 4)), Number(k.slice(5)) - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
@@ -21,6 +21,8 @@ export default function SpendingTab({ items = [], onImport }) {
   const [allCats, setAllCats] = useState(false);
   const [allPlaces, setAllPlaces] = useState(false);
   const [showStatements, setShowStatements] = useState(false);
+  const [dupCheck, setDupCheck] = useState(null); // { repeated, old } after "Check for duplicates"
+  const [fixing, setFixing] = useState(false);
 
   const load = async () => {
     try {
@@ -76,6 +78,19 @@ Return JSON: {"review": "..."}`,
     try { await ent.SpendingStatement.delete(s.id); } catch { /* ignore */ }
     load();
   };
+
+  const checkDuplicates = () => setDupCheck({ repeated: findRepeatedRows(statements), old: overlappingOldStatements(statements) });
+  const fixRepeated = async () => {
+    setFixing(true);
+    try {
+      for (const { statement, keep } of dupCheck.repeated) {
+        if (!keep.length) await ent.SpendingStatement.delete(statement.id);
+        else await ent.SpendingStatement.update(statement.id, { rows: keep, count: keep.length, months: buildMonths(keep.map((r) => ({ ...r, t: "purchase" }))) });
+      }
+    } catch { /* reload shows what saved */ }
+    setFixing(false); setDupCheck(null); load();
+  };
+  const shortDay = (d) => new Date(`${d}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
   const addSub = async (e) => {
     try { await ent.FinanceItem.create({ type: "subscription", name: e.name, amount: e.total, billing_cycle: "monthly", renewal_date: null, notes: "" }); } catch { /* ignore */ }
@@ -178,6 +193,27 @@ Return JSON: {"review": "..."}`,
             <h3 className="font-heading text-base text-foreground">Statements added <span className="text-muted-foreground text-sm">· {statements.length}</span></h3>
             <span className="text-xs text-[#A7773F]">{showStatements ? "Hide" : "Show"}</span>
           </button>
+          {showStatements && (
+            <div className="mt-2 mb-1">
+              {!dupCheck ? (
+                <button onClick={checkDuplicates} className="text-[12.5px] font-medium text-[#A7773F]">Check for duplicates</button>
+              ) : (
+                <div className="bg-secondary/60 rounded-xl p-3 text-[12.5px] text-foreground space-y-2">
+                  {dupCheck.repeated.length === 0 && dupCheck.old.length === 0 && <p>No duplicates found.</p>}
+                  {dupCheck.repeated.length > 0 && (
+                    <>
+                      <p>{dupCheck.repeated.reduce((t, x) => t + x.drop.length, 0)} purchases appear in more than one statement, for example {dupCheck.repeated[0].drop.slice(0, 2).map((r) => `${r.m} on ${shortDay(r.d)}`).join(" and ")}. The first copy is kept.</p>
+                      <button disabled={fixing} onClick={fixRepeated} className="bg-[#A7773F] text-[#F7F3EC] rounded-full px-3.5 py-1.5 text-[12.5px] font-medium disabled:opacity-50">{fixing ? "Removing…" : "Remove the repeats"}</button>
+                    </>
+                  )}
+                  {dupCheck.old.map((o, i) => (
+                    <p key={i}><b className="font-medium">{o.a.label}</b> and <b className="font-medium">{o.b.label}</b> both cover {o.from === o.to ? shortDay(o.from) : `${shortDay(o.from)} to ${shortDay(o.to)}`}. They were added before Guía kept each purchase, so the overlap can't be split out. Remove both and upload the two files again together; purchases that appear in both are counted once.</p>
+                  ))}
+                  <button onClick={() => setDupCheck(null)} className="text-[12px] text-muted-foreground">Done</button>
+                </div>
+              )}
+            </div>
+          )}
           {showStatements && statements.map((s) => (
             <div key={s.id} className="flex items-center justify-between py-2 border-b border-border last:border-0 mt-1">
               <div className="min-w-0"><p className="text-[13.5px] text-foreground truncate">{s.label}</p>

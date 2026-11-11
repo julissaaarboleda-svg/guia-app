@@ -125,3 +125,46 @@ export function findOverlaps(built, statements) {
   }
   return out;
 }
+
+// Each statement saved from now on keeps its purchases as compact rows { d, m, a, c }, so a
+// repeat (same day, place and amount) can be found even when two files only partly overlap.
+export const rowKey = (r) => `${r.d}|${mkey(r.m)}|${Math.round(Number(r.a) * 100)}`;
+export const compactRows = (rows) => rows.filter((r) => r.t === "purchase").map((r) => ({ d: r.d, m: r.m, a: r.a, c: r.c }));
+
+// Purchases that appear in more than one saved statement. The first statement added keeps its
+// copy; later ones lose theirs. Returns [{ statement, drop: [rows], keep: [rows] }].
+export function findRepeatedRows(statements) {
+  const seen = new Set();
+  const out = [];
+  [...statements].filter((s) => Array.isArray(s.rows))
+    .sort((a, b) => String(a.created_date || "").localeCompare(String(b.created_date || "")))
+    .forEach((s) => {
+      const keep = []; const drop = [];
+      const mine = new Set();
+      s.rows.forEach((r) => {
+        const k = rowKey(r);
+        if (seen.has(k) && !mine.has(k)) drop.push(r); else keep.push(r);
+        mine.add(k);
+      });
+      s.rows.forEach((r) => seen.add(rowKey(r)));
+      if (drop.length) out.push({ statement: s, drop, keep });
+    });
+  return out;
+}
+
+// Older statements (saved before purchases were kept) whose dates overlap each other.
+export function overlappingOldStatements(statements) {
+  const old = statements.filter((s) => !Array.isArray(s.rows));
+  const pairs = [];
+  for (let i = 0; i < old.length; i++) for (let j = i + 1; j < old.length; j++) {
+    const a = old[i], b = old[j];
+    Object.keys(a.months || {}).forEach((k) => {
+      const x = a.months[k], y = b.months?.[k];
+      if (!x || !y || !x.from || !y.from) return;
+      const from = x.from > y.from ? x.from : y.from;
+      const to = x.to < y.to ? x.to : y.to;
+      if (from <= to) pairs.push({ a, b, from, to });
+    });
+  }
+  return pairs;
+}
