@@ -3,11 +3,32 @@ import { createPortal } from "react-dom";
 import { ChevronDown, ChevronRight, Upload, X, Copy, Mail, Check, FileText, Trash2, ExternalLink, ShieldAlert, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { analyze, stepsFor, letterFor, LETTER_TITLE, timeline, progress, DOC_LABEL, niceDate } from "@/lib/credit";
+import { analyze, stepsFor, letterFor, LETTER_TITLE, timeline, progress, DOC_LABEL, niceDate, OUTCOMES, WIN, isOverdue, sentDue, noReplySteps, replySteps, followUpLetter, deadlineNudges } from "@/lib/credit";
 
 const MAX_FILES = 10;
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const plus30 = () => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10); };
+const FOLLOW_TYPES = new Set(["followup", "unverified", "mov"]);
+
+function StepRow({ s, i, done, onToggle, onLetter, onTodo }) {
+  return (
+    <div className="flex gap-2.5">
+      <button onClick={onToggle} aria-label="Done"
+        className={`w-5 h-5 rounded-full border shrink-0 mt-0.5 flex items-center justify-center ${done ? "bg-[#7D8A53] border-[#7D8A53]" : "border-border"}`}>
+        {done ? <Check className="w-3 h-3 text-white" /> : <span className="text-[10px] text-muted-foreground">{i + 1}</span>}
+      </button>
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm text-foreground ${done ? "line-through opacity-60" : ""}`}>{s.title}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{s.body}</p>
+        <div className="flex flex-wrap gap-3 mt-1">
+          {s.letter && <button onClick={() => onLetter(s.letter)} className="text-xs text-[#8B6B3E] font-medium">Draft letter</button>}
+          {s.link && <a href={s.link} target="_blank" rel="noreferrer" className="text-xs text-[#8B6B3E] font-medium inline-flex items-center gap-1">Open <ExternalLink className="w-3 h-3" /></a>}
+          {onTodo && <button onClick={onTodo} className="text-xs text-muted-foreground">Add to-do</button>}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const KIND_TONE = {
   breach: "bg-[#F3E6E8] text-[#8F5F65]",
@@ -167,23 +188,55 @@ export default function CreditAssistant({ scoreItems = [] }) {
   const prog = useMemo(() => progress(docs, caseForCalc), [docs, caseForCalc]);
   const notMine = items.filter((i) => i.kind === "breach" && i.owner === "not_mine");
 
-  const openLetter = (type, item) => {
+  const openLetter = (type, item, sent) => {
     const a = item.account || {};
-    const to = type === "dispute" || type === "block" ? ((a.bureaus && a.bureaus[0]) || "") : (a.creditor || item.inquiry?.creditor || "");
-    setLetter({ type, item, to, title: LETTER_TITLE[type], text: letterFor(type, item, { items: type === "block" ? notMine : undefined }) });
+    const toBureau = type === "dispute" || type === "block" || type === "unverified" || type === "mov";
+    const to = type === "followup" && sent ? sent.to : toBureau ? ((a.bureaus && a.bureaus[0]) || "") : (a.creditor || item.inquiry?.creditor || "");
+    const text = FOLLOW_TYPES.has(type) ? followUpLetter(type, item, sent) : letterFor(type, item, { items: type === "block" ? notMine : undefined });
+    setLetter({ type, item, to, title: LETTER_TITLE[type], text });
   };
+
+  const logReply = async (item, idx, outcome) => {
+    const sent = [...((caseRec?.decisions?.[item.key]?.sent) || [])];
+    const s = sent[idx];
+    sent[idx] = { ...s, reply: { outcome, date: todayStr() } };
+    const patch = { sent };
+    const label = (OUTCOMES[s.type] || []).find(([v]) => v === outcome)?.[1] || outcome;
+    if (WIN.has(outcome)) patch.resolved = { date: todayStr(), text: `${item.account?.creditor || item.inquiry?.creditor || "Item"}: ${label.toLowerCase()}` };
+    await decide(item.key, patch);
+    if (s.taskId) { try { await ent.Task.update(s.taskId, { completed: true }); } catch { /* ignore */ } }
+    flash(WIN.has(outcome) ? "Nice. Added to your wins." : "Saved. Next steps updated.");
+  };
+
+  // A heads-up a week before deadlines like the 30-day window to ask for proof.
+  const nudgeRun = useRef(false);
+  useEffect(() => {
+    if (!loaded || nudgeRun.current || !docs.length) return;
+    const todo = deadlineNudges(items, caseRec || {});
+    if (!todo.length) return;
+    nudgeRun.current = true;
+    (async () => {
+      for (const n of todo) {
+        try { await ent.Task.create({ title: `Reply by ${niceDate(n.item.deadline)}: ask ${n.item.account?.creditor || "them"} to prove the debt`, notes: "From the credit assistant. Sending it within 30 days of their letter pauses collection until they send proof.", priority: "high", due_date: n.due, completed: false, source: "credit" }); } catch { /* ignore */ }
+      }
+      await saveCase({ nudged: [...((caseRec && caseRec.nudged) || []), ...todo.map((n) => n.id)] });
+    })();
+  }, [loaded, items]);
+
+  const overdue = items.flatMap((it) => ((caseRec?.decisions?.[it.key]?.sent) || []).filter(isOverdue).map(() => it));
 
   const markSent = async (to) => {
     const { type, item } = letter;
     const prev = (caseRec?.decisions?.[item.key]?.sent) || [];
-    await decide(item.key, { sent: [...prev, { type, to, date: todayStr() }] });
-    try { await ent.Task.create({ title: `Check for a reply: ${LETTER_TITLE[type]}${to ? ` (${to})` : ""}`, notes: "From the credit assistant. If there's no reply in 30 days, follow up or escalate.", priority: "medium", due_date: plus30(), completed: false }); } catch { /* ignore */ }
+    let taskId = null;
+    try { const t = await ent.Task.create({ title: `Check for a reply: ${LETTER_TITLE[type]}${to ? ` (${to})` : ""}`, notes: "From the credit assistant. Open Finance → Credit Scores to log their reply, or see next steps if there's none.", priority: "medium", due_date: plus30(), completed: false, source: "credit" }); taskId = t?.id || null; } catch { /* ignore */ }
+    await decide(item.key, { sent: [...prev, { type, to, date: todayStr(), taskId }] });
     setLetter(null);
     flash("Marked as sent. A to-do is set for 30 days.");
   };
 
   const addTodo = async (step, item) => {
-    try { await ent.Task.create({ title: `${step.title}: ${item.account?.creditor || item.inquiry?.creditor || "credit"}`, notes: step.body, priority: "medium", due_date: item.deadline || null, completed: false }); flash("Added to your to-dos."); } catch { flash("Couldn't add that to-do."); }
+    try { await ent.Task.create({ title: `${step.title}: ${item.account?.creditor || item.inquiry?.creditor || "credit"}`, notes: step.body, priority: "medium", due_date: item.deadline || null, completed: false, source: "credit" }); flash("Added to your to-dos."); } catch { flash("Couldn't add that to-do."); }
   };
 
   const toggleStep = (item, id) => {
@@ -247,6 +300,12 @@ export default function CreditAssistant({ scoreItems = [] }) {
               <p className="text-xs text-[#6E4A4F]">{breach.from || "A company"} reported your data was exposed on {niceDate(breach.breach_date)}. Anything opened after that is flagged so you can say whether it's yours.</p>
             </div>
           )}
+          {overdue.length > 0 && (
+            <button onClick={() => setOpenItem(overdue[0].key)} className="mb-3 w-full text-left rounded-xl bg-[#F0E6D6] p-3">
+              <p className="text-xs font-medium text-[#6E5430]">{overdue.length === 1 ? "1 letter has" : `${overdue.length} letters have`} had no reply in 30 days</p>
+              <p className="text-xs text-[#6E5430]/80 mt-0.5">Tap to see what to do next.</p>
+            </button>
+          )}
           {items.length === 0 && <p className="text-sm text-muted-foreground">Nothing needs action from what you've uploaded. Upload all three bureau reports to check for differences.</p>}
           <div className="space-y-2">
             {items.map((item) => {
@@ -277,23 +336,51 @@ export default function CreditAssistant({ scoreItems = [] }) {
                       )}
                       {item.kind === "breach" && item.owner === "unsure" && <p className="text-xs text-muted-foreground">Check your email and old statements for this company. If you still don't recognize it, choose Not mine.</p>}
                       {item.kind === "collection" && item.old && <p className="text-xs rounded-lg bg-[#F0E6D6] text-[#6E5430] p-2">This may be an older debt. In many states, a payment or written promise to pay can restart the time limit to sue. Check your state's rules before paying.</p>}
-                      {steps.map((s, i) => (
-                        <div key={s.id} className="flex gap-2.5">
-                          <button onClick={() => toggleStep(item, s.id)} aria-label="Done"
-                            className={`w-5 h-5 rounded-full border shrink-0 mt-0.5 flex items-center justify-center ${dec.done?.[s.id] ? "bg-[#7D8A53] border-[#7D8A53]" : "border-border"}`}>
-                            {dec.done?.[s.id] ? <Check className="w-3 h-3 text-white" /> : <span className="text-[10px] text-muted-foreground">{i + 1}</span>}
-                          </button>
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-sm text-foreground ${dec.done?.[s.id] ? "line-through opacity-60" : ""}`}>{s.title}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">{s.body}</p>
-                            <div className="flex flex-wrap gap-3 mt-1">
-                              {s.letter && <button onClick={() => openLetter(s.letter, item)} className="text-xs text-[#8B6B3E] font-medium">Draft letter</button>}
-                              {s.link && <a href={s.link} target="_blank" rel="noreferrer" className="text-xs text-[#8B6B3E] font-medium inline-flex items-center gap-1">Open <ExternalLink className="w-3 h-3" /></a>}
-                              <button onClick={() => addTodo(s, item)} className="text-xs text-muted-foreground">Add to-do</button>
-                            </div>
-                          </div>
-                        </div>
+                      {steps.map((st, i) => (
+                        <StepRow key={st.id} s={st} i={i} done={!!dec.done?.[st.id]} onToggle={() => toggleStep(item, st.id)}
+                          onLetter={(t) => openLetter(t, item)} onTodo={() => addTodo(st, item)} />
                       ))}
+                      {(dec.sent || []).length > 0 && (
+                        <div className="border-t border-border pt-2 mt-1 space-y-3">
+                          <p className="text-xs font-medium text-foreground">Letters you sent</p>
+                          {dec.sent.map((sn, idx) => {
+                            const late = isOverdue(sn);
+                            const follow = sn.reply ? replySteps(sn) : late ? noReplySteps(sn) : [];
+                            const outcome = sn.reply && (OUTCOMES[sn.type] || []).find(([v]) => v === sn.reply.outcome);
+                            return (
+                              <div key={idx} className="rounded-xl bg-secondary/60 p-2.5 space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm text-foreground flex-1 min-w-0 truncate">{LETTER_TITLE[sn.type]}{sn.to ? ` · ${sn.to}` : ""}</p>
+                                  <span className={`text-[10px] shrink-0 ${sn.reply ? "text-[#566033]" : late ? "text-[#8F5F65]" : "text-muted-foreground"}`}>
+                                    {sn.reply ? `Reply: ${outcome ? outcome[1].toLowerCase() : sn.reply.outcome}` : late ? "No reply yet" : `Reply due ${niceDate(sentDue(sn))}`}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-muted-foreground">Sent {niceDate(sn.date)}</p>
+                                {!sn.reply && (
+                                  <div>
+                                    <p className="text-[11px] text-muted-foreground mb-1">Got a reply? What did they say?</p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {(OUTCOMES[sn.type] || []).map(([v, l]) => (
+                                        <button key={v} onClick={() => logReply(item, idx, v)} className="text-xs border border-border rounded-full px-2.5 py-1 text-foreground bg-card">{l}</button>
+                                      ))}
+                                      <button onClick={() => fileRef.current?.click()} className="text-xs text-[#8B6B3E] px-1 py-1">Upload their letter</button>
+                                    </div>
+                                  </div>
+                                )}
+                                {follow.length > 0 && (
+                                  <div className="space-y-2 pt-1">
+                                    <p className="text-[11px] font-medium text-foreground">{sn.reply ? "Next steps" : "No reply after 30 days. Next steps:"}</p>
+                                    {follow.map((st, i) => (
+                                      <StepRow key={st.id} s={st} i={i} done={!!dec.done?.[`${idx}-${st.id}`]} onToggle={() => toggleStep(item, `${idx}-${st.id}`)}
+                                        onLetter={(t) => openLetter(t, item, sn)} />
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                       {item.kind !== "breach" || item.owner ? (
                         <button onClick={() => decide(item.key, { resolved: { date: todayStr(), text: `${item.account?.creditor || item.inquiry?.creditor || "Item"} resolved` } })}
                           className="text-xs text-muted-foreground underline underline-offset-2">Mark resolved</button>

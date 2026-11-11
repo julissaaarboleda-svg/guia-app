@@ -205,3 +205,103 @@ export function progress(docs, caseRec = {}) {
   const checkBacks = Object.values(caseRec.decisions || {}).flatMap((v) => (v.sent || []).map((s) => ({ ...s, due: addDays(s.date, 30) }))).filter((s) => s.due >= now).sort((a, b) => a.due.localeCompare(b.due));
   return { scores, wins, coming, checkBacks };
 }
+
+// ---------- After a letter is sent: replies, no-reply follow-ups ----------
+export const CFPB = "https://www.consumerfinance.gov/complaint/";
+export const REPLY_WAIT_DAYS = 30;
+export const sentDue = (s) => addDays(s.date, REPLY_WAIT_DAYS);
+export const isOverdue = (s) => !s.reply && sentDue(s) < today();
+
+// What they might say back, per letter.
+export const OUTCOMES = {
+  validation: [["proof", "Sent proof"], ["no_proof", "Replied, no real proof"], ["stopped", "Dropped it / removed"]],
+  dispute: [["deleted", "Removed"], ["updated", "Corrected"], ["verified", "Said it's accurate"]],
+  goodwill: [["deleted", "Removed it"], ["declined", "Said no"]],
+  paydelete: [["accepted", "Agreed in writing"], ["countered", "Made a counteroffer"], ["declined", "Said no"]],
+  block: [["deleted", "Blocked / removed"], ["declined", "Refused"]],
+  fraud: [["deleted", "Closed / removed"], ["declined", "Refused"]],
+  followup: [["deleted", "Removed"], ["declined", "Refused"]],
+  unverified: [["deleted", "Removed"], ["verified", "Said it's accurate"]],
+  mov: [["deleted", "Removed"], ["verified", "Explained how they checked"]],
+};
+export const WIN = new Set(["deleted", "updated", "stopped"]);
+
+// Steps when the 30 days pass with no answer.
+export function noReplySteps(s) {
+  const follow = { id: "nr-follow", title: "Send a follow-up", body: `Point to your ${niceDate(s.date)} letter and ask for an answer. Keep a copy.`, letter: "followup" };
+  const cfpb = { id: "nr-cfpb", title: "File a complaint with the CFPB", body: "Free, online. Companies usually answer within 15 days.", link: CFPB };
+  switch (s.type) {
+    case "validation": return [
+      { id: "nr-hold", title: "Don't pay yet", body: "They shouldn't keep collecting until they send proof. Write down any calls or letters you get meanwhile." },
+      { id: "nr-unver", title: "Dispute it with the bureaus as unverified", body: "If it's on your report, tell the bureaus the collector didn't validate it.", letter: "unverified" },
+      cfpb,
+    ];
+    case "dispute": return [follow, cfpb];
+    case "block": return [{ ...follow, body: "Once a bureau accepts a block request it should act within a few business days. Follow up with your FTC report attached." }, cfpb];
+    case "fraud": return [follow, cfpb];
+    case "goodwill": return [{ ...follow, body: "Try once more, ideally to a different department or the executive office." }, { id: "nr-wait", title: "Or let it age", body: "Late payments matter less over time, and on-time months keep helping." }];
+    case "paydelete": return [{ ...follow, body: "Repeat your offer, or adjust the amount. Still get it in writing before paying." }];
+    default: return [cfpb];
+  }
+}
+
+// Steps after they answer.
+export function replySteps(s) {
+  const o = s.reply && s.reply.outcome;
+  const cfpb = { id: "r-cfpb", title: "File a complaint with the CFPB", body: "If you believe the response is wrong.", link: CFPB };
+  if (WIN.has(o)) return [{ id: "r-check", title: "Check your reports in 30–60 days", body: "Make sure it changed on every bureau. Keep their letter." }];
+  if (s.type === "validation" && o === "proof") return [
+    { id: "r-review", title: "Check what they sent", body: "Does the amount, original creditor and account match? Anything wrong is worth disputing." },
+    { id: "r-dates", title: "Check the dates before paying", body: "If it's an older debt, check your state's time limit first." },
+    { id: "r-neg", title: "Negotiate in writing", body: "Offer pay-for-delete or a settlement, confirmed in writing before you pay.", letter: "paydelete" },
+  ];
+  if (s.type === "validation" && o === "no_proof") return [
+    { id: "r-unver", title: "Dispute it with the bureaus as unverified", body: "A letter without the original agreement or a statement isn't real proof.", letter: "unverified" },
+    { id: "r-follow", title: "Ask again for full proof", body: "Repeat what you asked for.", letter: "followup" }, cfpb,
+  ];
+  if (o === "verified") return [
+    { id: "r-mov", title: "Ask how they checked", body: "You can ask the bureau how it verified the item and who it contacted.", letter: "mov" },
+    { id: "r-evid", title: "Dispute again with new evidence", body: "Only if you have proof it's wrong: statements, letters, receipts.", letter: "dispute" }, cfpb,
+  ];
+  if (s.type === "paydelete" && o === "accepted") return [
+    { id: "r-pay", title: "Pay exactly as agreed", body: "Use a traceable method, never give ongoing access to your bank account. Keep their written agreement." },
+    { id: "r-check", title: "Check your reports in 30–60 days", body: "If it's still there, send them their own agreement." },
+  ];
+  if (s.type === "paydelete" && o === "countered") return [{ id: "r-decide", title: "Decide on their counter", body: "Agree only in writing, with deletion included. You can counter again.", letter: "paydelete" }];
+  if (o === "declined") return [
+    ...(s.type === "paydelete" ? [{ id: "r-settle", title: "Ask for a settlement instead", body: "Paid for less, reported as settled. Still get it in writing.", letter: "paydelete" }] : []),
+    { id: "r-later", title: "Try again later", body: "A different person or department may say yes." }, ...(s.type === "block" || s.type === "fraud" ? [cfpb] : []),
+  ];
+  return [];
+}
+
+export function followUpLetter(type, item, s) {
+  const a = item.account || {};
+  const name = a.creditor || item.inquiry?.creditor || "[Company name]";
+  const ref = a.last4 ? ` (account ending ${a.last4})` : "";
+  const sign = "\n\nSincerely,\n[Your full name]\n[Your mailing address]\n[Date]";
+  const bureau = (a.bureaus && a.bureaus[0]) || "[Equifax / Experian / TransUnion]";
+  if (type === "followup") {
+    return `To: ${s?.to || name}\n[Mailing address]\n\nRe: Second request${ref}\n\nOn ${s ? niceDate(s.date) : "[date]"}, I sent you a letter (${s ? LETTER_TITLE[s.type] || "request" : "request"}). A copy is enclosed. I have not received a response.\n\nPlease respond in writing within 15 days. If I do not hear from you, I will file a complaint with the Consumer Financial Protection Bureau.${sign}`;
+  }
+  if (type === "unverified") {
+    return `To: ${bureau}\n[Bureau dispute address, from the bureau's website]\n\nRe: Dispute of unverified collection account\n\nThe following collection account is on my credit report:\n\n${name}${ref}${a.amount_requested || a.balance ? `, ${money(a.amount_requested || a.balance)}` : ""}\n\nOn ${s ? niceDate(s.date) : "[date]"}, I asked the collector to validate this debt. ${s?.reply ? "Their response did not include proof that I owe it." : "They have not responded."} Copies of my request${s?.reply ? " and their response" : ""} are enclosed.\n\nPlease investigate and remove this unverified account.${sign}`;
+  }
+  if (type === "mov") {
+    return `To: ${bureau}\n[Bureau dispute address]\n\nRe: Request for method of verification${ref}\n\nI disputed ${name} on ${s ? niceDate(s.date) : "[date]"}, and you responded that it was verified.\n\nPlease tell me how you verified this information, including the name, address and phone number of anyone you contacted.${sign}`;
+  }
+  return letterFor(type, item);
+}
+LETTER_TITLE.followup = "Second request";
+LETTER_TITLE.unverified = "Dispute: not validated";
+LETTER_TITLE.mov = "Ask how they verified it";
+
+// Deadlines worth a heads-up a week before (e.g. the 30-day window to ask a collector for proof).
+export function deadlineNudges(items, caseRec = {}) {
+  const nudged = new Set(caseRec.nudged || []);
+  const now = today();
+  return items.filter((i) => i.deadline && i.deadline >= now && !nudged.has(`${i.key}|${i.deadline}`)).map((i) => {
+    const wk = addDays(i.deadline, -7);
+    return { id: `${i.key}|${i.deadline}`, item: i, due: wk > now ? wk : now };
+  });
+}

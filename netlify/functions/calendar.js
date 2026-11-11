@@ -21,17 +21,19 @@ async function readAll(store, userId, entity) {
 }
 
 // --- iCalendar helpers ---
-const esc = (s) => String(s || "").replace(/\\/g, "\\\\").replace(/;/g, "\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+const esc = (s) => String(s || "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
 const ymd = (d) => String(d).slice(0, 10).replace(/-/g, "");
 const nextDay = (d) => { const x = new Date(`${String(d).slice(0, 10)}T12:00:00Z`); x.setUTCDate(x.getUTCDate() + 1); return x.toISOString().slice(0, 10); };
 const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
 const fold = (line) => { const out = []; let s = line; while (s.length > 74) { out.push(s.slice(0, 74)); s = " " + s.slice(74); } out.push(s); return out.join("\r\n"); };
-function allDay(uid, title, start, endExclusive, { rrule, desc } = {}) {
+// alarm: a 9am heads-up on the day (shows as a phone notification from the calendar app)
+const ALARM = ["BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:Reminder", "TRIGGER:PT9H", "END:VALARM"];
+function allDay(uid, title, start, endExclusive, { rrule, desc, alarm } = {}) {
   return [
     "BEGIN:VEVENT", `UID:${uid}@guia`, `DTSTAMP:${stamp}`,
     `DTSTART;VALUE=DATE:${ymd(start)}`, `DTEND;VALUE=DATE:${ymd(endExclusive || nextDay(start))}`,
     `SUMMARY:${esc(title)}`, ...(desc ? [`DESCRIPTION:${esc(desc)}`] : []), ...(rrule ? [`RRULE:${rrule}`] : []),
-    "TRANSP:TRANSPARENT", "END:VEVENT",
+    "TRANSP:TRANSPARENT", ...(alarm ? ALARM : []), "END:VEVENT",
   ].map(fold).join("\r\n");
 }
 const money = (n) => (Number(n) > 0 ? ` · $${Number(n).toLocaleString("en-US", { maximumFractionDigits: 2 })}` : "");
@@ -82,7 +84,7 @@ async function feed(token) {
   }
   if (inc.tasks) {
     (await readAll(data, rec.userId, "Task")).filter((t) => t.due_date && !t.completed).forEach((t) => {
-      events.push(allDay(`task-${t.id}`, t.title || "Task", t.due_date, null, { desc: t.notes || "" }));
+      events.push(allDay(`task-${t.id}`, t.title || "Task", t.due_date, null, { desc: t.notes || "", alarm: t.source === "credit" }));
     });
   }
   if (inc.goals) {
