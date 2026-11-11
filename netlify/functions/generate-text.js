@@ -10,6 +10,7 @@
 // those need specific structured-output handling — this one is for everything else.
 
 const { GoogleGenAI } = require("@google/genai");
+const { withUsage } = require("../lib/usage.cjs");
 const { getStore, connectLambda } = require("@netlify/blobs");
 
 // --- Rate limit settings (same approach as Chapter I's gemini-proxy.js) ---
@@ -56,7 +57,7 @@ async function checkAndIncrement(store, key, limit, now) {
   return { limited: false };
 }
 
-exports.handler = async (event, context) => {
+const handler = async (event, context) => {
   connectLambda(event);
 
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: CORS, body: "" };
@@ -167,3 +168,6 @@ exports.handler = async (event, context) => {
     return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: err.message }) };
   }
 };
+
+// Counts each successful request toward the monthly AI-use limit (see netlify/lib/usage.cjs).
+exports.handler = withUsage(handler, () => 1);

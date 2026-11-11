@@ -7,6 +7,7 @@
 // (same pattern as upload.js) so it has a stable URL, matching Base44's { url } shape.
 
 const { GoogleGenAI } = require("@google/genai");
+const { withUsage } = require("../lib/usage.cjs");
 const { getStore, connectLambda } = require("@netlify/blobs");
 const { randomUUID } = require("node:crypto");
 
@@ -17,7 +18,7 @@ const CORS = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
-exports.handler = async (event, context) => {
+const handler = async (event, context) => {
   connectLambda(event); // required for getStore() to auto-detect credentials — see @netlify/blobs docs
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: CORS, body: "" };
   if (event.httpMethod !== "POST") {
@@ -62,3 +63,6 @@ exports.handler = async (event, context) => {
     return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: err.message }) };
   }
 };
+
+// Counts each successful request toward the monthly AI-use limit (see netlify/lib/usage.cjs).
+exports.handler = withUsage(handler, () => 1);

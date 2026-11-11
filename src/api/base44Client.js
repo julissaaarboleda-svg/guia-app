@@ -184,6 +184,12 @@ async function fileToPayload(file) {
   return { mimeType: f.type || "application/octet-stream", base64Data };
 }
 
+// This account's plan and AI uses this month.
+export async function getAiUsage() {
+  const res = await checkOk(await fetch(`${API_BASE}/usage`, { headers: await authHeaders() }));
+  return res.json();
+}
+
 async function InvokeLLM({ prompt, add_context_from_internet, response_json_schema, model, files }) {
   const headers = await authHeaders();
   const filePayloads = files && files.length ? await Promise.all(files.map(fileToPayload)) : undefined;

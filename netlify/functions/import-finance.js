@@ -8,6 +8,7 @@
 // mode "schedule" reads a loan payment schedule and returns { payments: [{ date, amount }], payoff_amount }.
 
 const { GoogleGenAI } = require("@google/genai");
+const { withUsage } = require("../lib/usage.cjs");
 const { claudeEnabled, claudeText, fileBlock } = require("../lib/ai.cjs");
 const { getStore, connectLambda } = require("@netlify/blobs");
 
@@ -174,7 +175,7 @@ function parseJson(text) {
   try { return JSON.parse(text.slice(start, end + 1)); } catch { return null; }
 }
 
-exports.handler = async (event, context) => {
+const handler = async (event, context) => {
   connectLambda(event);
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: CORS, body: "" };
   if (event.httpMethod !== "POST") return reply(405, { error: "Method not allowed" });
@@ -361,3 +362,6 @@ exports.handler = async (event, context) => {
     return reply(500, { error: "Couldn't read that file right now. Try again in a moment." });
   }
 };
+
+// Counts each successful request toward the monthly AI-use limit (see netlify/lib/usage.cjs).
+exports.handler = withUsage(handler, (event) => { const m = (JSON.parse(event.body || "{}").mode); return m === "spending" ? 0 : 1; });

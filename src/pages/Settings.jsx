@@ -7,6 +7,7 @@ import { ShieldCheck, Move, Camera, ChevronDown, Target, FileText, Briefcase, Cr
 import { useToast } from "@/components/ui/use-toast";
 import SectionOrderEditor from "@/components/settings/SectionOrderEditor";
 import FeedbackModal from "@/components/feedback/FeedbackModal";
+import PlanUsage from "@/components/settings/PlanUsage";
 import { Link } from "react-router-dom";
 import { DEFAULT_SECTION_ORDER, normalizeSections, normalizeOrder } from "@/lib/navSections";
 
@@ -320,6 +321,8 @@ export default function Settings() {
           )}
         </div>
       </section>
+
+      <div className="mb-6"><PlanUsage /></div>
 
       {/* About */}
       <section className="bg-card border border-border rounded-2xl p-5 mb-6">
