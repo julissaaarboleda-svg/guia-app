@@ -76,7 +76,8 @@ async function recordUse(key, cost) {
 }
 
 // costOf(event) returns how many AI uses this request counts as (0 = free).
-function withUsage(inner, costOf = () => 1) {
+// plusOnly(event) returns true for features that need Plus or the trial (e.g. the credit assistant).
+function withUsage(inner, costOf = () => 1, { plusOnly = () => false } = {}) {
   return async (event, context) => {
     connectLambda(event);
     const user = context.clientContext && context.clientContext.user;
@@ -86,6 +87,15 @@ function withUsage(inner, costOf = () => 1) {
     let u = null;
     try {
       u = await usageFor(user);
+      let gated = false;
+      try { gated = plusOnly(event); } catch { gated = false; }
+      if (gated && u.enforced && u.plan === "free") {
+        return {
+          statusCode: 402,
+          headers: CORS,
+          body: JSON.stringify({ error: "The credit assistant is part of Guía Plus.", code: "plus_only", plan: u.plan }),
+        };
+      }
       if (cost > 0 && u.enforced && u.used + cost > u.limit) {
         return {
           statusCode: 402,

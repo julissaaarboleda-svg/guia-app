@@ -408,4 +408,5 @@ const handler = async (event, context) => {
 };
 
 // Counts each successful request toward the monthly AI-use limit (see netlify/lib/usage.cjs).
-exports.handler = withUsage(handler, (event) => { const m = (JSON.parse(event.body || "{}").mode); return m === "spending" ? 0 : 1; });
+const modeOf = (event) => JSON.parse(event.body || "{}").mode;
+exports.handler = withUsage(handler, (event) => (modeOf(event) === "spending" ? 0 : 1), { plusOnly: (event) => modeOf(event) === "credit" });

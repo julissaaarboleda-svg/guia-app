@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, ChevronRight, Upload, X, Copy, Mail, Check, FileText, Trash2, ExternalLink, ShieldAlert, Loader2 } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { base44, getAiUsage } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
 import { analyze, stepsFor, letterFor, LETTER_TITLE, timeline, progress, DOC_LABEL, niceDate, OUTCOMES, WIN, isOverdue, sentDue, noReplySteps, replySteps, followUpLetter, deadlineNudges } from "@/lib/credit";
 
@@ -125,6 +125,11 @@ export default function CreditAssistant({ scoreItems = [] }) {
   const [openItem, setOpenItem] = useState(null);
   const [letter, setLetter] = useState(null);
   const [toast, setToast] = useState("");
+  const [usage, setUsage] = useState(null);
+  const [blocked, setBlocked] = useState(false);
+  useEffect(() => { getAiUsage().then(setUsage).catch(() => {}); }, []);
+  // Plus feature: free accounts can see what they already uploaded but can't add more (only once limits are on).
+  const locked = blocked || !!(usage && usage.enforced && usage.plan === "free");
   const fileRef = useRef(null);
 
   const load = async () => {
@@ -164,7 +169,8 @@ export default function CreditAssistant({ scoreItems = [] }) {
         const rec = await ent.CreditDoc.create({ ...doc, filename: file.name });
         setBusy((b) => b.map((x, j) => (j === i ? { ...x, status: "done", type: doc.doc_type } : x)));
         return rec;
-      } catch {
+      } catch (err) {
+        if (/Plus/.test(String(err && err.message))) setBlocked(true);
         setBusy((b) => b.map((x, j) => (j === i ? { ...x, status: "failed" } : x)));
         return null;
       }
@@ -255,15 +261,25 @@ export default function CreditAssistant({ scoreItems = [] }) {
         <div className="flex items-start gap-3">
           <div className="w-9 h-9 rounded-full bg-[#F0E6D6] flex items-center justify-center shrink-0"><FileText className="w-4 h-4 text-[#8B6B3E]" /></div>
           <div className="flex-1 min-w-0">
-            <p className="font-heading text-base text-foreground">Credit assistant</p>
+            <div className="flex items-center gap-2">
+              <p className="font-heading text-base text-foreground">Credit assistant</p>
+              {usage && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#F0E6D6] text-[#8B6B3E]">{usage.plan === "trial" ? "Plus · in your trial" : "Plus"}</span>}
+            </div>
             <p className="text-sm text-muted-foreground mt-0.5">Upload credit reports, collection letters, breach notices or dispute results. Guía reads them together and suggests next steps.</p>
           </div>
         </div>
         <input ref={fileRef} type="file" multiple accept="application/pdf,.pdf,image/*,image/heic,image/heif,.heic,.heif" className="hidden" onChange={onFiles} />
+        {locked ? (
+          <div className="mt-3 rounded-xl bg-[#F3E8D6] p-3">
+            <p className="text-sm font-medium text-foreground">Part of Guía Plus</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Upgrade to upload new documents. Everything you've already added stays here, and you can still draft and track letters.</p>
+          </div>
+        ) : (
         <button onClick={() => fileRef.current?.click()} disabled={busy.some((b) => b.status === "reading")}
           className="mt-3 w-full flex items-center justify-center gap-2 border border-dashed border-[#A7773F]/60 rounded-xl py-3 text-sm text-[#8B6B3E] disabled:opacity-60">
           <Upload className="w-4 h-4" /> Upload documents <span className="text-muted-foreground">· up to {MAX_FILES}</span>
         </button>
+        )}
         {busy.length > 0 && (
           <div className="mt-2 space-y-1">
             {busy.map((b, i) => (
@@ -349,7 +365,7 @@ export default function CreditAssistant({ scoreItems = [] }) {
                                       {(OUTCOMES[sn.type] || []).map(([v, l]) => (
                                         <button key={v} onClick={() => logReply(item, idx, v)} className="text-xs border border-border rounded-full px-2.5 py-1 text-foreground bg-card">{l}</button>
                                       ))}
-                                      <button onClick={() => fileRef.current?.click()} className="text-xs text-[#8B6B3E] px-1 py-1">Upload their letter</button>
+                                      {!locked && <button onClick={() => fileRef.current?.click()} className="text-xs text-[#8B6B3E] px-1 py-1">Upload their letter</button>}
                                     </div>
                                   </div>
                                 )}
