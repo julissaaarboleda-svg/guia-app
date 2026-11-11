@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
+import PurchasesSheet from "@/components/finance/PurchasesSheet";
 import { monthView, monthsWithData, habits, throughLabel, statementRange, findRepeatedRows, overlappingOldStatements, buildMonths } from "@/lib/spending";
 
 const money = (n) => `$${Math.round(Number(n) || 0).toLocaleString()}`;
@@ -74,6 +75,7 @@ Return JSON: {"review": "..."}`,
   };
 
   const [viewer, setViewer] = useState(null); // { url, type, label }
+  const [purchases, setPurchases] = useState(null); // { merchant } while the purchases sheet is open
   const openFile = async (s) => {
     try { setViewer({ url: await base44.integrations.Core.GetPrivateFile({ file_url: s.file_url }), type: s.file_type || "", label: s.label }); }
     catch { alert("Couldn't open that file."); }
@@ -172,12 +174,15 @@ Return JSON: {"review": "..."}`,
           <div className={card}>
             <h3 className="font-heading text-base text-foreground mb-1">Top places</h3>
             {(allPlaces ? cur.merchants.slice(0, 20) : cur.merchants.slice(0, 4)).map((m) => (
-              <div key={m.name} className="flex justify-between items-center py-2 border-b border-border last:border-0">
-                <div><p className="text-[13.5px] text-foreground">{m.name}</p><p className="text-[11.5px] text-muted-foreground">{m.count} {m.count === 1 ? "purchase" : "purchases"}</p></div>
+              <button key={m.name} onClick={() => setPurchases({ merchant: m.name })} className="w-full text-left flex justify-between items-center py-2 border-b border-border last:border-0">
+                <div><p className="text-[13.5px] text-foreground">{m.name}</p><p className="text-[11.5px] text-muted-foreground">{m.count} {m.count === 1 ? "purchase" : "purchases"} · tap to edit</p></div>
                 <span className="text-[13.5px] text-foreground">{money(m.total)}</span>
-              </div>
+              </button>
             ))}
-            {cur.merchants.length > 4 && <button onClick={() => setAllPlaces((v) => !v)} className="text-xs text-[#A7773F] pt-2">{allPlaces ? "Show fewer" : `Show more places ›`}</button>}
+            <div className="flex items-center gap-5 pt-2">
+              {cur.merchants.length > 4 && <button onClick={() => setAllPlaces((v) => !v)} className="text-xs text-[#A7773F]">{allPlaces ? "Show fewer" : `Show more places ›`}</button>}
+              <button onClick={() => setPurchases({ merchant: null })} className="text-xs text-[#A7773F]">See all purchases ›</button>
+            </div>
           </div>
 
           {notes.length > 0 && (
@@ -232,6 +237,10 @@ Return JSON: {"review": "..."}`,
             </div>
           ))}
         </div>
+      )}
+      {purchases && cur && (
+        <PurchasesSheet statements={statements} monthKey={cur.key} merchant={purchases.merchant}
+          categories={cur.categories.map((c) => c.name)} onClose={() => setPurchases(null)} onSaved={load} />
       )}
       {viewer && (
         <div className="fixed inset-0 z-[80] bg-black/80 flex flex-col" onClick={closeViewer}>
