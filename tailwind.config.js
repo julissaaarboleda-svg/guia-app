@@ -1,5 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+    // Hover styles only on devices that really hover. On iPhone, a tap that reveals hover-only
+    // content gets swallowed, so buttons needed two taps.
+    future: { hoverOnlyWhenSupported: true },
     darkMode: ["class"],
     content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
   theme: {

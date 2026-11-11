@@ -67,7 +67,7 @@ export default function TodaysFocus({ items, total = 0, onComplete }) {
                     isCompleting ? "border-forest bg-forest/10" : "border-muted-foreground/30 hover:border-forest hover:bg-forest/10"
                   }`}
                 >
-                  <Check className={`w-2.5 h-2.5 text-forest transition-opacity ${isCompleting ? "opacity-100" : "opacity-0 group-hover:opacity-60"}`} />
+                  <Check className={`w-2.5 h-2.5 text-forest transition-opacity ${isCompleting ? "opacity-100" : "opacity-0 [@media(hover:hover)]:group-hover:opacity-60"}`} />
                 </button>
                 <div className="flex-1 min-w-0">
                   <p className="font-body text-[13.5px] text-foreground truncate leading-snug">{it.title}</p>

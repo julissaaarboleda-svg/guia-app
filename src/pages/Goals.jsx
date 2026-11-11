@@ -191,7 +191,7 @@ export default function Goals() {
           </div>
         </button>
         <button onClick={e => { e.stopPropagation(); removeTask(t.id); }} aria-label="Delete task"
-          className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-rose-400 transition-all p-1">
+          className="flex-shrink-0 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-rose-400 transition-all p-1">
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -488,7 +488,7 @@ export default function Goals() {
                           <button onClick={() => toggleSubTask(selectedGoal, idx)}
                             aria-label="Mark step done" className="flex-shrink-0"><Tick done={false} /></button>
                           <span className="text-sm flex-1 text-foreground">{t.text}</span>
-                          <button onClick={() => deleteSubTask(selectedGoal, idx)} className="opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-rose-400 transition-all">
+                          <button onClick={() => deleteSubTask(selectedGoal, idx)} className="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-rose-400 transition-all">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -503,7 +503,7 @@ export default function Goals() {
                         <div key={idx} className="flex items-center gap-3 group opacity-70">
                           <button onClick={() => toggleSubTask(selectedGoal, idx)} aria-label="Mark step not done" className="flex-shrink-0"><Tick done /></button>
                           <span className="text-sm flex-1 line-through text-muted-foreground">{t.text}</span>
-                          <button onClick={() => deleteSubTask(selectedGoal, idx)} className="opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-rose-400 transition-all">
+                          <button onClick={() => deleteSubTask(selectedGoal, idx)} className="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-rose-400 transition-all">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>

@@ -313,8 +313,8 @@ export default function Notes() {
                       {unchecked.map(({ item, idx }) => (
                         <li key={idx} className="flex items-center gap-3 group">
                           <button onClick={() => toggleItem(idx)} className="w-5 h-5 rounded-full border-2 border-muted-foreground/30 hover:border-muted-foreground flex items-center justify-center flex-shrink-0 transition-all" />
-                          <span className="text-sm flex-1 text-foreground">{item.text}</span>
-                          <button onClick={() => removeItem(idx)} className="opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-destructive transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
+                          <button type="button" onClick={() => toggleItem(idx)} className="text-sm flex-1 text-left text-foreground py-1">{item.text}</button>
+                          <button onClick={() => removeItem(idx)} className="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-destructive transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
                         </li>
                       ))}
                       {unchecked.length === 0 && checked.length > 0 && <li className="text-sm text-muted-foreground py-1">All done. Nice work.</li>}
@@ -330,7 +330,7 @@ export default function Notes() {
                         <li key={idx} className="flex items-center gap-3 group opacity-70">
                           <button onClick={() => toggleItem(idx)} className="w-5 h-5 rounded-full bg-[#5A6F45] border border-[#5A6F45] flex items-center justify-center flex-shrink-0 transition-all"><Check className="w-3 h-3 text-white" strokeWidth={2.4} /></button>
                           <span className="text-sm flex-1 line-through text-muted-foreground">{item.text}</span>
-                          <button onClick={() => removeItem(idx)} className="opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-destructive transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => removeItem(idx)} className="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-destructive transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
                         </li>
                       ))}
                     </ul>
