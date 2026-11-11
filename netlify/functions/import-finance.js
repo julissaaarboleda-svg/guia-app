@@ -9,7 +9,7 @@
 
 const { GoogleGenAI } = require("@google/genai");
 const { withUsage } = require("../lib/usage.cjs");
-const { claudeEnabled, claudeText, fileBlock, CLAUDE_FAST_MODEL } = require("../lib/ai.cjs");
+const { claudeEnabled, claudeText, fileBlock, CLAUDE_MODEL, CLAUDE_FAST_MODEL } = require("../lib/ai.cjs");
 const { getStore, connectLambda } = require("@netlify/blobs");
 
 const RATE_LIMIT = 20;
