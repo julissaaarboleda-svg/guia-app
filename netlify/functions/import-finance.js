@@ -133,6 +133,27 @@ Rules:
 - Never invent anything that is not in the document. Lower the confidence when unsure.
 - Return at most 40 entries. If nothing relevant is found, return {"entries": []}.`;
 
+const CREDIT_PROMPT = `You are helping someone understand their own credit documents in a personal app. The attached file may be a credit report from a bureau, a letter from a debt collector or creditor, a data breach notice, a bureau's response to a dispute, or a card or loan statement.
+
+Return ONLY JSON in this shape, nothing else:
+{"doc_type":"credit_report|collector_letter|creditor_letter|breach_notice|dispute_response|statement|other",
+ "doc_date":"YYYY-MM-DD","from":"who sent it or which bureau","bureau":"Equifax|Experian|TransUnion|",
+ "score":null,"breach_date":"","breach_what":"",
+ "accounts":[{"creditor":"","original_creditor":"","kind":"credit_card|auto_loan|student_loan|mortgage|personal_loan|collection|other","status":"open|closed|paid|charged_off|collection|other","balance":null,"limit":null,"opened":"","last_payment":"","first_delinquency":"","late":[{"date":"YYYY-MM","days":30}],"last4":"","amount_requested":null,"dispute_deadline":""}],
+ "inquiries":[{"creditor":"","date":"YYYY-MM-DD"}],
+ "results":[{"creditor":"","outcome":"deleted|updated|verified|other","note":""}],
+ "summary":"one plain sentence about what this document is"}
+
+Rules:
+- PRIVACY: never output a Social Security number, date of birth, full account number, or street address. For accounts give only the last 4 digits in "last4" if shown.
+- Dates as YYYY-MM-DD (or YYYY-MM when only a month is shown). Leave a field "" or null when the document doesn't say. Do not guess.
+- credit_report: list every account (tradeline) and every hard inquiry. "score" only if a numeric score is printed.
+- collector_letter / creditor_letter: one account entry for the debt it is about, with "amount_requested", and "dispute_deadline" if the letter states a date by which to dispute (validation notices usually do).
+- breach_notice: "breach_date" (when the data was exposed, or the notice date if not stated) and "breach_what" (what was exposed, e.g. "name, Social Security number").
+- dispute_response: one "results" entry per item the bureau or creditor answered.
+- statement: one account entry with balance and limit.
+- Amounts are numbers without $ or commas. Do not invent anything that is not in the document.`;
+
 const ROUTINE_PROMPT = `You are helping someone set up routines in a personal app. Read the attached document (a workout plan, a skincare routine from a dermatologist or esthetician, a physical therapy sheet, a meal or wellness plan, or similar) and turn it into routines with ordered steps.
 
 Return ONLY JSON in this shape, nothing else:
@@ -223,7 +244,7 @@ const handler = async (event, context) => {
   try {
     const existingList = (Array.isArray(existing) ? existing : []).slice(0, 80)
       .map((e) => `- ${String(e.name || "").slice(0, 60)} (${e.type}, ${e.amount != null ? "$" + e.amount : "no amount"})`).join("\n");
-    const promptText = mode === "routine" ? ROUTINE_PROMPT : mode === "spending" ? SPENDING_PROMPT : mode === "schedule" ? SCHEDULE_PROMPT : mode === "business" ? BUSINESS_PROMPT : mode === "career" ? CAREER_PROMPT : PROMPT + `\n\nEXISTING ITEMS:\n${existingList || "(none)"}`;
+    const promptText = mode === "credit" ? CREDIT_PROMPT : mode === "routine" ? ROUTINE_PROMPT : mode === "spending" ? SPENDING_PROMPT : mode === "schedule" ? SCHEDULE_PROMPT : mode === "business" ? BUSINESS_PROMPT : mode === "career" ? CAREER_PROMPT : PROMPT + `\n\nEXISTING ITEMS:\n${existingList || "(none)"}`;
     const docText = isText ? `\n\nDocument (${filename || "text"}):\n` + bytes.toString("utf8").slice(0, 120000) : "";
 
     let rawText;
@@ -232,7 +253,7 @@ const handler = async (event, context) => {
         const content = isText
           ? promptText + docText
           : [fileBlock(isPdf ? "application/pdf" : (type || "image/jpeg"), base64Data), { type: "text", text: promptText }];
-        rawText = await claudeText({ content, maxTokens: mode === "business" || mode === "career" || mode === "spending" ? 12000 : 6000 });
+        rawText = await claudeText({ content, maxTokens: mode === "business" || mode === "career" || mode === "spending" || mode === "credit" ? 12000 : 6000 });
       } catch (claudeErr) {
         console.error("import-finance Claude failed, falling back to Gemini:", claudeErr);
         if (!apiKey) throw claudeErr;
@@ -260,6 +281,29 @@ const handler = async (event, context) => {
         .filter((p) => /^\d{4}-\d{2}-\d{2}$/.test(p.date) && Number.isFinite(p.amount) && p.amount > 0);
       const payoff = Number(parsed.payoff_amount);
       return reply(200, { payments, payoff_amount: Number.isFinite(payoff) && payoff > 0 ? payoff : null });
+    }
+    if (mode === "credit") {
+      if (!parsed || typeof parsed !== "object") return reply(502, { error: "The file was read, but it didn't look like a credit document. Try a clearer copy." });
+      const str = (v, n = 80) => String(v == null ? "" : v).trim().slice(0, n);
+      const num = (v) => (v == null || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
+      const date = (v) => (/^\d{4}-\d{2}(-\d{2})?$/.test(String(v || "").trim()) ? String(v).trim() : "");
+      const clean = (v) => str(v).replace(/\b\d{3}-?\d{2}-?\d{4}\b/g, "").replace(/\d{5,}/g, ""); // never keep SSNs or long numbers
+      const doc = {
+        doc_type: ["credit_report", "collector_letter", "creditor_letter", "breach_notice", "dispute_response", "statement"].includes(parsed.doc_type) ? parsed.doc_type : "other",
+        doc_date: date(parsed.doc_date), from: clean(parsed.from), bureau: ["Equifax", "Experian", "TransUnion"].includes(parsed.bureau) ? parsed.bureau : "",
+        score: num(parsed.score) && num(parsed.score) >= 300 && num(parsed.score) <= 900 ? num(parsed.score) : null,
+        breach_date: date(parsed.breach_date), breach_what: clean(parsed.breach_what).slice(0, 120),
+        accounts: (Array.isArray(parsed.accounts) ? parsed.accounts : []).slice(0, 80).map((a) => ({
+          creditor: clean(a.creditor), original_creditor: clean(a.original_creditor), kind: str(a.kind, 20), status: str(a.status, 20),
+          balance: num(a.balance), limit: num(a.limit), opened: date(a.opened), last_payment: date(a.last_payment), first_delinquency: date(a.first_delinquency),
+          late: (Array.isArray(a.late) ? a.late : []).slice(0, 24).map((l) => ({ date: date(l.date), days: num(l.days) })).filter((l) => l.date),
+          last4: /^\d{4}$/.test(String(a.last4 || "")) ? String(a.last4) : "", amount_requested: num(a.amount_requested), dispute_deadline: date(a.dispute_deadline),
+        })).filter((a) => a.creditor),
+        inquiries: (Array.isArray(parsed.inquiries) ? parsed.inquiries : []).slice(0, 40).map((q) => ({ creditor: clean(q.creditor), date: date(q.date) })).filter((q) => q.creditor),
+        results: (Array.isArray(parsed.results) ? parsed.results : []).slice(0, 40).map((r) => ({ creditor: clean(r.creditor), outcome: str(r.outcome, 20), note: clean(r.note).slice(0, 140) })).filter((r) => r.creditor),
+        summary: clean(parsed.summary).slice(0, 200),
+      };
+      return reply(200, { doc });
     }
     if (mode === "routine") {
       if (!parsed || !Array.isArray(parsed.routines)) return reply(502, { error: "The file was read, but no routine could be found in it. Try a clearer copy." });

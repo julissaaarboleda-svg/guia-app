@@ -13,6 +13,7 @@ import SpendingTab from "@/components/finance/SpendingTab";
 import FinanceSummary from "@/components/finance/FinanceSummary";
 import ImportSheet from "@/components/finance/ImportSheet";
 import LoanDetails, { UpcomingLoans } from "@/components/finance/LoanDetails";
+import CreditAssistant from "@/components/credit/CreditAssistant";
 
 const TABS = ["summary", "budget", "bill", "savings_goal", "loan", "credit_score"];
 
@@ -594,6 +595,9 @@ export default function Finance() {
       })()}
 
       {activeTab === "loan" && <UpcomingLoans items={items} />}
+
+      {activeTab === "credit_score" && <CreditAssistant scoreItems={items.filter(i => i.type === "credit_score")} />}
+      {activeTab === "credit_score" && items.some(i => i.type === "credit_score") && <p className="font-heading text-base text-foreground mb-2">Scores</p>}
 
       {/* Items */}
       {activeTab !== "budget" && activeTab !== "spending" && (
