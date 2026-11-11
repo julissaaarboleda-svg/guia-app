@@ -18,6 +18,13 @@
 [functions."backup"]
   timeout = 26
 
+# Calendar sync feed: /cal/<token>.ics is served by the calendar function.
+[[redirects]]
+  from = "/cal/*"
+  to = "/.netlify/functions/calendar/:splat"
+  status = 200
+  force = true
+
 # React Router needs every unknown path to fall back to index.html
 [[redirects]]
   from = "/*"
