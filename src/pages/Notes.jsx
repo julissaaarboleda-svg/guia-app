@@ -262,12 +262,12 @@ export default function Notes() {
   };
 
   // ---- Saved Places ----
-  const openAddPlace = () => setPlaceForm({ name: "", type: "", address: "", place_id: "", maps_url: "", photo_url: "", photo_credit: "" });
-  const openEditPlace = (p) => { setPlaceMenu(null); setPlaceForm({ id: p.id, name: p.name || "", type: p.type || "", address: p.address || "", place_id: p.place_id || "", maps_url: p.maps_url || "", photo_url: p.photo_url || "", photo_credit: p.photo_credit || "" }); };
+  const openAddPlace = () => setPlaceForm({ name: "", type: "", address: "", place_id: "", maps_url: "", photo_url: "", photo_credit: "", notes: "", visited: false, rating: 0, visited_on: "" });
+  const openEditPlace = (p) => { setPlaceMenu(null); setPlaceForm({ id: p.id, name: p.name || "", type: p.type || "", address: p.address || "", place_id: p.place_id || "", maps_url: p.maps_url || "", photo_url: p.photo_url || "", photo_credit: p.photo_credit || "", notes: p.notes || "", visited: !!p.visited, rating: Number(p.rating) || 0, visited_on: p.visited_on || "" }); };
 
   const savePlace = async () => {
     if (!placeForm?.name?.trim()) return;
-    const patch = { name: placeForm.name.trim(), type: placeForm.type.trim(), address: placeForm.address.trim(), place_id: placeForm.place_id || null, maps_url: placeForm.maps_url || null, photo_url: placeForm.photo_url || null, photo_credit: placeForm.photo_credit || null };
+    const patch = { name: placeForm.name.trim(), type: placeForm.type.trim(), address: placeForm.address.trim(), place_id: placeForm.place_id || null, maps_url: placeForm.maps_url || null, photo_url: placeForm.photo_url || null, photo_credit: placeForm.photo_credit || null, notes: (placeForm.notes || "").trim(), visited: !!placeForm.visited, rating: placeForm.visited ? Number(placeForm.rating) || 0 : 0, visited_on: placeForm.visited ? placeForm.visited_on || null : null };
     if (placeForm.id) {
       await ent.SavedPlace.update(placeForm.id, patch);
       setSavedPlaces(prev => prev.map(p => p.id === placeForm.id ? { ...p, ...patch } : p));
@@ -841,6 +841,41 @@ function PlaceFormSheet({ form, onChange, onClose, onSave }) {
               </div>
             )}
           </div>
+          <div>
+            <label className="font-body text-[12px] text-muted-foreground mb-1 block">Notes</label>
+            <textarea
+              value={form.notes || ""}
+              onChange={(e) => patch({ notes: e.target.value })}
+              rows={3}
+              placeholder="What to order, who recommended it, when to go…"
+              className="w-full bg-secondary border border-border rounded-xl px-4 py-2.5 text-[14px] text-foreground outline-none focus:border-ring transition-colors resize-none"
+            />
+          </div>
+          <button type="button" onClick={() => patch({ visited: !form.visited, visited_on: !form.visited && !form.visited_on ? new Date().toISOString().slice(0, 10) : form.visited_on })}
+            className="w-full flex items-center justify-between bg-secondary border border-border rounded-xl px-4 py-2.5">
+            <span className="text-[14px] text-foreground">Been there</span>
+            <span className="relative w-10 h-6 rounded-full transition-colors" style={{ backgroundColor: form.visited ? "#A7773F" : "#E7D9C6" }}>
+              <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-all" style={{ left: form.visited ? "18px" : "2px" }} />
+            </span>
+          </button>
+          {form.visited && (
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <label className="font-body text-[12px] text-muted-foreground mb-1 block">Your rating</label>
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button key={n} type="button" aria-label={`${n} star${n === 1 ? "" : "s"}`} onClick={() => patch({ rating: form.rating === n ? 0 : n })}
+                      className="text-[26px] leading-none" style={{ color: n <= (form.rating || 0) ? "#A7773F" : "#D9CBB3" }}>★</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="font-body text-[12px] text-muted-foreground mb-1 block">Visited</label>
+                <input type="date" value={form.visited_on || ""} onChange={(e) => patch({ visited_on: e.target.value })}
+                  className="bg-secondary border border-border rounded-xl px-3 py-2 text-[13px] text-foreground outline-none" />
+              </div>
+            </div>
+          )}
           <button
             onClick={onSave}
             disabled={!form.name.trim() || filling}

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, SlidersHorizontal, FileText, MoreHorizontal, MapPin, ArrowRight, Pin } from "lucide-react";
+import { Search, SlidersHorizontal, FileText, MoreHorizontal, MapPin, ArrowRight, Pin, ChevronDown, ChevronRight } from "lucide-react";
 import { isToday, isYesterday, format } from "date-fns";
 import CollectionCard from "./CollectionCard";
 
@@ -103,11 +103,18 @@ export default function NotesLanding({
     let list = savedPlaces.filter((p) => placeFilter === "All" || p.type === placeFilter);
     if (query.trim()) {
       const q = query.toLowerCase();
-      list = list.filter((p) => p.name?.toLowerCase().includes(q) || p.type?.toLowerCase().includes(q) || p.address?.toLowerCase().includes(q));
+      list = list.filter((p) => p.name?.toLowerCase().includes(q) || p.type?.toLowerCase().includes(q) || p.address?.toLowerCase().includes(q) || p.notes?.toLowerCase().includes(q));
     }
     list.sort((a, b) => new Date(sortNewest ? b.updated_date : a.updated_date) - new Date(sortNewest ? a.updated_date : b.updated_date));
     return list;
   }, [savedPlaces, query, sortNewest, placeFilter]);
+  const [placeShut, setPlaceShut] = useState(() => { try { return JSON.parse(localStorage.getItem("guia-places-shut") || "{}"); } catch { return {}; } });
+  const togglePlaceGroup = (k) => setPlaceShut((c) => { const n = { ...c, [k]: !c[k] }; try { localStorage.setItem("guia-places-shut", JSON.stringify(n)); } catch { /* optional */ } return n; });
+  const placeGroups = useMemo(() => [
+    { key: "try", label: "To try", list: filteredPlaces.filter((p) => !p.visited) },
+    { key: "been", label: "Been there", list: filteredPlaces.filter((p) => p.visited)
+      .sort((a, b) => (Number(b.rating) || 0) - (Number(a.rating) || 0) || String(b.visited_on || "").localeCompare(String(a.visited_on || ""))) },
+  ], [filteredPlaces]);
   const placeTypes = useMemo(() => [...new Set(savedPlaces.map((p) => p.type).filter(Boolean))], [savedPlaces]);
 
   const subtitle = { notes: "Capture, plan and keep what matters.", checklists: "Track what needs doing.", places: "Somewhere you want to check out." }[view];
@@ -303,34 +310,45 @@ export default function NotesLanding({
             </div>
           ) : (
             <div className="bg-card border border-border/60 rounded-2xl overflow-hidden">
-              {filteredPlaces.map((p, i) => (
-                <div key={p.id} className={`flex items-center gap-3 py-2.5 px-4 transition-colors ${i !== 0 ? "border-t border-border/40" : ""}`}>
-                  <span className="w-11 h-11 rounded-xl bg-[#A7773F1F] flex items-center justify-center flex-shrink-0 overflow-hidden">
-                    {p.photo_url ? <img src={p.photo_url} alt="" className="w-full h-full object-cover" /> : <MapPin className="w-4 h-4 text-[#A7773F]" strokeWidth={1.8} />}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-heading text-[16px] text-foreground truncate leading-snug">{p.name || "Untitled place"}</p>
-                    <p className="font-body text-[12px] text-muted-foreground mt-0.5 truncate">
-                      {[p.type, p.address].filter(Boolean).join(" · ")}
-                    </p>
-                  </div>
-                  {(p.maps_url || p.address) && (
-                    <a
-                      href={p.maps_url || mapsUrl(p.address)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-1.5 text-[12px] font-medium text-[#A7773F] hover:text-[#8A5F2E] transition-colors flex-shrink-0"
-                      title="Open in maps"
-                    >
-                      Directions
-                    </a>
-                  )}
-                  <button
-                    onClick={() => onPlaceMenu(p)}
-                    className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-                  >
-                    <MoreHorizontal className="w-4 h-4" />
+              {placeGroups.filter((g) => g.list.length).map((g, gi) => (
+                <div key={g.key} className={gi ? "border-t border-border/60" : ""}>
+                  <button onClick={() => togglePlaceGroup(g.key)} aria-expanded={!placeShut[g.key]}
+                    className="w-full flex items-center gap-1.5 px-4 py-2.5 text-left bg-secondary/40">
+                    {placeShut[g.key] ? <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} />}
+                    <span className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-muted-foreground">{g.label} · {g.list.length}</span>
                   </button>
+                  {!placeShut[g.key] && g.list.map((p) => (
+                    <div key={p.id} className="flex items-center gap-3 py-2.5 px-4 border-t border-border/40">
+                      <span className="w-11 h-11 rounded-xl bg-[#A7773F1F] flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {p.photo_url ? <img src={p.photo_url} alt="" className="w-full h-full object-cover" /> : <MapPin className="w-4 h-4 text-[#A7773F]" strokeWidth={1.8} />}
+                      </span>
+                      <button onClick={() => onPlaceMenu(p)} className="flex-1 min-w-0 text-left">
+                        <p className="font-heading text-[16px] text-foreground truncate leading-snug">{p.name || "Untitled place"}</p>
+                        <p className="font-body text-[12px] text-muted-foreground mt-0.5 truncate">
+                          {p.visited && Number(p.rating) > 0 && <span className="text-[#A7773F] tracking-[1px] mr-1.5">{"★".repeat(p.rating)}<span className="text-[#D9CBB3]">{"★".repeat(5 - p.rating)}</span></span>}
+                          {[p.type, p.address].filter(Boolean).join(" · ")}
+                        </p>
+                        {p.notes && <p className="font-heading italic text-[12.5px] text-foreground/80 mt-0.5 truncate">{p.notes}</p>}
+                      </button>
+                      {(p.maps_url || p.address) && (
+                        <a
+                          href={p.maps_url || mapsUrl(p.address)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-1.5 text-[12px] font-medium text-[#A7773F] hover:text-[#8A5F2E] transition-colors flex-shrink-0"
+                          title="Open in maps"
+                        >
+                          Directions
+                        </a>
+                      )}
+                      <button
+                        onClick={() => onPlaceMenu(p)}
+                        className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
