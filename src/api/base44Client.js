@@ -281,7 +281,7 @@ async function DeletePrivateFile({ file_url }) {
 
 // Reads a statement/bill/receipt and returns suggested finance items.
 // The file is processed for this request only and isn't stored.
-async function ImportFinanceFile({ file, existing = [], mode = "items" }) {
+async function ImportFinanceFile({ file, existing = [], mode = "items", part, parts }) {
   const uploadFile = await compressImageIfNeeded(file);
   const base64Data = await new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -294,7 +294,7 @@ async function ImportFinanceFile({ file, existing = [], mode = "items" }) {
     await fetchWithRetry(`${API_BASE}/import-finance`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ filename: uploadFile.name, contentType: uploadFile.type, base64Data, existing, mode }),
+      body: JSON.stringify({ filename: uploadFile.name, contentType: uploadFile.type, base64Data, existing, mode, part, parts }),
     })
   );
   return res.json(); // { items }

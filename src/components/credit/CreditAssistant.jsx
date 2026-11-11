@@ -3,9 +3,40 @@ import { createPortal } from "react-dom";
 import { ChevronDown, ChevronRight, Upload, X, Copy, Mail, Check, FileText, Trash2, ExternalLink, ShieldAlert, Loader2 } from "lucide-react";
 import { base44, getAiUsage } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { analyze, stepsFor, letterFor, LETTER_TITLE, timeline, progress, DOC_LABEL, niceDate, OUTCOMES, WIN, isOverdue, sentDue, noReplySteps, replySteps, followUpLetter, deadlineNudges } from "@/lib/credit";
+import { analyze, stepsFor, letterFor, LETTER_TITLE, timeline, progress, DOC_LABEL, niceDate, OUTCOMES, WIN, isOverdue, sentDue, noReplySteps, replySteps, followUpLetter, deadlineNudges, mergeParts } from "@/lib/credit";
 
 const MAX_FILES = 10;
+const PAGES_PER_PART = 2;
+const PARALLEL = 4;
+
+// Split a long PDF into small PDFs so each one reads well within the server's time limit.
+async function splitPdf(file) {
+  if (!/pdf$/i.test(file.type) && !/\.pdf$/i.test(file.name)) return [file];
+  try {
+    const { PDFDocument } = await import("pdf-lib");
+    const src = await PDFDocument.load(await file.arrayBuffer(), { ignoreEncryption: true });
+    const n = src.getPageCount();
+    if (n <= PAGES_PER_PART) return [file];
+    const out = [];
+    for (let i = 0; i < n; i += PAGES_PER_PART) {
+      const doc = await PDFDocument.create();
+      const pages = await doc.copyPages(src, Array.from({ length: Math.min(PAGES_PER_PART, n - i) }, (_, k) => i + k));
+      pages.forEach((p) => doc.addPage(p));
+      out.push(new File([await doc.save()], `${file.name.replace(/\.pdf$/i, "")}-p${i + 1}.pdf`, { type: "application/pdf" }));
+    }
+    return out;
+  } catch { return [file]; }
+}
+
+// Run tasks a few at a time.
+async function pool(tasks, size) {
+  const results = new Array(tasks.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(size, tasks.length) }, async () => {
+    while (next < tasks.length) { const i = next++; results[i] = await tasks[i](); }
+  }));
+  return results;
+}
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const plus30 = () => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10); };
 const FOLLOW_TYPES = new Set(["followup", "unverified", "mov"]);
@@ -160,26 +191,42 @@ export default function CreditAssistant({ scoreItems = [] }) {
     const picked = [...(e.target.files || [])].slice(0, MAX_FILES);
     e.target.value = "";
     if (!picked.length) return;
-    setBusy(picked.map((f) => ({ name: f.name, status: "reading" })));
-    const results = await Promise.all(picked.map(async (file, i) => {
+    setBusy(picked.map((f) => ({ name: f.name, status: "reading", note: "Preparing…" })));
+    const update = (i, patch) => setBusy((b) => b.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+    const saved = [];
+    let failed = 0;
+    for (let i = 0; i < picked.length; i++) {
+      const file = picked[i];
+      const pieces = await splitPdf(file);
+      let done = 0, lastErr = "";
+      update(i, { note: pieces.length > 1 ? `Reading ${pieces.length} parts…` : "Reading…" });
+      const parts = await pool(pieces.map((piece, k) => async () => {
+        try {
+          const res = await base44.integrations.Core.ImportFinanceFile({ file: piece, mode: "credit", part: k, parts: pieces.length });
+          return (res && res.doc) || null;
+        } catch (err) {
+          lastErr = String((err && err.message) || "");
+          if (/Plus/.test(lastErr)) setBlocked(true);
+          return null;
+        } finally {
+          done += 1;
+          if (pieces.length > 1) update(i, { note: `Read ${done} of ${pieces.length} parts` });
+        }
+      }), PARALLEL);
+      const doc = mergeParts(parts);
+      const missed = parts.filter((x) => !x).length;
+      if (!doc) { failed += 1; update(i, { status: "failed", note: lastErr || "Couldn't read this file." }); continue; }
       try {
-        const res = await base44.integrations.Core.ImportFinanceFile({ file, mode: "credit" });
-        const doc = res && res.doc;
-        if (!doc) throw new Error("empty");
         const rec = await ent.CreditDoc.create({ ...doc, filename: file.name });
-        setBusy((b) => b.map((x, j) => (j === i ? { ...x, status: "done", type: doc.doc_type } : x)));
-        return rec;
-      } catch (err) {
-        if (/Plus/.test(String(err && err.message))) setBlocked(true);
-        setBusy((b) => b.map((x, j) => (j === i ? { ...x, status: "failed" } : x)));
-        return null;
+        saved.push(rec);
+        update(i, { status: "done", type: doc.doc_type, note: missed ? `Read, but ${missed} of ${pieces.length} parts were skipped. Re-upload to fill gaps.` : "" });
+      } catch {
+        failed += 1; update(i, { status: "failed", note: "Read, but couldn't save. Try again." });
       }
-    }));
-    const ok = results.filter(Boolean);
-    setDocs((d) => [...ok, ...d]);
-    const failed = results.length - ok.length;
-    flash(failed ? `Read ${ok.length} of ${results.length}. Try the others again, or a clearer copy.` : `Read ${ok.length} ${ok.length === 1 ? "document" : "documents"}.`);
-    setTimeout(() => setBusy([]), 1800);
+    }
+    setDocs((d) => [...saved, ...d]);
+    flash(failed ? `Read ${saved.length} of ${picked.length}. See the note on each file.` : `Read ${saved.length} ${saved.length === 1 ? "document" : "documents"}.`);
+    if (!failed) setTimeout(() => setBusy((b) => (b.some((x) => x.status !== "done" || x.note) ? b : [])), 2500);
   };
 
   const removeDoc = async (d) => {
@@ -281,12 +328,15 @@ export default function CreditAssistant({ scoreItems = [] }) {
         </button>
         )}
         {busy.length > 0 && (
-          <div className="mt-2 space-y-1">
+          <div className="mt-2 space-y-1.5">
+            {!busy.some((b) => b.status === "reading") && <button onClick={() => setBusy([])} className="float-right text-[11px] text-muted-foreground">Dismiss</button>}
             {busy.map((b, i) => (
               <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
-                {b.status === "reading" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : b.status === "done" ? <Check className="w-3.5 h-3.5 text-[#566033]" /> : <X className="w-3.5 h-3.5 text-[#8F5F65]" />}
-                <span className="truncate">{b.name}</span>
-                {b.type && <span className="ml-auto">{DOC_LABEL[b.type] || ""}</span>}
+                {b.status === "reading" ? <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" /> : b.status === "done" ? <Check className="w-3.5 h-3.5 text-[#566033]" /> : <X className="w-3.5 h-3.5 text-[#8F5F65]" />}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-foreground">{b.name}{b.type ? ` · ${DOC_LABEL[b.type] || ""}` : ""}</span>
+                  {b.note && <span className={`block ${b.status === "failed" ? "text-[#8F5F65]" : ""}`}>{b.note}</span>}
+                </span>
               </div>
             ))}
           </div>

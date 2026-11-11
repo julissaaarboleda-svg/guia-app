@@ -208,8 +208,8 @@ const handler = async (event, context) => {
   const useClaude = claudeEnabled();
   if (!apiKey && !useClaude) return reply(500, { error: "The AI key isn't set up on the server." });
 
-  let filename, contentType, base64Data, existing, mode;
-  try { ({ filename, contentType, base64Data, existing, mode } = JSON.parse(event.body || "{}")); }
+  let filename, contentType, base64Data, existing, mode, part, parts;
+  try { ({ filename, contentType, base64Data, existing, mode, part, parts } = JSON.parse(event.body || "{}")); }
   catch { return reply(400, { error: "That upload couldn't be read." }); }
   if (!base64Data) return reply(400, { error: "No file received." });
 
@@ -225,7 +225,9 @@ const handler = async (event, context) => {
     return reply(415, { error: "Use a PDF, a photo or screenshot, or a CSV. For Excel, save or export it as CSV first." });
   }
 
-  try {
+  // Long credit reports are sent a few pages at a time; only the first part counts toward the hourly limit.
+  const laterPart = mode === "credit" && Number(part) > 0;
+  if (!laterPart) try {
     const store = getStore("rate-limits");
     const key = `import-${user.sub || user.email || "unknown"}`;
     const now = Date.now();
@@ -244,7 +246,8 @@ const handler = async (event, context) => {
   try {
     const existingList = (Array.isArray(existing) ? existing : []).slice(0, 80)
       .map((e) => `- ${String(e.name || "").slice(0, 60)} (${e.type}, ${e.amount != null ? "$" + e.amount : "no amount"})`).join("\n");
-    const promptText = mode === "credit" ? CREDIT_PROMPT : mode === "routine" ? ROUTINE_PROMPT : mode === "spending" ? SPENDING_PROMPT : mode === "schedule" ? SCHEDULE_PROMPT : mode === "business" ? BUSINESS_PROMPT : mode === "career" ? CAREER_PROMPT : PROMPT + `\n\nEXISTING ITEMS:\n${existingList || "(none)"}`;
+    const partNote = mode === "credit" && Number(parts) > 1 ? `\n\nThese are pages from part ${Number(part) + 1} of ${Number(parts)} of a longer document. Extract only what appears on these pages; leave fields empty when they aren't shown here.` : "";
+    const promptText = mode === "credit" ? CREDIT_PROMPT + partNote : mode === "routine" ? ROUTINE_PROMPT : mode === "spending" ? SPENDING_PROMPT : mode === "schedule" ? SCHEDULE_PROMPT : mode === "business" ? BUSINESS_PROMPT : mode === "career" ? CAREER_PROMPT : PROMPT + `\n\nEXISTING ITEMS:\n${existingList || "(none)"}`;
     const docText = isText ? `\n\nDocument (${filename || "text"}):\n` + bytes.toString("utf8").slice(0, 120000) : "";
 
     let rawText;
@@ -253,9 +256,11 @@ const handler = async (event, context) => {
         const content = isText
           ? promptText + docText
           : [fileBlock(isPdf ? "application/pdf" : (type || "image/jpeg"), base64Data), { type: "text", text: promptText }];
-        rawText = await claudeText({ content, maxTokens: mode === "business" || mode === "career" || mode === "spending" || mode === "credit" ? 12000 : 6000 });
+        rawText = await claudeText({ content, maxTokens: mode === "credit" ? 8000 : mode === "business" || mode === "career" || mode === "spending" ? 12000 : 6000, timeoutMs: mode === "credit" ? 23000 : 0 });
       } catch (claudeErr) {
         console.error("import-finance Claude failed, falling back to Gemini:", claudeErr);
+        // No time left for a second try within the function's limit.
+        if (mode === "credit") return reply(504, { error: "That took too long to read. Try again, or upload fewer pages at a time." });
         if (!apiKey) throw claudeErr;
       }
     }
@@ -409,4 +414,5 @@ const handler = async (event, context) => {
 
 // Counts each successful request toward the monthly AI-use limit (see netlify/lib/usage.cjs).
 const modeOf = (event) => JSON.parse(event.body || "{}").mode;
-exports.handler = withUsage(handler, (event) => (modeOf(event) === "spending" ? 0 : 1), { plusOnly: (event) => modeOf(event) === "credit" });
+const partOf = (event) => Number(JSON.parse(event.body || "{}").part) || 0;
+exports.handler = withUsage(handler, (event) => (modeOf(event) === "spending" || (modeOf(event) === "credit" && partOf(event) > 0) ? 0 : 1), { plusOnly: (event) => modeOf(event) === "credit" });

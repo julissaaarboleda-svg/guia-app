@@ -305,3 +305,22 @@ export function deadlineNudges(items, caseRec = {}) {
     return { id: `${i.key}|${i.deadline}`, item: i, due: wk > now ? wk : now };
   });
 }
+
+// A long PDF is read a few pages at a time; put the pieces back into one document.
+export function mergeParts(parts) {
+  const ok = parts.filter(Boolean);
+  if (!ok.length) return null;
+  const pick = (f) => ok.map((d) => d[f]).find((v) => v != null && v !== "");
+  const types = ok.map((d) => d.doc_type).filter((t) => t && t !== "other");
+  const doc_type = types.includes("credit_report") ? "credit_report" : types[0] || "other";
+  const seen = new Set();
+  const inquiries = ok.flatMap((d) => d.inquiries || []).filter((q) => { const k = `${norm(q.creditor)}|${q.date}`; if (seen.has(k)) return false; seen.add(k); return true; });
+  return {
+    doc_type, doc_date: pick("doc_date"), from: pick("from"), bureau: pick("bureau"), score: pick("score"),
+    breach_date: pick("breach_date"), breach_what: pick("breach_what"),
+    accounts: ok.flatMap((d) => d.accounts || []),
+    inquiries,
+    results: ok.flatMap((d) => d.results || []),
+    summary: pick("summary") || "",
+  };
+}
