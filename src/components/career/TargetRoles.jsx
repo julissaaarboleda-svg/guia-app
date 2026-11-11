@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { ent } from "@/lib/freshEntities";
 import { base44 } from "@/api/base44Client";
-import { Plus, ChevronLeft, Trash2, Check, Pencil, FileText, Download, Copy, Sparkles } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Trash2, Check, Pencil, FileText, Download, Copy, Sparkles, Briefcase, MapPin } from "lucide-react";
 import CostOfLivingView, { RoleCostCard } from "@/components/career/CostOfLiving";
 import { analyzePosting, buildResume, writeCoverLetter, exportResumePdf, exportResumeDocx, exportLetterPdf, exportLetterDocx } from "@/lib/careerTailor";
 
@@ -28,7 +28,8 @@ function useHeader() {
   return [h, setH];
 }
 
-export default function TargetRoles({ entries, currentJob, onEditCurrent }) {
+// screen=false: a slim row on the Career page that opens the full "Match a new role" screen.
+export default function TargetRoles({ entries, currentJob, onEditCurrent, screen = false, onOpen, onBack }) {
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState(null); // null | "add" | roleId
@@ -84,26 +85,56 @@ export default function TargetRoles({ entries, currentJob, onEditCurrent }) {
 
   const baseName = (role?.company || role?.title || "role").replace(/[^\w]+/g, "-").toLowerCase();
 
-  // ---------- list ----------
+  // ---------- slim row on Career ----------
+  if (!screen) {
+    return (
+      <button onClick={onOpen} className="w-full bg-card border border-border rounded-2xl px-4 py-3 mb-4 flex items-center gap-3 text-left">
+        <span className="w-8 h-8 rounded-full bg-[#F0E6D6] flex items-center justify-center flex-shrink-0"><Briefcase className="w-4 h-4 text-[#8B6B3E]" strokeWidth={1.8} /></span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-sm font-medium text-foreground">Match a new role</span>
+          <span className="block text-xs text-muted-foreground truncate">Compare a job posting · cost of living</span>
+        </span>
+        {!loading && roles.length > 0 && <span className="text-[11px] text-[#8B6B3E] bg-[#F0E6D6] rounded-full px-2 py-0.5 flex-shrink-0">{roles.length} saved</span>}
+        <ChevronRight className="w-4 h-4 text-[#A7773F] flex-shrink-0" />
+      </button>
+    );
+  }
+
+  // ---------- its own screen ----------
   if (!view) {
     return (
-      <div className="bg-card border border-border rounded-2xl p-4 md:p-5 mb-4">
-        <div className="flex items-center justify-between mb-1">
-          <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Match a new role</p>
-          <button onClick={() => { setView("add"); setError(""); }} className="text-xs font-medium flex items-center gap-1" style={{ color: "#A7773F" }}><Plus className="w-3.5 h-3.5" /> Add posting</button>
-        </div>
-        <p className="text-xs text-muted-foreground mb-2">Paste a job posting to see how your career matches it, what to change, and get a tailored resume and cover letter.</p>
-        <button onClick={() => setView("col")} className="text-xs font-medium mb-2 block" style={{ color: "#A7773F" }}>Cost of living: compare cities ›</button>
-        {!hasProfile && <p className="text-xs rounded-lg px-3 py-2 bg-[#F3E8D6] text-[#8A5F27]">Add your current role (with its job description) first. It's what each posting is compared against.</p>}
+      <div className="max-w-2xl">
+        <button onClick={onBack} className="text-[13px] text-[#A7773F] flex items-center gap-0.5 mb-2"><ChevronLeft className="w-4 h-4" /> Career</button>
+        <h1 className="font-heading text-[28px] leading-tight text-foreground">Match a new role</h1>
+        <p className="text-sm text-muted-foreground mt-1 mb-4">See how your career fits a job posting, what to change, and get a tailored resume and cover letter.</p>
+        <button onClick={() => { setView("add"); setError(""); }} disabled={!hasProfile}
+          className="w-full flex items-center justify-center gap-1.5 bg-foreground text-background rounded-xl py-3 text-sm font-medium disabled:opacity-50"><Plus className="w-4 h-4" /> Add a job posting</button>
+        {!hasProfile && <p className="text-xs rounded-lg px-3 py-2 bg-[#F3E8D6] text-[#8A5F27] mt-2.5">Add your current role (with its job description) first. It's what each posting is compared against.</p>}
         {hasProfile && currentJob && !currentJob.description && (
-          <button onClick={() => onEditCurrent(currentJob)} className="text-xs rounded-lg px-3 py-2 bg-[#F3E8D6] text-[#8A5F27] text-left w-full">Add the job description to {currentJob.title} for better matches ›</button>
+          <button onClick={() => onEditCurrent(currentJob)} className="text-xs rounded-lg px-3 py-2.5 bg-[#F3E8D6] text-[#8A5F27] text-left w-full mt-2.5">Tip: add the job description to {currentJob.title} for better matches ›</button>
         )}
-        {loading ? <div className="h-12 bg-muted rounded-xl animate-pulse mt-2" /> : roles.map((r) => (
-          <button key={r.id} onClick={() => setView(r.id)} className="w-full flex items-center gap-3 py-2.5 border-t border-border first:border-0 mt-1 text-left">
-            <Ring score={r.analysis?.score || 0} />
-            <div className="min-w-0 flex-1"><p className="text-[14.5px] text-foreground truncate">{r.title}</p><p className="text-[11.5px] text-muted-foreground truncate">{r.company || "—"} · {scoreLabel(r.analysis?.score || 0)}</p></div>
-          </button>
-        ))}
+
+        <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground mt-6 mb-2">Your matches</p>
+        {loading ? <div className="h-14 bg-muted rounded-xl animate-pulse" /> : roles.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Postings you compare are saved here, so you can come back to the resume and cover letter.</p>
+        ) : (
+          <div className="space-y-2">
+            {roles.map((r) => (
+              <button key={r.id} onClick={() => setView(r.id)} className="w-full flex items-center gap-3 bg-card border border-border rounded-2xl px-3.5 py-2.5 text-left">
+                <Ring score={r.analysis?.score || 0} />
+                <div className="min-w-0 flex-1"><p className="text-[14.5px] text-foreground truncate">{r.title}</p><p className="text-[11.5px] text-muted-foreground truncate">{r.company || "—"} · {scoreLabel(r.analysis?.score || 0)}</p></div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground/60 flex-shrink-0" />
+              </button>
+            ))}
+          </div>
+        )}
+
+        <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground mt-6 mb-2">Tools</p>
+        <button onClick={() => setView("col")} className="w-full flex items-center gap-3 bg-card border border-border rounded-2xl px-3.5 py-3 text-left">
+          <MapPin className="w-4 h-4 text-[#7D8A53] flex-shrink-0" strokeWidth={1.8} />
+          <span className="flex-1 text-sm text-foreground">Cost of living: compare cities</span>
+          <ChevronRight className="w-4 h-4 text-[#A7773F]" />
+        </button>
       </div>
     );
   }

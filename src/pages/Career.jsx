@@ -30,6 +30,7 @@ export default function Career({ switcher = null }) {
   const [entries, setEntries] = useState([]);
   const [adding, setAdding] = useState(false);
   const [showPay, setShowPay] = useState(false);
+  const [matching, setMatching] = useState(false);
   const [editing, setEditing] = useState(null);
   const [entryType, setEntryType] = useState("job");
   const [achievementSubtype, setAchievementSubtype] = useState("milestone");
@@ -257,7 +258,7 @@ export default function Career({ switcher = null }) {
   return (
     <>
       <div className="max-w-[1200px] 2xl:max-w-[1400px] mx-auto w-full">
-      <PageHeader
+      {!matching && <PageHeader
         below={switcher}
         title="Career"
         subtitle="Where you've been, where you're going."
@@ -271,8 +272,12 @@ export default function Career({ switcher = null }) {
             <Plus className="w-[18px] h-[18px]" strokeWidth={1.8} />
           </button>
         }
-      />
+      />}
       <div className="p-4 md:p-6 lg:p-8">
+      {matching ? (
+        <TargetRoles screen entries={entries} currentJob={currentJob} onBack={() => { setMatching(false); window.scrollTo(0, 0); }}
+          onEditCurrent={(j) => { setMatching(false); startEdit(j); }} />
+      ) : (<>
       {/* Import */}
       {!adding && !editing && (
         <button onClick={() => setShowImport(true)}
@@ -316,7 +321,7 @@ export default function Career({ switcher = null }) {
         </div>
       )}
 
-      {!adding && !editing && <TargetRoles entries={entries} currentJob={currentJob} onEditCurrent={startEdit} />}
+      {!adding && !editing && <TargetRoles entries={entries} currentJob={currentJob} onEditCurrent={startEdit} onOpen={() => { setMatching(true); window.scrollTo(0, 0); }} />}
 
       {/* Count tabs: only roles live in the timeline, everything else opens from here */}
       {entries.length > 0 && !adding && !editing && (
@@ -565,6 +570,8 @@ export default function Career({ switcher = null }) {
           )}
         </div>
       )}
+
+      </>)}
 
       <CareerImportSheet open={showImport} onClose={() => setShowImport(false)} existing={entries} onDone={load} />
     </div>
