@@ -256,12 +256,31 @@ const handler = async (event, context) => {
         const content = isText
           ? promptText + docText
           : [fileBlock(isPdf ? "application/pdf" : (type || "image/jpeg"), base64Data), { type: "text", text: promptText }];
-        // Credit pages go to the faster model: a page of a report is mostly copying fields, and speed keeps it inside the time limit.
-        rawText = await claudeText({ content, ...(mode === "credit" ? { model: CLAUDE_FAST_MODEL } : {}), maxTokens: mode === "credit" ? 4000 : mode === "business" || mode === "career" || mode === "spending" ? 12000 : 6000, timeoutMs: mode === "credit" ? 23000 : 0 });
+        if (mode === "credit") {
+          // Credit pages go to the faster model first: a page of a report is mostly copying fields.
+          // If it errors quickly (not a timeout), try the main model with the time that's left.
+          const t0 = Date.now();
+          const timedOut = (e) => e && (e.name === "AbortError" || /abort/i.test(String(e.message)));
+          try {
+            rawText = await claudeText({ content, model: CLAUDE_FAST_MODEL, maxTokens: 4000, timeoutMs: 22000 });
+          } catch (fastErr) {
+            console.error("import-finance credit (fast model) failed:", fastErr && fastErr.message);
+            const left = 23500 - (Date.now() - t0);
+            if (timedOut(fastErr) || left < 8000) return reply(504, { error: "That page took too long to read. Try again." });
+            try {
+              rawText = await claudeText({ content, model: CLAUDE_MODEL, maxTokens: 4000, timeoutMs: left });
+            } catch (mainErr) {
+              console.error("import-finance credit (main model) failed:", mainErr && mainErr.message);
+              if (timedOut(mainErr)) return reply(504, { error: "That page took too long to read. Try again." });
+              const why = String((mainErr && mainErr.message) || "").replace(/\s+/g, " ").slice(0, 160);
+              return reply(502, { error: `Couldn't read this file${why ? `: ${why}` : "."}` });
+            }
+          }
+        } else {
+          rawText = await claudeText({ content, maxTokens: mode === "business" || mode === "career" || mode === "spending" ? 12000 : 6000 });
+        }
       } catch (claudeErr) {
         console.error("import-finance Claude failed, falling back to Gemini:", claudeErr);
-        // No time left for a second try within the function's limit.
-        if (mode === "credit") return reply(504, { error: "That took too long to read. Try again, or upload fewer pages at a time." });
         if (!apiKey) throw claudeErr;
       }
     }

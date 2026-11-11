@@ -10,12 +10,14 @@ const PAGES_PER_PART = 1;
 const PARALLEL = 4;
 
 // Split a long PDF into small PDFs so each one reads well within the server's time limit.
+// A locked (encrypted) PDF can't be split cleanly, so it's sent whole and flagged.
 async function splitPdf(file) {
   if (!/pdf$/i.test(file.type) && !/\.pdf$/i.test(file.name)) return [file];
   try {
     const { PDFDocument } = await import("pdf-lib");
     const src = await PDFDocument.load(await file.arrayBuffer(), { ignoreEncryption: true });
     const n = src.getPageCount();
+    if (src.isEncrypted) return Object.assign([file], { locked: true });
     if (n <= PAGES_PER_PART) return [file];
     const out = [];
     for (let i = 0; i < n; i += PAGES_PER_PART) {
@@ -218,7 +220,8 @@ export default function CreditAssistant({ scoreItems = [] }) {
       }), PARALLEL);
       const doc = mergeParts(parts);
       const missed = parts.filter((x) => !x).length;
-      if (!doc) { failed += 1; update(i, { status: "failed", note: lastErr || "Couldn't read this file." }); continue; }
+      const lockedTip = "This PDF is locked. Open it, choose Print → Save as PDF, and upload the new copy.";
+      if (!doc) { failed += 1; update(i, { status: "failed", note: pieces.locked ? lockedTip : lastErr || "Couldn't read this file." }); continue; }
       try {
         const rec = await ent.CreditDoc.create({ ...doc, filename: file.name });
         saved.push(rec);
