@@ -132,6 +132,20 @@ Rules:
 - Never invent anything that is not in the document. Lower the confidence when unsure.
 - Return at most 40 entries. If nothing relevant is found, return {"entries": []}.`;
 
+const ROUTINE_PROMPT = `You are helping someone set up routines in a personal app. Read the attached document (a workout plan, a skincare routine from a dermatologist or esthetician, a physical therapy sheet, a meal or wellness plan, or similar) and turn it into routines with ordered steps.
+
+Return ONLY JSON in this shape, nothing else:
+{"routines":[{"name":"","slot":"morning|evening|anytime","days":[1,3,5],"steps":[{"text":"","note":""}]}]}
+
+Rules:
+- One routine per distinct session in the document: separate AM and PM skincare, separate workout days (for example "Day A · Upper body" and "Day B · Lower body") as separate routines.
+- name: short and clear, under 40 characters.
+- slot: "morning" for AM/morning, "evening" for PM/night/bedtime, otherwise "anytime".
+- days: weekday numbers with Sunday=0 ... Saturday=6, only if the document says which days (e.g. "Mon/Wed/Fri" -> [1,3,5]; "twice a week" with no days -> []). Use [] for every day or unknown.
+- steps: in the order they are done. text is the step itself (an exercise, a product or action), under 60 characters. note holds the details: sets × reps, weight, duration, rest, amount, or tips like "pea-sized" or "avoid eyes"; under 80 characters, or "" if none.
+- Skip headings, disclaimers, warm-up lectures and anything that is not an actionable step. At most 12 routines and 25 steps per routine.
+- Do not invent steps that are not in the document.`;
+
 const SPENDING_PROMPT = `You are helping someone understand their spending habits. Read the attached bank or card statement (or transaction list) and return every money-out transaction, one row each.
 
 Return ONLY JSON in this exact shape:
@@ -207,7 +221,7 @@ exports.handler = async (event, context) => {
   try {
     const existingList = (Array.isArray(existing) ? existing : []).slice(0, 80)
       .map((e) => `- ${String(e.name || "").slice(0, 60)} (${e.type}, ${e.amount != null ? "$" + e.amount : "no amount"})`).join("\n");
-    const promptText = mode === "spending" ? SPENDING_PROMPT : mode === "schedule" ? SCHEDULE_PROMPT : mode === "business" ? BUSINESS_PROMPT : mode === "career" ? CAREER_PROMPT : PROMPT + `\n\nEXISTING ITEMS:\n${existingList || "(none)"}`;
+    const promptText = mode === "routine" ? ROUTINE_PROMPT : mode === "spending" ? SPENDING_PROMPT : mode === "schedule" ? SCHEDULE_PROMPT : mode === "business" ? BUSINESS_PROMPT : mode === "career" ? CAREER_PROMPT : PROMPT + `\n\nEXISTING ITEMS:\n${existingList || "(none)"}`;
     const docText = isText ? `\n\nDocument (${filename || "text"}):\n` + bytes.toString("utf8").slice(0, 120000) : "";
 
     let rawText;
@@ -244,6 +258,18 @@ exports.handler = async (event, context) => {
         .filter((p) => /^\d{4}-\d{2}-\d{2}$/.test(p.date) && Number.isFinite(p.amount) && p.amount > 0);
       const payoff = Number(parsed.payoff_amount);
       return reply(200, { payments, payoff_amount: Number.isFinite(payoff) && payoff > 0 ? payoff : null });
+    }
+    if (mode === "routine") {
+      if (!parsed || !Array.isArray(parsed.routines)) return reply(502, { error: "The file was read, but no routine could be found in it. Try a clearer copy." });
+      const routines = parsed.routines.slice(0, 12).map((r) => ({
+        name: String(r.name || "").trim().slice(0, 60),
+        slot: ["morning", "evening", "anytime"].includes(r.slot) ? r.slot : "anytime",
+        days: (Array.isArray(r.days) ? r.days : []).map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6).filter((d, i, a) => a.indexOf(d) === i),
+        steps: (Array.isArray(r.steps) ? r.steps : []).slice(0, 25)
+          .map((st) => ({ text: String(st?.text || "").trim().slice(0, 80), note: String(st?.note || "").trim().slice(0, 120) }))
+          .filter((st) => st.text),
+      })).filter((r) => r.name && r.steps.length);
+      return reply(200, { routines });
     }
     if (mode === "spending") {
       if (!parsed || !Array.isArray(parsed.transactions)) return reply(502, { error: "The file was read, but no transactions could be found. Try again, or try a clearer copy." });

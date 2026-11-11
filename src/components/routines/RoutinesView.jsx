@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { Plus, Check, ArrowLeft, X, Trash2, Flame } from "lucide-react";
+import { Plus, Check, ArrowLeft, X, Trash2, Flame, Upload, Loader2 } from "lucide-react";
 import {
   ROUTINE_COLORS, SLOTS, DAY_LETTERS, colorOf, dayKey, isScheduled, doneOn, completeOn,
   scheduleLabel, streaks, completionRate, weekDays, toggleStep,
@@ -26,6 +27,48 @@ export default function RoutinesView({ addSignal = 0 }) {
   const [openId, setOpenId] = useState(null);
   const [form, setForm] = useState(null); // { ...routine } while adding/editing
   const today = dayKey();
+  const fileRef = useRef(null);
+  const [reading, setReading] = useState(false);
+  const [importErr, setImportErr] = useState("");
+  const [found, setFound] = useState(null); // routines read from a file, waiting for review
+
+  const readFile = async (file) => {
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) { setImportErr("That file is over 4 MB. Try a smaller PDF or a screenshot."); return; }
+    setImportErr(""); setReading(true);
+    try {
+      const res = await base44.integrations.Core.ImportFinanceFile({ file, mode: "routine" });
+      const list = (res.routines || []).map((r, i) => ({
+        ...r, include: true,
+        color: ROUTINE_COLORS[i % ROUTINE_COLORS.length].key,
+        days: r.days && r.days.length && r.days.length < 7 ? r.days : null,
+        steps: r.steps.map((st) => ({ id: newId(), text: st.text, note: st.note || "" })),
+      }));
+      if (!list.length) setImportErr("No routine steps were found in that file.");
+      else if (list.length === 1) setForm(list[0]);
+      else setFound(list);
+    } catch (err) {
+      setImportErr(err.message || "Couldn't read that file. Try again.");
+    }
+    setReading(false);
+  };
+  const saveFound = async () => {
+    for (const r of found.filter((x) => x.include)) {
+      await ent.Routine.create({ name: r.name, color: r.color, slot: r.slot, days: r.days, steps: r.steps, log: {}, best_streak: 0 });
+    }
+    setFound(null); load();
+  };
+  const importBtn = (
+    <>
+      <input ref={fileRef} type="file" accept="application/pdf,image/*,image/heic,image/heif,.heic,.heif,.txt" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; readFile(f); }} />
+      <button type="button" disabled={reading} onClick={() => fileRef.current?.click()}
+        className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#A7773F] disabled:opacity-60">
+        {reading ? <Loader2 className="w-4 h-4 animate-spin" strokeWidth={1.5} /> : <Upload className="w-4 h-4" strokeWidth={1.5} />}
+        {reading ? "Reading your file…" : "Import from a file"}
+      </button>
+    </>
+  );
 
   const load = async () => {
     try { setRoutines(await ent.Routine.list("created_date")); } catch { setRoutines([]); }
@@ -130,6 +173,33 @@ export default function RoutinesView({ addSignal = 0 }) {
     );
   }
 
+  // ---------- review routines found in a file ----------
+  if (found) {
+    const n = found.filter((r) => r.include).length;
+    return (
+      <div className="px-4 py-4 max-w-xl">
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="font-heading text-[24px] text-foreground">Found {found.length} routines</h2>
+          <button onClick={() => setFound(null)} aria-label="Close" className="p-1 text-muted-foreground"><X className="w-5 h-5" strokeWidth={1.5} /></button>
+        </div>
+        <p className="text-[12.5px] text-muted-foreground mb-3">Untick any you don't want. You can edit each one after saving.</p>
+        {found.map((r, i) => (
+          <div key={i} className="bg-card border border-border rounded-2xl px-4 py-3 mb-2" style={{ borderLeft: `4px solid ${colorOf(r)}`, opacity: r.include ? 1 : 0.5 }}>
+            <button type="button" onClick={() => setFound(found.map((x, j) => (j === i ? { ...x, include: !x.include } : x)))} className="w-full flex items-center gap-3 text-left">
+              <Tick on={r.include} color={colorOf(r)} />
+              <span className="min-w-0">
+                <span className="block font-heading text-[16px] text-foreground truncate">{r.name}</span>
+                <span className="block text-[11.5px] text-muted-foreground">{SLOTS.find(([k]) => k === r.slot)?.[1]} · {scheduleLabel(r)} · {r.steps.length} steps</span>
+              </span>
+            </button>
+            <p className="text-[12px] text-muted-foreground mt-1.5 ml-[34px] line-clamp-2">{r.steps.map((st) => st.text).join(" · ")}</p>
+          </div>
+        ))}
+        <button onClick={saveFound} disabled={!n} className="mt-3 bg-[#A7773F] text-[#F7F3EC] px-6 py-2.5 rounded-full text-sm font-medium disabled:opacity-40">Save {n} routine{n === 1 ? "" : "s"}</button>
+      </div>
+    );
+  }
+
   // ---------- one routine ----------
   const open = routines.find((r) => r.id === openId);
   if (open) {
@@ -202,6 +272,9 @@ export default function RoutinesView({ addSignal = 0 }) {
           <p className="font-heading text-[20px] text-foreground mb-1">Small steps, every day</p>
           <p className="text-sm text-muted-foreground mb-4">Build a facial routine, a workout, or anything you repeat.</p>
           <button onClick={() => setForm(blank())} className="bg-[#A7773F] text-[#F7F3EC] px-5 py-2.5 rounded-full text-sm font-medium">+ New routine</button>
+          <div className="mt-4">{importBtn}</div>
+          <p className="text-[11.5px] text-muted-foreground mt-1">A PDF or photo of a workout plan or skincare routine.</p>
+          {importErr && <p className="text-[12.5px] text-[#8F5F65] mt-2">{importErr}</p>}
         </div>
       )}
       {routines.length > 0 && (
@@ -240,7 +313,11 @@ export default function RoutinesView({ addSignal = 0 }) {
               </div>
             );
           })}
-          <button onClick={() => setForm(blank())} className="mt-2 inline-flex items-center gap-1 text-[13px] font-medium text-[#A7773F]"><Plus className="w-4 h-4" strokeWidth={1.5} /> New routine</button>
+          <div className="mt-2 flex items-center gap-5 flex-wrap">
+            <button onClick={() => setForm(blank())} className="inline-flex items-center gap-1 text-[13px] font-medium text-[#A7773F]"><Plus className="w-4 h-4" strokeWidth={1.5} /> New routine</button>
+            {importBtn}
+          </div>
+          {importErr && <p className="text-[12.5px] text-[#8F5F65] mt-2">{importErr}</p>}
         </>
       )}
     </div>
