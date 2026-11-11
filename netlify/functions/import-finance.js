@@ -9,7 +9,7 @@
 
 const { GoogleGenAI } = require("@google/genai");
 const { withUsage } = require("../lib/usage.cjs");
-const { claudeEnabled, claudeText, fileBlock } = require("../lib/ai.cjs");
+const { claudeEnabled, claudeText, fileBlock, CLAUDE_FAST_MODEL } = require("../lib/ai.cjs");
 const { getStore, connectLambda } = require("@netlify/blobs");
 
 const RATE_LIMIT = 20;
@@ -256,7 +256,8 @@ const handler = async (event, context) => {
         const content = isText
           ? promptText + docText
           : [fileBlock(isPdf ? "application/pdf" : (type || "image/jpeg"), base64Data), { type: "text", text: promptText }];
-        rawText = await claudeText({ content, maxTokens: mode === "credit" ? 8000 : mode === "business" || mode === "career" || mode === "spending" ? 12000 : 6000, timeoutMs: mode === "credit" ? 23000 : 0 });
+        // Credit pages go to the faster model: a page of a report is mostly copying fields, and speed keeps it inside the time limit.
+        rawText = await claudeText({ content, ...(mode === "credit" ? { model: CLAUDE_FAST_MODEL } : {}), maxTokens: mode === "credit" ? 4000 : mode === "business" || mode === "career" || mode === "spending" ? 12000 : 6000, timeoutMs: mode === "credit" ? 23000 : 0 });
       } catch (claudeErr) {
         console.error("import-finance Claude failed, falling back to Gemini:", claudeErr);
         // No time left for a second try within the function's limit.

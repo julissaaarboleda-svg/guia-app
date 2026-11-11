@@ -6,7 +6,7 @@ import { ent } from "@/lib/freshEntities";
 import { analyze, stepsFor, letterFor, LETTER_TITLE, timeline, progress, DOC_LABEL, niceDate, OUTCOMES, WIN, isOverdue, sentDue, noReplySteps, replySteps, followUpLetter, deadlineNudges, mergeParts } from "@/lib/credit";
 
 const MAX_FILES = 10;
-const PAGES_PER_PART = 2;
+const PAGES_PER_PART = 1;
 const PARALLEL = 4;
 
 // Split a long PDF into small PDFs so each one reads well within the server's time limit.
@@ -201,9 +201,12 @@ export default function CreditAssistant({ scoreItems = [] }) {
       let done = 0, lastErr = "";
       update(i, { note: pieces.length > 1 ? `Reading ${pieces.length} parts…` : "Reading…" });
       const parts = await pool(pieces.map((piece, k) => async () => {
-        try {
+        const read = async () => {
           const res = await base44.integrations.Core.ImportFinanceFile({ file: piece, mode: "credit", part: k, parts: pieces.length });
           return (res && res.doc) || null;
+        };
+        try {
+          return await read(); // a 5xx (e.g. a slow page) is already retried once by the client
         } catch (err) {
           lastErr = String((err && err.message) || "");
           if (/Plus/.test(lastErr)) setBlocked(true);
