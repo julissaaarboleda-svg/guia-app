@@ -9,8 +9,8 @@ exports.handler = async (event, context) => {
   const user = context.clientContext && context.clientContext.user;
   if (!user) return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: "Not authenticated" }) };
   try {
-    const { plan, used, limit, enforced, resets, resetsLabel, trialEnds, trialDaysLeft, trialEnded } = await usageFor(user);
-    return { statusCode: 200, headers: CORS, body: JSON.stringify({ plan, used, limit, enforced, resets, resetsLabel, trialEnds, trialDaysLeft, trialEnded }) };
+    const { plan, used, limit, enforced, resets, resetsLabel, trialEnds, trialDaysLeft, trialEnded, beta } = await usageFor(user);
+    return { statusCode: 200, headers: CORS, body: JSON.stringify({ plan, used, limit, enforced, resets, resetsLabel, trialEnds, trialDaysLeft, trialEnded, beta }) };
   } catch (err) {
     console.error("usage failed:", err);
     return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: "Couldn't load usage." }) };

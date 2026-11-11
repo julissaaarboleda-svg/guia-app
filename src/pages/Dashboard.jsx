@@ -215,7 +215,7 @@ export default function Dashboard() {
     <div className="px-6 md:px-10 lg:px-12 pb-5 md:pb-7 max-w-[1180px] 2xl:max-w-[1400px] mx-auto w-full space-y-5" style={{ paddingTop: "1.25rem" }}>
 
       <Greeting dateStr={dateStr} greeting={greeting} firstName={firstName} status={dailyStatus} />
-      {aiPlan?.plan === "trial" && (
+      {aiPlan?.plan === "trial" && (!aiPlan.beta || aiPlan.trialDaysLeft <= 7) && (
         <Link to="/settings" className={`inline-flex items-center gap-1.5 -mt-2 mb-3 text-[12px] rounded-full px-3 py-1 ${aiPlan.trialDaysLeft <= 3 ? "bg-[#A7773F] text-[#F7F3EC]" : "bg-card border border-border/60 text-muted-foreground"}`}>
           {aiPlan.trialDaysLeft <= 3
             ? `Your Plus trial ends in ${aiPlan.trialDaysLeft} day${aiPlan.trialDaysLeft === 1 ? "" : "s"} · Keep Plus`

@@ -16,10 +16,11 @@ export default function PlanUsage() {
     <section className="bg-card border border-border rounded-2xl p-5">
       <div className="flex items-baseline justify-between mb-1">
         <h2 className="font-heading text-lg text-foreground">Plan & AI uses</h2>
-        <span className={`text-[11px] font-medium px-2.5 py-0.5 rounded-full ${plus || trial ? "bg-[#A7773F] text-[#F7F3EC]" : "bg-secondary text-muted-foreground"}`}>{u ? (plus ? "Guía Plus" : trial ? `Plus trial · ${u.trialDaysLeft} days left` : "Free") : "…"}</span>
+        <span className={`text-[11px] font-medium px-2.5 py-0.5 rounded-full ${plus || trial ? "bg-[#A7773F] text-[#F7F3EC]" : "bg-secondary text-muted-foreground"}`}>{u ? (plus ? "Guía Plus" : trial ? (u.beta ? "Beta · Plus" : `Plus trial · ${u.trialDaysLeft} days left`) : "Free") : "…"}</span>
       </div>
       <p className="text-[13px] text-muted-foreground mb-3">AI uses are imports, summaries, suggestions and generated images. Everything else is unlimited.</p>
-      {trial && <p className="text-[13px] text-foreground bg-[#F3E8D6] rounded-lg px-3 py-2 mb-3">You have everything in Plus until {ends}. After that you'll move to Free ({10} AI uses a month) and nothing you've made is removed.</p>}
+      {trial && u.beta && <p className="text-[13px] text-foreground bg-[#F3E8D6] rounded-lg px-3 py-2 mb-3">Thank you for testing Guía. You have everything in Plus until launch on {ends}, then a founding-member price is yours to claim.</p>}
+      {trial && !u.beta && <p className="text-[13px] text-foreground bg-[#F3E8D6] rounded-lg px-3 py-2 mb-3">You have everything in Plus until {ends}. After that you'll move to Free ({10} AI uses a month) and nothing you've made is removed.</p>}
       {u?.plan === "free" && u.trialEnded && <p className="text-[13px] text-foreground bg-[#F3E8D6] rounded-lg px-3 py-2 mb-3">Your Plus trial has ended. Upgrades are coming soon.</p>}
       {u && (
         <>

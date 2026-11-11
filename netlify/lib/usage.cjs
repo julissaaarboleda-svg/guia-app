@@ -14,6 +14,9 @@ const { getStore, connectLambda } = require("@netlify/blobs");
 // Plus is "unlimited" with a fair-use ceiling. New accounts get a 30-day Plus trial once.
 const LIMITS = { free: 10, trial: 150, plus: 500 };
 const TRIAL_DAYS = 30;
+// Everyone who joins before launch is a beta tester: Plus until launch day, then the founding offer.
+// Override with the GUIA_LAUNCH_DATE environment variable (YYYY-MM-DD).
+const launchDate = () => new Date(`${process.env.GUIA_LAUNCH_DATE || "2027-01-04"}T06:00:00Z`);
 const CORS = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
 
 const monthKey = () => new Date().toISOString().slice(0, 7);
@@ -30,13 +33,19 @@ async function planFor(user) {
     const key = `user-${userId(user)}`;
     let rec = await store.get(key, { type: "json" });
     if (rec && rec.plan === "plus" && (!rec.until || new Date(rec.until) > new Date())) return { plan: "plus" };
+    const launch = launchDate();
+    const beforeLaunch = Date.now() < launch.getTime();
     if (!rec || !rec.trial_ends) {
-      const ends = new Date(Date.now() + TRIAL_DAYS * 86400000).toISOString();
-      rec = { ...(rec || {}), trial_started: new Date().toISOString(), trial_ends: ends };
+      const thirty = new Date(Date.now() + TRIAL_DAYS * 86400000);
+      const ends = beforeLaunch && launch > thirty ? launch : thirty;
+      rec = { ...(rec || {}), trial_started: new Date().toISOString(), trial_ends: ends.toISOString(), beta: beforeLaunch };
+      await store.setJSON(key, rec);
+    } else if (rec.beta && new Date(rec.trial_ends) < launch) {
+      rec = { ...rec, trial_ends: launch.toISOString() }; // launch moved later: keep testers on Plus
       await store.setJSON(key, rec);
     }
-    if (new Date(rec.trial_ends) > new Date()) return { plan: "trial", trialEnds: rec.trial_ends };
-    return { plan: "free", trialEnded: rec.trial_ends };
+    if (new Date(rec.trial_ends) > new Date()) return { plan: "trial", trialEnds: rec.trial_ends, beta: !!rec.beta };
+    return { plan: "free", trialEnded: rec.trial_ends, beta: !!rec.beta };
   } catch (err) { console.error("plan lookup failed (treating as free):", err); }
   return { plan: "free" };
 }
@@ -53,7 +62,7 @@ async function usageFor(user) {
   const resetDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
   const resets = resetDate.toISOString().slice(0, 10);
   const resetsLabel = resetDate.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "UTC" });
-  return { plan, used, limit: LIMITS[plan], enforced: enforced(), resets, resetsLabel, key, trialEnds: p.trialEnds || null, trialDaysLeft, trialEnded: p.trialEnded || null };
+  return { plan, used, limit: LIMITS[plan], enforced: enforced(), resets, resetsLabel, key, trialEnds: p.trialEnds || null, trialDaysLeft, trialEnded: p.trialEnded || null, beta: !!p.beta };
 }
 
 async function recordUse(key, cost) {
