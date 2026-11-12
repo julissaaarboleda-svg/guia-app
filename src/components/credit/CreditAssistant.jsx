@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, ChevronRight, Upload, X, Copy, Mail, Check, FileText, Trash2, ExternalLink, ShieldAlert, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Upload, X, Copy, Mail, Check, FileText, Trash2, ExternalLink, ShieldAlert, Loader2, Scale } from "lucide-react";
 import { base44, getAiUsage } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { analyze, stepsFor, letterFor, LETTER_TITLE, progress, DOC_LABEL, niceDate, OUTCOMES, WIN, isOverdue, sentDue, noReplySteps, replySteps, followUpLetter, deadlineNudges, mergeParts, overview, money, BUREAU_LETTERS, BUREAUS, BUREAU_SHORT, bureauAddress, bureauKey } from "@/lib/credit";
+import { analyze, stepsFor, letterFor, LETTER_TITLE, progress, DOC_LABEL, niceDate, OUTCOMES, WIN, isOverdue, sentDue, noReplySteps, replySteps, followUpLetter, deadlineNudges, mergeParts, overview, money, BUREAU_LETTERS, BUREAUS, BUREAU_SHORT, bureauAddress, bureauKey, CHECKLIST, RIGHTS, uspsTrack } from "@/lib/credit";
 
 const MAX_FILES = 10;
 const PAGES_PER_PART = 1;
@@ -64,6 +64,11 @@ function StepRow({ s, i, done, onToggle, onLetter, onTodo, bureaus = [], missing
       <div className="flex-1 min-w-0">
         <p className={`text-sm text-foreground ${done ? "line-through opacity-60" : ""}`}>{s.title}</p>
         <p className="text-xs text-muted-foreground mt-0.5">{s.body}</p>
+        {s.tips && s.tips.length > 0 && !done && (
+          <div className="mt-1.5 rounded-lg bg-secondary/70 px-2.5 py-1.5 space-y-0.5">
+            {s.tips.map((t, k) => <p key={k} className="text-[11px] text-foreground"><span className={`font-medium ${t.ok ? "text-[#566033]" : "text-[#8F5F65]"}`}>{t.ok ? "Do" : "Don't"}</span> {t.text}</p>)}
+          </div>
+        )}
         <div className="flex flex-wrap gap-3 mt-1">
           {s.letter && BUREAU_LETTERS.has(s.letter) && bureaus.length > 0 ? (
             <>
@@ -126,6 +131,9 @@ function LetterSheet({ letter, onClose, onSent }) {
   const [edited, setEdited] = useState(false);
   const [text, setText] = useState(() => letter.build(sender));
   const [to, setTo] = useState(letter.to || "");
+  const [tracking, setTracking] = useState("");
+  const [checked, setChecked] = useState({});
+  const list = CHECKLIST[letter.type] || [];
   const [copied, setCopied] = useState(false);
   const saveFrom = () => {
     const v = { name: draft.name.trim(), address: draft.address.trim() };
@@ -171,12 +179,110 @@ function LetterSheet({ letter, onClose, onSent }) {
             <button onClick={copy} className="flex-1 flex items-center justify-center gap-1.5 border border-border rounded-xl py-2.5 text-sm text-foreground">{copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}{copied ? "Copied" : "Copy"}</button>
             <a href={mail} className="flex-1 flex items-center justify-center gap-1.5 border border-border rounded-xl py-2.5 text-sm text-foreground"><Mail className="w-4 h-4" />Email to myself</a>
           </div>
-          <div className="border-t border-border pt-3">
-            <label className="block text-xs font-medium text-foreground mb-1">Sent to</label>
-            <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="e.g., Midland Credit, Experian" className={inputCls} />
-            <button onClick={() => onSent(to || letter.to || "")} className="mt-2 w-full bg-foreground text-background rounded-xl py-2.5 text-sm font-medium">Mark as sent · remind me in 30 days</button>
+          {list.length > 0 && (
+            <div>
+              <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-[#8B6B3E] mb-1.5">Before you mail · {list.filter((_, k) => checked[k]).length} of {list.length}</p>
+              <div className="space-y-1">
+                {list.map((t, k) => (
+                  <button key={k} onClick={() => setChecked((c) => ({ ...c, [k]: !c[k] }))} className="w-full flex items-start gap-2 text-left">
+                    <span className={`w-4 h-4 rounded mt-0.5 shrink-0 flex items-center justify-center border ${checked[k] ? "bg-[#7D8A53] border-[#7D8A53]" : "border-border"}`}>{checked[k] && <Check className="w-3 h-3 text-white" />}</span>
+                    <span className={`text-[13px] ${checked[k] ? "text-muted-foreground line-through" : "text-foreground"}`}>{t}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="border-t border-border pt-3 space-y-2">
+            <div>
+              <label className="block text-xs font-medium text-foreground mb-1">Sent to</label>
+              <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="e.g., Midland Credit, Experian" className={inputCls} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-foreground mb-1">Certified mail tracking number <span className="font-normal text-muted-foreground">(optional)</span></label>
+              <input value={tracking} onChange={(e) => setTracking(e.target.value)} inputMode="numeric" placeholder="9407 1118 …" className={inputCls} />
+            </div>
+            <button onClick={() => onSent(to || letter.to || "", tracking.trim())} className="w-full bg-foreground text-background rounded-xl py-2.5 text-sm font-medium">Mark as mailed</button>
+            <p className="text-[11px] text-muted-foreground">You'll get a reminder 30 days out. Add the delivery date later to count from when they received it.</p>
           </div>
           <Note />
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function CallLog({ calls, onAdd, onRemove }) {
+  const [open, setOpen] = useState(false);
+  const [f, setF] = useState({ date: todayStr(), dir: "out", who: "", note: "" });
+  const inputCls = "w-full bg-secondary border border-input rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:border-ring";
+  const save = async () => {
+    if (!f.note.trim() && !f.who.trim()) return;
+    await onAdd({ date: f.date || todayStr(), dir: f.dir, who: f.who.trim(), note: f.note.trim() });
+    setF({ date: todayStr(), dir: "out", who: "", note: "" }); setOpen(false);
+  };
+  return (
+    <div className="border-t border-border pt-2.5 mt-1">
+      <div className="flex items-center">
+        <p className="text-xs font-medium text-foreground flex-1">Calls and notes{calls.length ? <span className="text-muted-foreground font-normal"> · {calls.length}</span> : ""}</p>
+        {!open && <button onClick={() => setOpen(true)} className="text-xs text-[#A7773F]">+ Log a call</button>}
+      </div>
+      {open && (
+        <div className="mt-2 space-y-2 rounded-xl bg-secondary/50 p-2.5">
+          <div className="flex gap-1.5">
+            {[["out", "I called"], ["in", "They called"], ["note", "Note"]].map(([v, l]) => (
+              <button key={v} onClick={() => setF((x) => ({ ...x, dir: v }))} className={`flex-1 rounded-lg py-1.5 text-xs border ${f.dir === v ? "bg-foreground text-background border-foreground" : "border-border text-foreground bg-card"}`}>{l}</button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input type="date" value={f.date} max={todayStr()} onChange={(e) => setF((x) => ({ ...x, date: e.target.value }))} className={`${inputCls} w-[150px]`} />
+            {f.dir !== "note" && <input value={f.who} onChange={(e) => setF((x) => ({ ...x, who: e.target.value }))} placeholder="Who you spoke with" className={inputCls} />}
+          </div>
+          <textarea value={f.note} onChange={(e) => setF((x) => ({ ...x, note: e.target.value }))} rows={2} placeholder="What was said or agreed" className={`${inputCls} resize-none`} />
+          <div className="flex gap-2">
+            <button onClick={save} className="flex-1 bg-foreground text-background rounded-lg py-2 text-xs font-medium">Save</button>
+            <button onClick={() => setOpen(false)} className="px-3 text-xs text-muted-foreground">Cancel</button>
+          </div>
+          <p className="text-[11px] text-muted-foreground">Tip: ask for anything they promise in writing.</p>
+        </div>
+      )}
+      {calls.map((c, i) => (
+        <div key={i} className="flex items-start gap-2 py-1.5 border-b border-border/60 last:border-0">
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] text-foreground">{c.note || "(no notes)"}</p>
+            <p className="text-[11px] text-muted-foreground">{niceDate(c.date)} · {c.dir === "in" ? "they called" : c.dir === "note" ? "note" : "I called"}{c.who ? ` · ${c.who}` : ""}</p>
+          </div>
+          <button onClick={() => onRemove(i)} aria-label="Remove" className="p-1 text-muted-foreground/60"><Trash2 className="w-3 h-3" /></button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function RightsSheet({ onClose }) {
+  const [open, setOpen] = useState(0);
+  return createPortal(
+    <div className="fixed inset-0 z-[80] bg-black/40 flex items-end sm:items-center justify-center" onClick={onClose}>
+      <div className="bg-background w-full sm:max-w-xl rounded-t-3xl sm:rounded-3xl max-h-[88vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 pt-4 pb-2">
+          <h3 className="font-heading text-xl text-foreground">Know your rights</h3>
+          <button onClick={onClose} aria-label="Close" className="p-1 text-muted-foreground"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="px-5 pb-5 overflow-y-auto">
+          {RIGHTS.map((r, i) => (
+            <div key={i} className="border-b border-border last:border-0">
+              <button onClick={() => setOpen(open === i ? -1 : i)} className="w-full flex items-center gap-2 py-3 text-left">
+                <span className="flex-1 text-sm text-foreground">{r.title}</span>
+                {open === i ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+              </button>
+              {open === i && (
+                <ul className="pb-3 space-y-1.5">
+                  {r.points.map((p, k) => <li key={k} className="text-[13px] text-foreground leading-relaxed flex gap-2"><span className="text-[#A7773F]">•</span><span>{p}</span></li>)}
+                </ul>
+              )}
+            </div>
+          ))}
+          <p className="text-[11px] text-muted-foreground mt-3">General information about US consumer rules, not legal advice. Rules vary by state; for a specific situation, talk to a consumer attorney or legal aid.</p>
         </div>
       </div>
     </div>,
@@ -194,6 +300,7 @@ export default function CreditAssistant({ scoreItems = [] }) {
   const [showAll, setShowAll] = useState(false);
   const [showUploads, setShowUploads] = useState(false);
   const [comingAll, setComingAll] = useState(false);
+  const [rightsOpen, setRightsOpen] = useState(false);
   const [rereadId, setRereadId] = useState(null);
   const [rereading, setRereading] = useState(null);
   const rereadRef = useRef(null);
@@ -401,14 +508,32 @@ export default function CreditAssistant({ scoreItems = [] }) {
 
   const overdue = items.flatMap((it) => ((caseRec?.decisions?.[it.key]?.sent) || []).filter(isOverdue).map(() => it));
 
-  const markSent = async (to) => {
+  const markSent = async (to, tracking) => {
     const { type, item } = letter;
     const prev = (caseRec?.decisions?.[item.key]?.sent) || [];
     let taskId = null;
     try { const t = await ent.Task.create({ title: `Check for a reply: ${LETTER_TITLE[type]}${to ? ` (${to})` : ""}`, notes: "From the credit assistant. Open Finance → Credit Scores to log their reply, or see next steps if there's none.", priority: "medium", due_date: plus30(), completed: false, source: "credit" }); taskId = t?.id || null; } catch { /* ignore */ }
-    await decide(item.key, { sent: [...prev, { type, to, date: todayStr(), taskId }] });
+    await decide(item.key, { sent: [...prev, { type, to, date: todayStr(), taskId, tracking: tracking || "" }] });
     setLetter(null);
-    flash("Marked as sent. A to-do is set for 30 days.");
+    flash("Marked as mailed. A reminder is set for 30 days.");
+  };
+
+  const setDelivered = async (item, idx, date) => {
+    const sent = [...((caseRec?.decisions?.[item.key]?.sent) || [])];
+    const sn = { ...sent[idx], delivered: date || null };
+    sent[idx] = sn;
+    await decide(item.key, { sent });
+    if (sn.taskId) { try { await ent.Task.update(sn.taskId, { due_date: sentDue(sn) }); } catch { /* ignore */ } }
+    if (date) flash(`Delivered ${niceDate(date)}. Reply due ${niceDate(sentDue(sn))}.`);
+  };
+  const addCall = (item, call) => {
+    const calls = [call, ...((caseRec?.decisions?.[item.key]?.calls) || [])];
+    return decide(item.key, { calls });
+  };
+  const removeCall = (item, idx) => {
+    const calls = [...((caseRec?.decisions?.[item.key]?.calls) || [])];
+    calls.splice(idx, 1);
+    return decide(item.key, { calls });
   };
 
   const addTodo = async (step, item) => {
@@ -436,6 +561,7 @@ export default function CreditAssistant({ scoreItems = [] }) {
             <p className="text-sm font-medium text-foreground">Credit assistant {usage && <span className="ml-1 text-[10px] font-normal px-1.5 py-0.5 rounded-full bg-[#F0E6D6] text-[#8B6B3E]">{usage.plan === "trial" ? "Plus · trial" : "Plus"}</span>}</p>
             <p className="text-[11px] text-muted-foreground truncate">{docs.length ? `${docs.length - copies.length} ${docs.length - copies.length === 1 ? "document" : "documents"} · reports, letters, breach notices` : "Upload credit reports, collection letters, breach notices or dispute results"}</p>
           </div>
+          <button onClick={() => setRightsOpen(true)} className="shrink-0 text-xs text-[#8B6B3E] inline-flex items-center gap-1"><Scale className="w-3.5 h-3.5" /><span className="hidden sm:inline">Your rights</span><span className="sm:hidden">Rights</span></button>
           {!locked && (
             <button onClick={() => fileRef.current?.click()} disabled={busy.some((b) => b.status === "reading")}
               className="shrink-0 flex items-center gap-1.5 bg-foreground text-background rounded-full px-3.5 py-1.5 text-xs font-medium disabled:opacity-60">
@@ -617,7 +743,16 @@ export default function CreditAssistant({ scoreItems = [] }) {
                                     {sn.reply ? `Reply: ${outcome ? outcome[1].toLowerCase() : sn.reply.outcome}` : late ? "No reply yet" : `Reply due ${niceDate(sentDue(sn))}`}
                                   </span>
                                 </div>
-                                <p className="text-[11px] text-muted-foreground">Sent {niceDate(sn.date)}</p>
+                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                                  <span>Mailed {niceDate(sn.date)}</span>
+                                  {sn.delivered ? <span>· delivered {niceDate(sn.delivered)}</span> : !sn.reply && (
+                                    <label className="inline-flex items-center gap-1 border border-border rounded-full px-2 py-0.5 text-foreground bg-card cursor-pointer">
+                                      Delivered on
+                                      <input type="date" max={todayStr()} min={sn.date} onChange={(e) => e.target.value && setDelivered(item, idx, e.target.value)} className="bg-transparent text-[11px] w-[110px] outline-none" />
+                                    </label>
+                                  )}
+                                  {sn.tracking && <a href={uspsTrack(sn.tracking)} target="_blank" rel="noreferrer" className="text-[#8B6B3E] inline-flex items-center gap-0.5">Track <ExternalLink className="w-3 h-3" /></a>}
+                                </div>
                                 {!sn.reply && (
                                   <div>
                                     <p className="text-[11px] text-muted-foreground mb-1">Got a reply? What did they say?</p>
@@ -644,6 +779,7 @@ export default function CreditAssistant({ scoreItems = [] }) {
                           })}
                         </div>
                       )}
+                      <CallLog calls={dec.calls || []} onAdd={(c) => addCall(item, c)} onRemove={(i) => removeCall(item, i)} />
                       {item.kind !== "breach" || item.owner ? (
                         <button onClick={() => decide(item.key, { resolved: { date: todayStr(), text: `${item.account?.creditor || item.inquiry?.creditor || "Item"} resolved` } })}
                           className="text-xs text-muted-foreground underline underline-offset-2">Mark resolved</button>
@@ -763,6 +899,7 @@ export default function CreditAssistant({ scoreItems = [] }) {
 
       </div>
 
+      {rightsOpen && <RightsSheet onClose={() => setRightsOpen(false)} />}
       {letter && <LetterSheet letter={letter} onClose={() => setLetter(null)} onSent={markSent} />}
       {toast && createPortal(<div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[85] bg-foreground text-background text-sm px-4 py-2 rounded-full shadow">{toast}</div>, document.body)}
     </div>

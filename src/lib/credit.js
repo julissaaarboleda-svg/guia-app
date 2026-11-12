@@ -162,19 +162,21 @@ export function stepsFor(item) {
       { id: "bureau", title: before ? "Dispute the charge-off" : "Ask the bureau to show $0 and paid",
         body: before ? "If you paid before it was charged off, the charge-off is wrong. Send the bureau your payoff letter and ask for it to show paid as agreed."
           : "A charge-off paid afterward can stay on the report, but it should show a $0 balance and paid. Send your payoff letter and ask them to update it.", letter: "paidmismatch" },
-      { id: "lender", title: "Ask the lender to correct what it reports", body: "Lenders report to the bureaus, so ask them to send the update too. Attach the same letter.", letter: "lenderupdate" },
+      { id: "lender", tips: [{ ok: true, text: "send a copy of the payoff letter and keep the original" }], title: "Ask the lender to correct what it reports", body: "Lenders report to the bureaus, so ask them to send the update too. Attach the same letter.", letter: "lenderupdate" },
       { id: "recheck", title: "Check your reports in 30–45 days", body: "Upload the new report or the bureau's answer here to see if it changed." },
     ];
   }
   if (item.kind === "collection") {
     return [
-      { id: "validate", title: "Ask them to prove it", body: item.deadline
+      { id: "validate", title: "Ask them to prove it", tips: [{ ok: false, text: "send your SSN or ID to a collector. They already have what they need to find the account." }], body: item.deadline
         ? `A written request by ${niceDate(item.deadline)} (30 days from their letter) pauses collection until they send proof.`
         : "A written request within 30 days of their first letter pauses collection until they send proof. You can still ask after that.", letter: "validation" },
-      { id: "dates", title: "Check the dates", body: `${item.falloff ? `Falls off your report around ${niceDate(item.falloff)}. ` : ""}Check your state's time limit before paying or promising anything.` },
+      { id: "dates", title: "Check the dates", body: `${item.falloff ? `Falls off your report around ${niceDate(item.falloff)}. ` : ""}Check your state's time limit before paying or promising anything.`,
+        tips: [{ ok: false, text: "say \"I'll pay\" or make a small payment on an old debt before you've checked. In many states it can restart the clock." }] },
       { id: "dispute", title: "Dispute anything wrong", body: item.dup || item.twin ? "If it's the same debt as the other listing, dispute the duplicate with the bureau. Only dispute it if you've checked it's a repeat."
         : item.missing.length ? `Only on ${item.account.bureaus.join(" and ")}, not ${item.missing.join(" or ")}. Check it's accurate.` : "If the amount, dates or owner are wrong, dispute it with the bureau.", letter: "dispute" },
-      { id: "negotiate", title: "Negotiate in writing first", body: "If it's valid: ask for removal in exchange for payment (pay-for-delete) or a settlement, in writing, before paying. They don't have to agree.", letter: "paydelete" },
+      { id: "negotiate", title: "Negotiate in writing first", body: "If it's valid: ask for removal in exchange for payment (pay-for-delete) or a settlement, in writing, before paying. They don't have to agree.", letter: "paydelete",
+        tips: [{ ok: true, text: "pay with a one-time card payment or a money order, and keep the receipt" }, { ok: false, text: "give them access to your bank account" }, { ok: false, text: "agree to anything over the phone. Ask for it in writing." }] },
     ];
   }
   if (item.kind === "utilization") {
@@ -290,14 +292,15 @@ export function progress(docs, caseRec = {}) {
     if (f && f > now) coming.push({ date: f, text: `${a.creditor} ${isCollection(a) ? "collection" : "late payment"} falls off` });
   });
   coming.sort((a, b) => a.date.localeCompare(b.date));
-  const checkBacks = Object.values(caseRec.decisions || {}).flatMap((v) => (v.sent || []).map((s) => ({ ...s, due: addDays(s.date, 30) }))).filter((s) => s.due >= now).sort((a, b) => a.due.localeCompare(b.due));
+  const checkBacks = Object.values(caseRec.decisions || {}).flatMap((v) => (v.sent || []).filter((s) => !s.reply).map((s) => ({ ...s, due: sentDue(s) }))).filter((s) => s.due >= now).sort((a, b) => a.due.localeCompare(b.due));
   return { scores, wins, coming, checkBacks };
 }
 
 // ---------- After a letter is sent: replies, no-reply follow-ups ----------
 export const CFPB = "https://www.consumerfinance.gov/complaint/";
 export const REPLY_WAIT_DAYS = 30;
-export const sentDue = (s) => addDays(s.date, REPLY_WAIT_DAYS);
+// The reply clock starts when the letter is delivered, if you've recorded that; otherwise when it was mailed.
+export const sentDue = (s) => addDays(s.delivered || s.date, REPLY_WAIT_DAYS);
 export const isOverdue = (s) => !s.reply && sentDue(s) < today();
 
 // What they might say back, per letter.
@@ -469,3 +472,57 @@ export function creditProgress(docs, caseRec = {}) {
   const o = overview(docs, caseRec);
   return { handled: o.handled, total: o.total };
 }
+
+
+// ---------- Before you mail: what goes in the envelope, per letter ----------
+const SIGN = "Sign and date the letter";
+const COPIES = "Copies only. Keep your originals and a copy of this letter";
+const CERT = "Send certified mail, return receipt requested";
+const ID = "Copy of your ID (driver's license or passport)";
+const ADDR = "Proof of address (a recent utility bill or bank statement)";
+const REPORT = "Copy of the report page with the item circled";
+export const CHECKLIST = {
+  dispute: [SIGN, ID, ADDR, REPORT, "Anything that shows it's wrong (statements, receipts, letters)", COPIES, CERT],
+  paidmismatch: [SIGN, ID, ADDR, REPORT, "Copy of your payoff letter", COPIES, CERT],
+  unverified: [SIGN, ID, ADDR, REPORT, "Copy of your proof request and the mail receipt", "Their reply, if they sent one", COPIES, CERT],
+  mov: [SIGN, ID, ADDR, "Copy of the bureau's dispute result", COPIES, CERT],
+  block: [SIGN, "Your FTC Identity Theft Report (IdentityTheft.gov)", ID, ADDR, REPORT, "Copy of the breach notice, if you have one", COPIES, CERT],
+  validation: [SIGN, "Copy of their letter (keep the original)", "Mail it within 30 days of their letter if you can", "Don't include your SSN or ID", CERT],
+  paydelete: [SIGN, "Don't send any payment with this letter", "Wait for their written agreement before paying", COPIES, CERT],
+  goodwill: [SIGN, "Keep it short and polite", "Regular mail or their online form is fine"],
+  lenderupdate: [SIGN, "Copy of your payoff letter", REPORT, COPIES, CERT],
+  fraud: [SIGN, "Your FTC Identity Theft Report", ID, COPIES, CERT],
+  followup: [SIGN, "Copy of your first letter and its mail receipt", COPIES, CERT],
+};
+export const uspsTrack = (n) => `https://tools.usps.com/go/TrackConfirmAction?tLabels=${encodeURIComponent(String(n).replace(/\s+/g, ""))}`;
+
+// ---------- Know your rights (general information) ----------
+export const RIGHTS = [
+  { title: "How to send a letter so it counts", points: [
+    "Send it certified mail with a return receipt. The receipt is your proof of when they got it.",
+    "Send copies, never originals. Keep a copy of everything you send, with the date.",
+    "One bureau per envelope, and ideally one issue per letter.",
+    "Online disputes are faster, but mail leaves a clearer paper trail if things go wrong.",
+  ] },
+  { title: "How long bureaus and collectors have to answer", points: [
+    "Credit bureaus generally have 30 days after they receive your dispute to investigate. It can be up to 45 if you send more information during that time.",
+    "They have to tell you the result in writing and give you a free copy of your report if it changed.",
+    "A collector's first notice gives you 30 days to dispute the debt in writing. If you do, they must pause collecting until they send you verification.",
+  ] },
+  { title: "Old debts and time limits", points: [
+    "Each state sets a time limit for suing over a debt, often 3 to 6 years. After it passes, a collector can still ask you to pay but shouldn't sue or threaten to.",
+    "In many states, a payment or a written promise to pay can restart that clock. Check your state's rule first.",
+    "Separately, most negative items drop off credit reports about 7 years after the account first went late, whether or not it's paid.",
+  ] },
+  { title: "Dealing with collectors: what they can't do", points: [
+    "Collectors can't harass you, threaten you, lie about what you owe, or call at inconvenient times (generally before 8 a.m. or after 9 p.m.).",
+    "You can ask in writing that they contact you only in writing, or stop contacting you.",
+    "Keep a log of every call: the date, who you spoke with, and what was said.",
+  ] },
+  { title: "Free reports and where to complain", points: [
+    "Free credit reports from all three bureaus, every week: AnnualCreditReport.com.",
+    "Complaints about a bureau, lender or collector: the Consumer Financial Protection Bureau (consumerfinance.gov/complaint).",
+    "Identity theft: IdentityTheft.gov for a report and recovery plan.",
+    "Your state attorney general's office also takes complaints.",
+  ] },
+];
