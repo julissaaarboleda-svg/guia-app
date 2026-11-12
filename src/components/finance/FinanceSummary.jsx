@@ -59,7 +59,6 @@ export default function FinanceSummary({ items, buckets, onNavigate, onAddFirst 
   const unpaidBills = items.filter(i => i.type === "bill" && !isPaid(i));
   const billsTotal = unpaidBills.reduce((s, b) => s + (b.amount || 0), 0);
 
-  const oneTimeBills = unpaidBills.filter(b => !b.is_fixed || !b.billing_cycle || b.billing_cycle === "one_time");
 
 
   const savings = items.filter(i => i.type === "savings_goal");
@@ -104,8 +103,28 @@ export default function FinanceSummary({ items, buckets, onNavigate, onAddFirst 
     creditOv.collections.count ? `- Collections: ${creditOv.collections.count} totaling ${fmt(creditOv.collections.total)}` : "",
     ...creditOv.plan.filter((p) => !p.upkeep).map((p) => `- Credit plan step ${p.n}: ${p.title}${p.text ? ` (${p.text})` : ""}${p.rows ? ` [${p.rows.map((r) => `${r.name}: ${r.toLimit ? `${fmt(r.toLimit)} to get under limit, ` : ""}${fmt(r.to30)} to get under 30%`).join("; ")}]` : ""}`),
   ].filter(Boolean).join("\n") : "";
-  const sig = [monthKey(new Date()), Math.round((money ? money.left : 0) / 100), savings.length, Math.round(savingsCurrent / 100), loans.length, Math.round(loansOutstanding / 100), creditOv ? creditOv.plan.map((p) => p.filter).join("+") : "", creditOv ? creditOv.overLimitCount : 0, creditOv ? creditOv.pastDueCount : 0].join("|");
-  const CACHE = "guia-fin-insights";
+  // Ranked priorities worked out here, so the AI only phrases them and can't pick the wrong one.
+  // Bills that are simply coming up are already shown in Due next; only overdue bills count.
+  const overdueBills = items.filter((i) => i.type === "bill" && !isPaid(i) && dueInfo(i).tone === "overdue");
+  const leftOver = money ? money.left : 0;
+  const priorities = [];
+  overdueBills.forEach((b) => priorities.push(`Overdue bill: ${b.name} $${b.amount}`));
+  if (creditOv && creditOv.pastDueCount) priorities.push(`Accounts past due right now: ${creditOv.pastDueCount}${creditOv.pastDueTotal ? ` (${fmt(creditOv.pastDueTotal)} past due)` : ""}. Bringing them current stops new late marks.`);
+  const cardStep = creditOv && creditOv.plan.find((p) => p.rows);
+  if (cardStep) {
+    const over = cardStep.rows.filter((r) => r.toLimit);
+    if (over.length) {
+      const total = over.reduce((t, r) => t + r.toLimit, 0);
+      priorities.push(`Cards over their limit: ${over.map((r) => `${r.name} needs ${fmt(r.toLimit)}`).join(", ")} (${fmt(total)} in total${leftOver > 0 ? `, ${total <= leftOver ? "which fits in" : "more than"} the ${fmt(leftOver)} left over this month` : ""}).`);
+    }
+    const hi = cardStep.rows.filter((r) => !r.toLimit && r.to30);
+    if (hi.length || creditOv.usage > 30) priorities.push(`High card usage (${creditOv.usage}% of limits). Under 30%: ${cardStep.rows.slice(0, 3).map((r) => `${r.name} ${fmt(r.to30)}`).join(", ")}.`);
+  }
+  if (!(savingsCurrent > 0)) priorities.push(`No emergency cushion saved yet${leftOver > 0 ? `; even a small amount of the ${fmt(leftOver)} left over helps` : ""}.`);
+  if (creditOv && creditOv.collections.count) priorities.push(`Collections: ${creditOv.collections.count} totaling ${fmt(creditOv.collections.total)}. Ask each collector for proof before paying anything.`);
+  if (loans.length) priorities.push(`Loans: ${fmt(loansOutstanding)} outstanding.`);
+  const sig = ["v2", monthKey(new Date()), overdueBills.map((b) => b.id).join("+"), Math.round((money ? money.left : 0) / 100), savings.length, Math.round(savingsCurrent / 100), loans.length, Math.round(loansOutstanding / 100), creditOv ? creditOv.plan.map((p) => p.filter).join("+") : "", creditOv ? creditOv.overLimitCount : 0, creditOv ? creditOv.pastDueCount : 0].join("|");
+  const CACHE = "guia-fin-insights-v2";
   useEffect(() => {
     if (!incomeReady || !creditReady) return; // wait for income and credit so the read is complete
     if (!items.length && !buckets.length && !creditOv) { setLoading(false); return; }
@@ -117,16 +136,16 @@ export default function FinanceSummary({ items, buckets, onNavigate, onAddFirst 
     base44.integrations.Core.InvokeLLM({
       prompt: `You help someone decide what to focus on with their money this month. Use ONLY the data below. Be plain, warm and specific.
 
-Return ONE focus sentence (22 words or fewer) naming the single most important thing this month, and exactly TWO actions (each 16 words or fewer, starting with a verb, about one thing, naming the account or amount).
+PRIORITIES (already ranked, most important first):
+${priorities.length ? priorities.map((p, i) => `${i + 1}. ${p}`).join("\n") : "1. Nothing urgent. Keep paying on time and add to savings."}
 
-PRIORITIES, in order, when present: 1) accounts past due right now (they add a new late mark every month), 2) credit cards over their limit, 3) high card usage, 4) a small cash cushion for emergencies, 5) loans and savings goals. Collections come after these unless the person has a plan step for them. If there is money left over this month, say how to use part of it for the top priority.
+Write ONE focus sentence (22 words or fewer) about priority 1, and exactly TWO actions (each 16 words or fewer, starting with a verb). The actions must be DIFFERENT from each other and concrete: name the account and the dollar amount from the priorities. The first action is about priority 1; the second is about priority 2 (or a second concrete step for priority 1 if there is only one). If there is money left over, say how much of it to put toward priority 1.
 
-NEVER: repeat due dates or totals already shown on the page, promise a credit score change, give legal advice, or recommend paying a collection before asking for proof.
+NEVER: mention upcoming bills that aren't overdue (they're already on the page), promise a credit score change, give legal advice, or recommend paying a collection before asking for proof.
 
 Money this month: ${money ? `${fmt(money.inc)} income, ${fmt(money.fixed)} fixed bills and subscriptions, ${fmt(money.loansM)} loan payments, ${fmt(money.everyday)} everyday spending, ${fmt(money.left)} left over` : `income ${fmt(income)}`}
 Savings goals: ${savings.length ? `${savings.length}, ${fmt(savingsCurrent)} saved of ${fmt(savingsTarget)}` : "none"}
 Loans: ${loans.length ? `${fmt(loansOutstanding)} outstanding\n${loanLines}` : "none"}
-Unpaid one-time bills: ${oneTimeBills.length ? oneTimeBills.map((b) => `${b.name} $${b.amount}`).join(", ") : "none"}
 Credit:
 ${creditLines || "- no credit reports uploaded"}
 
