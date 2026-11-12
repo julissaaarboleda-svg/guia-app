@@ -115,7 +115,7 @@ export default function FinanceSummary({ items, buckets, onNavigate, onAddFirst 
     const over = cardStep.rows.filter((r) => r.toLimit);
     if (over.length) {
       const total = over.reduce((t, r) => t + r.toLimit, 0);
-      priorities.push(`Cards over their limit: ${over.map((r) => `${r.name} needs ${fmt(r.toLimit)}`).join(", ")} (${fmt(total)} in total${leftOver > 0 ? `, ${total <= leftOver ? "which fits in" : "more than"} the ${fmt(leftOver)} left over this month` : ""}).`);
+      priorities.push(`Cards over their limit: ${over.map((r) => `${r.name} needs ${fmt(r.toLimit)}`).join(", ")} (${fmt(total)} in total${leftOver > 0 ? `, ${total <= leftOver ? `which fits in the ${fmt(leftOver)} left over and leaves ${fmt(leftOver - total)}` : `more than the ${fmt(leftOver)} left over`}` : ""}). Over-limit balances can bring fees and look worse than high usage.`);
     }
     const hi = cardStep.rows.filter((r) => !r.toLimit && r.to30);
     if (hi.length || creditOv.usage > 30) priorities.push(`High card usage (${creditOv.usage}% of limits). Under 30%: ${cardStep.rows.slice(0, 3).map((r) => `${r.name} ${fmt(r.to30)}`).join(", ")}.`);
@@ -123,8 +123,8 @@ export default function FinanceSummary({ items, buckets, onNavigate, onAddFirst 
   if (!(savingsCurrent > 0)) priorities.push(`No emergency cushion saved yet${leftOver > 0 ? `; even a small amount of the ${fmt(leftOver)} left over helps` : ""}.`);
   if (creditOv && creditOv.collections.count) priorities.push(`Collections: ${creditOv.collections.count} totaling ${fmt(creditOv.collections.total)}. Ask each collector for proof before paying anything.`);
   if (loans.length) priorities.push(`Loans: ${fmt(loansOutstanding)} outstanding.`);
-  const sig = ["v2", monthKey(new Date()), overdueBills.map((b) => b.id).join("+"), Math.round((money ? money.left : 0) / 100), savings.length, Math.round(savingsCurrent / 100), loans.length, Math.round(loansOutstanding / 100), creditOv ? creditOv.plan.map((p) => p.filter).join("+") : "", creditOv ? creditOv.overLimitCount : 0, creditOv ? creditOv.pastDueCount : 0].join("|");
-  const CACHE = "guia-fin-insights-v2";
+  const sig = ["v3", monthKey(new Date()), overdueBills.map((b) => b.id).join("+"), Math.round((money ? money.left : 0) / 100), savings.length, Math.round(savingsCurrent / 100), loans.length, Math.round(loansOutstanding / 100), creditOv ? creditOv.plan.map((p) => p.filter).join("+") : "", creditOv ? creditOv.overLimitCount : 0, creditOv ? creditOv.pastDueCount : 0].join("|");
+  const CACHE = "guia-fin-insights-v3";
   useEffect(() => {
     if (!incomeReady || !creditReady) return; // wait for income and credit so the read is complete
     if (!items.length && !buckets.length && !creditOv) { setLoading(false); return; }
@@ -139,7 +139,12 @@ export default function FinanceSummary({ items, buckets, onNavigate, onAddFirst 
 PRIORITIES (already ranked, most important first):
 ${priorities.length ? priorities.map((p, i) => `${i + 1}. ${p}`).join("\n") : "1. Nothing urgent. Keep paying on time and add to savings."}
 
-Write ONE focus sentence (22 words or fewer) about priority 1, and exactly TWO actions (each 16 words or fewer, starting with a verb). The actions must be DIFFERENT from each other and concrete: name the account and the dollar amount from the priorities. The first action is about priority 1; the second is about priority 2 (or a second concrete step for priority 1 if there is only one). If there is money left over, say how much of it to put toward priority 1.
+Write:
+- "focus": ONE sentence (20 words or fewer) saying what matters most this month and WHY, in plain words. No list of accounts and at most one dollar amount.
+- "actions": exactly TWO steps (each 18 words or fewer, starting with a verb). They must NOT repeat the focus sentence or each other.
+  - Action 1 is HOW to do priority 1: the exact payments (every account and amount from priority 1).
+  - Action 2 is the NEXT, different priority (priority 2), using what's left over after action 1 if that's relevant.
+Read all three together before answering: no idea, account or amount should appear twice.
 
 NEVER: mention upcoming bills that aren't overdue (they're already on the page), promise a credit score change, give legal advice, or recommend paying a collection before asking for proof.
 
