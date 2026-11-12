@@ -8,7 +8,7 @@ export const ROUTINE_COLORS = [
   { key: "charcoal", label: "Charcoal", hex: "#2E2A27" },
 ];
 export const colorOf = (r) => (ROUTINE_COLORS.find((c) => c.key === r?.color) || ROUTINE_COLORS[0]).hex;
-export const SLOTS = [["morning", "Morning"], ["evening", "Evening"], ["anytime", "Anytime"]];
+export const SLOTS = [["morning", "Morning"], ["anytime", "Anytime"], ["evening", "Evening"]]; // order of the day
 export const DAY_LETTERS = ["S", "M", "T", "W", "T", "F", "S"];
 export const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 

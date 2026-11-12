@@ -367,7 +367,7 @@ export default function RoutinesView({ addSignal = 0 }) {
             </div>
           )}
           {SLOTS.map(([slot, slotLabel]) => {
-            const list = routines.filter((r) => (r.slot || "anytime") === slot);
+            const list = routines.filter((r) => (r.slot || "anytime") === slot).sort((a, b) => String(a.name).localeCompare(String(b.name)));
             if (!list.length) return null;
             return (
               <div key={slot} className="mb-3">
