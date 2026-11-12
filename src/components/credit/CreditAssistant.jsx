@@ -89,6 +89,10 @@ function StepRow({ s, i, done, onToggle, onLetter, onTodo, bureaus = [], missing
 }
 
 const KIND_TONE = {
+  pastdue: "bg-[#F3E6E8] text-[#8F5F65]",
+  overlimit: "bg-[#F3E6E8] text-[#8F5F65]",
+  sold: "bg-[#F3E6E8] text-[#8F5F65]",
+  info: "bg-secondary text-muted-foreground",
   mismatch: "bg-[#F3E6E8] text-[#8F5F65]",
   breach: "bg-[#F3E6E8] text-[#8F5F65]",
   collection: "bg-[#F0E6D6] text-[#8B6B3E]",
@@ -455,17 +459,22 @@ export default function CreditAssistant({ scoreItems = [] }) {
   const FILTERS = [
     ["all", "All", () => true],
     ["mismatch", "Doesn't match", (i) => i.kind === "mismatch"],
-    ["twice", "Twice?", (i) => i.kind === "collection" && (i.dup || i.twin)],
+    ["pastdue", "Past due", (i) => i.kind === "pastdue"],
+    ["overlimit", "Over limit", (i) => i.kind === "overlimit"],
+    ["sold", "Sold, still owed", (i) => i.kind === "sold"],
+    ["twice", "Twice?", (i) => i.kind === "collection" && i.twin],
     ["collection", "Collections", (i) => i.kind === "collection"],
     ["late", "Late", (i) => i.kind === "late"],
     ["utilization", "Balances", (i) => i.kind === "utilization"],
+    ["info", "Your info", (i) => i.kind === "info"],
     ["breach", "After breach", (i) => i.kind === "breach"],
   ];
   const fItems = items.filter((FILTERS.find(([k]) => k === filter) || FILTERS[0])[2]);
   const shown = showAll ? fItems : fItems.slice(0, 6);
-  const jumpTo = (key) => {
-    setFilter("all"); setShowAll(true); setOpenItem(key);
-    setTimeout(() => { const el = document.getElementById(`ci-${key}`); if (el) el.scrollIntoView({ behavior: "smooth", block: "center" }); }, 50);
+  const openStep = (p) => {
+    if (p.upkeep) return;
+    setFilter(p.filter || "all"); setShowAll(true); setOpenItem(p.keys && p.keys[0]);
+    setTimeout(() => { const el = document.getElementById(`ci-${p.keys && p.keys[0]}`); if (el) el.scrollIntoView({ behavior: "smooth", block: "center" }); }, 50);
   };
 
   const openLetter = (type, item, sent, bureau) => {
@@ -605,8 +614,14 @@ export default function CreditAssistant({ scoreItems = [] }) {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div className="rounded-xl bg-secondary/70 p-2.5"><p className="font-heading text-lg text-foreground leading-tight">{ov.score || "—"}{ov.scoreChange && <span className={`ml-1.5 text-[11px] font-body ${ov.scoreChange.delta >= 0 ? "text-[#566033]" : "text-[#8F5F65]"}`}>{ov.scoreChange.delta >= 0 ? "▲" : "▼"} {Math.abs(ov.scoreChange.delta)}</span>}</p><p className="text-[11px] text-muted-foreground">{ov.scoreBureau ? `${ov.scoreBureau} score` : "Score"}{ov.score ? ` · ${ov.score >= 740 ? "Very good" : ov.score >= 670 ? "Good" : ov.score >= 580 ? "Fair" : "Poor"}` : ""}</p></div>
             <div className="rounded-xl bg-[#F3E6E8] p-2.5"><p className="font-heading text-lg text-[#6E4A4F] leading-tight">{ov.collections.count}{ov.collections.total ? ` · ${money(ov.collections.total)}` : ""}</p><p className="text-[11px] text-[#8F5F65]">Collections</p></div>
-            <div className="rounded-xl bg-[#F0E6D6] p-2.5"><p className="font-heading text-lg text-[#6E5430] leading-tight">{ov.lateAccounts}{ov.lateAccounts ? <span className="text-[11px] font-body"> {ov.lateAccounts === 1 ? "account" : "accounts"}</span> : ""}</p><p className="text-[11px] text-[#8B6B3E]">{ov.lateCount ? `Late payments · ${ov.lateCount} late months` : "Late payments"}</p></div>
-            {(() => {
+            {ov.pastDueCount > 0 ? (
+              <div className="rounded-xl bg-[#F3E6E8] p-2.5"><p className="font-heading text-lg text-[#6E4A4F] leading-tight">{ov.pastDueCount}{ov.pastDueTotal ? ` · ${money(ov.pastDueTotal)}` : ""}</p><p className="text-[11px] text-[#8F5F65]">Past due now</p></div>
+            ) : (
+              <div className="rounded-xl bg-[#F0E6D6] p-2.5"><p className="font-heading text-lg text-[#6E5430] leading-tight">{ov.lateAccounts}{ov.lateAccounts ? <span className="text-[11px] font-body"> {ov.lateAccounts === 1 ? "account" : "accounts"}</span> : ""}</p><p className="text-[11px] text-[#8B6B3E]">{ov.lateCount ? `Past late payments · ${ov.lateCount} months` : "Late payments"}</p></div>
+            )}
+            {ov.overLimitCount > 0 ? (
+              <div className="rounded-xl bg-[#F3E6E8] p-2.5"><p className="font-heading text-lg text-[#6E4A4F] leading-tight">{ov.overLimitCount} {ov.overLimitCount === 1 ? "card" : "cards"}</p><p className="text-[11px] text-[#8F5F65]">Over the limit{ov.usage != null ? ` · ${ov.usage}% used overall` : ""}</p></div>
+            ) : (() => {
               const u = ov.usage;
               const tone = u == null ? ["bg-secondary/70", "text-foreground", "text-muted-foreground"] : u <= 30 ? ["bg-[#E9EDDD]", "text-[#3F4A22]", "text-[#566033]"] : u <= 50 ? ["bg-[#F0E6D6]", "text-[#6E5430]", "text-[#8B6B3E]"] : ["bg-[#F3E6E8]", "text-[#6E4A4F]", "text-[#8F5F65]"];
               return <div className={`rounded-xl p-2.5 ${tone[0]}`}><p className={`font-heading text-lg leading-tight ${tone[1]}`}>{u == null ? "—" : `${u}%`}</p><p className={`text-[11px] ${tone[2]}`}>Card usage · aim under 30%</p></div>;
@@ -618,18 +633,38 @@ export default function CreditAssistant({ scoreItems = [] }) {
               <div className="h-1.5 rounded-full bg-secondary mt-1.5 overflow-hidden"><div className="h-full rounded-full bg-[#7D8A53]" style={{ width: `${Math.round((ov.handled / ov.total) * 100)}%` }} /></div>
             </div>
           )}
-          {ov.start.length > 0 && (
+          {ov.plan.length > 0 && (
             <div className="mt-4">
-              <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-2">Start here</p>
-              <div className="space-y-1.5">
-                {ov.start.map((st, i) => (
-                  <button key={i} onClick={() => jumpTo(st.key)} className="w-full flex gap-2.5 text-left text-sm text-foreground">
-                    <span className="w-5 h-5 rounded-full bg-foreground text-background text-[11px] flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
-                    <span className="flex-1">{st.text}</span>
-                    <ChevronRight className="w-4 h-4 text-[#A7773F] shrink-0 mt-0.5" />
-                  </button>
-                ))}
+              <div className="flex items-baseline mb-1">
+                <p className="font-heading text-base text-foreground flex-1">{ov.upkeep ? "Keep it steady" : "Your plan"}</p>
+                {!ov.upkeep && <span className="text-[11px] text-muted-foreground">{ov.plan.filter((p) => p.started).length} of {ov.plan.length} started</span>}
               </div>
+              {ov.upkeep && <p className="text-xs text-muted-foreground mb-1">Nothing on your reports needs fixing right now. Keep doing this:</p>}
+              {ov.plan.map((p) => (
+                <button key={p.n} onClick={() => openStep(p)} className={`w-full flex gap-2.5 text-left py-2.5 border-t border-border/70 ${p.upkeep ? "cursor-default" : ""}`}>
+                  <span className={`w-[22px] h-[22px] rounded-full text-[11px] flex items-center justify-center shrink-0 mt-0.5 ${p.started ? "bg-[#7D8A53] text-white" : p.n <= 2 && !p.upkeep ? "bg-foreground text-background" : "bg-[#F0E6D6] text-[#8B6B3E]"}`}>{p.started ? <Check className="w-3 h-3" /> : p.n}</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-medium text-foreground">{p.title}</span>
+                    {p.text && <span className="block text-xs text-muted-foreground mt-0.5">{p.text}</span>}
+                    {p.rows && (
+                      <span className="mt-1.5 grid grid-cols-[1fr_auto_auto] gap-x-3 gap-y-0.5 text-xs">
+                        <span className="text-muted-foreground">Card</span><span className="text-muted-foreground text-right">Under limit</span><span className="text-muted-foreground text-right">Under 30%</span>
+                        {p.rows.map((r, k) => (
+                          <span key={k} className="contents">
+                            <span className="text-foreground truncate">{r.name}</span>
+                            <span className="text-foreground text-right">{r.toLimit ? money(r.toLimit) : "—"}</span>
+                            <span className="text-foreground text-right">{money(r.to30)}</span>
+                          </span>
+                        ))}
+                      </span>
+                    )}
+                    {p.note && <span className="block text-[11px] text-muted-foreground mt-1">{p.note}</span>}
+                  </span>
+                  {!p.upkeep && <ChevronRight className="w-4 h-4 text-[#A7773F] shrink-0 mt-0.5" />}
+                </button>
+              ))}
+              {ov.planNote && <p className="text-[11px] text-muted-foreground mt-1">{ov.planNote}</p>}
+              <p className="text-[11px] text-muted-foreground mt-1">Amounts to pay are estimates from your reports' balances and limits.</p>
             </div>
           )}
           {ov.nextFalloff && new Date(ov.nextFalloff.date) <= new Date(Date.now() + 365 * 86400000) && <p className="text-xs text-muted-foreground mt-3">Next fall-off: {ov.nextFalloff.text.replace(/ falls off$/, "")} · ~{niceDate(ov.nextFalloff.date)}</p>}

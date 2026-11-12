@@ -140,7 +140,7 @@ Return ONLY JSON in this shape, nothing else:
  "doc_date":"YYYY-MM-DD","from":"who sent it or which bureau","bureau":"Equifax|Experian|TransUnion|",
  "from_address":"","dispute_address":"",
  "score":null,"breach_date":"","breach_what":"",
- "accounts":[{"creditor":"","original_creditor":"","kind":"credit_card|auto_loan|student_loan|mortgage|personal_loan|collection|other","status":"open|closed|paid|charged_off|collection|other","balance":null,"limit":null,"opened":"","last_payment":"","first_delinquency":"","late":[{"date":"YYYY-MM","days":30}],"last4":"","amount_requested":null,"dispute_deadline":"","address":""}],
+ "accounts":[{"creditor":"","original_creditor":"","kind":"credit_card|auto_loan|student_loan|mortgage|personal_loan|collection|other","status":"open|closed|paid|charged_off|collection|sold|other","balance":null,"limit":null,"past_due":null,"days_past_due":null,"opened":"","last_payment":"","first_delinquency":"","late":[{"date":"YYYY-MM","days":30}],"last4":"","amount_requested":null,"dispute_deadline":"","address":""}],
  "inquiries":[{"creditor":"","date":"YYYY-MM-DD"}],
  "results":[{"creditor":"","outcome":"deleted|updated|verified|other","note":""}],
  "summary":"one plain sentence about what this document is"}
@@ -150,6 +150,7 @@ Rules:
 - COMPANY ADDRESSES are wanted, on one line like "P.O. Box 4500, Allen, TX 75013": "from_address" is the mailing address of the company that sent a letter (where to write back or send correspondence, not a payment-only lockbox if a correspondence address is also shown). "dispute_address" is the bureau's dispute mailing address if a credit report prints one. Each account's "address" is that creditor's or collector's mailing address if the report or letter lists it. Leave "" if not shown; never make one up.
 - Dates as YYYY-MM-DD (or YYYY-MM when only a month is shown). Leave a field "" or null when the document doesn't say. Do not guess.
 - credit_report: list every account (tradeline) and every hard inquiry. "score" only if a numeric score is printed.
+- "past_due" is the amount past due RIGHT NOW as printed (not the full balance); "days_past_due" is how late it is right now (30, 60, 90...) if the current status says so. Leave both null for accounts that are current or closed. Use status "sold" when the report says the account was sold or transferred to another lender or collector.
 - collector_letter / creditor_letter: one account entry for the debt it is about, with "amount_requested", and "dispute_deadline" if the letter states a date by which to dispute (validation notices usually do).
 - breach_notice: "breach_date" (when the data was exposed, or the notice date if not stated) and "breach_what" (what was exposed, e.g. "name, Social Security number").
 - dispute_response: one "results" entry per item the bureau or creditor answered.
@@ -325,6 +326,7 @@ const handler = async (event, context) => {
         accounts: (Array.isArray(parsed.accounts) ? parsed.accounts : []).slice(0, 80).map((a) => ({
           creditor: clean(a.creditor), original_creditor: clean(a.original_creditor), kind: str(a.kind, 20), status: str(a.status, 20),
           balance: num(a.balance), limit: num(a.limit), opened: date(a.opened), last_payment: date(a.last_payment), first_delinquency: date(a.first_delinquency),
+          past_due: num(a.past_due), days_past_due: num(a.days_past_due),
           late: (Array.isArray(a.late) ? a.late : []).slice(0, 24).map((l) => ({ date: date(l.date), days: num(l.days) })).filter((l) => l.date),
           last4: /^\d{4}$/.test(String(a.last4 || "")) ? String(a.last4) : "", amount_requested: num(a.amount_requested), dispute_deadline: date(a.dispute_deadline), address: addr(a.address),
         })).filter((a) => a.creditor),

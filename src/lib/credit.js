@@ -42,15 +42,19 @@ export function mergeAccounts(docs) {
     if (!a.last4) {
       // A letter often has no account number: match it to an account from the same company.
       const n = norm(a.creditor);
-      const hit = Object.keys(map).find((x) => x.startsWith(`${n}|`))
-        || (n.length >= 5 && Object.keys(map).find((x) => { const xn = x.split("|")[0]; return xn.length >= 5 && (xn.startsWith(n) || n.startsWith(xn)); }));
+      // Several accounts can share a lender's name (two Capital One cards and a Capital One auto loan),
+      // so pick the closest name, preferring the same kind of account.
+      const exact = Object.keys(map).filter((x) => x.startsWith(`${n}|`));
+      const pool = exact.length ? exact : (n.length >= 5 ? Object.keys(map).filter((x) => { const xn = x.split("|")[0]; return xn.length >= 5 && (xn.startsWith(n) || n.startsWith(xn)); }) : []);
+      const score = (x) => (a.kind && map[x].kind === a.kind ? 1000 : 0) - Math.abs(x.split("|")[0].length - n.length);
+      const hit = pool.sort((x, y) => score(y) - score(x))[0];
       if (hit) k = hit;
     }
     const m = (map[k] = map[k] || { key: k, creditor: prettyName(a.creditor), sources: [], bureaus: new Set(), late: [] });
     m.sources.push({ docId: doc.id, type: doc.doc_type, date: doc.doc_date, bureau: doc.bureau, from: doc.from, status: a.status || "", balance: a.balance == null ? null : Number(a.balance) });
     if (doc.bureau && doc.doc_type === "credit_report") m.bureaus.add(doc.bureau);
     ["original_creditor", "kind", "status", "opened", "last_payment", "first_delinquency", "last4", "address"].forEach((f) => { if (a[f] && !m[f]) m[f] = f === "original_creditor" ? prettyName(a[f]) : a[f]; });
-    ["balance", "limit", "amount_requested"].forEach((f) => { if (a[f] != null) m[f] = a[f]; });
+    ["balance", "limit", "amount_requested", "past_due", "days_past_due"].forEach((f) => { if (a[f] != null) m[f] = a[f]; });
     if (a.dispute_deadline) m.dispute_deadline = a.dispute_deadline;
     if (doc.doc_type === "collector_letter" || doc.doc_type === "creditor_letter") {
       m.letterDate = doc.doc_date || m.letterDate;
@@ -107,13 +111,27 @@ export function analyze(docs, caseRec = {}) {
         falloff: a.first_delinquency ? addYears(a.first_delinquency, 7) : "",
         title: `${a.creditor}${a.amount_requested || a.balance ? ` · ${money(a.amount_requested || a.balance)}` : ""}`,
         twin: twin ? twin.creditor : null,
-        label: dup || twin ? "May be counted twice" : "Collection",
-        detail: dup ? `Also listed under the original creditor, ${a.original_creditor}, so it may be reported twice.`
+        label: twin ? "May be counted twice" : "Collection",
+        detail: dup ? `A collection for ${a.original_creditor}, which still shows a balance too. See "Sold, still owed". Ask the collector for proof before paying.`
           : twin ? `Same amount as the ${twin.creditor} collection (${money(amt)}). Agencies sometimes report one debt under two names. Compare the original creditor and dates.`
           : `A collection${a.original_creditor ? ` for ${a.original_creditor}` : ""}. Ask for proof before paying anything.` });
       return;
     }
-    if (isCard(a) && !/charged|closed|collection/.test(String(a.status || "")) && Number(a.limit) > 0 && Number(a.balance) / Number(a.limit) > 0.3) {
+    const inactive = /charged|closed|collection|sold|paid/.test(String(a.status || ""));
+    // Past due right now: the thing that keeps adding new late marks every month.
+    if (!inactive && (Number(a.past_due) > 0 || Number(a.days_past_due) > 0)) {
+      const pd = Number(a.past_due) || 0, days = Number(a.days_past_due) || 0;
+      items.push({ key: `${a.key}|pastdue`, kind: "pastdue", account: a, pastDue: pd, days,
+        title: `${a.creditor} · ${pd ? `${money(pd)} past due` : "past due, amount not shown"}${days ? ` · ${days} days` : ""}`, label: "Past due",
+        detail: "Past due right now. Each month it stays late can add a new late mark, and long-late accounts can be charged off." });
+    }
+    // Over the limit: worse than just high usage, and can bring fees.
+    if (isCard(a) && !inactive && Number(a.limit) > 0 && Number(a.balance) > Number(a.limit)) {
+      const lim = Number(a.limit), bal = Number(a.balance);
+      items.push({ key: a.key, kind: "overlimit", account: a, pct: Math.round((bal / lim) * 100), toLimit: Math.ceil(bal - lim), target: Math.round(bal - lim * 0.29),
+        title: `${a.creditor}${a.last4 ? ` ${a.last4}` : ""} · ${money(bal)} of ${money(lim)}`, label: "Over limit",
+        detail: "Over the limit. Getting under it first can avoid fees; then aim for under 30%." });
+    } else if (isCard(a) && !/charged|closed|collection/.test(String(a.status || "")) && Number(a.limit) > 0 && Number(a.balance) / Number(a.limit) > 0.3) {
       const pct = Math.round((Number(a.balance) / Number(a.limit)) * 100);
       items.push({ key: a.key, kind: "utilization", account: a, pct, target: Math.round(Number(a.balance) - Number(a.limit) * 0.29),
         title: `${a.creditor} · ${money(a.balance)} of ${money(a.limit)} (${pct}%)`, label: "High balance",
@@ -139,7 +157,27 @@ export function analyze(docs, caseRec = {}) {
     });
   }
 
-  const order = { mismatch: 0, breach: 1, collection: 2, late: 3, utilization: 4 };
+  // Sold, still owed: the original lender still shows a balance after the debt went to a collector.
+  const soldSeen = new Set();
+  accounts.forEach((b) => {
+    if (isCollection(b) || !(Number(b.balance) > 0) || /paid/.test(String(b.status || ""))) return;
+    const buyer = b.status === "sold" ? null : accounts.find((c) => isCollection(c) && c.original_creditor && (norm(c.original_creditor) === norm(b.creditor) || (norm(c.original_creditor).length >= 5 && norm(b.creditor).startsWith(norm(c.original_creditor)))));
+    if (b.status !== "sold" && !buyer) return;
+    const key = `${b.key}|sold`;
+    if (soldSeen.has(key) || (decisions[key] || {}).resolved) return;
+    soldSeen.add(key);
+    items.push({ key, kind: "sold", account: b, buyer: buyer ? buyer.creditor : "",
+      title: `${b.creditor} · ${money(b.balance)}${b.bureaus.length ? ` on ${b.bureaus.join(", ")}` : ""}`, label: "Sold, still owed",
+      detail: `${buyer ? `This debt went to ${buyer.creditor}, but ` : "This account was sold or transferred, but "}${b.creditor} still reports a ${money(b.balance)} balance. After a sale it should show $0, or the same debt counts twice.` });
+  });
+
+  // Your info: a once-over of names and addresses on each report.
+  if (reports.length && !(decisions["info|review"] || {}).resolved) {
+    items.push({ key: "info|review", kind: "info", account: null, title: "Check the names and addresses on each report", label: "Your info",
+      detail: "Misspelled names, addresses you never lived at, or employers you don't recognize can mix someone else's records into yours, or point to identity theft." });
+  }
+
+  const order = { mismatch: 0, breach: 1, pastdue: 2, overlimit: 3, collection: 4, utilization: 5, sold: 6, late: 7, info: 8 };
   items.sort((x, y) => order[x.kind] - order[y.kind]);
   return { accounts, items, breach, reportBureaus };
 }
@@ -177,6 +215,33 @@ export function stepsFor(item) {
         : item.missing.length ? `Only on ${item.account.bureaus.join(" and ")}, not ${item.missing.join(" or ")}. Check it's accurate.` : "If the amount, dates or owner are wrong, dispute it with the bureau.", letter: "dispute" },
       { id: "negotiate", title: "Negotiate in writing first", body: "If it's valid: ask for removal in exchange for payment (pay-for-delete) or a settlement, in writing, before paying. They don't have to agree.", letter: "paydelete",
         tips: [{ ok: true, text: "pay with a one-time card payment or a money order, and keep the receipt" }, { ok: false, text: "give them access to your bank account" }, { ok: false, text: "agree to anything over the phone. Ask for it in writing." }] },
+    ];
+  }
+  if (item.kind === "pastdue") {
+    return [
+      { id: "catchup", title: item.pastDue ? `Pay the ${money(item.pastDue)} past due` : "Pay the past-due amount", body: "Bringing it current (paying what's past due, not the whole balance) stops new late marks from being added.",
+        tips: [{ ok: true, text: "turn on autopay for at least the minimum once it's current" }, { ok: false, text: "skip it hoping it drops off. Each month late is reported again." }] },
+      { id: "hardship", title: "Can't pay it all? Call and ask", body: "Many lenders offer a hardship plan, a lower payment or a new due date. Ask them to confirm any arrangement in writing." },
+      { id: "goodwilllater", title: "Later: ask for a goodwill adjustment", body: "Once you've been on time for a few months, a goodwill letter can ask them to remove the late marks.", letter: "goodwill" },
+    ];
+  }
+  if (item.kind === "overlimit") {
+    return [
+      { id: "underlimit", title: `Pay about ${money(item.toLimit)} to get under the limit`, body: "Over-limit balances can bring fees and look worse than high usage.", goal: true },
+      { id: "under30", title: `Then about ${money(item.target)} more to get under 30%`, body: "Under 30% of the limit usually helps the most. Under 10% helps more." },
+    ];
+  }
+  if (item.kind === "sold") {
+    return [
+      { id: "soldcheck", title: "Check it matches the collection", body: item.buyer ? `Compare the amount and dates with the ${item.buyer} collection.` : "Look for the collector that bought it on your report." },
+      { id: "solddispute", title: "Ask the bureau to show $0", body: "A sold or transferred account should show a $0 balance with the lender that sold it.", letter: "soldzero" },
+    ];
+  }
+  if (item.kind === "info") {
+    return [
+      { id: "inforead", title: "Read the personal information section", body: "On each report, check name spellings, addresses, employers and dates of birth." },
+      { id: "infodispute", title: "Ask each bureau to remove what's wrong", body: "Only list what's actually wrong. Keep your current address and any you really lived at.", letter: "infofix",
+        tips: [{ ok: false, text: "ask them to remove your current address or a name you really use" }] },
     ];
   }
   if (item.kind === "utilization") {
@@ -220,7 +285,7 @@ const toCompany = (a, name) => `To: ${name}\n${a.address ? a.address.replace(/,\
 const longToday = () => new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 const signOff = (sender) => `\n\nSincerely,\n${(sender && sender.name) || "[Your full name]"}\n${(sender && sender.address) || "[Your mailing address]"}\n${longToday()}`;
 // Letters that go to a credit bureau: one per bureau that shows the item.
-export const BUREAU_LETTERS = new Set(["dispute", "paidmismatch", "unverified", "mov", "block"]);
+export const BUREAU_LETTERS = new Set(["dispute", "paidmismatch", "unverified", "mov", "block", "soldzero", "infofix"]);
 
 export function letterFor(type, item, ctx = {}) {
   const a = item.account || {};
@@ -242,6 +307,10 @@ export function letterFor(type, item, ctx = {}) {
       const p = item.paidProof || {};
       return `${toCompany(a, name)}\n\nRe: Correct credit reporting${ref}\n\nYour letter${p.date ? ` dated ${niceDate(p.date)}` : ""} confirms this account is paid in full (copy enclosed). However, the credit bureaus still show ${item.badReport && Number(item.badReport.balance) > 0 ? `a balance of ${money(item.badReport.balance)}` : "it as unpaid"}${item.badReport && item.badReport.status === "charged_off" ? " and a charge-off" : ""}.\n\nPlease update what you report to all three credit bureaus to show a $0 balance and paid${item.when === "before" ? " as agreed" : ""}, and confirm in writing when it's done.${sign}`;
     }
+    case "soldzero":
+      return `${toBureau(bureau, ctx)}\n\nRe: Dispute of inaccurate balance${ref}\n\nThe following account is reported with a balance that should be $0:\n\n${name}${ref}, reported balance ${money(a.balance)}\n\n${item.buyer ? `This debt was sold or transferred to ${item.buyer}, which now reports it as a collection.` : "This account was sold or transferred to another company."} Because ${name} no longer owns this debt, reporting a balance counts the same debt twice. Please update ${name}'s account to show a $0 balance and that it was sold or transferred.${sign}`;
+    case "infofix":
+      return `${toBureau(bureau, ctx)}\n\nRe: Correct my personal information\n\nPlease remove the following information from my credit file because it is not mine or is out of date:\n\n- Names: [list the misspelled names exactly as shown]\n- Addresses: [list addresses you never lived at]\n- Employers: [list any you don't recognize]\n\nMy correct name and current address are shown below. I have enclosed a copy of my ID and proof of address.${sign}`;
     case "goodwill":
       return `${toCompany(a, name)}\n\nRe: Goodwill adjustment request${ref}\n\nI have been a customer since ${a.opened ? niceDate(a.opened) : "[year]"}. My records show a late payment reported in ${a.late && a.late.length ? niceDate(a.late[a.late.length - 1].date) : "[month and year]"}. [Briefly explain what happened.]\n\nSince then I have paid on time. I would be grateful if you would consider removing this late payment from my credit reports as a goodwill gesture.${sign}`;
     case "paydelete":
@@ -255,7 +324,7 @@ export function letterFor(type, item, ctx = {}) {
     default: return "";
   }
 }
-export const LETTER_TITLE = { paidmismatch: "Dispute: paid but shows unpaid", lenderupdate: "Ask the lender to correct it", validation: "Ask them to prove the debt", dispute: "Dispute with the bureau", goodwill: "Goodwill request", paydelete: "Pay-for-delete offer", block: "Identity theft block", fraud: "Not mine: tell the company" };
+export const LETTER_TITLE = { soldzero: "Dispute: sold debt should show $0", infofix: "Correct my personal information", paidmismatch: "Dispute: paid but shows unpaid", lenderupdate: "Ask the lender to correct it", validation: "Ask them to prove the debt", dispute: "Dispute with the bureau", goodwill: "Goodwill request", paydelete: "Pay-for-delete offer", block: "Identity theft block", fraud: "Not mine: tell the company" };
 
 // One timeline from every document plus what the person has done.
 export function timeline(docs, caseRec = {}) {
@@ -305,6 +374,8 @@ export const isOverdue = (s) => !s.reply && sentDue(s) < today();
 
 // What they might say back, per letter.
 export const OUTCOMES = {
+  soldzero: [["updated", "Updated to $0"], ["deleted", "Removed"], ["verified", "Said it's accurate"]],
+  infofix: [["updated", "Corrected"], ["verified", "Didn't change it"]],
   paidmismatch: [["updated", "Updated to paid"], ["deleted", "Removed"], ["verified", "Said it's accurate"]],
   lenderupdate: [["updated", "Agreed to update"], ["declined", "Refused"]],
   validation: [["proof", "Sent proof"], ["no_proof", "Replied, no real proof"], ["stopped", "Dropped it / removed"]],
@@ -439,15 +510,59 @@ export function overview(docs, caseRec = {}) {
   const scores = pr.scores;
   const firstScore = scores[0], lastScore = scores[scores.length - 1];
 
-  // Start here: the three steps most worth doing first.
-  const start = [];
-  items.filter((i) => i.kind === "mismatch").forEach((i) => start.push({ key: i.key, text: `Fix ${i.account.creditor}: your letter says paid, the report doesn't` }));
-  items.filter((i) => i.kind === "breach" && !i.owner).slice(0, 1).forEach((i) => start.push({ key: i.key, text: "Tell Guía which accounts after the breach are yours" }));
-  items.filter((i) => i.kind === "collection" && (i.twin || i.dup)).slice(0, 1).forEach((i) => start.push({ key: i.key, text: `Check if ${i.account.creditor} is listed twice (${money(amountOf(i.account))})` }));
-  const openCols = items.filter((i) => i.kind === "collection" && !((decisions[i.key] || {}).sent || []).length);
-  if (openCols.length) start.push({ key: openCols[0].key, text: `Ask ${openCols.length === 1 ? openCols[0].account.creditor : `the ${openCols.length} collectors`} to prove ${openCols.length === 1 ? "the debt" : "their debts"} before paying` });
-  const util = items.filter((i) => i.kind === "utilization").sort((a, b) => b.pct - a.pct)[0];
-  if (util) start.push({ key: util.key, text: `Pay ${util.account.creditor} down by about ${money(util.target)} to get under 30%` });
+  // Your plan: up to five steps in a fixed order, built only from what the documents show.
+  const isStarted = (list) => list.some((i) => { const d = decisions[i.key] || {}; return (d.sent || []).length || Object.values(d.done || {}).some(Boolean); });
+  const who = (i) => (i.account && i.account.creditor) || (i.inquiry && prettyName(i.inquiry.creditor)) || "";
+  const names = (list, n = 2) => { const ns = [...new Set(list.map(who).filter(Boolean))]; return ns.slice(0, n).join(" · ") + (ns.length > n ? ` · ${ns.length - n} more` : ""); };
+  const plan = [];
+  const s1 = items.filter((i) => i.kind === "mismatch" || i.kind === "breach");
+  if (s1.length) {
+    const onlyBreach = s1.every((i) => i.kind === "breach");
+    plan.push({ filter: onlyBreach ? "breach" : "mismatch", keys: s1.map((i) => i.key), started: isStarted(s1),
+      title: onlyBreach ? "Sort out accounts opened after the breach" : "Fix what you have proof for",
+      text: onlyBreach ? `${s1.length} ${s1.length === 1 ? "account or inquiry" : "accounts or inquiries"} to confirm: ${names(s1)}` : s1.filter((i) => i.kind === "mismatch").map((i) => `${who(i)}: your letter vs. the report`).join(" · ") });
+  }
+  const s2 = items.filter((i) => i.kind === "pastdue");
+  const pastDueTotal = s2.reduce((t, i) => t + (i.pastDue || 0), 0);
+  if (s2.length) plan.push({ filter: "pastdue", keys: s2.map((i) => i.key), started: isStarted(s2),
+    title: `Get current${pastDueTotal ? ` · ${money(pastDueTotal)}${s2.some((i) => !i.pastDue) ? "+" : ""}` : ""}`,
+    text: s2.slice(0, 4).map((i) => `${who(i)}${i.account.last4 ? ` ${i.account.last4}` : ""}${i.pastDue ? ` (${money(i.pastDue)})` : i.days ? ` (${i.days} days)` : ""}`).join(" · ") + (s2.length > 4 ? ` · ${s2.length - 4} more` : ""),
+    note: "Each month these stay late can add a new late mark." });
+  const s3 = items.filter((i) => i.kind === "overlimit" || i.kind === "utilization");
+  if (s3.length) plan.push({ filter: s3.some((i) => i.kind === "overlimit") ? "overlimit" : "utilization", keys: s3.map((i) => i.key), started: isStarted(s3),
+    title: s3.some((i) => i.kind === "overlimit") ? "Get cards under their limits" : "Get card balances under 30%",
+    rows: [...s3].sort((x, y) => (y.kind === "overlimit") - (x.kind === "overlimit") || y.pct - x.pct).slice(0, 5)
+      .map((i) => ({ name: `${who(i)}${i.account.last4 && !who(i).includes(i.account.last4) ? ` ${i.account.last4}` : ""}`, toLimit: i.kind === "overlimit" ? i.toLimit : null, to30: Math.max(0, i.target) })) });
+  const s4 = items.filter((i) => i.kind === "collection");
+  if (s4.length) {
+    const asked = s4.filter((i) => ((decisions[i.key] || {}).sent || []).some((x) => x.type === "validation"));
+    plan.push({ filter: "collection", keys: s4.map((i) => i.key), started: isStarted(s4),
+      title: asked.length === s4.length ? "Collections: negotiate in writing" : "Collections: proof first, then negotiate",
+      text: s4.slice(0, 2).map((i) => `${who(i)} ${money(amountOf(i.account))}`).join(" · ") + (s4.length > 2 ? ` · ${s4.length - 2} more` : ""),
+      note: "Settlements often start around 30 to 50% of the balance, but there's no set rule. Get the terms, and deletion if they agree, in writing before paying." });
+  }
+  const s5 = items.filter((i) => i.kind === "sold" || i.kind === "info" || (i.kind === "collection" && i.twin));
+  if (s5.length) {
+    const parts = [];
+    s5.filter((i) => i.kind === "sold").forEach((i) => parts.push(`${who(i)} still shows ${money(i.account.balance)}${i.buyer ? ` after going to ${i.buyer}` : " after being sold"}`));
+    const twins = s5.filter((i) => i.kind === "collection");
+    if (twins.length) parts.push(`${names(twins)} may be the same debt`);
+    if (s5.some((i) => i.kind === "info")) parts.push("review your names and addresses");
+    plan.push({ filter: s5.some((i) => i.kind === "sold") ? "sold" : s5.some((i) => i.kind === "collection") ? "twice" : "info", keys: s5.map((i) => i.key), started: isStarted(s5),
+      title: "Clean up duplicates and your info", text: parts.join(" · ") });
+  }
+  // Nothing to fix: keep it steady instead of an empty plan.
+  const upkeep = !plan.some((p) => p.filter !== "info") && reports.length > 0;
+  if (upkeep) {
+    plan.length = 0;
+    plan.push({ upkeep: true, title: "Pay every bill on time", text: "Payment history matters most. Autopay for at least the minimum is an easy safety net." });
+    plan.push({ upkeep: true, title: "Keep card balances under 30%", text: cardLim ? `You're using ${Math.round((cardBal / cardLim) * 100)}% of your limits right now.` : "Under 10% is even better." });
+    plan.push({ upkeep: true, title: "Check your reports every few months", text: "They're free every week at AnnualCreditReport.com. Upload new ones here to compare." });
+  }
+  plan.forEach((p, i) => { p.n = i + 1; });
+  const planNote = !reports.length ? "Upload a full credit report for a complete plan." : bureaus.length < 3 ? (() => { const miss = BUREAUS.filter((b) => !bureaus.includes(b)); return `Checked ${bureaus.join(" and ")} only. Upload the ${miss.join(" and ")} ${miss.length > 1 ? "reports" : "report"} to compare.`; })() : "";
+  const pastDueCount = s2.length;
+  const overLimitCount = items.filter((i) => i.kind === "overlimit").length;
 
   // Progress: handled = resolved, or a letter sent.
   const resolved = Object.values(decisions).filter((v) => v.resolved).length;
@@ -460,7 +575,7 @@ export function overview(docs, caseRec = {}) {
     collections: { count: cols.length, total: cols.reduce((t, a) => t + amountOf(a), 0) },
     lateCount, lateAccounts,
     usage: cardLim ? Math.round((cardBal / cardLim) * 100) : null,
-    start: start.slice(0, 3),
+    plan, planNote, upkeep, pastDueCount, pastDueTotal, overLimitCount,
     nextFalloff: pr.coming[0] || null,
     handled: resolved + inFlight, total: resolved + items.length, resolved, inFlight, lettersSent, wins: pr.wins.length,
   };
@@ -490,6 +605,8 @@ export const CHECKLIST = {
   validation: [SIGN, "Copy of their letter (keep the original)", "Mail it within 30 days of their letter if you can", "Don't include your SSN or ID", CERT],
   paydelete: [SIGN, "Don't send any payment with this letter", "Wait for their written agreement before paying", COPIES, CERT],
   goodwill: [SIGN, "Keep it short and polite", "Regular mail or their online form is fine"],
+  soldzero: [SIGN, ID, ADDR, REPORT, "The collection's page too, if it shows on the same report", COPIES, CERT],
+  infofix: [SIGN, ID, ADDR, "Copy of the personal information page, with what's wrong circled", COPIES, CERT],
   lenderupdate: [SIGN, "Copy of your payoff letter", REPORT, COPIES, CERT],
   fraud: [SIGN, "Your FTC Identity Theft Report", ID, COPIES, CERT],
   followup: [SIGN, "Copy of your first letter and its mail receipt", COPIES, CERT],
