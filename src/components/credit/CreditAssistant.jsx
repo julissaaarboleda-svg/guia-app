@@ -261,7 +261,9 @@ export default function CreditAssistant({ scoreItems = [] }) {
     const base = (d) => `${d.doc_type}|${String(d.filename || "").toLowerCase().replace(/\s*\(\d+\)(?=\.\w+$)/, "")}`;
     const groups = {};
     docs.forEach((d) => {
-      const key = [d.file_hash && `h:${d.file_hash}`, d.filename && `f:${base(d)}`, `s:${docSig(d)}`].filter(Boolean);
+      // A real copy: the same file, or the same name AND the same bureau and report date. Reports from
+      // different bureaus (or months) with similar names are kept, even if they list the same accounts.
+      const key = [d.file_hash && `h:${d.file_hash}`, d.filename && `f:${base(d)}|${d.bureau || ""}|${d.doc_date || ""}`, `s:${docSig(d)}`].filter(Boolean);
       const hit = Object.keys(groups).find((g) => groups[g].keys.some((k) => key.includes(k)));
       if (hit) { groups[hit].docs.push(d); key.forEach((k) => { if (!groups[hit].keys.includes(k)) groups[hit].keys.push(k); }); }
       else groups[d.id] = { keys: key, docs: [d] };
