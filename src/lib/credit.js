@@ -80,7 +80,70 @@ const isCollection = (a) => a.kind === "collection" || a.status === "collection"
 const isCard = (a) => a.kind === "credit_card";
 
 // Everything worth acting on, each with its own playbook.
+// ---------- Reports over time ----------
+const docDay = (d) => String(d.doc_date || d.created_date || "").slice(0, 10);
+const bureauOf = (d) => bureauKey(d.bureau || "") || "Other";
+// Reports from each bureau, oldest first.
+export function reportsByBureau(docs) {
+  const by = {};
+  docs.filter((d) => d.doc_type === "credit_report").forEach((d) => { (by[bureauOf(d)] = by[bureauOf(d)] || []).push(d); });
+  Object.values(by).forEach((list) => list.sort((a, b) => docDay(a).localeCompare(docDay(b)) || (a.accounts || []).length - (b.accounts || []).length));
+  return by;
+}
+// The current picture: only the newest report from each bureau, plus every letter and notice.
+export function currentDocs(docs) {
+  const latest = new Set(Object.values(reportsByBureau(docs)).map((list) => list[list.length - 1]));
+  return docs.filter((d) => d.doc_type !== "credit_report" || latest.has(d));
+}
+
+const isNegative = (a) => isCollection(a) || /charged/.test(String(a.status || "")) || Number(a.past_due) > 0 || Number(a.days_past_due) > 0;
+const acctId = (a) => `${norm(a.creditor)}|${a.last4 || ""}`;
+// Compare one bureau's newest report with the one before it.
+export function compareReports(prev, next, caseRec = {}) {
+  const pa = {}, na = {};
+  (prev.accounts || []).forEach((a) => { pa[acctId(a)] = a; });
+  (next.accounts || []).forEach((a) => { na[acctId(a)] = a; });
+  const find = (map, a) => map[acctId(a)] || (!a.last4 && Object.values(map).find((b) => norm(b.creditor) === norm(a.creditor)));
+  const sentFor = (a) => Object.entries(caseRec.decisions || {}).some(([k, v]) => k.startsWith(`${norm(a.creditor)}|`) && (v.sent || []).length);
+  const removed = [], improved = [], still = [], added = [];
+  (prev.accounts || []).forEach((a) => {
+    const b = find(na, a);
+    const name = shortName(a.creditor);
+    if (!b) { if (isNegative(a)) removed.push({ name, win: `${name} removed`, text: `${name}${isCollection(a) ? " collection" : ""}${a.balance ? ` · ${money(a.amount_requested || a.balance)}` : ""}`, letter: sentFor(a) }); return; }
+    const pb = Number(a.balance) || 0, nb = Number(b.balance) || 0, lim = Number(b.limit) || Number(a.limit) || 0;
+    if ((isCollection(a) || /charged|sold/.test(String(a.status || ""))) && pb > 0 && nb === 0) { removed.push({ name, win: `${name} now shows $0`, text: `${name} · ${money(pb)} balance now $0`, letter: sentFor(a) }); return; }
+    if ((Number(a.past_due) > 0 || Number(a.days_past_due) > 0) && !(Number(b.past_due) > 0) && !(Number(b.days_past_due) > 0)) improved.push({ text: `${name}${b.last4 ? ` ${b.last4}` : ""} · back to current` });
+    else if (lim && pb > lim && nb <= lim) improved.push({ text: `${name}${b.last4 ? ` ${b.last4}` : ""} · ${money(pb)} → ${money(nb)}, under the limit` });
+    else if (pb > 0 && nb < pb * 0.9 && !isCollection(b)) improved.push({ text: `${name}${b.last4 ? ` ${b.last4}` : ""} · ${money(pb)} → ${money(nb)}` });
+    if (isNegative(b) && sentFor(a)) still.push({ text: `${name}${isCollection(b) ? " collection" : ""} · ${money(b.amount_requested || b.balance)}`, key: acctId(b) });
+    const newLate = (b.late || []).filter((l) => !(a.late || []).some((x) => x.date === l.date) && l.date > docDay(prev).slice(0, 7));
+    if (newLate.length) added.push({ text: `${name} · new late payment ${niceDate(newLate[newLate.length - 1].date)}` });
+  });
+  (next.accounts || []).forEach((b) => { if (!find(pa, b) && isNegative(b)) added.push({ text: `${shortName(b.creditor)} · new ${isCollection(b) ? "collection" : "negative account"}${b.balance ? ` · ${money(b.amount_requested || b.balance)}` : ""}` }); });
+  (next.inquiries || []).filter((q) => q.date && q.date > docDay(prev)).forEach((q) => added.push({ text: `Credit check · ${shortName(q.creditor)} · ${niceDate(q.date)}`, check: true }));
+  const usage = (d) => { const cards = (d.accounts || []).filter((a) => isCard(a) && !/charged|closed|collection|sold/.test(String(a.status || "")) && Number(a.limit) > 0); const l = cards.reduce((t, a) => t + Number(a.limit), 0); return l ? Math.round((cards.reduce((t, a) => t + (Number(a.balance) || 0), 0) / l) * 100) : null; };
+  const u0 = usage(prev), u1 = usage(next);
+  if (u0 != null && u1 != null && u1 < u0 - 2) improved.push({ text: `Card usage · ${u0}% → ${u1}%` });
+  return {
+    bureau: bureauOf(next), from: docDay(prev), to: docDay(next), key: `${bureauOf(next)}|${docDay(next)}`,
+    score: prev.score && next.score ? { from: prev.score, to: next.score, delta: next.score - prev.score } : null,
+    removed, improved, still, added, usage: { from: u0, to: u1 },
+  };
+}
+// One comparison per bureau that has at least two reports (newest vs the one before).
+export function changes(docs, caseRec = {}) {
+  return Object.values(reportsByBureau(docs)).filter((l) => l.length >= 2).map((l) => compareReports(l[l.length - 2], l[l.length - 1], caseRec))
+    .sort((a, b) => b.to.localeCompare(a.to));
+}
+// Reports that are getting old enough to check again (about 45 days).
+export function staleReports(docs) {
+  const by = reportsByBureau(docs);
+  const cutoff = addDays(today(), -45);
+  return Object.entries(by).filter(([b]) => b !== "Other").map(([b, l]) => ({ bureau: b, date: docDay(l[l.length - 1]) })).filter((x) => x.date && x.date <= cutoff);
+}
+
 export function analyze(docs, caseRec = {}) {
+  docs = currentDocs(docs);
   const decisions = caseRec.decisions || {};
   const accounts = mergeAccounts(docs);
   const reports = docs.filter((d) => d.doc_type === "credit_report");
@@ -364,9 +427,11 @@ export function progress(docs, caseRec = {}) {
     ...docs.filter((d) => d.doc_type === "dispute_response").flatMap((d) => (d.results || []).filter((r) => r.outcome === "deleted" || r.outcome === "updated").map((r) => ({ date: d.doc_date, text: `${r.creditor} ${r.outcome === "deleted" ? "removed" : "corrected"}` }))),
     ...Object.entries(caseRec.decisions || {}).filter(([, v]) => v.resolved).map(([, v]) => ({ date: v.resolved.date, text: v.resolved.text })),
   ].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  changes(docs, caseRec).forEach((c) => c.removed.forEach((r) => wins.push({ date: c.to, text: `${r.win} on ${c.bureau}`, win: true })));
+  wins.sort((a, b) => String(b.date).localeCompare(String(a.date)));
   const now = today();
   const coming = [];
-  mergeAccounts(docs).forEach((a) => {
+  mergeAccounts(currentDocs(docs)).forEach((a) => {
     const base = isCollection(a) ? a.first_delinquency : (a.late && a.late.length ? a.late[a.late.length - 1].date : "");
     const f = base ? addYears(base, 7) : "";
     if (f && f > now) coming.push({ date: f, text: `${a.creditor} ${isCollection(a) ? "collection" : "late payment"} falls off` });
@@ -508,7 +573,7 @@ const amountOf = (a) => Number(a.amount_requested || a.balance) || 0;
 export function overview(docs, caseRec = {}) {
   const { accounts, items } = analyze(docs, caseRec);
   const decisions = caseRec.decisions || {};
-  const reports = docs.filter((d) => d.doc_type === "credit_report");
+  const reports = currentDocs(docs).filter((d) => d.doc_type === "credit_report");
   const bureaus = [...new Set(reports.map((d) => d.bureau).filter(Boolean))];
   const latestReport = [...reports].sort((a, b) => String(b.doc_date).localeCompare(String(a.doc_date)))[0];
   const cols = accounts.filter(isCollection);

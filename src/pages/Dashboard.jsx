@@ -15,7 +15,7 @@ import { isScheduled, completeOn, dayKey, setAllToday, stepsFor } from "@/lib/ro
 import { monthView } from "@/lib/spending";
 import { monthKeyOf } from "@/lib/financeHelpers";
 import { buildFocusItems, buildUpNext, buildProgress, buildDailyStatus } from "@/lib/homeData";
-import { creditProgress } from "@/lib/credit";
+import { creditProgress, staleReports } from "@/lib/credit";
 
 const HERO_IMAGES = [
   "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
@@ -115,6 +115,17 @@ export default function Dashboard() {
       // Ring numbers that need a few more lists fill in a moment later, without holding up the page.
       const [bizList, stmts, buckets, creditDocs, creditCases] = await extras;
       try { setCreditProg(creditProgress(creditDocs, (creditCases && creditCases[0]) || {})); } catch { /* ignore */ }
+      // A gentle to-do when a credit report is about 45 days old, once per report.
+      try {
+        const cc = (creditCases && creditCases[0]) || null;
+        const due = staleReports(creditDocs || []).filter((x) => !((cc && cc.staleNudged) || {})[`${x.bureau}|${x.date}`]);
+        if (due.length) {
+          await ent.Task.create({ title: `Upload a new ${due.map((x) => x.bureau).join(" and ")} credit report`, notes: "From the credit assistant. Free every week at AnnualCreditReport.com. Guía will show what changed since your last one.", priority: "medium", due_date: new Date().toISOString().slice(0, 10), completed: false, source: "credit" });
+          const staleNudged = { ...((cc && cc.staleNudged) || {}) };
+          due.forEach((x) => { staleNudged[`${x.bureau}|${x.date}`] = true; });
+          if (cc) await ent.CreditCase.update(cc.id, { staleNudged }); else await ent.CreditCase.create({ decisions: {}, scores: [], staleNudged });
+        }
+      } catch { /* ignore */ }
       const mkNow = monthKeyOf();
       setSpendingProgress({
         spent: monthView(stmts, mkNow)?.total || 0,

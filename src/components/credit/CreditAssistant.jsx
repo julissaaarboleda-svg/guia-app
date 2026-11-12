@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, ChevronRight, Upload, X, Copy, Mail, Check, FileText, Trash2, ExternalLink, ShieldAlert, Loader2, Scale, Layers, PieChart, CalendarX, CreditCard, AlertCircle } from "lucide-react";
+import { ChevronDown, ChevronRight, Upload, X, Copy, Mail, Check, FileText, Trash2, ExternalLink, ShieldAlert, Loader2, Scale, Layers, PieChart, CalendarX, CreditCard, AlertCircle, ArrowRight, TrendingDown, Clock, RefreshCw } from "lucide-react";
 import { base44, getAiUsage } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { analyze, stepsFor, letterFor, LETTER_TITLE, progress, DOC_LABEL, niceDate, OUTCOMES, WIN, isOverdue, sentDue, noReplySteps, replySteps, followUpLetter, deadlineNudges, mergeParts, overview, money, BUREAU_LETTERS, BUREAUS, BUREAU_SHORT, bureauAddress, bureauKey, CHECKLIST, RIGHTS, uspsTrack } from "@/lib/credit";
+import { analyze, stepsFor, letterFor, LETTER_TITLE, progress, DOC_LABEL, niceDate, OUTCOMES, WIN, isOverdue, sentDue, noReplySteps, replySteps, followUpLetter, deadlineNudges, mergeParts, overview, money, BUREAU_LETTERS, BUREAUS, BUREAU_SHORT, bureauAddress, bureauKey, CHECKLIST, RIGHTS, uspsTrack, changes, staleReports } from "@/lib/credit";
 
 const MAX_FILES = 10;
 const PAGES_PER_PART = 1;
@@ -478,10 +478,27 @@ export default function CreditAssistant({ scoreItems = [] }) {
   ];
   const fItems = items.filter((FILTERS.find(([k]) => k === filter) || FILTERS[0])[2]);
   const shown = showAll ? fItems : fItems.slice(0, 6);
+  const diffs = useMemo(() => changes(docs, caseRec || {}), [docs, caseRec]);
+  const freshDiffs = diffs.filter((d) => !((caseRec && caseRec.changesSeen) || {})[d.key]);
+  const stale = useMemo(() => staleReports(docs), [docs]);
+  // Plan steps that existed before but have no items left now are done (e.g. after a new report).
+  const planSeen = (caseRec && caseRec.planSeen) || {};
+  const livePlan = ov && !ov.upkeep ? ov.plan : [];
+  const goneSteps = Object.entries(planSeen).filter(([f, v]) => v && !livePlan.some((p) => p.filter === f)).map(([f, v]) => ({ filter: f, title: v.title, doneOn: v.doneOn }));
   const planDone = (caseRec && caseRec.planDone) || {};
   const isPlanDone = (p) => !!planDone[p.filter];
-  const planDoneCount = ov ? ov.plan.filter(isPlanDone).length : 0;
+  const planDoneCount = (ov ? ov.plan.filter(isPlanDone).length : 0) + goneSteps.length;
+  const planTotal = (ov ? ov.plan.length : 0) + goneSteps.length;
   const togglePlan = (p) => saveCase({ planDone: { ...planDone, [p.filter]: !planDone[p.filter] } });
+  const planSig = livePlan.map((p) => p.filter).join(",") + "|" + goneSteps.filter((g) => !g.doneOn).map((g) => g.filter).join(",");
+  useEffect(() => {
+    if (!loaded || !ov || ov.upkeep || !docs.length) return;
+    const next = { ...planSeen };
+    let changed = false;
+    livePlan.forEach((p) => { if (!next[p.filter] || next[p.filter].doneOn) { next[p.filter] = { title: p.title }; changed = true; } });
+    goneSteps.forEach((g) => { if (!g.doneOn) { next[g.filter] = { title: g.title, doneOn: todayStr() }; changed = true; } });
+    if (changed) saveCase({ planSeen: next });
+  }, [planSig, loaded]);
   const openStep = (p) => {
     if (p.upkeep) return;
     setFilter(["mismatch", "breach", "sold", "twice"].includes(p.filter) ? "check" : (p.filter || "all")); setShowAll(true); setOpenItem(p.keys && p.keys[0]);
@@ -614,6 +631,58 @@ export default function CreditAssistant({ scoreItems = [] }) {
         {(!docs.length || busy.some((b) => b.status === "reading")) && <p className="text-[11px] text-muted-foreground mt-2">Up to {MAX_FILES} at a time. Files aren't kept: Guía saves only what it reads (names, dates, balances, last 4 digits, company addresses), never your SSN or full account numbers.</p>}
       </div>
 
+      {stale.length > 0 && !locked && (
+        <div className="bg-card border border-border rounded-2xl px-3.5 py-2.5 flex items-center gap-3">
+          <span className="w-8 h-8 rounded-full bg-[#F0E6D6] flex items-center justify-center shrink-0"><RefreshCw className="w-4 h-4 text-[#8B6B3E]" /></span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-foreground">Time for a new {stale.map((x) => x.bureau).join(" and ")} report</p>
+            <p className="text-[11px] text-muted-foreground">Your last one is from {niceDate(stale[0].date)}. Disputes are usually done by now. Free every week at AnnualCreditReport.com.</p>
+          </div>
+          <button onClick={() => fileRef.current?.click()} className="shrink-0 bg-foreground text-background rounded-full px-3 py-1.5 text-xs font-medium">Upload</button>
+        </div>
+      )}
+
+      {freshDiffs.map((d) => (
+        <div key={d.key} className="bg-card border border-border rounded-2xl p-4">
+          <div className="flex items-baseline gap-2">
+            <p className="font-heading text-lg text-foreground flex-1">What changed</p>
+            <span className="text-[11px] text-muted-foreground">{d.bureau} · {niceDate(d.from).replace(/, \d{4}$/, "")} → {niceDate(d.to)}</span>
+          </div>
+          {d.score && (
+            <div className="flex items-center gap-2.5 mt-2 rounded-xl bg-secondary/60 px-3 py-2">
+              <span className="font-heading text-xl text-foreground">{d.score.from}</span><ArrowRight className="w-4 h-4 text-muted-foreground" /><span className="font-heading text-xl text-foreground">{d.score.to}</span>
+              {d.score.delta !== 0 && <span className={`text-[11px] rounded-full px-2 py-0.5 ${d.score.delta > 0 ? "bg-[#E9EDDD] text-[#566033]" : "bg-[#F3E6E8] text-[#8F5F65]"}`}>{d.score.delta > 0 ? "+" : ""}{d.score.delta}</span>}
+              <span className="ml-auto text-[11px] text-muted-foreground">Score</span>
+            </div>
+          )}
+          {[
+            ["Removed", d.removed, "text-[#566033]", <Check key="i" className="w-3 h-3" />, "bg-[#7D8A53] text-white"],
+            ["Improved", d.improved, "text-[#566033]", <TrendingDown key="i" className="w-3 h-3" />, "bg-[#E9EDDD] text-[#566033]"],
+            ["Still there", d.still, "text-[#8B6B3E]", <Clock key="i" className="w-3 h-3" />, "bg-[#F0E6D6] text-[#8B6B3E]"],
+            ["New", d.added, "text-[#8F5F65]", <AlertCircle key="i" className="w-3 h-3" />, "bg-[#F3E6E8] text-[#8F5F65]"],
+          ].filter(([, list]) => list.length).map(([label, list, tone, icon, dot]) => (
+            <div key={label}>
+              <p className={`text-[10.5px] font-bold uppercase tracking-[0.14em] mt-3 mb-1 ${tone}`}>{label} · {list.length}</p>
+              {list.map((x, i) => (
+                <div key={i} className="flex items-start gap-2 py-1.5 border-b border-border/60 last:border-0">
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${dot}`}>{icon}</span>
+                  <span className="flex-1 min-w-0 text-[13px] text-foreground">{x.text}
+                    {label === "Still there" && <span className="block text-[11px] text-muted-foreground">You disputed this. Open it for the next step, like asking how they verified it.</span>}
+                    {label === "New" && <span className="block text-[11px] text-muted-foreground">{x.check ? "Did you apply? If not, it may not be yours." : "Not on your last report. Check that it's yours and accurate."}</span>}
+                  </span>
+                  {x.letter && <span className="text-[10px] text-[#566033] shrink-0 mt-0.5">your letter worked</span>}
+                </div>
+              ))}
+            </div>
+          ))}
+          {!d.removed.length && !d.improved.length && !d.still.length && !d.added.length && <p className="text-sm text-muted-foreground mt-2">No changes to your accounts since the last {d.bureau} report.</p>}
+          <div className="flex items-center gap-3 mt-3">
+            <p className="text-[11px] text-muted-foreground flex-1">Compared with your {niceDate(d.from)} {d.bureau} report.{BUREAUS.filter((b) => b !== d.bureau).length ? ` Other bureaus aren't part of this comparison.` : ""}</p>
+            <button onClick={() => saveCase({ changesSeen: { ...((caseRec && caseRec.changesSeen) || {}), [d.key]: todayStr() } })} className="text-xs text-[#8B6B3E] shrink-0">Got it</button>
+          </div>
+        </div>
+      ))}
+
       {ov && (
         <div className="bg-card border border-border rounded-2xl p-4 lg:flex lg:gap-5">
           <div className="lg:flex-1 min-w-0">
@@ -673,10 +742,17 @@ export default function CreditAssistant({ scoreItems = [] }) {
             <div>
               <div className="flex items-baseline">
                 <p className="font-heading text-lg text-foreground flex-1">{ov.upkeep ? "Keep it steady" : "Your plan"}</p>
-                {!ov.upkeep && <span className="text-[11px] text-muted-foreground">{planDoneCount} of {ov.plan.length} done</span>}
+                {!ov.upkeep && <span className="text-[11px] text-muted-foreground">{planDoneCount} of {planTotal} done</span>}
               </div>
-              {!ov.upkeep && <div className="h-1.5 rounded-full bg-secondary mt-2 mb-1 overflow-hidden"><div className="h-full rounded-full bg-[#A7773F] transition-all" style={{ width: `${Math.max(4, Math.round((planDoneCount / ov.plan.length) * 100))}%` }} /></div>}
+              {!ov.upkeep && <div className="h-1.5 rounded-full bg-secondary mt-2 mb-1 overflow-hidden"><div className="h-full rounded-full bg-[#A7773F] transition-all" style={{ width: `${Math.max(4, Math.round((planDoneCount / Math.max(1, planTotal)) * 100))}%` }} /></div>}
               {ov.upkeep && <p className="text-xs text-muted-foreground mb-1">Nothing on your reports needs fixing right now. Keep doing this:</p>}
+              {!ov.upkeep && goneSteps.map((g) => (
+                <div key={`gone-${g.filter}`} className="w-full flex gap-2.5 py-2 border-t border-border/70 first:border-0 items-center">
+                  <span className="w-[22px] h-[22px] rounded-full bg-[#7D8A53] text-white flex items-center justify-center shrink-0"><Check className="w-3 h-3" /></span>
+                  <span className="flex-1 text-sm text-muted-foreground line-through">{g.title.replace(/ · \$[\d,]+\+?$/, "")}</span>
+                  {g.doneOn && <span className="text-[10.5px] text-muted-foreground">done {niceDate(g.doneOn).replace(/, \d{4}$/, "")}</span>}
+                </div>
+              ))}
               {ov.plan.map((p) => (
                 <div key={p.n} role="button" tabIndex={0} onClick={() => openStep(p)} onKeyDown={(e) => { if (e.key === "Enter") openStep(p); }} className={`w-full flex gap-2.5 text-left py-2.5 border-t border-border/70 first:border-0 ${p.upkeep ? "cursor-default" : "cursor-pointer"}`}>
                   <span className={`w-[22px] h-[22px] rounded-full text-[11px] flex items-center justify-center shrink-0 mt-0.5 ${isPlanDone(p) ? "bg-[#7D8A53] text-white" : p.n === 1 && !p.upkeep ? "bg-[#8B6B3E] text-white" : "bg-[#F0E6D6] text-[#8B6B3E]"}`}>{isPlanDone(p) ? <Check className="w-3 h-3" /> : p.n}</span>
