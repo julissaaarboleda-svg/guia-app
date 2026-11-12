@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { ChevronDown, ChevronRight, Upload, X, Copy, Mail, Check, FileText, Trash2, ExternalLink, ShieldAlert, Loader2 } from "lucide-react";
 import { base44, getAiUsage } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { analyze, stepsFor, letterFor, LETTER_TITLE, timeline, progress, DOC_LABEL, niceDate, OUTCOMES, WIN, isOverdue, sentDue, noReplySteps, replySteps, followUpLetter, deadlineNudges, mergeParts, overview, money } from "@/lib/credit";
+import { analyze, stepsFor, letterFor, LETTER_TITLE, progress, DOC_LABEL, niceDate, OUTCOMES, WIN, isOverdue, sentDue, noReplySteps, replySteps, followUpLetter, deadlineNudges, mergeParts, overview, money, BUREAU_LETTERS, BUREAUS, BUREAU_SHORT, bureauAddress, bureauKey } from "@/lib/credit";
 
 const MAX_FILES = 10;
 const PAGES_PER_PART = 1;
@@ -54,7 +54,7 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 const plus30 = () => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10); };
 const FOLLOW_TYPES = new Set(["followup", "unverified", "mov"]);
 
-function StepRow({ s, i, done, onToggle, onLetter, onTodo }) {
+function StepRow({ s, i, done, onToggle, onLetter, onTodo, bureaus = [], missing = [], sentTo = [] }) {
   return (
     <div className="flex gap-2.5">
       <button onClick={onToggle} aria-label="Done"
@@ -65,7 +65,16 @@ function StepRow({ s, i, done, onToggle, onLetter, onTodo }) {
         <p className={`text-sm text-foreground ${done ? "line-through opacity-60" : ""}`}>{s.title}</p>
         <p className="text-xs text-muted-foreground mt-0.5">{s.body}</p>
         <div className="flex flex-wrap gap-3 mt-1">
-          {s.letter && <button onClick={() => onLetter(s.letter)} className="text-xs text-[#8B6B3E] font-medium">Draft letter</button>}
+          {s.letter && BUREAU_LETTERS.has(s.letter) && bureaus.length > 0 ? (
+            <>
+              {bureaus.map((b) => (
+                <button key={b} onClick={() => onLetter(s.letter, b)} className="text-xs font-medium text-[#8B6B3E] border border-border rounded-full px-2.5 py-0.5 inline-flex items-center gap-1">
+                  {sentTo.includes(b) && <Check className="w-3 h-3 text-[#566033]" />}{b} letter
+                </button>
+              ))}
+              {missing.map((b) => <span key={b} className="text-[11px] text-muted-foreground border border-dashed border-border rounded-full px-2.5 py-0.5">{b} · upload its report to check</span>)}
+            </>
+          ) : s.letter ? <button onClick={() => onLetter(s.letter)} className="text-xs text-[#8B6B3E] font-medium">Draft letter</button> : null}
           {s.link && <a href={s.link} target="_blank" rel="noreferrer" className="text-xs text-[#8B6B3E] font-medium inline-flex items-center gap-1">Open <ExternalLink className="w-3 h-3" /></a>}
           {onTodo && <button onClick={onTodo} className="text-xs text-muted-foreground">Add to-do</button>}
         </div>
@@ -81,7 +90,6 @@ const KIND_TONE = {
   late: "bg-[#F0E6D6] text-[#8B6B3E]",
   utilization: "bg-[#E9EDDD] text-[#566033]",
 };
-const DOT = { bad: "#A77C81", warn: "#A7773F", good: "#7D8A53", info: "#B8AFA4" };
 
 function Section({ id, title, count, children, defaultOpen = true }) {
   const key = `guia-credit-shut-${id}`;
@@ -102,47 +110,62 @@ function Note() {
   return <p className="text-[11px] text-muted-foreground leading-snug">Information, not legal or financial advice. Guía drafts letters; you review and send them. Only dispute what you believe is wrong.</p>;
 }
 
-function ScoreChart({ scores }) {
-  if (scores.length < 2) return scores.length ? <p className="text-sm text-foreground">Latest score <span className="font-heading text-lg">{scores[0].score}</span> · {niceDate(scores[0].date)}</p> : <p className="text-sm text-muted-foreground">Upload a report or add a score to start your chart.</p>;
-  const w = 300, h = 90, pad = 8;
-  const vals = scores.map((s) => s.score);
-  const lo = Math.min(...vals) - 10, hi = Math.max(...vals) + 10;
-  const t0 = new Date(scores[0].date).getTime(), t1 = new Date(scores[scores.length - 1].date).getTime() || t0 + 1;
-  const x = (d) => pad + ((new Date(d).getTime() - t0) / Math.max(1, t1 - t0)) * (w - pad * 2);
-  const y = (v) => h - pad - ((v - lo) / Math.max(1, hi - lo)) * (h - pad * 2);
-  const pts = scores.map((s) => `${x(s.date)},${y(s.score)}`).join(" ");
-  const first = scores[0], last = scores[scores.length - 1];
-  const diff = last.score - first.score;
-  return (
-    <div>
-      <div className="flex items-baseline gap-2 mb-1">
-        <span className="font-heading text-2xl text-foreground">{last.score}</span>
-        {diff !== 0 && <span className={`text-xs font-medium ${diff > 0 ? "text-[#566033]" : "text-[#8F5F65]"}`}>{diff > 0 ? "▲" : "▼"} {Math.abs(diff)} since {niceDate(first.date)}</span>}
-      </div>
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-24">
-        <polyline points={pts} fill="none" stroke="#A7773F" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-        {scores.map((s, i) => <circle key={i} cx={x(s.date)} cy={y(s.score)} r="3" fill="#fff" stroke="#A7773F" strokeWidth="1.5" />)}
-      </svg>
-    </div>
-  );
+
+// Your name and return address for letters. Kept on this device only, never sent to Guía's server.
+const SENDER_KEY = "guia-letter-sender";
+function useSender() {
+  const [sender, setSender] = useState(() => { try { return JSON.parse(localStorage.getItem(SENDER_KEY)) || {}; } catch { return {}; } });
+  const save = (v) => { setSender(v); try { localStorage.setItem(SENDER_KEY, JSON.stringify(v)); } catch { /* ignore */ } };
+  return [sender, save];
 }
 
 function LetterSheet({ letter, onClose, onSent }) {
-  const [text, setText] = useState(letter.text);
+  const [sender, setSender] = useSender();
+  const [editingFrom, setEditingFrom] = useState(!sender.name);
+  const [draft, setDraft] = useState({ name: sender.name || "", address: sender.address || "" });
+  const [edited, setEdited] = useState(false);
+  const [text, setText] = useState(() => letter.build(sender));
   const [to, setTo] = useState(letter.to || "");
   const [copied, setCopied] = useState(false);
+  const saveFrom = () => {
+    const v = { name: draft.name.trim(), address: draft.address.trim() };
+    setSender(v); setEditingFrom(false);
+    if (!edited) setText(letter.build(v));
+  };
   const copy = async () => { try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* ignore */ } };
   const mail = `mailto:?subject=${encodeURIComponent(letter.title)}&body=${encodeURIComponent(text)}`;
+  const missingTo = /\[Mailing address|\[Bureau dispute address/.test(text);
+  const inputCls = "w-full bg-secondary border border-input rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:border-ring";
   return createPortal(
     <div className="fixed inset-0 z-[80] bg-black/40 flex items-end sm:items-center justify-center" onClick={onClose}>
       <div className="bg-background w-full sm:max-w-2xl rounded-t-3xl sm:rounded-3xl max-h-[92vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 pt-4 pb-2">
-          <h3 className="font-heading text-lg text-foreground">{letter.title}</h3>
+          <h3 className="font-heading text-lg text-foreground">{letter.title}{letter.bureau ? ` · ${letter.bureau}` : ""}</h3>
           <button onClick={onClose} aria-label="Close" className="p-1 text-muted-foreground"><X className="w-5 h-5" /></button>
         </div>
         <div className="px-5 overflow-y-auto flex-1 space-y-3 pb-3">
+          <div className="rounded-xl bg-card border border-border p-3">
+            {editingFrom ? (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-foreground">Your name and return address</p>
+                <input value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} placeholder="Full name" className={inputCls} />
+                <input value={draft.address} onChange={(e) => setDraft((d) => ({ ...d, address: e.target.value }))} placeholder="Street, city, state, ZIP" className={inputCls} />
+                <div className="flex items-center gap-3">
+                  <button onClick={saveFrom} className="bg-foreground text-background rounded-lg px-3 py-1.5 text-xs font-medium">Use in my letters</button>
+                  <span className="text-[11px] text-muted-foreground">Saved on this device only.</span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-muted-foreground flex-1 min-w-0 truncate">From: <span className="text-foreground">{sender.name}</span>{sender.address ? ` · ${sender.address}` : ""}</p>
+                <button onClick={() => setEditingFrom(true)} className="text-xs text-[#8B6B3E] shrink-0">Edit</button>
+              </div>
+            )}
+          </div>
+          {letter.addrSource === "standard" && <p className="text-[11px] rounded-lg bg-[#F0E6D6] text-[#6E5430] px-3 py-2">Uses {letter.bureau}'s standard dispute address. These change now and then, so confirm it on {letter.bureau}'s website before mailing.</p>}
+          {missingTo && <p className="text-[11px] rounded-lg bg-[#F3E6E8] text-[#6E4A4F] px-3 py-2">Their mailing address wasn't in your documents. Copy it from their letter or your report, or use Re-read in Your credit file.</p>}
           <p className="text-xs text-muted-foreground">Fill in anything in [brackets], read it over, then send it yourself. Certified mail with return receipt gives you proof it arrived.</p>
-          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={16}
+          <textarea value={text} onChange={(e) => { setText(e.target.value); setEdited(true); }} rows={16}
             className="w-full sm:min-h-[460px] bg-card border border-input rounded-xl p-3 text-[13px] leading-relaxed font-body text-foreground outline-none focus:border-ring" />
           <div className="flex gap-2">
             <button onClick={copy} className="flex-1 flex items-center justify-center gap-1.5 border border-border rounded-xl py-2.5 text-sm text-foreground">{copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}{copied ? "Copied" : "Copy"}</button>
@@ -150,8 +173,7 @@ function LetterSheet({ letter, onClose, onSent }) {
           </div>
           <div className="border-t border-border pt-3">
             <label className="block text-xs font-medium text-foreground mb-1">Sent to</label>
-            <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="e.g., Midland Credit, Experian"
-              className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:border-ring" />
+            <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="e.g., Midland Credit, Experian" className={inputCls} />
             <button onClick={() => onSent(to || letter.to || "")} className="mt-2 w-full bg-foreground text-background rounded-xl py-2.5 text-sm font-medium">Mark as sent · remind me in 30 days</button>
           </div>
           <Note />
@@ -171,7 +193,10 @@ export default function CreditAssistant({ scoreItems = [] }) {
   const [filter, setFilter] = useState("all");
   const [showAll, setShowAll] = useState(false);
   const [showUploads, setShowUploads] = useState(false);
-  const [timelineAll, setTimelineAll] = useState(false);
+  const [comingAll, setComingAll] = useState(false);
+  const [rereadId, setRereadId] = useState(null);
+  const [rereading, setRereading] = useState(null);
+  const rereadRef = useRef(null);
   const [letter, setLetter] = useState(null);
   const [toast, setToast] = useState("");
   const [usage, setUsage] = useState(null);
@@ -205,6 +230,46 @@ export default function CreditAssistant({ scoreItems = [] }) {
     return saveCase({ decisions });
   };
 
+  // Reads one file, page by page for long PDFs, and returns the merged document.
+  const readFile = async (file, onNote) => {
+    const pieces = await splitPdf(file);
+    let done = 0, lastErr = "";
+    onNote(pieces.length > 1 ? `Reading ${pieces.length} parts…` : "Reading…");
+    const parts = await pool(pieces.map((piece, k) => async () => {
+      try {
+        const res = await base44.integrations.Core.ImportFinanceFile({ file: piece, mode: "credit", part: k, parts: pieces.length });
+        return (res && res.doc) || null; // a 5xx (e.g. a slow page) is already retried once by the client
+      } catch (err) {
+        lastErr = String((err && err.message) || "");
+        if (/Plus/.test(lastErr)) setBlocked(true);
+        return null;
+      } finally {
+        done += 1;
+        if (pieces.length > 1) onNote(`Read ${done} of ${pieces.length} parts`);
+      }
+    }), PARALLEL);
+    return { doc: mergeParts(parts), missed: parts.filter((x) => !x).length, pieces, lastErr };
+  };
+
+  // Re-read one document (the person picks the file again) and replace what was saved.
+  const onReread = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    const id = rereadId;
+    if (!file || !id) return;
+    setRereading(id);
+    try {
+      const hash = await fileHash(file);
+      const { doc, missed, pieces, lastErr } = await readFile(file, () => {});
+      if (!doc) { flash(lastErr || "Couldn't read that file."); return; }
+      const patch = { ...doc, filename: file.name, file_hash: hash || null, pages: pieces.length };
+      await ent.CreditDoc.update(id, patch);
+      setDocs((d) => d.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+      flash(missed ? `Re-read, but ${missed} of ${pieces.length} parts were skipped.` : "Re-read. Letters now use the new details.");
+    } catch { flash("Couldn't re-read that file."); }
+    finally { setRereading(null); setRereadId(null); }
+  };
+
   const onFiles = async (e) => {
     const picked = [...(e.target.files || [])].slice(0, MAX_FILES);
     e.target.value = "";
@@ -220,27 +285,7 @@ export default function CreditAssistant({ scoreItems = [] }) {
       const hash = await fileHash(file);
       if (hash && known.has(hash)) { update(i, { status: "done", note: "Already in your credit file · skipped, no AI used" }); continue; }
       if (hash) known.add(hash);
-      const pieces = await splitPdf(file);
-      let done = 0, lastErr = "";
-      update(i, { note: pieces.length > 1 ? `Reading ${pieces.length} parts…` : "Reading…" });
-      const parts = await pool(pieces.map((piece, k) => async () => {
-        const read = async () => {
-          const res = await base44.integrations.Core.ImportFinanceFile({ file: piece, mode: "credit", part: k, parts: pieces.length });
-          return (res && res.doc) || null;
-        };
-        try {
-          return await read(); // a 5xx (e.g. a slow page) is already retried once by the client
-        } catch (err) {
-          lastErr = String((err && err.message) || "");
-          if (/Plus/.test(lastErr)) setBlocked(true);
-          return null;
-        } finally {
-          done += 1;
-          if (pieces.length > 1) update(i, { note: `Read ${done} of ${pieces.length} parts` });
-        }
-      }), PARALLEL);
-      const doc = mergeParts(parts);
-      const missed = parts.filter((x) => !x).length;
+      const { doc, missed, pieces, lastErr } = await readFile(file, (note) => update(i, { note }));
       const lockedTip = "This PDF is locked. Open it, choose Print → Save as PDF, and upload the new copy.";
       if (!doc) { failed += 1; update(i, { status: "failed", note: pieces.locked ? lockedTip : lastErr || "Couldn't read this file." }); continue; }
       try {
@@ -289,8 +334,14 @@ export default function CreditAssistant({ scoreItems = [] }) {
 
   const extraScores = useMemo(() => scoreItems.flatMap((it) => (Array.isArray(it.score_history) && it.score_history.length ? it.score_history : it.score ? [{ score: it.score, date: (it.score_updated || it.created_date || todayStr()).slice(0, 10) }] : []).map((h) => ({ ...h, bureau: it.bureau || it.name }))), [scoreItems]);
   const caseForCalc = useMemo(() => ({ ...(caseRec || {}), scores: [...((caseRec && caseRec.scores) || []), ...extraScores] }), [caseRec, extraScores]);
-  const { items, breach } = useMemo(() => analyze(docs, caseRec || {}), [docs, caseRec]);
-  const events = useMemo(() => timeline(docs, caseRec || {}), [docs, caseRec]);
+  const { items, breach, reportBureaus } = useMemo(() => analyze(docs, caseRec || {}), [docs, caseRec]);
+  // Which bureaus a letter should go to for an item, and which bureaus we can't check yet.
+  const bureausFor = (item, type) => {
+    if (type === "block") return reportBureaus.length ? reportBureaus : BUREAUS;
+    if (item.kind === "mismatch" && item.account) return item.account.bureaus.length ? item.account.bureaus : [item.badReport?.bureau].filter(Boolean);
+    return (item.account && item.account.bureaus) || [];
+  };
+  const missingBureaus = BUREAUS.filter((b) => !reportBureaus.includes(b));
   const prog = useMemo(() => progress(docs, caseForCalc), [docs, caseForCalc]);
   const notMine = items.filter((i) => i.kind === "breach" && i.owner === "not_mine");
   const ov = useMemo(() => (docs.length ? overview(docs, caseForCalc) : null), [docs, caseForCalc]);
@@ -310,12 +361,15 @@ export default function CreditAssistant({ scoreItems = [] }) {
     setTimeout(() => { const el = document.getElementById(`ci-${key}`); if (el) el.scrollIntoView({ behavior: "smooth", block: "center" }); }, 50);
   };
 
-  const openLetter = (type, item, sent) => {
+  const openLetter = (type, item, sent, bureau) => {
     const a = item.account || {};
-    const toBureau = type === "dispute" || type === "block" || type === "unverified" || type === "mov";
-    const to = type === "followup" && sent ? sent.to : toBureau ? ((a.bureaus && a.bureaus[0]) || "") : (a.creditor || item.inquiry?.creditor || "");
-    const text = FOLLOW_TYPES.has(type) ? followUpLetter(type, item, sent) : letterFor(type, item, { items: type === "block" ? notMine : undefined });
-    setLetter({ type, item, to, title: LETTER_TITLE[type], text });
+    const bureauBound = BUREAU_LETTERS.has(type);
+    const bk = bureauBound ? (bureau || bureausFor(item, type)[0] || "") : "";
+    const to = type === "followup" && sent ? sent.to : bureauBound ? bk : (a.creditor || item.inquiry?.creditor || "");
+    const ctx = { docs, bureau: bk || undefined, items: type === "block" ? notMine : undefined };
+    const build = (sender) => (FOLLOW_TYPES.has(type) ? followUpLetter(type, item, sent, { ...ctx, sender }) : letterFor(type, item, { ...ctx, sender }));
+    const ad = bk ? bureauAddress(bk, docs) : null;
+    setLetter({ type, item, to, bureau: bk || "", addrSource: ad ? ad.source : "", title: LETTER_TITLE[type], build });
   };
 
   const logReply = async (item, idx, outcome) => {
@@ -372,9 +426,52 @@ export default function CreditAssistant({ scoreItems = [] }) {
   return (
     <div className="mb-4 grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
       <div className="lg:col-span-7 space-y-3 min-w-0">
+      {/* Credit assistant: slim bar with upload */}
+      <div className="bg-card border border-border rounded-2xl px-3.5 py-2.5">
+        <input ref={fileRef} type="file" multiple accept="application/pdf,.pdf,image/*,image/heic,image/heif,.heic,.heif" className="hidden" onChange={onFiles} />
+        <input ref={rereadRef} type="file" accept="application/pdf,.pdf,image/*,image/heic,image/heif,.heic,.heif" className="hidden" onChange={onReread} />
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-[#F0E6D6] flex items-center justify-center shrink-0"><FileText className="w-4 h-4 text-[#8B6B3E]" /></div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-foreground">Credit assistant {usage && <span className="ml-1 text-[10px] font-normal px-1.5 py-0.5 rounded-full bg-[#F0E6D6] text-[#8B6B3E]">{usage.plan === "trial" ? "Plus · trial" : "Plus"}</span>}</p>
+            <p className="text-[11px] text-muted-foreground truncate">{docs.length ? `${docs.length - copies.length} ${docs.length - copies.length === 1 ? "document" : "documents"} · reports, letters, breach notices` : "Upload credit reports, collection letters, breach notices or dispute results"}</p>
+          </div>
+          {!locked && (
+            <button onClick={() => fileRef.current?.click()} disabled={busy.some((b) => b.status === "reading")}
+              className="shrink-0 flex items-center gap-1.5 bg-foreground text-background rounded-full px-3.5 py-1.5 text-xs font-medium disabled:opacity-60">
+              {busy.some((b) => b.status === "reading") ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />} Upload
+            </button>
+          )}
+        </div>
+        {locked && <p className="mt-2 text-xs rounded-lg bg-[#F3E8D6] text-[#6E5430] px-3 py-2">Part of Guía Plus. Upgrade to upload new documents; everything you've added stays, and you can still draft and track letters.</p>}
+        {busy.length > 0 && !busy.some((b) => b.status === "reading") && !showUploads && (
+          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+            <Check className="w-3.5 h-3.5 text-[#566033]" />
+            <span className="flex-1">{busy.filter((b) => b.status === "done").length} of {busy.length} files read{busy.some((b) => b.status === "failed" || b.note) ? " · some notes" : ""}</span>
+            <button onClick={() => setShowUploads(true)} className="text-[#8B6B3E]">Details</button>
+            <button onClick={() => setBusy([])}>Dismiss</button>
+          </div>
+        )}
+        {busy.length > 0 && (busy.some((b) => b.status === "reading") || showUploads) && (
+          <div className="mt-2 space-y-1.5">
+            {!busy.some((b) => b.status === "reading") && <button onClick={() => setShowUploads(false)} className="float-right text-[11px] text-muted-foreground">Hide</button>}
+            {busy.map((b, i) => (
+              <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
+                {b.status === "reading" ? <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" /> : b.status === "done" ? <Check className="w-3.5 h-3.5 text-[#566033]" /> : <X className="w-3.5 h-3.5 text-[#8F5F65]" />}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-foreground">{b.name}{b.type ? ` · ${DOC_LABEL[b.type] || ""}` : ""}</span>
+                  {b.note && <span className={`block ${b.status === "failed" ? "text-[#8F5F65]" : ""}`}>{b.note}</span>}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        {(!docs.length || busy.some((b) => b.status === "reading")) && <p className="text-[11px] text-muted-foreground mt-2">Up to {MAX_FILES} at a time. Files aren't kept: Guía saves only what it reads (names, dates, balances, last 4 digits, company addresses), never your SSN or full account numbers.</p>}
+      </div>
+
       {ov && (
         <div className="bg-card border border-border rounded-2xl p-4">
-          <p className="font-heading text-lg text-foreground">Your credit at a glance</p>
+          <p className="font-heading text-lg text-foreground">At a glance</p>
           <p className="text-xs text-muted-foreground mb-3">
             From {docs.length - copies.length} {docs.length - copies.length === 1 ? "document" : "documents"}{ov.bureaus.length ? ` · ${ov.bureaus.join(", ")}` : ""}{ov.latestReport?.doc_date ? ` · latest ${niceDate(ov.latestReport.doc_date)}` : ""}
             {copies.length > 0 && <> · <button onClick={removeCopies} className="text-[#8F5F65] font-medium">Remove {copies.length} {copies.length === 1 ? "copy" : "copies"}</button></>}
@@ -412,55 +509,6 @@ export default function CreditAssistant({ scoreItems = [] }) {
           {ov.nextFalloff && <p className="text-xs text-muted-foreground mt-3">Next fall-off: {ov.nextFalloff.text.replace(/ falls off$/, "")} · ~{niceDate(ov.nextFalloff.date)}</p>}
         </div>
       )}
-      {/* Intro + upload */}
-      <div className="bg-card border border-border rounded-2xl p-4">
-        <div className="flex items-start gap-3">
-          <div className="w-9 h-9 rounded-full bg-[#F0E6D6] flex items-center justify-center shrink-0"><FileText className="w-4 h-4 text-[#8B6B3E]" /></div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="font-heading text-base text-foreground">Credit assistant</p>
-              {usage && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#F0E6D6] text-[#8B6B3E]">{usage.plan === "trial" ? "Plus · in your trial" : "Plus"}</span>}
-            </div>
-            <p className="text-sm text-muted-foreground mt-0.5">Upload credit reports, collection letters, breach notices or dispute results. Guía reads them together and suggests next steps.</p>
-          </div>
-        </div>
-        <input ref={fileRef} type="file" multiple accept="application/pdf,.pdf,image/*,image/heic,image/heif,.heic,.heif" className="hidden" onChange={onFiles} />
-        {locked ? (
-          <div className="mt-3 rounded-xl bg-[#F3E8D6] p-3">
-            <p className="text-sm font-medium text-foreground">Part of Guía Plus</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Upgrade to upload new documents. Everything you've already added stays here, and you can still draft and track letters.</p>
-          </div>
-        ) : (
-        <button onClick={() => fileRef.current?.click()} disabled={busy.some((b) => b.status === "reading")}
-          className="mt-3 w-full flex items-center justify-center gap-2 border border-dashed border-[#A7773F]/60 rounded-xl py-3 text-sm text-[#8B6B3E] disabled:opacity-60">
-          <Upload className="w-4 h-4" /> Upload documents <span className="text-muted-foreground">· up to {MAX_FILES}</span>
-        </button>
-        )}
-        {busy.length > 0 && !busy.some((b) => b.status === "reading") && !showUploads && (
-          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-            <Check className="w-3.5 h-3.5 text-[#566033]" />
-            <span className="flex-1">{busy.filter((b) => b.status === "done").length} of {busy.length} files read{busy.some((b) => b.status === "failed" || b.note) ? " · some notes" : ""}</span>
-            <button onClick={() => setShowUploads(true)} className="text-[#8B6B3E]">Details</button>
-            <button onClick={() => setBusy([])}>Dismiss</button>
-          </div>
-        )}
-        {busy.length > 0 && (busy.some((b) => b.status === "reading") || showUploads) && (
-          <div className="mt-2 space-y-1.5">
-            {!busy.some((b) => b.status === "reading") && <button onClick={() => setShowUploads(false)} className="float-right text-[11px] text-muted-foreground">Hide</button>}
-            {busy.map((b, i) => (
-              <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
-                {b.status === "reading" ? <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" /> : b.status === "done" ? <Check className="w-3.5 h-3.5 text-[#566033]" /> : <X className="w-3.5 h-3.5 text-[#8F5F65]" />}
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-foreground">{b.name}{b.type ? ` · ${DOC_LABEL[b.type] || ""}` : ""}</span>
-                  {b.note && <span className={`block ${b.status === "failed" ? "text-[#8F5F65]" : ""}`}>{b.note}</span>}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-        <p className="text-[11px] text-muted-foreground mt-2">Files aren't kept. Guía saves only what it reads (names, dates, balances, last 4 digits), never your SSN or full account numbers.</p>
-      </div>
-
       {docs.length > 0 && (
         <Section id="items" title="What's affecting your credit" count={items.length}>
           {breach && (
@@ -496,11 +544,32 @@ export default function CreditAssistant({ scoreItems = [] }) {
                     <div className="flex items-center gap-2">
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${KIND_TONE[item.kind]}`}>{item.label}</span>
                       <span className="text-sm text-foreground truncate flex-1 min-w-0">{item.title}</span>
+                      {item.account && item.account.bureaus.length > 0 && <span className="text-[10px] text-muted-foreground shrink-0 hidden sm:inline">{item.account.bureaus.map((b) => BUREAU_SHORT[b] || b).join(" · ")}</span>}
                       {(dec.sent || []).length > 0 && <span className="text-[10px] text-[#566033] shrink-0">Sent</span>}
                       {item.deadline && item.deadline >= todayStr() && <span className="text-[10px] text-[#8F5F65] shrink-0">by {niceDate(item.deadline)}</span>}
                       {open ? <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
                     </div>
                     {open && <p className="text-xs text-muted-foreground mt-1.5">{item.detail}</p>}
+                    {open && item.account && (() => {
+                      const a = item.account;
+                      const facts = [
+                        a.bureaus.length ? `On ${a.bureaus.join(", ")}` : "",
+                        a.opened ? `opened ${niceDate(a.opened)}` : "",
+                        a.first_delinquency ? `first late ${niceDate(a.first_delinquency)}` : "",
+                        a.last_payment ? `last paid ${niceDate(a.last_payment)}` : "",
+                      ].filter(Boolean);
+                      return (
+                        <div className="mt-2">
+                          {facts.length > 0 && <p className="text-[11px] text-muted-foreground">{facts.join(" · ")}</p>}
+                          {a.late && a.late.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {a.late.slice(-12).map((l) => <span key={l.date} className="text-[10px] rounded-full bg-[#F0E6D6] text-[#8B6B3E] px-1.5 py-0.5">{niceDate(l.date)}{l.days ? ` · ${l.days}d` : ""}</span>)}
+                              {a.late.length > 12 && <span className="text-[10px] text-muted-foreground px-1 py-0.5">+{a.late.length - 12} earlier</span>}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </button>
 
                   {open && (
@@ -529,7 +598,9 @@ export default function CreditAssistant({ scoreItems = [] }) {
                       {item.kind === "collection" && item.old && <p className="text-xs rounded-lg bg-[#F0E6D6] text-[#6E5430] p-2">This may be an older debt. In many states, a payment or written promise to pay can restart the time limit to sue. Check your state's rules before paying.</p>}
                       {steps.map((st, i) => (
                         <StepRow key={st.id} s={st} i={i} done={!!dec.done?.[st.id]} onToggle={() => toggleStep(item, st.id)}
-                          onLetter={(t) => openLetter(t, item)} onTodo={() => addTodo(st, item)} />
+                          onLetter={(t, b) => openLetter(t, item, undefined, b)} onTodo={() => addTodo(st, item)}
+                          bureaus={st.letter ? bureausFor(item, st.letter) : []} missing={st.letter === "block" ? [] : missingBureaus}
+                          sentTo={(dec.sent || []).filter((x) => x.type === st.letter).map((x) => bureauKey(x.to || "")).filter(Boolean)} />
                       ))}
                       {(dec.sent || []).length > 0 && (
                         <div className="border-t border-border pt-2 mt-1 space-y-3">
@@ -563,7 +634,8 @@ export default function CreditAssistant({ scoreItems = [] }) {
                                     <p className="text-[11px] font-medium text-foreground">{sn.reply ? "Next steps" : "No reply after 30 days. Next steps:"}</p>
                                     {follow.map((st, i) => (
                                       <StepRow key={st.id} s={st} i={i} done={!!dec.done?.[`${idx}-${st.id}`]} onToggle={() => toggleStep(item, `${idx}-${st.id}`)}
-                                        onLetter={(t) => openLetter(t, item, sn)} />
+                                        onLetter={(t, b) => openLetter(t, item, sn, b || (bureauKey(sn.to || "") || undefined))}
+                                        bureaus={st.letter && BUREAU_LETTERS.has(st.letter) ? (bureauKey(sn.to || "") ? [bureauKey(sn.to)] : bureausFor(item, st.letter)) : []} />
                                     ))}
                                   </div>
                                 )}
@@ -593,13 +665,71 @@ export default function CreditAssistant({ scoreItems = [] }) {
 
       <div className="lg:col-span-5 space-y-3 min-w-0">
       {docs.length > 0 && (
-        <Section id="files" title="Your credit file" count={docs.length} defaultOpen={copies.length > 0}>
+        <div className="bg-card border border-border rounded-2xl p-4">
+          <p className="font-heading text-lg text-foreground">Your journey</p>
+          {(() => {
+            const sc = prog.scores;
+            const last = sc[sc.length - 1];
+            const w = 140, h = 40;
+            const pts = sc.length > 1 ? (() => {
+              const vals = sc.map((x) => x.score); const lo = Math.min(...vals) - 5, hi = Math.max(...vals) + 5;
+              return sc.map((x, i) => `${4 + (i / (sc.length - 1)) * (w - 8)},${h - 4 - ((x.score - lo) / Math.max(1, hi - lo)) * (h - 8)}`).join(" ");
+            })() : "";
+            return (
+              <div className="flex items-end justify-between mt-1.5">
+                <div>
+                  <p className="font-heading text-2xl text-foreground leading-none">{last ? last.score : "—"}</p>
+                  <p className="text-[11px] text-muted-foreground mt-1">{last ? `${last.bureau || "Score"} · ${niceDate(last.date)}` : "No score yet"}</p>
+                </div>
+                {pts ? (
+                  <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true"><polyline points={pts} fill="none" stroke="#A7773F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                ) : <p className="text-[11px] text-muted-foreground max-w-[150px] text-right">Add a new score each month to see it move.</p>}
+              </div>
+            );
+          })()}
+
+          {(() => {
+            const sentList = Object.entries((caseRec && caseRec.decisions) || {}).flatMap(([, v]) => (v.sent || []).map((x) => ({ date: x.date, text: `Sent: ${LETTER_TITLE[x.type] || "letter"}${x.to ? ` · ${x.to}` : ""}` })));
+            const done = [...prog.wins.map((x) => ({ ...x, win: true })), ...sentList].sort((x, y) => String(y.date).localeCompare(String(x.date)));
+            const Row = ({ icon, tone, text, right }) => (
+              <div className="flex items-center gap-2.5 py-1.5 border-b border-border/60 last:border-0">
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${tone}`}>{icon}</span>
+                <span className="text-sm text-foreground flex-1 min-w-0">{text}</span>
+                {right}
+              </div>
+            );
+            const head = (t, c) => <p className={`text-[10.5px] font-bold uppercase tracking-[0.14em] mt-4 mb-1 ${c}`}>{t}</p>;
+            return (
+              <>
+                {head("Done", "text-[#566033]")}
+                {done.length ? done.slice(0, 5).map((x, i) => <Row key={i} tone={x.win ? "bg-[#7D8A53] text-white" : "bg-[#E9EDDD] text-[#566033]"} icon={<Check className="w-3 h-3" />} text={x.text} right={<span className="text-[11px] text-muted-foreground shrink-0">{niceDate(x.date).replace(/, \d{4}$/, "")}</span>} />)
+                  : <p className="text-xs text-muted-foreground py-1">Letters you send and items removed or corrected show up here.</p>}
+                {head("Waiting on", "text-[#8B6B3E]")}
+                {prog.checkBacks.length ? prog.checkBacks.map((c, i) => <Row key={i} tone="bg-[#F0E6D6] text-[#8B6B3E]" icon={<Loader2 className="w-3 h-3" />} text={`${c.to || "Reply"} · ${LETTER_TITLE[c.type] || "letter"}`} right={<span className="text-[10px] rounded-full bg-[#F0E6D6] text-[#8B6B3E] px-2 py-0.5 shrink-0">by {niceDate(c.due).replace(/, \d{4}$/, "")}</span>} />)
+                  : <p className="text-xs text-muted-foreground py-1">Nothing yet. Replies are due 30 days after you mark a letter sent.</p>}
+                {head("Coming up", "text-muted-foreground")}
+                {prog.coming.length ? (
+                  <>
+                    {(comingAll ? prog.coming : prog.coming.slice(0, 3)).map((c, i) => <Row key={i} tone="bg-secondary text-muted-foreground" icon={<span className="text-[9px]">↓</span>} text={c.text.replace(/ falls off$/, " drops off")} right={<span className="text-[11px] text-muted-foreground shrink-0">{String(c.date).slice(0, 4)}</span>} />)}
+                    {prog.coming.length > 3 && <button onClick={() => setComingAll((v) => !v)} className="w-full text-xs text-[#A7773F] pt-1.5">{comingAll ? "Show fewer" : `See all ${prog.coming.length}`}</button>}
+                  </>
+                ) : <p className="text-xs text-muted-foreground py-1">Nothing scheduled to drop off yet.</p>}
+                <p className="text-[11px] text-muted-foreground mt-3">Drop-off years are estimates (about 7 years from the first late payment). No one can promise a score change.</p>
+              </>
+            );
+          })()}
+        </div>
+      )}
+
+      {docs.length > 0 && (
+        <Section id="files" title="Your credit file" count={docs.length} defaultOpen={false}>
           {copies.length > 0 && (
             <div className="mb-2.5 rounded-xl bg-[#F3E6E8] p-2.5 flex items-center gap-2">
               <p className="text-xs text-[#6E4A4F] flex-1">{copies.length === 1 ? "1 document looks like a copy" : `${copies.length} documents look like copies`} of another one.</p>
               <button onClick={removeCopies} className="text-xs font-medium text-[#8F5F65] shrink-0">Remove copies</button>
             </div>
           )}
+          <p className="text-[11px] text-muted-foreground mb-2">Re-read a document to pick up details added since you uploaded it, like mailing addresses. You'll choose the file again.</p>
           <div className="space-y-1.5">
             {docs.map((d) => {
               const copy = copyIds.has(d.id);
@@ -609,65 +739,12 @@ export default function CreditAssistant({ scoreItems = [] }) {
                 <span className="truncate text-foreground">{d.from || d.bureau || d.filename}</span>
                 <span className="text-xs text-muted-foreground shrink-0">{niceDate(d.doc_date)}</span>
                 {copy && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#F3E6E8] text-[#8F5F65] shrink-0">Copy</span>}
-                <button onClick={() => removeDoc(d)} aria-label="Remove" className="ml-auto p-1 text-muted-foreground/70"><Trash2 className="w-3.5 h-3.5" /></button>
+                {!locked && <button onClick={() => { setRereadId(d.id); rereadRef.current?.click(); }} disabled={!!rereading} className="ml-auto text-[11px] text-[#8B6B3E] shrink-0 disabled:opacity-50">{rereading === d.id ? "Reading…" : "Re-read"}</button>}
+                <button onClick={() => removeDoc(d)} aria-label="Remove" className={`${locked ? "ml-auto " : ""}p-1 text-muted-foreground/70`}><Trash2 className="w-3.5 h-3.5" /></button>
               </div>
               );
             })}
           </div>
-        </Section>
-      )}
-
-      {docs.length > 0 && (
-        <Section id="progress" title="Progress">
-          <ScoreChart scores={prog.scores} />
-          {prog.wins.length > 0 && (
-            <div className="mt-3">
-              <p className="text-xs font-medium text-foreground mb-1">Wins</p>
-              {prog.wins.slice(0, 6).map((w, i) => <p key={i} className="text-sm text-foreground flex gap-2"><Check className="w-4 h-4 text-[#7D8A53] shrink-0 mt-0.5" />{w.text}<span className="ml-auto text-xs text-muted-foreground">{niceDate(w.date)}</span></p>)}
-            </div>
-          )}
-          {prog.checkBacks.length > 0 && (
-            <div className="mt-3">
-              <p className="text-xs font-medium text-foreground mb-1">Waiting on replies</p>
-              {prog.checkBacks.map((c, i) => <p key={i} className="text-sm text-foreground flex gap-2">{LETTER_TITLE[c.type]}{c.to ? ` · ${c.to}` : ""}<span className="ml-auto text-xs text-muted-foreground">by {niceDate(c.due)}</span></p>)}
-            </div>
-          )}
-          {prog.coming.length > 0 && (
-            <div className="mt-3">
-              <p className="text-xs font-medium text-foreground mb-1">Coming up</p>
-              {prog.coming.slice(0, 5).map((c, i) => <p key={i} className="text-sm text-foreground flex gap-2">{c.text}<span className="ml-auto text-xs text-muted-foreground">~{niceDate(c.date)}</span></p>)}
-            </div>
-          )}
-          <p className="text-[11px] text-muted-foreground mt-3">Fall-off dates are estimates: about 7 years from when the account first went late. No one can promise a score change.</p>
-        </Section>
-      )}
-
-      {events.length > 0 && (
-        <Section id="timeline" title="Timeline" count={events.length} defaultOpen={false}>
-          {(() => {
-            const list = timelineAll ? events : events.slice(0, 15);
-            const years = [...new Set(list.map((e) => String(e.date).slice(0, 4)))];
-            return (
-              <>
-                {years.map((y) => (
-                  <div key={y} className="mb-2">
-                    <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-1.5">{y}</p>
-                    <div className="relative pl-4">
-                      <div className="absolute left-[4px] top-1.5 bottom-1.5 w-px bg-border" />
-                      {list.filter((e) => String(e.date).startsWith(y)).map((e, i) => (
-                        <div key={i} className="relative flex gap-3 py-1">
-                          <span className="absolute -left-4 top-[9px] w-2.5 h-2.5 rounded-full border-2 border-card" style={{ background: DOT[e.tone] }} />
-                          <span className="text-xs text-muted-foreground w-14 shrink-0 pt-px">{niceDate(e.date).replace(/, \d{4}$/, "")}</span>
-                          <span className="text-sm text-foreground flex-1 min-w-0">{e.text}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-                {events.length > 15 && <button onClick={() => setTimelineAll((v) => !v)} className="w-full text-xs text-[#A7773F] py-1.5">{timelineAll ? "Show less" : `Show all ${events.length}`}</button>}
-              </>
-            );
-          })()}
         </Section>
       )}
 

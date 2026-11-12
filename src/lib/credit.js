@@ -49,10 +49,13 @@ export function mergeAccounts(docs) {
     const m = (map[k] = map[k] || { key: k, creditor: prettyName(a.creditor), sources: [], bureaus: new Set(), late: [] });
     m.sources.push({ docId: doc.id, type: doc.doc_type, date: doc.doc_date, bureau: doc.bureau, from: doc.from, status: a.status || "", balance: a.balance == null ? null : Number(a.balance) });
     if (doc.bureau && doc.doc_type === "credit_report") m.bureaus.add(doc.bureau);
-    ["original_creditor", "kind", "status", "opened", "last_payment", "first_delinquency", "last4"].forEach((f) => { if (a[f] && !m[f]) m[f] = f === "original_creditor" ? prettyName(a[f]) : a[f]; });
+    ["original_creditor", "kind", "status", "opened", "last_payment", "first_delinquency", "last4", "address"].forEach((f) => { if (a[f] && !m[f]) m[f] = f === "original_creditor" ? prettyName(a[f]) : a[f]; });
     ["balance", "limit", "amount_requested"].forEach((f) => { if (a[f] != null) m[f] = a[f]; });
     if (a.dispute_deadline) m.dispute_deadline = a.dispute_deadline;
-    if (doc.doc_type === "collector_letter" || doc.doc_type === "creditor_letter") m.letterDate = doc.doc_date || m.letterDate;
+    if (doc.doc_type === "collector_letter" || doc.doc_type === "creditor_letter") {
+      m.letterDate = doc.doc_date || m.letterDate;
+      if (doc.from_address) m.address = doc.from_address; // the letter's own return address is the best place to write
+    }
     (a.late || []).forEach((l) => { if (!m.late.some((x) => x.date === l.date)) m.late.push(l); });
   }));
   return Object.values(map).map((m) => ({ ...m, bureaus: [...m.bureaus], late: m.late.sort((x, y) => x.date.localeCompare(y.date)) }));
@@ -190,36 +193,63 @@ export function stepsFor(item) {
 }
 
 // Letters: templates, filled in with what the documents show. [Brackets] are for the person to fill.
+// ---------- Addresses ----------
+// Standard dispute addresses, used when a report doesn't print its own. They change from time to time.
+export const BUREAU_ADDR = {
+  Equifax: "Equifax Information Services LLC\nP.O. Box 740256\nAtlanta, GA 30374-0256",
+  Experian: "Experian\nP.O. Box 4500\nAllen, TX 75013",
+  TransUnion: "TransUnion LLC Consumer Dispute Center\nP.O. Box 2000\nChester, PA 19016",
+};
+export const BUREAUS = ["Equifax", "Experian", "TransUnion"];
+export const BUREAU_SHORT = { Equifax: "EQ", Experian: "EX", TransUnion: "TU" };
+export const bureauKey = (b) => (/equifax/i.test(b) ? "Equifax" : /experian/i.test(b) ? "Experian" : /trans\s*union/i.test(b) ? "TransUnion" : "");
+export function bureauAddress(b, docs = []) {
+  const k = bureauKey(b || "");
+  if (!k) return null;
+  const rep = docs.find((d) => d.doc_type === "credit_report" && bureauKey(d.bureau || "") === k && d.dispute_address);
+  if (rep) {
+    const lines = rep.dispute_address.split(/,\s*(?=(?:P\.?O\.?|\d|[A-Z][a-z]+,?\s+[A-Z]{2}\b))/).join("\n");
+    return { text: new RegExp(k, "i").test(lines) ? lines : `${k}\n${lines}`, source: "report" };
+  }
+  return { text: BUREAU_ADDR[k], source: "standard" };
+}
+const toBureau = (b, ctx) => { const ad = bureauAddress(b, ctx.docs); return `To: ${ad ? ad.text : `${b}\n[Bureau dispute address]`}`; };
+const toCompany = (a, name) => `To: ${name}\n${a.address ? a.address.replace(/,\s*(?=[A-Z][a-z]+,?\s+[A-Z]{2}\s+\d{5})/, "\n") : "[Mailing address from their letter]"}`;
+const longToday = () => new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+const signOff = (sender) => `\n\nSincerely,\n${(sender && sender.name) || "[Your full name]"}\n${(sender && sender.address) || "[Your mailing address]"}\n${longToday()}`;
+// Letters that go to a credit bureau: one per bureau that shows the item.
+export const BUREAU_LETTERS = new Set(["dispute", "paidmismatch", "unverified", "mov", "block"]);
+
 export function letterFor(type, item, ctx = {}) {
   const a = item.account || {};
   const name = a.creditor || item.inquiry?.creditor || "[Company name]";
   const ref = a.last4 ? ` (account ending ${a.last4})` : "";
-  const sign = "\n\nSincerely,\n[Your full name]\n[Your mailing address]\n[Date]";
+  const sign = signOff(ctx.sender);
   const bureau = ctx.bureau || (a.bureaus && a.bureaus[0]) || "[Equifax / Experian / TransUnion]";
   switch (type) {
     case "validation":
-      return `To: ${name}\n[Collector's mailing address from their letter]\n\nRe: Request for validation${ref}\n\nI received your letter${a.letterDate ? ` dated ${niceDate(a.letterDate)}` : ""} about an alleged debt. I am requesting validation. Please send me:\n\n1. The amount you say is owed and how it was calculated, including interest and fees\n2. The name and address of the original creditor\n3. Proof that you own this debt or are authorized to collect it\n4. A copy of the original agreement or the last statement from the original creditor\n5. The date of the last payment on the account\n\nPlease stop collection activity until you have provided this information. This letter is not an acknowledgment that I owe this debt.${sign}`;
+      return `${toCompany(a, name)}\n\nRe: Request for validation${ref}\n\nI received your letter${a.letterDate ? ` dated ${niceDate(a.letterDate)}` : ""} about an alleged debt. I am requesting validation. Please send me:\n\n1. The amount you say is owed and how it was calculated, including interest and fees\n2. The name and address of the original creditor\n3. Proof that you own this debt or are authorized to collect it\n4. A copy of the original agreement or the last statement from the original creditor\n5. The date of the last payment on the account\n\nPlease stop collection activity until you have provided this information. This letter is not an acknowledgment that I owe this debt.${sign}`;
     case "dispute":
-      return `To: ${bureau}\n[Bureau dispute address, from the bureau's website]\n\nRe: Dispute of inaccurate information\n\nI am writing to dispute the following item on my credit report:\n\n${name}${ref}${a.amount_requested || a.balance ? `, ${money(a.amount_requested || a.balance)}` : ""}\n\nReason: ${item.dup ? `This debt also appears under the original creditor, ${a.original_creditor}, so it is being reported twice.` : item.twin ? `This appears to be the same debt as the ${item.twin} collection for the same amount, so it is being reported twice. [Add what matches: original creditor, dates.]` : "[Explain what is wrong: amount, dates, status, or that it is not mine]"}\n\nPlease investigate and correct or remove this item. I have enclosed [copies of supporting documents].${sign}`;
+      return `${toBureau(bureau, ctx)}\n\nRe: Dispute of inaccurate information\n\nI am writing to dispute the following item on my credit report:\n\n${name}${ref}${a.amount_requested || a.balance ? `, ${money(a.amount_requested || a.balance)}` : ""}\n\nReason: ${item.dup ? `This debt also appears under the original creditor, ${a.original_creditor}, so it is being reported twice.` : item.twin ? `This appears to be the same debt as the ${item.twin} collection for the same amount, so it is being reported twice. [Add what matches: original creditor, dates.]` : "[Explain what is wrong: amount, dates, status, or that it is not mine]"}\n\nPlease investigate and correct or remove this item. I have enclosed [copies of supporting documents].${sign}`;
     case "paidmismatch": {
       const p = item.paidProof || {};
       const before = item.when === "before";
-      return `To: ${(item.badReport && item.badReport.bureau) || bureau}\n[Bureau dispute address, from the bureau's website]\n\nRe: Dispute of inaccurate account status${ref}\n\nThe following account on my credit report is reported inaccurately:\n\n${name}${ref}\n\nYour report shows ${item.badReport && item.badReport.status === "charged_off" ? "a charge-off" : "an unpaid status"}${item.badReport && Number(item.badReport.balance) > 0 ? ` with a balance of ${money(item.badReport.balance)}` : ""}. ${p.from || "The lender"} confirmed in writing${p.date ? ` on ${niceDate(p.date)}` : ""} that this account is paid in full. A copy of that letter is enclosed.\n\n${before ? "I paid this account in full before it was charged off, so the charge-off is inaccurate. Please update the account to show it as paid as agreed with a $0 balance." : "Please update this account to show a $0 balance and a paid status."}${sign}`;
+      return `${toBureau(ctx.bureau || (item.badReport && item.badReport.bureau) || bureau, ctx)}\n\nRe: Dispute of inaccurate account status${ref}\n\nThe following account on my credit report is reported inaccurately:\n\n${name}${ref}\n\nYour report shows ${item.badReport && item.badReport.status === "charged_off" ? "a charge-off" : "an unpaid status"}${item.badReport && Number(item.badReport.balance) > 0 ? ` with a balance of ${money(item.badReport.balance)}` : ""}. ${p.from || "The lender"} confirmed in writing${p.date ? ` on ${niceDate(p.date)}` : ""} that this account is paid in full. A copy of that letter is enclosed.\n\n${before ? "I paid this account in full before it was charged off, so the charge-off is inaccurate. Please update the account to show it as paid as agreed with a $0 balance." : "Please update this account to show a $0 balance and a paid status."}${sign}`;
     }
     case "lenderupdate": {
       const p = item.paidProof || {};
-      return `To: ${name}\n[Lender's credit reporting or customer service address]\n\nRe: Correct credit reporting${ref}\n\nYour letter${p.date ? ` dated ${niceDate(p.date)}` : ""} confirms this account is paid in full (copy enclosed). However, the credit bureaus still show ${item.badReport && Number(item.badReport.balance) > 0 ? `a balance of ${money(item.badReport.balance)}` : "it as unpaid"}${item.badReport && item.badReport.status === "charged_off" ? " and a charge-off" : ""}.\n\nPlease update what you report to all three credit bureaus to show a $0 balance and paid${item.when === "before" ? " as agreed" : ""}, and confirm in writing when it's done.${sign}`;
+      return `${toCompany(a, name)}\n\nRe: Correct credit reporting${ref}\n\nYour letter${p.date ? ` dated ${niceDate(p.date)}` : ""} confirms this account is paid in full (copy enclosed). However, the credit bureaus still show ${item.badReport && Number(item.badReport.balance) > 0 ? `a balance of ${money(item.badReport.balance)}` : "it as unpaid"}${item.badReport && item.badReport.status === "charged_off" ? " and a charge-off" : ""}.\n\nPlease update what you report to all three credit bureaus to show a $0 balance and paid${item.when === "before" ? " as agreed" : ""}, and confirm in writing when it's done.${sign}`;
     }
     case "goodwill":
-      return `To: ${name}\n[Customer service or credit reporting address]\n\nRe: Goodwill adjustment request${ref}\n\nI have been a customer since ${a.opened ? niceDate(a.opened) : "[year]"}. My records show a late payment reported in ${a.late && a.late.length ? niceDate(a.late[a.late.length - 1].date) : "[month and year]"}. [Briefly explain what happened.]\n\nSince then I have paid on time. I would be grateful if you would consider removing this late payment from my credit reports as a goodwill gesture.${sign}`;
+      return `${toCompany(a, name)}\n\nRe: Goodwill adjustment request${ref}\n\nI have been a customer since ${a.opened ? niceDate(a.opened) : "[year]"}. My records show a late payment reported in ${a.late && a.late.length ? niceDate(a.late[a.late.length - 1].date) : "[month and year]"}. [Briefly explain what happened.]\n\nSince then I have paid on time. I would be grateful if you would consider removing this late payment from my credit reports as a goodwill gesture.${sign}`;
     case "paydelete":
-      return `To: ${name}\n[Collector's mailing address]\n\nRe: Settlement offer${ref}\n\nThis letter is not an acknowledgment that I owe this debt.\n\nI am willing to pay $[amount] to resolve this account, on the condition that you agree to request deletion of this account from all credit bureaus you report to within [30] days of payment.\n\nIf you agree, please confirm these terms in writing on your letterhead before I make any payment.${sign}`;
+      return `${toCompany(a, name)}\n\nRe: Settlement offer${ref}\n\nThis letter is not an acknowledgment that I owe this debt.\n\nI am willing to pay $[amount] to resolve this account, on the condition that you agree to request deletion of this account from all credit bureaus you report to within [30] days of payment.\n\nIf you agree, please confirm these terms in writing on your letterhead before I make any payment.${sign}`;
     case "block": {
       const items = (ctx.items || [item]).map((it) => `- ${it.account ? `${it.account.creditor}${it.account.last4 ? ` (ending ${it.account.last4})` : ""}${it.account.opened ? `, opened ${niceDate(it.account.opened)}` : ""}` : `Inquiry by ${it.inquiry.creditor} on ${niceDate(it.inquiry.date)}`}`).join("\n");
-      return `To: ${bureau}\n[Bureau identity theft address, from the bureau's website]\n\nRe: Block of information resulting from identity theft\n\nI am a victim of identity theft. The items below are on my credit report and are not mine. Please block them and notify the companies that reported them.\n\n${items}\n\nEnclosed:\n- My FTC Identity Theft Report from IdentityTheft.gov\n- Proof of identity [copy of ID] and proof of address [recent bill]\n${item.breach ? `- Data breach notice from ${item.breach.from || "[company]"}, dated ${niceDate(item.breach.breach_date)}\n` : ""}${sign}`;
+      return `${toBureau(bureau, ctx)}\n\nRe: Block of information resulting from identity theft\n\nI am a victim of identity theft. The items below are on my credit report and are not mine. Please block them and notify the companies that reported them.\n\n${items}\n\nEnclosed:\n- My FTC Identity Theft Report from IdentityTheft.gov\n- Proof of identity [copy of ID] and proof of address [recent bill]\n${item.breach ? `- Data breach notice from ${item.breach.from || "[company]"}, dated ${niceDate(item.breach.breach_date)}\n` : ""}${sign}`;
     }
     case "fraud":
-      return `To: ${name}\n[Fraud department address or contact]\n\nRe: Account or inquiry opened without my permission${ref}\n\nI did not open or authorize ${item.inquiry ? `the credit inquiry on ${niceDate(item.inquiry.date)}` : `this account${a.opened ? `, opened ${niceDate(a.opened)}` : ""}`}. I believe it resulted from identity theft${item.breach ? ` after my information was exposed in a data breach reported by ${item.breach.from || "[company]"} on ${niceDate(item.breach.breach_date)}` : ""}.\n\nPlease close it, remove my name from it, stop reporting it to the credit bureaus, and confirm in writing. I have enclosed my FTC Identity Theft Report.${sign}`;
+      return `${toCompany(a, name)}\n\nRe: Account or inquiry opened without my permission${ref}\n\nI did not open or authorize ${item.inquiry ? `the credit inquiry on ${niceDate(item.inquiry.date)}` : `this account${a.opened ? `, opened ${niceDate(a.opened)}` : ""}`}. I believe it resulted from identity theft${item.breach ? ` after my information was exposed in a data breach reported by ${item.breach.from || "[company]"} on ${niceDate(item.breach.breach_date)}` : ""}.\n\nPlease close it, remove my name from it, stop reporting it to the credit bureaus, and confirm in writing. I have enclosed my FTC Identity Theft Report.${sign}`;
     default: return "";
   }
 }
@@ -335,22 +365,22 @@ export function replySteps(s) {
   return [];
 }
 
-export function followUpLetter(type, item, s) {
+export function followUpLetter(type, item, s, ctx = {}) {
   const a = item.account || {};
   const name = a.creditor || item.inquiry?.creditor || "[Company name]";
   const ref = a.last4 ? ` (account ending ${a.last4})` : "";
-  const sign = "\n\nSincerely,\n[Your full name]\n[Your mailing address]\n[Date]";
-  const bureau = (a.bureaus && a.bureaus[0]) || "[Equifax / Experian / TransUnion]";
+  const sign = signOff(ctx.sender);
+  const bureau = ctx.bureau || (a.bureaus && a.bureaus[0]) || "[Equifax / Experian / TransUnion]";
   if (type === "followup") {
-    return `To: ${s?.to || name}\n[Mailing address]\n\nRe: Second request${ref}\n\nOn ${s ? niceDate(s.date) : "[date]"}, I sent you a letter (${s ? LETTER_TITLE[s.type] || "request" : "request"}). A copy is enclosed. I have not received a response.\n\nPlease respond in writing within 15 days. If I do not hear from you, I will file a complaint with the Consumer Financial Protection Bureau.${sign}`;
+    return `${toCompany(a, s?.to || name)}\n\nRe: Second request${ref}\n\nOn ${s ? niceDate(s.date) : "[date]"}, I sent you a letter (${s ? LETTER_TITLE[s.type] || "request" : "request"}). A copy is enclosed. I have not received a response.\n\nPlease respond in writing within 15 days. If I do not hear from you, I will file a complaint with the Consumer Financial Protection Bureau.${sign}`;
   }
   if (type === "unverified") {
-    return `To: ${bureau}\n[Bureau dispute address, from the bureau's website]\n\nRe: Dispute of unverified collection account\n\nThe following collection account is on my credit report:\n\n${name}${ref}${a.amount_requested || a.balance ? `, ${money(a.amount_requested || a.balance)}` : ""}\n\nOn ${s ? niceDate(s.date) : "[date]"}, I asked the collector to validate this debt. ${s?.reply ? "Their response did not include proof that I owe it." : "They have not responded."} Copies of my request${s?.reply ? " and their response" : ""} are enclosed.\n\nPlease investigate and remove this unverified account.${sign}`;
+    return `${toBureau(bureau, ctx)}\n\nRe: Dispute of unverified collection account\n\nThe following collection account is on my credit report:\n\n${name}${ref}${a.amount_requested || a.balance ? `, ${money(a.amount_requested || a.balance)}` : ""}\n\nOn ${s ? niceDate(s.date) : "[date]"}, I asked the collector to validate this debt. ${s?.reply ? "Their response did not include proof that I owe it." : "They have not responded."} Copies of my request${s?.reply ? " and their response" : ""} are enclosed.\n\nPlease investigate and remove this unverified account.${sign}`;
   }
   if (type === "mov") {
-    return `To: ${bureau}\n[Bureau dispute address]\n\nRe: Request for method of verification${ref}\n\nI disputed ${name} on ${s ? niceDate(s.date) : "[date]"}, and you responded that it was verified.\n\nPlease tell me how you verified this information, including the name, address and phone number of anyone you contacted.${sign}`;
+    return `${toBureau(bureau, ctx)}\n\nRe: Request for method of verification${ref}\n\nI disputed ${name} on ${s ? niceDate(s.date) : "[date]"}, and you responded that it was verified.\n\nPlease tell me how you verified this information, including the name, address and phone number of anyone you contacted.${sign}`;
   }
-  return letterFor(type, item);
+  return letterFor(type, item, ctx);
 }
 LETTER_TITLE.followup = "Second request";
 LETTER_TITLE.unverified = "Dispute: not validated";
@@ -377,6 +407,7 @@ export function mergeParts(parts) {
   const inquiries = ok.flatMap((d) => d.inquiries || []).filter((q) => { const k = `${norm(q.creditor)}|${q.date}`; if (seen.has(k)) return false; seen.add(k); return true; });
   return {
     doc_type, doc_date: pick("doc_date"), from: pick("from"), bureau: pick("bureau"), score: pick("score"),
+    from_address: pick("from_address"), dispute_address: pick("dispute_address"),
     breach_date: pick("breach_date"), breach_what: pick("breach_what"),
     accounts: ok.flatMap((d) => d.accounts || []),
     inquiries,

@@ -138,14 +138,16 @@ const CREDIT_PROMPT = `You are helping someone understand their own credit docum
 Return ONLY JSON in this shape, nothing else:
 {"doc_type":"credit_report|collector_letter|creditor_letter|breach_notice|dispute_response|statement|other",
  "doc_date":"YYYY-MM-DD","from":"who sent it or which bureau","bureau":"Equifax|Experian|TransUnion|",
+ "from_address":"","dispute_address":"",
  "score":null,"breach_date":"","breach_what":"",
- "accounts":[{"creditor":"","original_creditor":"","kind":"credit_card|auto_loan|student_loan|mortgage|personal_loan|collection|other","status":"open|closed|paid|charged_off|collection|other","balance":null,"limit":null,"opened":"","last_payment":"","first_delinquency":"","late":[{"date":"YYYY-MM","days":30}],"last4":"","amount_requested":null,"dispute_deadline":""}],
+ "accounts":[{"creditor":"","original_creditor":"","kind":"credit_card|auto_loan|student_loan|mortgage|personal_loan|collection|other","status":"open|closed|paid|charged_off|collection|other","balance":null,"limit":null,"opened":"","last_payment":"","first_delinquency":"","late":[{"date":"YYYY-MM","days":30}],"last4":"","amount_requested":null,"dispute_deadline":"","address":""}],
  "inquiries":[{"creditor":"","date":"YYYY-MM-DD"}],
  "results":[{"creditor":"","outcome":"deleted|updated|verified|other","note":""}],
  "summary":"one plain sentence about what this document is"}
 
 Rules:
-- PRIVACY: never output a Social Security number, date of birth, full account number, or street address. For accounts give only the last 4 digits in "last4" if shown.
+- PRIVACY: never output a Social Security number, date of birth, or full account number, and never the address of the person the document is about (the consumer). For accounts give only the last 4 digits in "last4" if shown.
+- COMPANY ADDRESSES are wanted, on one line like "P.O. Box 4500, Allen, TX 75013": "from_address" is the mailing address of the company that sent a letter (where to write back or send correspondence, not a payment-only lockbox if a correspondence address is also shown). "dispute_address" is the bureau's dispute mailing address if a credit report prints one. Each account's "address" is that creditor's or collector's mailing address if the report or letter lists it. Leave "" if not shown; never make one up.
 - Dates as YYYY-MM-DD (or YYYY-MM when only a month is shown). Leave a field "" or null when the document doesn't say. Do not guess.
 - credit_report: list every account (tradeline) and every hard inquiry. "score" only if a numeric score is printed.
 - collector_letter / creditor_letter: one account entry for the debt it is about, with "amount_requested", and "dispute_deadline" if the letter states a date by which to dispute (validation notices usually do).
@@ -313,16 +315,18 @@ const handler = async (event, context) => {
       const num = (v) => (v == null || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
       const date = (v) => (/^\d{4}-\d{2}(-\d{2})?$/.test(String(v || "").trim()) ? String(v).trim() : "");
       const clean = (v) => str(v).replace(/\b\d{3}-?\d{2}-?\d{4}\b/g, "").replace(/\d{5,}/g, ""); // never keep SSNs or long numbers
+      // Company mailing addresses keep ZIP codes, but never an SSN-shaped or long account-like number.
+      const addr = (v) => str(v, 160).replace(/\b\d{3}-\d{2}-\d{4}\b/g, "").replace(/\d{10,}/g, "").replace(/\s+/g, " ").trim();
       const doc = {
         doc_type: ["credit_report", "collector_letter", "creditor_letter", "breach_notice", "dispute_response", "statement"].includes(parsed.doc_type) ? parsed.doc_type : "other",
-        doc_date: date(parsed.doc_date), from: clean(parsed.from), bureau: ["Equifax", "Experian", "TransUnion"].includes(parsed.bureau) ? parsed.bureau : "",
+        doc_date: date(parsed.doc_date), from: clean(parsed.from), from_address: addr(parsed.from_address), dispute_address: addr(parsed.dispute_address), bureau: ["Equifax", "Experian", "TransUnion"].includes(parsed.bureau) ? parsed.bureau : "",
         score: num(parsed.score) && num(parsed.score) >= 300 && num(parsed.score) <= 900 ? num(parsed.score) : null,
         breach_date: date(parsed.breach_date), breach_what: clean(parsed.breach_what).slice(0, 120),
         accounts: (Array.isArray(parsed.accounts) ? parsed.accounts : []).slice(0, 80).map((a) => ({
           creditor: clean(a.creditor), original_creditor: clean(a.original_creditor), kind: str(a.kind, 20), status: str(a.status, 20),
           balance: num(a.balance), limit: num(a.limit), opened: date(a.opened), last_payment: date(a.last_payment), first_delinquency: date(a.first_delinquency),
           late: (Array.isArray(a.late) ? a.late : []).slice(0, 24).map((l) => ({ date: date(l.date), days: num(l.days) })).filter((l) => l.date),
-          last4: /^\d{4}$/.test(String(a.last4 || "")) ? String(a.last4) : "", amount_requested: num(a.amount_requested), dispute_deadline: date(a.dispute_deadline),
+          last4: /^\d{4}$/.test(String(a.last4 || "")) ? String(a.last4) : "", amount_requested: num(a.amount_requested), dispute_deadline: date(a.dispute_deadline), address: addr(a.address),
         })).filter((a) => a.creditor),
         inquiries: (Array.isArray(parsed.inquiries) ? parsed.inquiries : []).slice(0, 40).map((q) => ({ creditor: clean(q.creditor), date: date(q.date) })).filter((q) => q.creditor),
         results: (Array.isArray(parsed.results) ? parsed.results : []).slice(0, 40).map((r) => ({ creditor: clean(r.creditor), outcome: str(r.outcome, 20), note: clean(r.note).slice(0, 140) })).filter((r) => r.creditor),
