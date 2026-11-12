@@ -151,8 +151,11 @@ export function compareReports(prev, next, caseRec = {}, bureau = "") {
 export function changes(docs, caseRec = {}) {
   // Bureaus compared from the same pair of documents (a 3-bureau report) become one card.
   const pairs = {};
-  Object.entries(reportsByBureau(docs)).filter(([, l]) => l.length >= 2 && l[l.length - 2] !== l[l.length - 1]).forEach(([b, l]) => {
-    const prev = l[l.length - 2], next = l[l.length - 1];
+  Object.entries(reportsByBureau(docs)).forEach(([b, l]) => {
+    // Compare the newest report with the newest one from an EARLIER date; same-day uploads are copies, not progress.
+    const next = l[l.length - 1];
+    const prev = [...l].reverse().find((d) => d !== next && docDay(d) < docDay(next));
+    if (!prev) return;
     const k = `${prev.id}>${next.id}`;
     (pairs[k] = pairs[k] || { prev, next, bureaus: [] }).bureaus.push(b);
   });
