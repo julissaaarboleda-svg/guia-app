@@ -506,7 +506,7 @@ export default function CreditAssistant({ scoreItems = [] }) {
               </div>
             </div>
           )}
-          {ov.nextFalloff && <p className="text-xs text-muted-foreground mt-3">Next fall-off: {ov.nextFalloff.text.replace(/ falls off$/, "")} · ~{niceDate(ov.nextFalloff.date)}</p>}
+          {ov.nextFalloff && new Date(ov.nextFalloff.date) <= new Date(Date.now() + 365 * 86400000) && <p className="text-xs text-muted-foreground mt-3">Next fall-off: {ov.nextFalloff.text.replace(/ falls off$/, "")} · ~{niceDate(ov.nextFalloff.date)}</p>}
         </div>
       )}
       {docs.length > 0 && (
@@ -707,14 +707,27 @@ export default function CreditAssistant({ scoreItems = [] }) {
                 {head("Waiting on", "text-[#8B6B3E]")}
                 {prog.checkBacks.length ? prog.checkBacks.map((c, i) => <Row key={i} tone="bg-[#F0E6D6] text-[#8B6B3E]" icon={<Loader2 className="w-3 h-3" />} text={`${c.to || "Reply"} · ${LETTER_TITLE[c.type] || "letter"}`} right={<span className="text-[10px] rounded-full bg-[#F0E6D6] text-[#8B6B3E] px-2 py-0.5 shrink-0">by {niceDate(c.due).replace(/, \d{4}$/, "")}</span>} />)
                   : <p className="text-xs text-muted-foreground py-1">Nothing yet. Replies are due 30 days after you mark a letter sent.</p>}
-                {head("Coming up", "text-muted-foreground")}
-                {prog.coming.length ? (
-                  <>
-                    {(comingAll ? prog.coming : prog.coming.slice(0, 3)).map((c, i) => <Row key={i} tone="bg-secondary text-muted-foreground" icon={<span className="text-[9px]">↓</span>} text={c.text.replace(/ falls off$/, " drops off")} right={<span className="text-[11px] text-muted-foreground shrink-0">{String(c.date).slice(0, 4)}</span>} />)}
-                    {prog.coming.length > 3 && <button onClick={() => setComingAll((v) => !v)} className="w-full text-xs text-[#A7773F] pt-1.5">{comingAll ? "Show fewer" : `See all ${prog.coming.length}`}</button>}
-                  </>
-                ) : <p className="text-xs text-muted-foreground py-1">Nothing scheduled to drop off yet.</p>}
-                <p className="text-[11px] text-muted-foreground mt-3">Drop-off years are estimates (about 7 years from the first late payment). No one can promise a score change.</p>
+                {(() => {
+                  // Only what drops off within a year is worth a list; anything later is one quiet line.
+                  const yr = new Date(); yr.setFullYear(yr.getFullYear() + 1);
+                  const soon = prog.coming.filter((c) => new Date(c.date) <= yr);
+                  const next = prog.coming[0];
+                  if (!prog.coming.length) return null;
+                  return (
+                    <>
+                      {head("Coming up", "text-muted-foreground")}
+                      {soon.length ? (
+                        <>
+                          {(comingAll ? soon : soon.slice(0, 3)).map((c, i) => <Row key={i} tone="bg-secondary text-muted-foreground" icon={<span className="text-[9px]">↓</span>} text={c.text.replace(/ falls off$/, " drops off")} right={<span className="text-[11px] text-muted-foreground shrink-0">~{niceDate(c.date).replace(/^(\w+) \d+, /, "$1 ")}</span>} />)}
+                          {soon.length > 3 && <button onClick={() => setComingAll((v) => !v)} className="w-full text-xs text-[#A7773F] pt-1.5">{comingAll ? "Show fewer" : `See all ${soon.length}`}</button>}
+                        </>
+                      ) : (
+                        <p className="text-xs text-muted-foreground py-1">Nothing drops off in the next year. The first is {next.text.replace(/ falls off$/, "")}, around {String(next.date).slice(0, 4)}.</p>
+                      )}
+                    </>
+                  );
+                })()}
+                {prog.coming.length > 0 && <p className="text-[11px] text-muted-foreground mt-3">Drop-off dates are estimates (about 7 years from the first late payment). No one can promise a score change.</p>}
               </>
             );
           })()}
