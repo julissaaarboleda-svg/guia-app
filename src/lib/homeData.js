@@ -173,6 +173,7 @@ export const RING_CATALOG = [
   { id: "bills", label: "Bills this month", desc: "Bills paid out of bills due", group: "more" },
   { id: "spending", label: "Spending vs plan", desc: "Budget used this month", group: "more" },
   { id: "routines", label: "Routines this week", desc: "Scheduled routine days completed", group: "more" },
+  { id: "credit", label: "Credit", desc: "Credit items handled in the credit assistant", group: "more" },
 ];
 export const DEFAULT_RINGS = [{ id: "business" }, { id: "finance" }, { id: "routines" }, { id: "projects" }];
 export const MAX_RINGS = 4;
@@ -185,7 +186,7 @@ const taskPct = (list) => {
 
 // Builds the rings the person chose (or the four defaults). An area with nothing set up still gets
 // its ring, dimmed with a "Set up" hint, so the layout never shifts.
-export function buildProgress({ routines = [], selection = null, trips = [], projects = [], goals = [], finItems = [], business = null, spending = null }) {
+export function buildProgress({ routines = [], selection = null, trips = [], projects = [], goals = [], finItems = [], business = null, spending = null, credit = null }) {
   const now = new Date();
   const ring = (label, pct, sub, path) => ({ label, value: pct, display: `${pct}%`, sub, path });
   const empty = (label, sub, path) => ({ label, value: 0, display: "–", sub, path, empty: true });
@@ -253,6 +254,10 @@ export function buildProgress({ routines = [], selection = null, trips = [], pro
       const paid = due.filter((f) => isPaid(f)).length;
       return ring("Bills this month", Math.round((paid / due.length) * 100), `${paid} of ${due.length} paid`, "/finance");
     },
+    credit: () => {
+      if (!credit || !credit.total) return empty("Credit", credit ? "Nothing to fix" : "Upload a report", "/finance");
+      return ring("Credit", Math.round((credit.handled / credit.total) * 100), `${credit.handled} of ${credit.total} handled`, "/finance");
+    },
     spending: () => {
       const planned = Number(spending?.planned) || 0;
       if (!planned) return empty("Spending vs plan", "Set a budget", "/finance");
@@ -269,7 +274,7 @@ export function buildProgress({ routines = [], selection = null, trips = [], pro
   };
 
   const picks = (selection && selection.length ? selection : DEFAULT_RINGS).filter((r) => builders[r.id]).slice(0, MAX_RINGS);
-  const RING_COLOR = { business: "#A7773F", finance: "#7D8A53", routines: "#A77C81", projects: "#2E2A27", project: "#2E2A27", trip: "#A7773F", goal: "#7D8A53", loans: "#7D8A53", bills: "#A77C81", spending: "#A77C81" };
+  const RING_COLOR = { business: "#A7773F", finance: "#7D8A53", routines: "#A77C81", projects: "#2E2A27", project: "#2E2A27", trip: "#A7773F", goal: "#7D8A53", loans: "#7D8A53", bills: "#A77C81", spending: "#A77C81", credit: "#7D8A53" };
   return picks.map((r) => ({ ...builders[r.id](r.ref), color: RING_COLOR[r.id] || "#A7773F", short: r.id }));
 }
 

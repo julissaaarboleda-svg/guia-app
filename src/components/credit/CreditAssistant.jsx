@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { ChevronDown, ChevronRight, Upload, X, Copy, Mail, Check, FileText, Trash2, ExternalLink, ShieldAlert, Loader2 } from "lucide-react";
 import { base44, getAiUsage } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { analyze, stepsFor, letterFor, LETTER_TITLE, timeline, progress, DOC_LABEL, niceDate, OUTCOMES, WIN, isOverdue, sentDue, noReplySteps, replySteps, followUpLetter, deadlineNudges, mergeParts } from "@/lib/credit";
+import { analyze, stepsFor, letterFor, LETTER_TITLE, timeline, progress, DOC_LABEL, niceDate, OUTCOMES, WIN, isOverdue, sentDue, noReplySteps, replySteps, followUpLetter, deadlineNudges, mergeParts, overview, money } from "@/lib/credit";
 
 const MAX_FILES = 10;
 const PAGES_PER_PART = 1;
@@ -75,6 +75,7 @@ function StepRow({ s, i, done, onToggle, onLetter, onTodo }) {
 }
 
 const KIND_TONE = {
+  mismatch: "bg-[#F3E6E8] text-[#8F5F65]",
   breach: "bg-[#F3E6E8] text-[#8F5F65]",
   collection: "bg-[#F0E6D6] text-[#8B6B3E]",
   late: "bg-[#F0E6D6] text-[#8B6B3E]",
@@ -167,6 +168,9 @@ export default function CreditAssistant({ scoreItems = [] }) {
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState([]); // [{name, status}]
   const [openItem, setOpenItem] = useState(null);
+  const [filter, setFilter] = useState("all");
+  const [showAll, setShowAll] = useState(false);
+  const [showUploads, setShowUploads] = useState(false);
   const [letter, setLetter] = useState(null);
   const [toast, setToast] = useState("");
   const [usage, setUsage] = useState(null);
@@ -204,6 +208,7 @@ export default function CreditAssistant({ scoreItems = [] }) {
     const picked = [...(e.target.files || [])].slice(0, MAX_FILES);
     e.target.value = "";
     if (!picked.length) return;
+    setShowUploads(false);
     setBusy(picked.map((f) => ({ name: f.name, status: "reading", note: "Preparing…" })));
     const update = (i, patch) => setBusy((b) => b.map((x, j) => (j === i ? { ...x, ...patch } : x)));
     const saved = [];
@@ -285,6 +290,22 @@ export default function CreditAssistant({ scoreItems = [] }) {
   const events = useMemo(() => timeline(docs, caseRec || {}), [docs, caseRec]);
   const prog = useMemo(() => progress(docs, caseForCalc), [docs, caseForCalc]);
   const notMine = items.filter((i) => i.kind === "breach" && i.owner === "not_mine");
+  const ov = useMemo(() => (docs.length ? overview(docs, caseForCalc) : null), [docs, caseForCalc]);
+  const FILTERS = [
+    ["all", "All", () => true],
+    ["mismatch", "Doesn't match", (i) => i.kind === "mismatch"],
+    ["twice", "Twice?", (i) => i.kind === "collection" && (i.dup || i.twin)],
+    ["collection", "Collections", (i) => i.kind === "collection"],
+    ["late", "Late", (i) => i.kind === "late"],
+    ["utilization", "Balances", (i) => i.kind === "utilization"],
+    ["breach", "After breach", (i) => i.kind === "breach"],
+  ];
+  const fItems = items.filter((FILTERS.find(([k]) => k === filter) || FILTERS[0])[2]);
+  const shown = showAll ? fItems : fItems.slice(0, 6);
+  const jumpTo = (key) => {
+    setFilter("all"); setShowAll(true); setOpenItem(key);
+    setTimeout(() => { const el = document.getElementById(`ci-${key}`); if (el) el.scrollIntoView({ behavior: "smooth", block: "center" }); }, 50);
+  };
 
   const openLetter = (type, item, sent) => {
     const a = item.account || {};
@@ -348,6 +369,39 @@ export default function CreditAssistant({ scoreItems = [] }) {
   return (
     <div className="mb-4 grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
       <div className="lg:col-span-7 space-y-3 min-w-0">
+      {ov && (
+        <div className="bg-card border border-border rounded-2xl p-4">
+          <p className="font-heading text-lg text-foreground">Your credit at a glance</p>
+          <p className="text-xs text-muted-foreground mb-3">From {docs.length} {docs.length === 1 ? "document" : "documents"}{ov.bureaus.length ? ` · ${ov.bureaus.join(", ")}` : ""}{ov.latestReport?.doc_date ? ` · latest ${niceDate(ov.latestReport.doc_date)}` : ""}</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="rounded-xl bg-secondary/70 p-2.5"><p className="font-heading text-lg text-foreground leading-tight">{ov.score || "—"}{ov.scoreChange && <span className={`ml-1.5 text-[11px] font-body ${ov.scoreChange.delta >= 0 ? "text-[#566033]" : "text-[#8F5F65]"}`}>{ov.scoreChange.delta >= 0 ? "▲" : "▼"} {Math.abs(ov.scoreChange.delta)}</span>}</p><p className="text-[11px] text-muted-foreground">{ov.scoreBureau ? `${ov.scoreBureau} score` : "Score"}</p></div>
+            <div className="rounded-xl bg-[#F3E6E8] p-2.5"><p className="font-heading text-lg text-[#6E4A4F] leading-tight">{ov.collections.count}{ov.collections.total ? ` · ${money(ov.collections.total)}` : ""}</p><p className="text-[11px] text-[#8F5F65]">Collections</p></div>
+            <div className="rounded-xl bg-[#F0E6D6] p-2.5"><p className="font-heading text-lg text-[#6E5430] leading-tight">{ov.lateCount}</p><p className="text-[11px] text-[#8B6B3E]">Late payments</p></div>
+            <div className="rounded-xl bg-[#E9EDDD] p-2.5"><p className="font-heading text-lg text-[#3F4A22] leading-tight">{ov.usage == null ? "—" : `${ov.usage}%`}</p><p className="text-[11px] text-[#566033]">Card usage · aim under 30%</p></div>
+          </div>
+          {ov.total > 0 && (
+            <div className="mt-3">
+              <div className="flex items-baseline justify-between text-xs"><span className="text-foreground font-medium">{ov.handled} of {ov.total} handled</span><span className="text-muted-foreground">{ov.lettersSent} {ov.lettersSent === 1 ? "letter" : "letters"} sent · {ov.wins} {ov.wins === 1 ? "win" : "wins"}</span></div>
+              <div className="h-1.5 rounded-full bg-secondary mt-1.5 overflow-hidden"><div className="h-full rounded-full bg-[#7D8A53]" style={{ width: `${Math.round((ov.handled / ov.total) * 100)}%` }} /></div>
+            </div>
+          )}
+          {ov.start.length > 0 && (
+            <div className="mt-4">
+              <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-2">Start here</p>
+              <div className="space-y-1.5">
+                {ov.start.map((st, i) => (
+                  <button key={i} onClick={() => jumpTo(st.key)} className="w-full flex gap-2.5 text-left text-sm text-foreground">
+                    <span className="w-5 h-5 rounded-full bg-foreground text-background text-[11px] flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+                    <span className="flex-1">{st.text}</span>
+                    <ChevronRight className="w-4 h-4 text-[#A7773F] shrink-0 mt-0.5" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {ov.nextFalloff && <p className="text-xs text-muted-foreground mt-3">Next fall-off: {ov.nextFalloff.text.replace(/ falls off$/, "")} · ~{niceDate(ov.nextFalloff.date)}</p>}
+        </div>
+      )}
       {/* Intro + upload */}
       <div className="bg-card border border-border rounded-2xl p-4">
         <div className="flex items-start gap-3">
@@ -372,9 +426,17 @@ export default function CreditAssistant({ scoreItems = [] }) {
           <Upload className="w-4 h-4" /> Upload documents <span className="text-muted-foreground">· up to {MAX_FILES}</span>
         </button>
         )}
-        {busy.length > 0 && (
+        {busy.length > 0 && !busy.some((b) => b.status === "reading") && !showUploads && (
+          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+            <Check className="w-3.5 h-3.5 text-[#566033]" />
+            <span className="flex-1">{busy.filter((b) => b.status === "done").length} of {busy.length} files read{busy.some((b) => b.status === "failed" || b.note) ? " · some notes" : ""}</span>
+            <button onClick={() => setShowUploads(true)} className="text-[#8B6B3E]">Details</button>
+            <button onClick={() => setBusy([])}>Dismiss</button>
+          </div>
+        )}
+        {busy.length > 0 && (busy.some((b) => b.status === "reading") || showUploads) && (
           <div className="mt-2 space-y-1.5">
-            {!busy.some((b) => b.status === "reading") && <button onClick={() => setBusy([])} className="float-right text-[11px] text-muted-foreground">Dismiss</button>}
+            {!busy.some((b) => b.status === "reading") && <button onClick={() => setShowUploads(false)} className="float-right text-[11px] text-muted-foreground">Hide</button>}
             {busy.map((b, i) => (
               <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
                 {b.status === "reading" ? <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" /> : b.status === "done" ? <Check className="w-3.5 h-3.5 text-[#566033]" /> : <X className="w-3.5 h-3.5 text-[#8F5F65]" />}
@@ -403,26 +465,48 @@ export default function CreditAssistant({ scoreItems = [] }) {
               <p className="text-xs text-[#6E5430]/80 mt-0.5">Tap to see what to do next.</p>
             </button>
           )}
+          {items.length > 0 && (
+            <div className="flex gap-1.5 flex-wrap mb-3">
+              {FILTERS.map(([k, l, fn]) => {
+                const n = items.filter(fn).length;
+                if (k !== "all" && !n) return null;
+                return <button key={k} onClick={() => { setFilter(k); setShowAll(false); }} className={`text-xs rounded-full px-2.5 py-1 border ${filter === k ? "bg-foreground text-background border-foreground" : "border-border text-foreground"}`}>{l} {n}</button>;
+              })}
+            </div>
+          )}
           {items.length === 0 && <p className="text-sm text-muted-foreground">Nothing needs action from what you've uploaded. Upload all three bureau reports to check for differences.</p>}
           <div className="space-y-2">
-            {items.map((item) => {
+            {shown.map((item) => {
               const open = openItem === item.key;
               const dec = caseRec?.decisions?.[item.key] || {};
               const steps = stepsFor(item);
               return (
-                <div key={item.key} className="border border-border rounded-xl">
-                  <button onClick={() => setOpenItem(open ? null : item.key)} className="w-full text-left p-3">
+                <div key={item.key} id={`ci-${item.key}`} className={`border rounded-xl ${open ? "border-[#A7773F]/50" : "border-border"}`}>
+                  <button onClick={() => setOpenItem(open ? null : item.key)} className="w-full text-left px-3 py-2.5">
                     <div className="flex items-center gap-2">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${KIND_TONE[item.kind]}`}>{item.label}</span>
-                      {item.deadline && item.deadline >= todayStr() && <span className="text-[10px] text-[#8F5F65]">Reply by {niceDate(item.deadline)}</span>}
-                      {(dec.sent || []).length > 0 && <span className="text-[10px] text-[#566033] ml-auto">Letter sent</span>}
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${KIND_TONE[item.kind]}`}>{item.label}</span>
+                      <span className="text-sm text-foreground truncate flex-1 min-w-0">{item.title}</span>
+                      {(dec.sent || []).length > 0 && <span className="text-[10px] text-[#566033] shrink-0">Sent</span>}
+                      {item.deadline && item.deadline >= todayStr() && <span className="text-[10px] text-[#8F5F65] shrink-0">by {niceDate(item.deadline)}</span>}
+                      {open ? <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
                     </div>
-                    <p className="text-sm font-medium text-foreground mt-1">{item.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{item.detail}</p>
+                    {open && <p className="text-xs text-muted-foreground mt-1.5">{item.detail}</p>}
                   </button>
 
                   {open && (
                     <div className="px-3 pb-3 space-y-2">
+                      {item.kind === "mismatch" && (
+                        <div>
+                          <p className="text-[11px] text-muted-foreground mb-1">Which happened first?</p>
+                          <div className="flex gap-1.5">
+                            {[["before", "Paid before charge-off"], ["after", "Charged off, then paid"], ["unsure", "Not sure"]].map(([v, l]) => (
+                              <button key={v} onClick={() => decide(item.key, { paidWhen: v })}
+                                className={`flex-1 rounded-lg py-2 px-1 text-xs border ${(item.when || "") === v ? "bg-foreground text-background border-foreground" : "border-border text-foreground"}`}>{l}</button>
+                            ))}
+                          </div>
+                          {item.when === "unsure" && <p className="text-xs text-muted-foreground mt-1.5">Check the "date of charge-off" on your report against the payoff date on your letter. Either way, the report should show a $0 balance.</p>}
+                        </div>
+                      )}
                       {item.kind === "breach" && (
                         <div className="flex gap-1.5">
                           {[["mine", "Mine"], ["not_mine", "Not mine"], ["unsure", "Not sure"]].map(([v, l]) => (
@@ -488,6 +572,9 @@ export default function CreditAssistant({ scoreItems = [] }) {
               );
             })}
           </div>
+          {fItems.length > 6 && (
+            <button onClick={() => setShowAll((v) => !v)} className="mt-2 w-full text-xs text-[#A7773F] py-2">{showAll ? "Show fewer" : `Show all ${fItems.length}`}</button>
+          )}
           <div className="mt-3"><Note /></div>
         </Section>
       )}

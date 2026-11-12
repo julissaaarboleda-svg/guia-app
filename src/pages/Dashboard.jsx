@@ -15,6 +15,7 @@ import { isScheduled, completeOn, dayKey, setAllToday, stepsFor } from "@/lib/ro
 import { monthView } from "@/lib/spending";
 import { monthKeyOf } from "@/lib/financeHelpers";
 import { buildFocusItems, buildUpNext, buildProgress, buildDailyStatus } from "@/lib/homeData";
+import { creditProgress } from "@/lib/credit";
 
 const HERO_IMAGES = [
   "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
@@ -52,6 +53,7 @@ export default function Dashboard() {
   const [careerEntries, setCareerEntries] = useState([]);
   const [allFin, setAllFin] = useState([]);
   const [spendingProgress, setSpendingProgress] = useState(null);
+  const [creditProg, setCreditProg] = useState(null);
   const [ringsOpen, setRingsOpen] = useState(false);
   const [routines, setRoutines] = useState([]);
   const [aiPlan, setAiPlan] = useState(null);
@@ -79,6 +81,8 @@ export default function Dashboard() {
         ent.Business.list().catch(() => []),
         ent.SpendingStatement.list().catch(() => []),
         ent.BudgetBucket.list().catch(() => []),
+        ent.CreditDoc.list().catch(() => []),
+        ent.CreditCase.list().catch(() => []),
       ]);
       ent.Routine.list().then(setRoutines).catch(() => {});
       const [p, g, tr, bizAll, finAll, tsk, proj, bg, career] = await Promise.all([
@@ -109,7 +113,8 @@ export default function Dashboard() {
       setLoaded(true);
 
       // Ring numbers that need a few more lists fill in a moment later, without holding up the page.
-      const [bizList, stmts, buckets] = await extras;
+      const [bizList, stmts, buckets, creditDocs, creditCases] = await extras;
+      try { setCreditProg(creditProgress(creditDocs, (creditCases && creditCases[0]) || {})); } catch { /* ignore */ }
       const mkNow = monthKeyOf();
       setSpendingProgress({
         spent: monthView(stmts, mkNow)?.total || 0,
@@ -130,7 +135,7 @@ export default function Dashboard() {
     [tasks, goals, projects, finItems, trips, businessGoals, careerEntries]
   );
   const upNext = useMemo(() => buildUpNext({ trips, projects, bizEntries }), [trips, projects, bizEntries]);
-  const progress = useMemo(() => buildProgress({ routines, selection: prefs?.life_rings, trips, projects, goals, finItems: allFin, business: bizProgress, spending: spendingProgress }), [routines, prefs, trips, projects, goals, allFin, bizProgress, spendingProgress]);
+  const progress = useMemo(() => buildProgress({ routines, selection: prefs?.life_rings, trips, projects, goals, finItems: allFin, business: bizProgress, spending: spendingProgress, credit: creditProg }), [routines, prefs, trips, projects, goals, allFin, bizProgress, spendingProgress, creditProg]);
 
   const routinesLeft = useMemo(() => routines.filter((r) => isScheduled(r) && stepsFor(r).length && !completeOn(r, dayKey())).length, [routines]);
   const dailyStatus = useMemo(() => {

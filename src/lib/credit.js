@@ -22,11 +22,19 @@ export const accountKey = (a) => `${norm(a.creditor)}|${a.last4 || ""}`;
 // Merge the same account across reports and letters.
 export function mergeAccounts(docs) {
   const map = {};
-  docs.forEach((doc) => (doc.accounts || []).forEach((a) => {
+  // Reports first: they carry account numbers, so letters without one can attach to them.
+  const ordered = [...docs].sort((x, y) => (x.doc_type === "credit_report" ? 0 : 1) - (y.doc_type === "credit_report" ? 0 : 1));
+  ordered.forEach((doc) => (doc.accounts || []).forEach((a) => {
     let k = accountKey(a);
-    if (!a.last4) { const hit = Object.keys(map).find((x) => x.startsWith(`${norm(a.creditor)}|`)); if (hit) k = hit; }
+    if (!a.last4) {
+      // A letter often has no account number: match it to an account from the same company.
+      const n = norm(a.creditor);
+      const hit = Object.keys(map).find((x) => x.startsWith(`${n}|`))
+        || (n.length >= 5 && Object.keys(map).find((x) => { const xn = x.split("|")[0]; return xn.length >= 5 && (xn.startsWith(n) || n.startsWith(xn)); }));
+      if (hit) k = hit;
+    }
     const m = (map[k] = map[k] || { key: k, creditor: a.creditor, sources: [], bureaus: new Set(), late: [] });
-    m.sources.push({ docId: doc.id, type: doc.doc_type, date: doc.doc_date, bureau: doc.bureau });
+    m.sources.push({ docId: doc.id, type: doc.doc_type, date: doc.doc_date, bureau: doc.bureau, from: doc.from, status: a.status || "", balance: a.balance == null ? null : Number(a.balance) });
     if (doc.bureau && doc.doc_type === "credit_report") m.bureaus.add(doc.bureau);
     ["original_creditor", "kind", "status", "opened", "last_payment", "first_delinquency", "last4"].forEach((f) => { if (a[f] && !m[f]) m[f] = a[f]; });
     ["balance", "limit", "amount_requested"].forEach((f) => { if (a[f] != null) m[f] = a[f]; });
@@ -52,6 +60,16 @@ export function analyze(docs, caseRec = {}) {
   accounts.forEach((a) => {
     const dec = decisions[a.key] || {};
     if (dec.resolved) return;
+    // A letter or statement says it's paid, but a report still shows a balance or a charge-off.
+    const paidProof = a.sources.filter((x) => x.type !== "credit_report" && (x.status === "paid" || x.status === "closed" && x.balance === 0 || x.balance === 0))
+      .sort((x, y) => String(y.date).localeCompare(String(x.date)))[0];
+    const badReport = paidProof && a.sources.find((x) => x.type === "credit_report" && (x.status === "charged_off" || x.status === "collection" || Number(x.balance) > 0));
+    const mdec = decisions[`${a.key}|paid`] || {};
+    if (badReport && !mdec.resolved) {
+      items.push({ key: `${a.key}|paid`, kind: "mismatch", account: a, paidProof, badReport, when: mdec.paidWhen || null,
+        title: `${a.creditor} · report doesn't match your letter`, label: "Doesn't match",
+        detail: `${paidProof.from || "Your letter"}${paidProof.date ? ` (${niceDate(paidProof.date)})` : ""} says it's paid, but ${badReport.bureau || "a report"} shows ${badReport.status === "charged_off" ? "charged off" : badReport.status === "collection" ? "a collection" : ""}${Number(badReport.balance) > 0 ? `${badReport.status === "charged_off" || badReport.status === "collection" ? " with " : ""}a ${money(badReport.balance)} balance` : ""}.` });
+    }
     const afterBreach = breach && a.opened && a.opened >= breach.breach_date;
     if (afterBreach && dec.owner !== "mine") {
       items.push({ key: a.key, kind: "breach", account: a, breach, owner: dec.owner || null,
@@ -105,7 +123,7 @@ export function analyze(docs, caseRec = {}) {
     });
   }
 
-  const order = { breach: 0, collection: 1, late: 2, utilization: 3 };
+  const order = { mismatch: 0, breach: 1, collection: 2, late: 3, utilization: 4 };
   items.sort((x, y) => order[x.kind] - order[y.kind]);
   return { accounts, items, breach, reportBureaus };
 }
@@ -119,6 +137,17 @@ export function stepsFor(item) {
       { id: "alert", title: "Place a fraud alert or freeze", body: "Both are free. A freeze stops new accounts until you lift it. Contact each bureau to freeze." },
       { id: "block", title: "Ask the bureaus to block it", body: "Send your FTC report, proof of identity and a letter naming the fraudulent items.", letter: "block" },
       { id: "creditor", title: "Tell the company", body: "Let them know the account or inquiry wasn't you, with the same evidence.", letter: "fraud" },
+    ];
+  }
+  if (item.kind === "mismatch") {
+    const before = item.when === "before";
+    return [
+      { id: "compare", title: "Check the dates", body: "Compare your payoff date with the charge-off date on the report. Pick below which happened first." },
+      { id: "bureau", title: before ? "Dispute the charge-off" : "Ask the bureau to show $0 and paid",
+        body: before ? "If you paid before it was charged off, the charge-off is wrong. Send the bureau your payoff letter and ask for it to show paid as agreed."
+          : "A charge-off paid afterward can stay on the report, but it should show a $0 balance and paid. Send your payoff letter and ask them to update it.", letter: "paidmismatch" },
+      { id: "lender", title: "Ask the lender to correct what it reports", body: "Lenders report to the bureaus, so ask them to send the update too. Attach the same letter.", letter: "lenderupdate" },
+      { id: "recheck", title: "Check your reports in 30–45 days", body: "Upload the new report or the bureau's answer here to see if it changed." },
     ];
   }
   if (item.kind === "collection") {
@@ -159,6 +188,15 @@ export function letterFor(type, item, ctx = {}) {
       return `To: ${name}\n[Collector's mailing address from their letter]\n\nRe: Request for validation${ref}\n\nI received your letter${a.letterDate ? ` dated ${niceDate(a.letterDate)}` : ""} about an alleged debt. I am requesting validation. Please send me:\n\n1. The amount you say is owed and how it was calculated, including interest and fees\n2. The name and address of the original creditor\n3. Proof that you own this debt or are authorized to collect it\n4. A copy of the original agreement or the last statement from the original creditor\n5. The date of the last payment on the account\n\nPlease stop collection activity until you have provided this information. This letter is not an acknowledgment that I owe this debt.${sign}`;
     case "dispute":
       return `To: ${bureau}\n[Bureau dispute address, from the bureau's website]\n\nRe: Dispute of inaccurate information\n\nI am writing to dispute the following item on my credit report:\n\n${name}${ref}${a.amount_requested || a.balance ? `, ${money(a.amount_requested || a.balance)}` : ""}\n\nReason: ${item.dup ? `This debt also appears under the original creditor, ${a.original_creditor}, so it is being reported twice.` : item.twin ? `This appears to be the same debt as the ${item.twin} collection for the same amount, so it is being reported twice. [Add what matches: original creditor, dates.]` : "[Explain what is wrong: amount, dates, status, or that it is not mine]"}\n\nPlease investigate and correct or remove this item. I have enclosed [copies of supporting documents].${sign}`;
+    case "paidmismatch": {
+      const p = item.paidProof || {};
+      const before = item.when === "before";
+      return `To: ${(item.badReport && item.badReport.bureau) || bureau}\n[Bureau dispute address, from the bureau's website]\n\nRe: Dispute of inaccurate account status${ref}\n\nThe following account on my credit report is reported inaccurately:\n\n${name}${ref}\n\nYour report shows ${item.badReport && item.badReport.status === "charged_off" ? "a charge-off" : "an unpaid status"}${item.badReport && Number(item.badReport.balance) > 0 ? ` with a balance of ${money(item.badReport.balance)}` : ""}. ${p.from || "The lender"} confirmed in writing${p.date ? ` on ${niceDate(p.date)}` : ""} that this account is paid in full. A copy of that letter is enclosed.\n\n${before ? "I paid this account in full before it was charged off, so the charge-off is inaccurate. Please update the account to show it as paid as agreed with a $0 balance." : "Please update this account to show a $0 balance and a paid status."}${sign}`;
+    }
+    case "lenderupdate": {
+      const p = item.paidProof || {};
+      return `To: ${name}\n[Lender's credit reporting or customer service address]\n\nRe: Correct credit reporting${ref}\n\nYour letter${p.date ? ` dated ${niceDate(p.date)}` : ""} confirms this account is paid in full (copy enclosed). However, the credit bureaus still show ${item.badReport && Number(item.badReport.balance) > 0 ? `a balance of ${money(item.badReport.balance)}` : "it as unpaid"}${item.badReport && item.badReport.status === "charged_off" ? " and a charge-off" : ""}.\n\nPlease update what you report to all three credit bureaus to show a $0 balance and paid${item.when === "before" ? " as agreed" : ""}, and confirm in writing when it's done.${sign}`;
+    }
     case "goodwill":
       return `To: ${name}\n[Customer service or credit reporting address]\n\nRe: Goodwill adjustment request${ref}\n\nI have been a customer since ${a.opened ? niceDate(a.opened) : "[year]"}. My records show a late payment reported in ${a.late && a.late.length ? niceDate(a.late[a.late.length - 1].date) : "[month and year]"}. [Briefly explain what happened.]\n\nSince then I have paid on time. I would be grateful if you would consider removing this late payment from my credit reports as a goodwill gesture.${sign}`;
     case "paydelete":
@@ -172,7 +210,7 @@ export function letterFor(type, item, ctx = {}) {
     default: return "";
   }
 }
-export const LETTER_TITLE = { validation: "Ask them to prove the debt", dispute: "Dispute with the bureau", goodwill: "Goodwill request", paydelete: "Pay-for-delete offer", block: "Identity theft block", fraud: "Not mine: tell the company" };
+export const LETTER_TITLE = { paidmismatch: "Dispute: paid but shows unpaid", lenderupdate: "Ask the lender to correct it", validation: "Ask them to prove the debt", dispute: "Dispute with the bureau", goodwill: "Goodwill request", paydelete: "Pay-for-delete offer", block: "Identity theft block", fraud: "Not mine: tell the company" };
 
 // One timeline from every document plus what the person has done.
 export function timeline(docs, caseRec = {}) {
@@ -220,6 +258,8 @@ export const isOverdue = (s) => !s.reply && sentDue(s) < today();
 
 // What they might say back, per letter.
 export const OUTCOMES = {
+  paidmismatch: [["updated", "Updated to paid"], ["deleted", "Removed"], ["verified", "Said it's accurate"]],
+  lenderupdate: [["updated", "Agreed to update"], ["declined", "Refused"]],
   validation: [["proof", "Sent proof"], ["no_proof", "Replied, no real proof"], ["stopped", "Dropped it / removed"]],
   dispute: [["deleted", "Removed"], ["updated", "Corrected"], ["verified", "Said it's accurate"]],
   goodwill: [["deleted", "Removed it"], ["declined", "Said no"]],
@@ -329,4 +369,57 @@ export function mergeParts(parts) {
     results: ok.flatMap((d) => d.results || []),
     summary: pick("summary") || "",
   };
+}
+
+
+// ---------- The whole picture ----------
+const amountOf = (a) => Number(a.amount_requested || a.balance) || 0;
+
+export function overview(docs, caseRec = {}) {
+  const { accounts, items } = analyze(docs, caseRec);
+  const decisions = caseRec.decisions || {};
+  const reports = docs.filter((d) => d.doc_type === "credit_report");
+  const bureaus = [...new Set(reports.map((d) => d.bureau).filter(Boolean))];
+  const latestReport = [...reports].sort((a, b) => String(b.doc_date).localeCompare(String(a.doc_date)))[0];
+  const cols = accounts.filter(isCollection);
+  const openCards = accounts.filter((a) => isCard(a) && !/charged|closed|collection/.test(String(a.status || "")) && Number(a.limit) > 0);
+  const cardBal = openCards.reduce((t, a) => t + (Number(a.balance) || 0), 0);
+  const cardLim = openCards.reduce((t, a) => t + Number(a.limit), 0);
+  const lateCount = accounts.reduce((t, a) => t + (a.late || []).length, 0);
+  const pr = progress(docs, caseRec);
+  const scores = pr.scores;
+  const firstScore = scores[0], lastScore = scores[scores.length - 1];
+
+  // Start here: the three steps most worth doing first.
+  const start = [];
+  items.filter((i) => i.kind === "mismatch").forEach((i) => start.push({ key: i.key, text: `Fix ${i.account.creditor}: your letter says paid, the report doesn't` }));
+  items.filter((i) => i.kind === "breach" && !i.owner).slice(0, 1).forEach((i) => start.push({ key: i.key, text: "Tell Guía which accounts after the breach are yours" }));
+  items.filter((i) => i.kind === "collection" && (i.twin || i.dup)).slice(0, 1).forEach((i) => start.push({ key: i.key, text: `Check if ${i.account.creditor} is listed twice (${money(amountOf(i.account))})` }));
+  const openCols = items.filter((i) => i.kind === "collection" && !((decisions[i.key] || {}).sent || []).length);
+  if (openCols.length) start.push({ key: openCols[0].key, text: `Ask ${openCols.length === 1 ? openCols[0].account.creditor : `the ${openCols.length} collectors`} to prove ${openCols.length === 1 ? "the debt" : "their debts"} before paying` });
+  const util = items.filter((i) => i.kind === "utilization").sort((a, b) => b.pct - a.pct)[0];
+  if (util) start.push({ key: util.key, text: `Pay ${util.account.creditor} down by about ${money(util.target)} to get under 30%` });
+
+  // Progress: handled = resolved, or a letter sent.
+  const resolved = Object.values(decisions).filter((v) => v.resolved).length;
+  const inFlight = items.filter((i) => ((decisions[i.key] || {}).sent || []).length).length;
+  const lettersSent = Object.values(decisions).reduce((t, v) => t + (v.sent || []).length, 0);
+  return {
+    bureaus, latestReport,
+    score: lastScore ? lastScore.score : null, scoreBureau: lastScore && lastScore.bureau,
+    scoreChange: firstScore && lastScore && firstScore !== lastScore ? { delta: lastScore.score - firstScore.score, since: firstScore.date } : null,
+    collections: { count: cols.length, total: cols.reduce((t, a) => t + amountOf(a), 0) },
+    lateCount,
+    usage: cardLim ? Math.round((cardBal / cardLim) * 100) : null,
+    start: start.slice(0, 3),
+    nextFalloff: pr.coming[0] || null,
+    handled: resolved + inFlight, total: resolved + items.length, resolved, inFlight, lettersSent, wins: pr.wins.length,
+  };
+}
+
+// For the Life Progress ring on Home.
+export function creditProgress(docs, caseRec = {}) {
+  if (!docs.length) return null;
+  const o = overview(docs, caseRec);
+  return { handled: o.handled, total: o.total };
 }
