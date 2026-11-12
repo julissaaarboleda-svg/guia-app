@@ -30,6 +30,17 @@ export function prettyName(name) {
   }).join("");
 }
 
+// Shorter display names: "Capital One Bank USA NA" → "Capital One". Keeps the name if trimming would empty it.
+const CORP = /\b(bank|usa|n\.?a\.?|inc|llc|l\.l\.c\.|co|corp|corporation|company|financial|services|svcs|fsb|ltd)\b\.?,?/gi;
+export function shortName(name) {
+  const s = prettyName(name);
+  const sp = s.indexOf(" ");
+  if (sp < 0) return s;
+  // Never trim the first word ("Bank of America" stays whole).
+  const t = (s.slice(0, sp) + s.slice(sp).replace(CORP, "")).replace(/[,\s]+$/g, "").replace(/\s{2,}/g, " ").trim();
+  return t.length >= 3 ? t : s;
+}
+
 export const accountKey = (a) => `${norm(a.creditor)}|${a.last4 || ""}`;
 
 // Merge the same account across reports and letters.
@@ -50,10 +61,10 @@ export function mergeAccounts(docs) {
       const hit = pool.sort((x, y) => score(y) - score(x))[0];
       if (hit) k = hit;
     }
-    const m = (map[k] = map[k] || { key: k, creditor: prettyName(a.creditor), sources: [], bureaus: new Set(), late: [] });
+    const m = (map[k] = map[k] || { key: k, creditor: shortName(a.creditor), fullName: prettyName(a.creditor), sources: [], bureaus: new Set(), late: [] });
     m.sources.push({ docId: doc.id, type: doc.doc_type, date: doc.doc_date, bureau: doc.bureau, from: doc.from, status: a.status || "", balance: a.balance == null ? null : Number(a.balance) });
     if (doc.bureau && doc.doc_type === "credit_report") m.bureaus.add(doc.bureau);
-    ["original_creditor", "kind", "status", "opened", "last_payment", "first_delinquency", "last4", "address"].forEach((f) => { if (a[f] && !m[f]) m[f] = f === "original_creditor" ? prettyName(a[f]) : a[f]; });
+    ["original_creditor", "kind", "status", "opened", "last_payment", "first_delinquency", "last4", "address"].forEach((f) => { if (a[f] && !m[f]) m[f] = f === "original_creditor" ? shortName(a[f]) : a[f]; });
     ["balance", "limit", "amount_requested", "past_due", "days_past_due"].forEach((f) => { if (a[f] != null) m[f] = a[f]; });
     if (a.dispute_deadline) m.dispute_deadline = a.dispute_deadline;
     if (doc.doc_type === "collector_letter" || doc.doc_type === "creditor_letter") {
@@ -129,12 +140,12 @@ export function analyze(docs, caseRec = {}) {
     if (isCard(a) && !inactive && Number(a.limit) > 0 && Number(a.balance) > Number(a.limit)) {
       const lim = Number(a.limit), bal = Number(a.balance);
       items.push({ key: a.key, kind: "overlimit", account: a, pct: Math.round((bal / lim) * 100), toLimit: Math.ceil(bal - lim), target: Math.round(bal - lim * 0.29),
-        title: `${a.creditor}${a.last4 ? ` ${a.last4}` : ""} · ${money(bal)} of ${money(lim)}`, label: "Over limit",
+        title: `${a.creditor}${a.last4 ? ` ${a.last4}` : ""} · ${money(bal)} / ${money(lim)}`, label: "Over limit",
         detail: "Over the limit. Getting under it first can avoid fees; then aim for under 30%." });
     } else if (isCard(a) && !/charged|closed|collection/.test(String(a.status || "")) && Number(a.limit) > 0 && Number(a.balance) / Number(a.limit) > 0.3) {
       const pct = Math.round((Number(a.balance) / Number(a.limit)) * 100);
       items.push({ key: a.key, kind: "utilization", account: a, pct, target: Math.round(Number(a.balance) - Number(a.limit) * 0.29),
-        title: `${a.creditor} · ${money(a.balance)} of ${money(a.limit)} (${pct}%)`, label: "High balance",
+        title: `${a.creditor}${a.last4 ? ` ${a.last4}` : ""} · ${pct}% used`, label: "High balance",
         detail: "How much of your card limits you use is one of the biggest parts of a score." });
     }
     const lates = (a.late || []).filter(Boolean);
@@ -289,7 +300,7 @@ export const BUREAU_LETTERS = new Set(["dispute", "paidmismatch", "unverified", 
 
 export function letterFor(type, item, ctx = {}) {
   const a = item.account || {};
-  const name = a.creditor || item.inquiry?.creditor || "[Company name]";
+  const name = a.fullName || a.creditor || item.inquiry?.creditor || "[Company name]";
   const ref = a.last4 ? ` (account ending ${a.last4})` : "";
   const sign = signOff(ctx.sender);
   const bureau = ctx.bureau || (a.bureaus && a.bureaus[0]) || "[Equifax / Experian / TransUnion]";
@@ -441,7 +452,7 @@ export function replySteps(s) {
 
 export function followUpLetter(type, item, s, ctx = {}) {
   const a = item.account || {};
-  const name = a.creditor || item.inquiry?.creditor || "[Company name]";
+  const name = a.fullName || a.creditor || item.inquiry?.creditor || "[Company name]";
   const ref = a.last4 ? ` (account ending ${a.last4})` : "";
   const sign = signOff(ctx.sender);
   const bureau = ctx.bureau || (a.bureaus && a.bureaus[0]) || "[Equifax / Experian / TransUnion]";

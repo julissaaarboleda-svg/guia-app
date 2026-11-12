@@ -567,8 +567,8 @@ export default function CreditAssistant({ scoreItems = [] }) {
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-[#F0E6D6] flex items-center justify-center shrink-0"><FileText className="w-4 h-4 text-[#8B6B3E]" /></div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground">Credit assistant {usage && <span className="ml-1 text-[10px] font-normal px-1.5 py-0.5 rounded-full bg-[#F0E6D6] text-[#8B6B3E]">{usage.plan === "trial" ? "Plus · trial" : "Plus"}</span>}</p>
-            <p className="text-[11px] text-muted-foreground truncate">{docs.length ? `${docs.length - copies.length} ${docs.length - copies.length === 1 ? "document" : "documents"} · reports, letters, breach notices` : "Upload credit reports, collection letters, breach notices or dispute results"}</p>
+            <p className="text-sm font-medium text-foreground whitespace-nowrap">Credit assistant {usage && <span className="ml-1 text-[10px] font-normal px-1.5 py-0.5 rounded-full bg-[#F0E6D6] text-[#8B6B3E]">Plus</span>}</p>
+            <p className="text-[11px] text-muted-foreground truncate">{docs.length ? `${docs.length - copies.length} ${docs.length - copies.length === 1 ? "document" : "documents"}${usage && usage.plan === "trial" ? " · in your trial" : ""}` : "Reports, collection letters, breach notices"}</p>
           </div>
           <button onClick={() => setRightsOpen(true)} className="shrink-0 text-xs text-[#8B6B3E] inline-flex items-center gap-1"><Scale className="w-3.5 h-3.5" /><span className="hidden sm:inline">Your rights</span><span className="sm:hidden">Rights</span></button>
           {!locked && (
@@ -617,10 +617,10 @@ export default function CreditAssistant({ scoreItems = [] }) {
             {ov.pastDueCount > 0 ? (
               <div className="rounded-xl bg-[#F3E6E8] p-2.5"><p className="font-heading text-lg text-[#6E4A4F] leading-tight">{ov.pastDueCount}{ov.pastDueTotal ? ` · ${money(ov.pastDueTotal)}` : ""}</p><p className="text-[11px] text-[#8F5F65]">Past due now</p></div>
             ) : (
-              <div className="rounded-xl bg-[#F0E6D6] p-2.5"><p className="font-heading text-lg text-[#6E5430] leading-tight">{ov.lateAccounts}{ov.lateAccounts ? <span className="text-[11px] font-body"> {ov.lateAccounts === 1 ? "account" : "accounts"}</span> : ""}</p><p className="text-[11px] text-[#8B6B3E]">{ov.lateCount ? `Past late payments · ${ov.lateCount} months` : "Late payments"}</p></div>
+              <div className="rounded-xl bg-[#F0E6D6] p-2.5"><p className="font-heading text-lg text-[#6E5430] leading-tight">{ov.lateAccounts}{ov.lateAccounts ? <span className="text-[11px] font-body"> {ov.lateAccounts === 1 ? "account" : "accounts"}</span> : ""}</p><p className="text-[11px] text-[#8B6B3E]">With late payments</p></div>
             )}
             {ov.overLimitCount > 0 ? (
-              <div className="rounded-xl bg-[#F3E6E8] p-2.5"><p className="font-heading text-lg text-[#6E4A4F] leading-tight">{ov.overLimitCount} {ov.overLimitCount === 1 ? "card" : "cards"}</p><p className="text-[11px] text-[#8F5F65]">Over the limit{ov.usage != null ? ` · ${ov.usage}% used overall` : ""}</p></div>
+              <div className="rounded-xl bg-[#F3E6E8] p-2.5"><p className="font-heading text-lg text-[#6E4A4F] leading-tight">{ov.overLimitCount} {ov.overLimitCount === 1 ? "card" : "cards"}</p><p className="text-[11px] text-[#8F5F65]">Over the limit</p></div>
             ) : (() => {
               const u = ov.usage;
               const tone = u == null ? ["bg-secondary/70", "text-foreground", "text-muted-foreground"] : u <= 30 ? ["bg-[#E9EDDD]", "text-[#3F4A22]", "text-[#566033]"] : u <= 50 ? ["bg-[#F0E6D6]", "text-[#6E5430]", "text-[#8B6B3E]"] : ["bg-[#F3E6E8]", "text-[#6E4A4F]", "text-[#8F5F65]"];
@@ -685,11 +685,11 @@ export default function CreditAssistant({ scoreItems = [] }) {
             </button>
           )}
           {items.length > 0 && (
-            <div className="flex gap-1.5 flex-wrap mb-3">
+            <div className="flex gap-1.5 mb-3 overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap">
               {FILTERS.map(([k, l, fn]) => {
                 const n = items.filter(fn).length;
                 if (k !== "all" && !n) return null;
-                return <button key={k} onClick={() => { setFilter(k); setShowAll(false); }} className={`text-xs rounded-full px-2.5 py-1 border ${filter === k ? "bg-foreground text-background border-foreground" : "border-border text-foreground"}`}>{l} {n}</button>;
+                return <button key={k} onClick={() => { setFilter(k); setShowAll(false); }} className={`shrink-0 whitespace-nowrap text-xs rounded-full px-2.5 py-1 border ${filter === k ? "bg-foreground text-background border-foreground" : "border-border text-foreground"}`}>{l} {n}</button>;
               })}
             </div>
           )}
@@ -872,12 +872,18 @@ export default function CreditAssistant({ scoreItems = [] }) {
             const head = (t, c) => <p className={`text-[10.5px] font-bold uppercase tracking-[0.14em] mt-4 mb-1 ${c}`}>{t}</p>;
             return (
               <>
-                {head("Done", "text-[#566033]")}
-                {done.length ? done.slice(0, 5).map((x, i) => <Row key={i} tone={x.win ? "bg-[#7D8A53] text-white" : "bg-[#E9EDDD] text-[#566033]"} icon={<Check className="w-3 h-3" />} text={x.text} right={<span className="text-[11px] text-muted-foreground shrink-0">{niceDate(x.date).replace(/, \d{4}$/, "")}</span>} />)
-                  : <p className="text-xs text-muted-foreground py-1">Letters you send and items removed or corrected show up here.</p>}
-                {head("Waiting on", "text-[#8B6B3E]")}
-                {prog.checkBacks.length ? prog.checkBacks.map((c, i) => <Row key={i} tone="bg-[#F0E6D6] text-[#8B6B3E]" icon={<Loader2 className="w-3 h-3" />} text={`${c.to || "Reply"} · ${LETTER_TITLE[c.type] || "letter"}`} right={<span className="text-[10px] rounded-full bg-[#F0E6D6] text-[#8B6B3E] px-2 py-0.5 shrink-0">by {niceDate(c.due).replace(/, \d{4}$/, "")}</span>} />)
-                  : <p className="text-xs text-muted-foreground py-1">Nothing yet. Replies are due 30 days after you mark a letter sent.</p>}
+                {!done.length && !prog.checkBacks.length ? (
+                  <p className="text-xs text-muted-foreground mt-3">No letters mailed yet. Once you send one, what's done and what you're waiting on shows here.</p>
+                ) : (
+                  <>
+                    {head("Done", "text-[#566033]")}
+                    {done.length ? done.slice(0, 5).map((x, i) => <Row key={i} tone={x.win ? "bg-[#7D8A53] text-white" : "bg-[#E9EDDD] text-[#566033]"} icon={<Check className="w-3 h-3" />} text={x.text} right={<span className="text-[11px] text-muted-foreground shrink-0">{niceDate(x.date).replace(/, \d{4}$/, "")}</span>} />)
+                      : <p className="text-xs text-muted-foreground py-1">Nothing yet.</p>}
+                    {head("Waiting on", "text-[#8B6B3E]")}
+                    {prog.checkBacks.length ? prog.checkBacks.map((c, i) => <Row key={i} tone="bg-[#F0E6D6] text-[#8B6B3E]" icon={<Loader2 className="w-3 h-3" />} text={`${c.to || "Reply"} · ${LETTER_TITLE[c.type] || "letter"}`} right={<span className="text-[10px] rounded-full bg-[#F0E6D6] text-[#8B6B3E] px-2 py-0.5 shrink-0">by {niceDate(c.due).replace(/, \d{4}$/, "")}</span>} />)
+                      : <p className="text-xs text-muted-foreground py-1">No replies due.</p>}
+                  </>
+                )}
                 {(() => {
                   // Only what drops off within a year is worth a list; anything later is one quiet line.
                   const yr = new Date(); yr.setFullYear(yr.getFullYear() + 1);
@@ -898,7 +904,7 @@ export default function CreditAssistant({ scoreItems = [] }) {
                     </>
                   );
                 })()}
-                {prog.coming.length > 0 && <p className="text-[11px] text-muted-foreground mt-3">Drop-off dates are estimates (about 7 years from the first late payment). No one can promise a score change.</p>}
+                {prog.coming.some((c) => new Date(c.date) <= new Date(Date.now() + 365 * 86400000)) && <p className="text-[11px] text-muted-foreground mt-3">Drop-off dates are estimates (about 7 years from the first late payment). No one can promise a score change.</p>}
               </>
             );
           })()}

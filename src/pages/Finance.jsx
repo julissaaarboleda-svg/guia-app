@@ -74,7 +74,7 @@ function RowMenu({ open, onToggle, onClose, children }) {
 const menuBtn = "w-full flex items-center gap-2 text-left px-3 py-2 text-xs hover:bg-secondary";
 
 const ADD_LABELS = { credit_score: "score", savings_goal: "goal", bill: "bill", loan: "loan", subscription: "subscription", budget: "bucket" };
-const TAB_LABELS = { summary: "Summary", credit_score: "Credit Scores", savings_goal: "Savings Goals", bill: "Bills", loan: "Loans", subscription: "Subscriptions", budget: "Budget", spending: "Spending" };
+const TAB_LABELS = { summary: "Summary", credit_score: "Credit", savings_goal: "Savings Goals", bill: "Bills", loan: "Loans", subscription: "Subscriptions", budget: "Budget", spending: "Spending" };
 
 export default function Finance() {
   const [items, setItems] = useState([]);
@@ -357,7 +357,7 @@ export default function Finance() {
       {activeTab !== "budget" && activeTab !== "spending" && activeTab !== "summary" && (
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-heading text-xl text-foreground">{TAB_LABELS[activeTab]}</h2>
-        {!adding && (
+        {!adding && activeTab !== "credit_score" && (
           <button onClick={() => openAdd()} className="font-body text-[13px] font-medium text-[#A7773F] px-1 py-1.5 hover:opacity-80 transition-opacity">
             + New {String(ADD_LABELS[activeTab] || "").toLowerCase()}
           </button>
