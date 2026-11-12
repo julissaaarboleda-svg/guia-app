@@ -17,6 +17,19 @@ export const DOC_LABEL = {
   credit_report: "Report", collector_letter: "Collector", creditor_letter: "Creditor", breach_notice: "Breach",
   dispute_response: "Response", statement: "Statement", other: "Other",
 };
+// "CAPITAL ONE BANK USA NA" → "Capital One Bank USA NA". Reports print names in capitals; this reads easier.
+const KEEP_UPPER = new Set(["USA", "NA", "LLC", "N.A.", "FSB", "TD", "BMO", "PNC", "HSBC", "USAA", "GM", "BB&T", "CB", "AR", "ATT", "AT&T", "US", "TX", "CA", "FL", "NY", "II", "III"]);
+export function prettyName(name) {
+  const s = String(name || "").trim();
+  if (!s || /[a-z]/.test(s)) return s; // already mixed case
+  return s.split(/(\s+|\/|-)/).map((w) => {
+    if (!w.trim() || w === "/" || w === "-") return w;
+    if (KEEP_UPPER.has(w.replace(/[,.]$/, ""))) return w;
+    if (/^(INC|CO|CORP|LTD)[,.]?$/.test(w)) return w.charAt(0) + w.slice(1).toLowerCase();
+    return w.charAt(0) + w.slice(1).toLowerCase();
+  }).join("");
+}
+
 export const accountKey = (a) => `${norm(a.creditor)}|${a.last4 || ""}`;
 
 // Merge the same account across reports and letters.
@@ -33,10 +46,10 @@ export function mergeAccounts(docs) {
         || (n.length >= 5 && Object.keys(map).find((x) => { const xn = x.split("|")[0]; return xn.length >= 5 && (xn.startsWith(n) || n.startsWith(xn)); }));
       if (hit) k = hit;
     }
-    const m = (map[k] = map[k] || { key: k, creditor: a.creditor, sources: [], bureaus: new Set(), late: [] });
+    const m = (map[k] = map[k] || { key: k, creditor: prettyName(a.creditor), sources: [], bureaus: new Set(), late: [] });
     m.sources.push({ docId: doc.id, type: doc.doc_type, date: doc.doc_date, bureau: doc.bureau, from: doc.from, status: a.status || "", balance: a.balance == null ? null : Number(a.balance) });
     if (doc.bureau && doc.doc_type === "credit_report") m.bureaus.add(doc.bureau);
-    ["original_creditor", "kind", "status", "opened", "last_payment", "first_delinquency", "last4"].forEach((f) => { if (a[f] && !m[f]) m[f] = a[f]; });
+    ["original_creditor", "kind", "status", "opened", "last_payment", "first_delinquency", "last4"].forEach((f) => { if (a[f] && !m[f]) m[f] = f === "original_creditor" ? prettyName(a[f]) : a[f]; });
     ["balance", "limit", "amount_requested"].forEach((f) => { if (a[f] != null) m[f] = a[f]; });
     if (a.dispute_deadline) m.dispute_deadline = a.dispute_deadline;
     if (doc.doc_type === "collector_letter" || doc.doc_type === "creditor_letter") m.letterDate = doc.doc_date || m.letterDate;
@@ -118,7 +131,7 @@ export function analyze(docs, caseRec = {}) {
       const key = `inq|${norm(q.creditor)}|${q.date}`;
       const dec = decisions[key] || {};
       if (dec.owner === "mine" || dec.resolved) return;
-      items.push({ key, kind: "breach", inquiry: q, breach, owner: dec.owner || null, title: `Inquiry · ${q.creditor} · ${niceDate(q.date)}`, label: "After the breach",
+      items.push({ key, kind: "breach", inquiry: q, breach, owner: dec.owner || null, title: `Inquiry · ${prettyName(q.creditor)} · ${niceDate(q.date)}`, label: "After the breach",
         detail: "A credit check after the breach notice. Did you apply for credit here?" });
     });
   }
@@ -217,16 +230,17 @@ export function timeline(docs, caseRec = {}) {
   const ev = [];
   docs.forEach((d) => {
     if (d.doc_type === "breach_notice") ev.push({ date: d.breach_date || d.doc_date, tone: "bad", text: `${d.from || "A company"} says your data was exposed${d.breach_what ? ` (${d.breach_what})` : ""}.` });
-    else if (d.doc_type === "collector_letter" || d.doc_type === "creditor_letter") (d.accounts || []).forEach((a) => ev.push({ date: d.doc_date, tone: "warn", text: `${a.creditor} asks for ${money(a.amount_requested || a.balance) || "payment"}.` }));
-    else if (d.doc_type === "dispute_response") (d.results || []).forEach((r) => ev.push({ date: d.doc_date, tone: r.outcome === "deleted" || r.outcome === "updated" ? "good" : "info", text: `${d.from || "Bureau"}: ${r.creditor} ${r.outcome}${r.note ? `. ${r.note}` : ""}.` }));
-    else if (d.doc_type === "credit_report") ev.push({ date: d.doc_date, tone: "info", text: `${d.bureau || "Credit"} report${d.score ? ` · score ${d.score}` : ""}.` });
+    else if (d.doc_type === "collector_letter" || d.doc_type === "creditor_letter") (d.accounts || []).forEach((a) => ev.push({ date: d.doc_date, tone: a.status === "paid" ? "good" : "warn", text: a.status === "paid" ? `${prettyName(a.creditor)} confirms it's paid.` : `${prettyName(a.creditor)} asks for ${money(a.amount_requested || a.balance) || "payment"}.` }));
+    else if (d.doc_type === "dispute_response") (d.results || []).forEach((r) => ev.push({ date: d.doc_date, tone: r.outcome === "deleted" || r.outcome === "updated" ? "good" : "info", text: `${d.from || "Bureau"}: ${prettyName(r.creditor)} ${r.outcome}${r.note ? `. ${r.note}` : ""}.` }));
+    else if (d.doc_type === "credit_report") ev.push({ date: d.doc_date, tone: "info", text: `${d.bureau || "Credit"} report${d.score ? ` · score ${d.score}` : ""}` });
   });
   mergeAccounts(docs).forEach((a) => {
     (a.late || []).forEach((l) => ev.push({ date: l.date, tone: "warn", text: `${a.creditor}: ${l.days || 30} days late.` }));
     if (isCollection(a) && a.first_delinquency) ev.push({ date: a.first_delinquency, tone: "warn", text: `${a.creditor} first went late.` });
   });
   Object.values(caseRec.decisions || {}).forEach((dec) => (dec.sent || []).forEach((s) => ev.push({ date: s.date, tone: "info", text: `You sent: ${LETTER_TITLE[s.type] || s.type} (${s.to}).` })));
-  return ev.filter((e) => e.date).sort((a, b) => b.date.localeCompare(a.date));
+  const seen = new Set();
+  return ev.filter((e) => e.date && !seen.has(`${e.date}|${e.text}`) && seen.add(`${e.date}|${e.text}`)).sort((a, b) => b.date.localeCompare(a.date));
 }
 
 export function progress(docs, caseRec = {}) {
@@ -386,6 +400,7 @@ export function overview(docs, caseRec = {}) {
   const cardBal = openCards.reduce((t, a) => t + (Number(a.balance) || 0), 0);
   const cardLim = openCards.reduce((t, a) => t + Number(a.limit), 0);
   const lateCount = accounts.reduce((t, a) => t + (a.late || []).length, 0);
+  const lateAccounts = accounts.filter((a) => (a.late || []).length).length;
   const pr = progress(docs, caseRec);
   const scores = pr.scores;
   const firstScore = scores[0], lastScore = scores[scores.length - 1];
@@ -409,7 +424,7 @@ export function overview(docs, caseRec = {}) {
     score: lastScore ? lastScore.score : null, scoreBureau: lastScore && lastScore.bureau,
     scoreChange: firstScore && lastScore && firstScore !== lastScore ? { delta: lastScore.score - firstScore.score, since: firstScore.date } : null,
     collections: { count: cols.length, total: cols.reduce((t, a) => t + amountOf(a), 0) },
-    lateCount,
+    lateCount, lateAccounts,
     usage: cardLim ? Math.round((cardBal / cardLim) * 100) : null,
     start: start.slice(0, 3),
     nextFalloff: pr.coming[0] || null,

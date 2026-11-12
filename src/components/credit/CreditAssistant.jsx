@@ -171,6 +171,7 @@ export default function CreditAssistant({ scoreItems = [] }) {
   const [filter, setFilter] = useState("all");
   const [showAll, setShowAll] = useState(false);
   const [showUploads, setShowUploads] = useState(false);
+  const [timelineAll, setTimelineAll] = useState(false);
   const [letter, setLetter] = useState(null);
   const [toast, setToast] = useState("");
   const [usage, setUsage] = useState(null);
@@ -372,12 +373,19 @@ export default function CreditAssistant({ scoreItems = [] }) {
       {ov && (
         <div className="bg-card border border-border rounded-2xl p-4">
           <p className="font-heading text-lg text-foreground">Your credit at a glance</p>
-          <p className="text-xs text-muted-foreground mb-3">From {docs.length} {docs.length === 1 ? "document" : "documents"}{ov.bureaus.length ? ` · ${ov.bureaus.join(", ")}` : ""}{ov.latestReport?.doc_date ? ` · latest ${niceDate(ov.latestReport.doc_date)}` : ""}</p>
+          <p className="text-xs text-muted-foreground mb-3">
+            From {docs.length - copies.length} {docs.length - copies.length === 1 ? "document" : "documents"}{ov.bureaus.length ? ` · ${ov.bureaus.join(", ")}` : ""}{ov.latestReport?.doc_date ? ` · latest ${niceDate(ov.latestReport.doc_date)}` : ""}
+            {copies.length > 0 && <> · <button onClick={removeCopies} className="text-[#8F5F65] font-medium">Remove {copies.length} {copies.length === 1 ? "copy" : "copies"}</button></>}
+          </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <div className="rounded-xl bg-secondary/70 p-2.5"><p className="font-heading text-lg text-foreground leading-tight">{ov.score || "—"}{ov.scoreChange && <span className={`ml-1.5 text-[11px] font-body ${ov.scoreChange.delta >= 0 ? "text-[#566033]" : "text-[#8F5F65]"}`}>{ov.scoreChange.delta >= 0 ? "▲" : "▼"} {Math.abs(ov.scoreChange.delta)}</span>}</p><p className="text-[11px] text-muted-foreground">{ov.scoreBureau ? `${ov.scoreBureau} score` : "Score"}</p></div>
+            <div className="rounded-xl bg-secondary/70 p-2.5"><p className="font-heading text-lg text-foreground leading-tight">{ov.score || "—"}{ov.scoreChange && <span className={`ml-1.5 text-[11px] font-body ${ov.scoreChange.delta >= 0 ? "text-[#566033]" : "text-[#8F5F65]"}`}>{ov.scoreChange.delta >= 0 ? "▲" : "▼"} {Math.abs(ov.scoreChange.delta)}</span>}</p><p className="text-[11px] text-muted-foreground">{ov.scoreBureau ? `${ov.scoreBureau} score` : "Score"}{ov.score ? ` · ${ov.score >= 740 ? "Very good" : ov.score >= 670 ? "Good" : ov.score >= 580 ? "Fair" : "Poor"}` : ""}</p></div>
             <div className="rounded-xl bg-[#F3E6E8] p-2.5"><p className="font-heading text-lg text-[#6E4A4F] leading-tight">{ov.collections.count}{ov.collections.total ? ` · ${money(ov.collections.total)}` : ""}</p><p className="text-[11px] text-[#8F5F65]">Collections</p></div>
-            <div className="rounded-xl bg-[#F0E6D6] p-2.5"><p className="font-heading text-lg text-[#6E5430] leading-tight">{ov.lateCount}</p><p className="text-[11px] text-[#8B6B3E]">Late payments</p></div>
-            <div className="rounded-xl bg-[#E9EDDD] p-2.5"><p className="font-heading text-lg text-[#3F4A22] leading-tight">{ov.usage == null ? "—" : `${ov.usage}%`}</p><p className="text-[11px] text-[#566033]">Card usage · aim under 30%</p></div>
+            <div className="rounded-xl bg-[#F0E6D6] p-2.5"><p className="font-heading text-lg text-[#6E5430] leading-tight">{ov.lateAccounts}{ov.lateAccounts ? <span className="text-[11px] font-body"> {ov.lateAccounts === 1 ? "account" : "accounts"}</span> : ""}</p><p className="text-[11px] text-[#8B6B3E]">{ov.lateCount ? `Late payments · ${ov.lateCount} late months` : "Late payments"}</p></div>
+            {(() => {
+              const u = ov.usage;
+              const tone = u == null ? ["bg-secondary/70", "text-foreground", "text-muted-foreground"] : u <= 30 ? ["bg-[#E9EDDD]", "text-[#3F4A22]", "text-[#566033]"] : u <= 50 ? ["bg-[#F0E6D6]", "text-[#6E5430]", "text-[#8B6B3E]"] : ["bg-[#F3E6E8]", "text-[#6E4A4F]", "text-[#8F5F65]"];
+              return <div className={`rounded-xl p-2.5 ${tone[0]}`}><p className={`font-heading text-lg leading-tight ${tone[1]}`}>{u == null ? "—" : `${u}%`}</p><p className={`text-[11px] ${tone[2]}`}>Card usage · aim under 30%</p></div>;
+            })()}
           </div>
           {ov.total > 0 && (
             <div className="mt-3">
@@ -634,16 +642,30 @@ export default function CreditAssistant({ scoreItems = [] }) {
 
       {events.length > 0 && (
         <Section id="timeline" title="Timeline" count={events.length} defaultOpen={false}>
-          <div className="relative pl-4">
-            <div className="absolute left-[5px] top-1 bottom-1 w-px bg-border" />
-            {events.slice(0, 40).map((e, i) => (
-              <div key={i} className="relative mb-2.5">
-                <span className="absolute -left-4 top-1.5 w-2.5 h-2.5 rounded-full border-2 border-background" style={{ background: DOT[e.tone] }} />
-                <p className="text-xs text-muted-foreground">{niceDate(e.date)}</p>
-                <p className="text-sm text-foreground">{e.text}</p>
-              </div>
-            ))}
-          </div>
+          {(() => {
+            const list = timelineAll ? events : events.slice(0, 15);
+            const years = [...new Set(list.map((e) => String(e.date).slice(0, 4)))];
+            return (
+              <>
+                {years.map((y) => (
+                  <div key={y} className="mb-2">
+                    <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-1.5">{y}</p>
+                    <div className="relative pl-4">
+                      <div className="absolute left-[4px] top-1.5 bottom-1.5 w-px bg-border" />
+                      {list.filter((e) => String(e.date).startsWith(y)).map((e, i) => (
+                        <div key={i} className="relative flex gap-3 py-1">
+                          <span className="absolute -left-4 top-[9px] w-2.5 h-2.5 rounded-full border-2 border-card" style={{ background: DOT[e.tone] }} />
+                          <span className="text-xs text-muted-foreground w-14 shrink-0 pt-px">{niceDate(e.date).replace(/, \d{4}$/, "")}</span>
+                          <span className="text-sm text-foreground flex-1 min-w-0">{e.text}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                {events.length > 15 && <button onClick={() => setTimelineAll((v) => !v)} className="w-full text-xs text-[#A7773F] py-1.5">{timelineAll ? "Show less" : `Show all ${events.length}`}</button>}
+              </>
+            );
+          })()}
         </Section>
       )}
 
