@@ -62,6 +62,9 @@ export function analyze(docs, caseRec = {}) {
     }
     if (isCollection(a)) {
       const dup = a.original_creditor && accounts.some((b) => b !== a && norm(b.creditor) === norm(a.original_creditor) && Number(b.balance) > 0);
+      // Another collection agency reporting the exact same amount is often the same debt under a second name.
+      const amt = Number(a.amount_requested || a.balance) || 0;
+      const twin = !dup && amt > 0 ? accounts.find((b) => b !== a && isCollection(b) && norm(b.creditor) !== norm(a.creditor) && Number(b.amount_requested || b.balance) === amt) : null;
       const missing = reportBureaus.length > 1 ? reportBureaus.filter((b) => !a.bureaus.includes(b)) : [];
       const deadline = a.dispute_deadline || (a.letterDate ? addDays(a.letterDate, 30) : "");
       const lastPay = a.last_payment || a.first_delinquency;
@@ -69,8 +72,11 @@ export function analyze(docs, caseRec = {}) {
       items.push({ key: a.key, kind: "collection", account: a, deadline, dup, missing, old,
         falloff: a.first_delinquency ? addYears(a.first_delinquency, 7) : "",
         title: `${a.creditor}${a.amount_requested || a.balance ? ` · ${money(a.amount_requested || a.balance)}` : ""}`,
-        label: dup ? "May be counted twice" : "Collection",
-        detail: dup ? `Also listed under the original creditor, ${a.original_creditor}, so it may be reported twice.` : `A collection${a.original_creditor ? ` for ${a.original_creditor}` : ""}. Ask for proof before paying anything.` });
+        twin: twin ? twin.creditor : null,
+        label: dup || twin ? "May be counted twice" : "Collection",
+        detail: dup ? `Also listed under the original creditor, ${a.original_creditor}, so it may be reported twice.`
+          : twin ? `Same amount as the ${twin.creditor} collection (${money(amt)}). Agencies sometimes report one debt under two names. Compare the original creditor and dates.`
+          : `A collection${a.original_creditor ? ` for ${a.original_creditor}` : ""}. Ask for proof before paying anything.` });
       return;
     }
     if (isCard(a) && !/charged|closed|collection/.test(String(a.status || "")) && Number(a.limit) > 0 && Number(a.balance) / Number(a.limit) > 0.3) {
@@ -121,7 +127,7 @@ export function stepsFor(item) {
         ? `A written request by ${niceDate(item.deadline)} (30 days from their letter) pauses collection until they send proof.`
         : "A written request within 30 days of their first letter pauses collection until they send proof. You can still ask after that.", letter: "validation" },
       { id: "dates", title: "Check the dates", body: `${item.falloff ? `Falls off your report around ${niceDate(item.falloff)}. ` : ""}Check your state's time limit before paying or promising anything.` },
-      { id: "dispute", title: "Dispute anything wrong", body: item.dup ? "It looks like it's reported twice. Dispute the duplicate with the bureau."
+      { id: "dispute", title: "Dispute anything wrong", body: item.dup || item.twin ? "If it's the same debt as the other listing, dispute the duplicate with the bureau. Only dispute it if you've checked it's a repeat."
         : item.missing.length ? `Only on ${item.account.bureaus.join(" and ")}, not ${item.missing.join(" or ")}. Check it's accurate.` : "If the amount, dates or owner are wrong, dispute it with the bureau.", letter: "dispute" },
       { id: "negotiate", title: "Negotiate in writing first", body: "If it's valid: ask for removal in exchange for payment (pay-for-delete) or a settlement, in writing, before paying. They don't have to agree.", letter: "paydelete" },
     ];
@@ -152,7 +158,7 @@ export function letterFor(type, item, ctx = {}) {
     case "validation":
       return `To: ${name}\n[Collector's mailing address from their letter]\n\nRe: Request for validation${ref}\n\nI received your letter${a.letterDate ? ` dated ${niceDate(a.letterDate)}` : ""} about an alleged debt. I am requesting validation. Please send me:\n\n1. The amount you say is owed and how it was calculated, including interest and fees\n2. The name and address of the original creditor\n3. Proof that you own this debt or are authorized to collect it\n4. A copy of the original agreement or the last statement from the original creditor\n5. The date of the last payment on the account\n\nPlease stop collection activity until you have provided this information. This letter is not an acknowledgment that I owe this debt.${sign}`;
     case "dispute":
-      return `To: ${bureau}\n[Bureau dispute address, from the bureau's website]\n\nRe: Dispute of inaccurate information\n\nI am writing to dispute the following item on my credit report:\n\n${name}${ref}${a.amount_requested || a.balance ? `, ${money(a.amount_requested || a.balance)}` : ""}\n\nReason: ${item.dup ? `This debt also appears under the original creditor, ${a.original_creditor}, so it is being reported twice.` : "[Explain what is wrong: amount, dates, status, or that it is not mine]"}\n\nPlease investigate and correct or remove this item. I have enclosed [copies of supporting documents].${sign}`;
+      return `To: ${bureau}\n[Bureau dispute address, from the bureau's website]\n\nRe: Dispute of inaccurate information\n\nI am writing to dispute the following item on my credit report:\n\n${name}${ref}${a.amount_requested || a.balance ? `, ${money(a.amount_requested || a.balance)}` : ""}\n\nReason: ${item.dup ? `This debt also appears under the original creditor, ${a.original_creditor}, so it is being reported twice.` : item.twin ? `This appears to be the same debt as the ${item.twin} collection for the same amount, so it is being reported twice. [Add what matches: original creditor, dates.]` : "[Explain what is wrong: amount, dates, status, or that it is not mine]"}\n\nPlease investigate and correct or remove this item. I have enclosed [copies of supporting documents].${sign}`;
     case "goodwill":
       return `To: ${name}\n[Customer service or credit reporting address]\n\nRe: Goodwill adjustment request${ref}\n\nI have been a customer since ${a.opened ? niceDate(a.opened) : "[year]"}. My records show a late payment reported in ${a.late && a.late.length ? niceDate(a.late[a.late.length - 1].date) : "[month and year]"}. [Briefly explain what happened.]\n\nSince then I have paid on time. I would be grateful if you would consider removing this late payment from my credit reports as a goodwill gesture.${sign}`;
     case "paydelete":

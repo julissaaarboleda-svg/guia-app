@@ -250,7 +250,23 @@ export default function CreditAssistant({ scoreItems = [] }) {
     if (!failed) setTimeout(() => setBusy((b) => (b.some((x) => x.status !== "done" || x.note) ? b : [])), 2500);
   };
 
-  const copies = docs.filter((d, idx) => docs.slice(idx + 1).some((o) => (d.file_hash && o.file_hash === d.file_hash) || docSig(o) === docSig(d)));
+  // Copies: same file fingerprint, same file name apart from " (2)", or same contents. Keep the most complete one.
+  const copies = useMemo(() => {
+    const base = (d) => `${d.doc_type}|${String(d.filename || "").toLowerCase().replace(/\s*\(\d+\)(?=\.\w+$)/, "")}`;
+    const groups = {};
+    docs.forEach((d) => {
+      const key = [d.file_hash && `h:${d.file_hash}`, d.filename && `f:${base(d)}`, `s:${docSig(d)}`].filter(Boolean);
+      const hit = Object.keys(groups).find((g) => groups[g].keys.some((k) => key.includes(k)));
+      if (hit) { groups[hit].docs.push(d); key.forEach((k) => { if (!groups[hit].keys.includes(k)) groups[hit].keys.push(k); }); }
+      else groups[d.id] = { keys: key, docs: [d] };
+    });
+    return Object.values(groups).flatMap((g) => {
+      if (g.docs.length < 2) return [];
+      const keep = [...g.docs].sort((x, y) => (y.accounts || []).length - (x.accounts || []).length)[0];
+      return g.docs.filter((d) => d !== keep);
+    });
+  }, [docs]);
+  const copyIds = new Set(copies.map((c) => c.id));
   const removeCopies = async () => {
     const ids = new Set(copies.map((c) => c.id));
     setDocs((x) => x.filter((y) => !ids.has(y.id)));
@@ -488,8 +504,8 @@ export default function CreditAssistant({ scoreItems = [] }) {
             </div>
           )}
           <div className="space-y-1.5">
-            {docs.map((d, idx) => {
-              const copy = docs.slice(idx + 1).some((o) => (d.file_hash && o.file_hash === d.file_hash) || docSig(o) === docSig(d));
+            {docs.map((d) => {
+              const copy = copyIds.has(d.id);
               return (
               <div key={d.id} className="flex items-center gap-2 text-sm">
                 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground shrink-0">{DOC_LABEL[d.doc_type] || "Doc"}</span>
