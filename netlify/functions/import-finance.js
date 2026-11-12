@@ -138,9 +138,10 @@ const CREDIT_PROMPT = `You are helping someone understand their own credit docum
 Return ONLY JSON in this shape, nothing else:
 {"doc_type":"credit_report|collector_letter|creditor_letter|breach_notice|dispute_response|statement|other",
  "doc_date":"YYYY-MM-DD","from":"who sent it or which bureau","bureau":"Equifax|Experian|TransUnion|",
+ "bureaus":["every bureau this document covers"],"scores":[{"bureau":"Equifax|Experian|TransUnion","score":null}],
  "from_address":"","dispute_address":"",
  "score":null,"breach_date":"","breach_what":"",
- "accounts":[{"creditor":"","original_creditor":"","kind":"credit_card|auto_loan|student_loan|mortgage|personal_loan|collection|other","status":"open|closed|paid|charged_off|collection|sold|other","balance":null,"limit":null,"past_due":null,"days_past_due":null,"opened":"","last_payment":"","first_delinquency":"","late":[{"date":"YYYY-MM","days":30}],"last4":"","amount_requested":null,"dispute_deadline":"","address":""}],
+ "accounts":[{"creditor":"","original_creditor":"","kind":"credit_card|auto_loan|student_loan|mortgage|personal_loan|collection|other","status":"open|closed|paid|charged_off|collection|sold|other","balance":null,"limit":null,"past_due":null,"days_past_due":null,"opened":"","last_payment":"","first_delinquency":"","late":[{"date":"YYYY-MM","days":30}],"last4":"","amount_requested":null,"dispute_deadline":"","address":"","bureaus":[]}],
  "inquiries":[{"creditor":"","date":"YYYY-MM-DD"}],
  "results":[{"creditor":"","outcome":"deleted|updated|verified|other","note":""}],
  "summary":"one plain sentence about what this document is"}
@@ -150,6 +151,7 @@ Rules:
 - COMPANY ADDRESSES are wanted, on one line like "P.O. Box 4500, Allen, TX 75013": "from_address" is the mailing address of the company that sent a letter (where to write back or send correspondence, not a payment-only lockbox if a correspondence address is also shown). "dispute_address" is the bureau's dispute mailing address if a credit report prints one. Each account's "address" is that creditor's or collector's mailing address if the report or letter lists it. Leave "" if not shown; never make one up.
 - Dates as YYYY-MM-DD (or YYYY-MM when only a month is shown). Leave a field "" or null when the document doesn't say. Do not guess.
 - credit_report: list every account (tradeline) and every hard inquiry. "score" only if a numeric score is printed.
+- Some reports cover more than one bureau (a 3-bureau or "tri-merge" report with Equifax, Experian and TransUnion columns). Put every bureau the document covers in "bureaus", each printed score in "scores", and for each account list in its "bureaus" the bureaus that report it. For a single-bureau report, "bureaus" is just that one bureau. "bureau" is the main one (or the only one).
 - "past_due" is the amount past due RIGHT NOW as printed (not the full balance); "days_past_due" is how late it is right now (30, 60, 90...) if the current status says so. Leave both null for accounts that are current or closed. Use status "sold" when the report says the account was sold or transferred to another lender or collector.
 - collector_letter / creditor_letter: one account entry for the debt it is about, with "amount_requested", and "dispute_deadline" if the letter states a date by which to dispute (validation notices usually do).
 - breach_notice: "breach_date" (when the data was exposed, or the notice date if not stated) and "breach_what" (what was exposed, e.g. "name, Social Security number").
@@ -315,6 +317,7 @@ const handler = async (event, context) => {
       const str = (v, n = 80) => String(v == null ? "" : v).trim().slice(0, n);
       const num = (v) => (v == null || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
       const date = (v) => (/^\d{4}-\d{2}(-\d{2})?$/.test(String(v || "").trim()) ? String(v).trim() : "");
+      const BUREAUS3 = ["Equifax", "Experian", "TransUnion"];
       const clean = (v) => str(v).replace(/\b\d{3}-?\d{2}-?\d{4}\b/g, "").replace(/\d{5,}/g, ""); // never keep SSNs or long numbers
       // Company mailing addresses keep ZIP codes, but never an SSN-shaped or long account-like number.
       const addr = (v) => str(v, 160).replace(/\b\d{3}-\d{2}-\d{4}\b/g, "").replace(/\d{10,}/g, "").replace(/\s+/g, " ").trim();
@@ -322,8 +325,11 @@ const handler = async (event, context) => {
         doc_type: ["credit_report", "collector_letter", "creditor_letter", "breach_notice", "dispute_response", "statement"].includes(parsed.doc_type) ? parsed.doc_type : "other",
         doc_date: date(parsed.doc_date), from: clean(parsed.from), from_address: addr(parsed.from_address), dispute_address: addr(parsed.dispute_address), bureau: ["Equifax", "Experian", "TransUnion"].includes(parsed.bureau) ? parsed.bureau : "",
         score: num(parsed.score) && num(parsed.score) >= 300 && num(parsed.score) <= 900 ? num(parsed.score) : null,
+        bureaus: (Array.isArray(parsed.bureaus) ? parsed.bureaus : []).filter((b) => BUREAUS3.includes(b)),
+        scores: (Array.isArray(parsed.scores) ? parsed.scores : []).map((x) => ({ bureau: BUREAUS3.includes(x && x.bureau) ? x.bureau : "", score: num(x && x.score) })).filter((x) => x.bureau && x.score >= 300 && x.score <= 900),
         breach_date: date(parsed.breach_date), breach_what: clean(parsed.breach_what).slice(0, 120),
         accounts: (Array.isArray(parsed.accounts) ? parsed.accounts : []).slice(0, 80).map((a) => ({
+          bureaus: (Array.isArray(a.bureaus) ? a.bureaus : []).filter((b) => BUREAUS3.includes(b)),
           creditor: clean(a.creditor), original_creditor: clean(a.original_creditor), kind: str(a.kind, 20), status: str(a.status, 20),
           balance: num(a.balance), limit: num(a.limit), opened: date(a.opened), last_payment: date(a.last_payment), first_delinquency: date(a.first_delinquency),
           past_due: num(a.past_due), days_past_due: num(a.days_past_due),

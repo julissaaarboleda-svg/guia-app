@@ -39,7 +39,7 @@ async function fileHash(file) {
 }
 
 // Docs that look like copies of each other (same bureau, date and accounts), for older uploads without a fingerprint.
-const docSig = (d) => [d.doc_type, d.bureau, d.doc_date, (d.accounts || []).length, (d.accounts || []).map((a) => a.creditor).sort().join(",")].join("|");
+const docSig = (d) => [d.doc_type, (d.bureaus && d.bureaus.length ? [...d.bureaus].sort().join("+") : d.bureau), d.doc_date, (d.accounts || []).length, (d.accounts || []).map((a) => a.creditor).sort().join(",")].join("|");
 
 // Run tasks a few at a time.
 async function pool(tasks, size) {
@@ -428,7 +428,7 @@ export default function CreditAssistant({ scoreItems = [] }) {
     docs.forEach((d) => {
       // A real copy: the same file, or the same name AND the same bureau and report date. Reports from
       // different bureaus (or months) with similar names are kept, even if they list the same accounts.
-      const key = [d.file_hash && `h:${d.file_hash}`, d.filename && `f:${base(d)}|${d.bureau || ""}|${d.doc_date || ""}`, `s:${docSig(d)}`].filter(Boolean);
+      const key = [d.file_hash && `h:${d.file_hash}`, d.filename && `f:${base(d)}|${(d.bureaus && d.bureaus.length ? [...d.bureaus].sort().join("+") : d.bureau) || ""}|${d.doc_date || ""}`, `s:${docSig(d)}`].filter(Boolean);
       const hit = Object.keys(groups).find((g) => groups[g].keys.some((k) => key.includes(k)));
       if (hit) { groups[hit].docs.push(d); key.forEach((k) => { if (!groups[hit].keys.includes(k)) groups[hit].keys.push(k); }); }
       else groups[d.id] = { keys: key, docs: [d] };
@@ -653,6 +653,16 @@ export default function CreditAssistant({ scoreItems = [] }) {
               <span className="font-heading text-xl text-foreground">{d.score.from}</span><ArrowRight className="w-4 h-4 text-muted-foreground" /><span className="font-heading text-xl text-foreground">{d.score.to}</span>
               {d.score.delta !== 0 && <span className={`text-[11px] rounded-full px-2 py-0.5 ${d.score.delta > 0 ? "bg-[#E9EDDD] text-[#566033]" : "bg-[#F3E6E8] text-[#8F5F65]"}`}>{d.score.delta > 0 ? "+" : ""}{d.score.delta}</span>}
               <span className="ml-auto text-[11px] text-muted-foreground">Score</span>
+            </div>
+          )}
+          {d.scoreList && d.scoreList.length > 0 && (
+            <div className="grid grid-cols-3 gap-1.5 mt-2">
+              {d.scoreList.map((x) => (
+                <div key={x.bureau} className="rounded-xl bg-secondary/60 px-2 py-1.5 text-center">
+                  <p className="text-[10.5px] text-muted-foreground">{x.bureau}</p>
+                  <p className="text-sm text-foreground">{x.from} → {x.to} {x.delta !== 0 && <span className={x.delta > 0 ? "text-[#566033]" : "text-[#8F5F65]"}>{x.delta > 0 ? "+" : ""}{x.delta}</span>}</p>
+                </div>
+              ))}
             </div>
           )}
           {[
@@ -1078,7 +1088,7 @@ export default function CreditAssistant({ scoreItems = [] }) {
               return (
               <div key={d.id} className="flex items-center gap-2 text-sm">
                 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground shrink-0">{DOC_LABEL[d.doc_type] || "Doc"}</span>
-                <span className="truncate text-foreground">{d.from || d.bureau || d.filename}</span>
+                <span className="truncate text-foreground">{(d.bureaus && d.bureaus.length > 1 ? d.bureaus.join(", ") : d.bureau || d.from) || d.filename}</span>
                 <span className="text-xs text-muted-foreground shrink-0">{niceDate(d.doc_date)}</span>
                 {copy && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#F3E6E8] text-[#8F5F65] shrink-0">Copy</span>}
                 {!locked && <button onClick={() => { setRereadId(d.id); rereadRef.current?.click(); }} disabled={!!rereading} className="ml-auto text-[11px] text-[#8B6B3E] shrink-0 disabled:opacity-50">{rereading === d.id ? "Reading…" : "Re-read"}</button>}

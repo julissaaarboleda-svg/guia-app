@@ -41,6 +41,12 @@ export function shortName(name) {
   return t.length >= 3 ? t : s;
 }
 
+// Which bureaus a document covers. A 3-bureau ("tri-merge") report covers all three.
+export const docBureaus = (d) => {
+  const list = (d.bureaus && d.bureaus.length ? d.bureaus : d.bureau ? [d.bureau] : []).map((b) => (/equifax/i.test(b) ? "Equifax" : /experian/i.test(b) ? "Experian" : /trans\s*union/i.test(b) ? "TransUnion" : "")).filter(Boolean);
+  return [...new Set(list)];
+};
+
 export const accountKey = (a) => `${norm(a.creditor)}|${a.last4 || ""}`;
 
 // Merge the same account across reports and letters.
@@ -63,7 +69,11 @@ export function mergeAccounts(docs) {
     }
     const m = (map[k] = map[k] || { key: k, creditor: shortName(a.creditor), fullName: prettyName(a.creditor), sources: [], bureaus: new Set(), late: [] });
     m.sources.push({ docId: doc.id, type: doc.doc_type, date: doc.doc_date, bureau: doc.bureau, from: doc.from, status: a.status || "", balance: a.balance == null ? null : Number(a.balance) });
-    if (doc.bureau && doc.doc_type === "credit_report") m.bureaus.add(doc.bureau);
+    if (doc.doc_type === "credit_report") {
+      // On a 3-bureau report, each account says which bureaus show it; otherwise it's the report's bureau.
+      const on = a.bureaus && a.bureaus.length ? a.bureaus : docBureaus(doc);
+      on.forEach((b) => m.bureaus.add(b));
+    }
     ["original_creditor", "kind", "status", "opened", "last_payment", "first_delinquency", "last4", "address"].forEach((f) => { if (a[f] && !m[f]) m[f] = f === "original_creditor" ? shortName(a[f]) : a[f]; });
     ["balance", "limit", "amount_requested", "past_due", "days_past_due"].forEach((f) => { if (a[f] != null) m[f] = a[f]; });
     if (a.dispute_deadline) m.dispute_deadline = a.dispute_deadline;
@@ -82,11 +92,13 @@ const isCard = (a) => a.kind === "credit_card";
 // Everything worth acting on, each with its own playbook.
 // ---------- Reports over time ----------
 const docDay = (d) => String(d.doc_date || d.created_date || "").slice(0, 10);
-const bureauOf = (d) => bureauKey(d.bureau || "") || "Other";
-// Reports from each bureau, oldest first.
+// Reports from each bureau, oldest first. A 3-bureau report counts for each bureau it covers.
 export function reportsByBureau(docs) {
   const by = {};
-  docs.filter((d) => d.doc_type === "credit_report").forEach((d) => { (by[bureauOf(d)] = by[bureauOf(d)] || []).push(d); });
+  docs.filter((d) => d.doc_type === "credit_report").forEach((d) => {
+    const bs = docBureaus(d);
+    (bs.length ? bs : ["Other"]).forEach((b) => { (by[b] = by[b] || []).push(d); });
+  });
   Object.values(by).forEach((list) => list.sort((a, b) => docDay(a).localeCompare(docDay(b)) || (a.accounts || []).length - (b.accounts || []).length));
   return by;
 }
@@ -99,7 +111,12 @@ export function currentDocs(docs) {
 const isNegative = (a) => isCollection(a) || /charged/.test(String(a.status || "")) || Number(a.past_due) > 0 || Number(a.days_past_due) > 0;
 const acctId = (a) => `${norm(a.creditor)}|${a.last4 || ""}`;
 // Compare one bureau's newest report with the one before it.
-export function compareReports(prev, next, caseRec = {}) {
+export function compareReports(prev, next, caseRec = {}, bureau = "") {
+  // On a 3-bureau report, compare only what this bureau shows.
+  const onB = (a) => !bureau || !a.bureaus || !a.bureaus.length || a.bureaus.includes(bureau);
+  const scoreOf = (d) => (bureau && d.scores && d.scores.find((x) => x.bureau === bureau)?.score) || (!bureau || docBureaus(d).length <= 1 ? d.score : null);
+  prev = { ...prev, accounts: (prev.accounts || []).filter(onB) };
+  next = { ...next, accounts: (next.accounts || []).filter(onB) };
   const pa = {}, na = {};
   (prev.accounts || []).forEach((a) => { pa[acctId(a)] = a; });
   (next.accounts || []).forEach((a) => { na[acctId(a)] = a; });
@@ -125,14 +142,30 @@ export function compareReports(prev, next, caseRec = {}) {
   const u0 = usage(prev), u1 = usage(next);
   if (u0 != null && u1 != null && u1 < u0 - 2) improved.push({ text: `Card usage · ${u0}% → ${u1}%` });
   return {
-    bureau: bureauOf(next), from: docDay(prev), to: docDay(next), key: `${bureauOf(next)}|${docDay(next)}`,
-    score: prev.score && next.score ? { from: prev.score, to: next.score, delta: next.score - prev.score } : null,
+    bureau: bureau || docBureaus(next)[0] || "Report", from: docDay(prev), to: docDay(next), key: `${bureau || docBureaus(next)[0] || "Other"}|${docDay(next)}`,
+    score: scoreOf(prev) && scoreOf(next) ? { from: scoreOf(prev), to: scoreOf(next), delta: scoreOf(next) - scoreOf(prev) } : null,
     removed, improved, still, added, usage: { from: u0, to: u1 },
   };
 }
 // One comparison per bureau that has at least two reports (newest vs the one before).
 export function changes(docs, caseRec = {}) {
-  return Object.values(reportsByBureau(docs)).filter((l) => l.length >= 2).map((l) => compareReports(l[l.length - 2], l[l.length - 1], caseRec))
+  // Bureaus compared from the same pair of documents (a 3-bureau report) become one card.
+  const pairs = {};
+  Object.entries(reportsByBureau(docs)).filter(([, l]) => l.length >= 2 && l[l.length - 2] !== l[l.length - 1]).forEach(([b, l]) => {
+    const prev = l[l.length - 2], next = l[l.length - 1];
+    const k = `${prev.id}>${next.id}`;
+    (pairs[k] = pairs[k] || { prev, next, bureaus: [] }).bureaus.push(b);
+  });
+  return Object.values(pairs).map(({ prev, next, bureaus }) => {
+    if (bureaus.length === 1) return compareReports(prev, next, caseRec, bureaus[0] === "Other" ? "" : bureaus[0]);
+    const c = compareReports(prev, next, caseRec, "");
+    const sc = (d, b) => (d.scores || []).find((x) => x.bureau === b)?.score;
+    c.bureau = bureaus.join(", ");
+    c.key = `${bureaus.join("+")}|${c.to}`;
+    c.scoreList = bureaus.map((b) => ({ bureau: b, from: sc(prev, b), to: sc(next, b) })).filter((x) => x.from && x.to).map((x) => ({ ...x, delta: x.to - x.from }));
+    c.score = null;
+    return c;
+  })
     .sort((a, b) => b.to.localeCompare(a.to));
 }
 // Reports that are getting old enough to check again (about 45 days).
@@ -147,7 +180,7 @@ export function analyze(docs, caseRec = {}) {
   const decisions = caseRec.decisions || {};
   const accounts = mergeAccounts(docs);
   const reports = docs.filter((d) => d.doc_type === "credit_report");
-  const reportBureaus = [...new Set(reports.map((d) => d.bureau).filter(Boolean))];
+  const reportBureaus = [...new Set(reports.flatMap(docBureaus))];
   const breach = docs.filter((d) => d.doc_type === "breach_notice" && d.breach_date).sort((a, b) => a.breach_date.localeCompare(b.breach_date))[0] || null;
   const items = [];
 
@@ -347,7 +380,7 @@ export const bureauKey = (b) => (/equifax/i.test(b) ? "Equifax" : /experian/i.te
 export function bureauAddress(b, docs = []) {
   const k = bureauKey(b || "");
   if (!k) return null;
-  const rep = docs.find((d) => d.doc_type === "credit_report" && bureauKey(d.bureau || "") === k && d.dispute_address);
+  const rep = docs.find((d) => d.doc_type === "credit_report" && docBureaus(d).length === 1 && docBureaus(d)[0] === k && d.dispute_address);
   if (rep) {
     const lines = rep.dispute_address.split(/,\s*(?=(?:P\.?O\.?|\d|[A-Z][a-z]+,?\s+[A-Z]{2}\b))/).join("\n");
     return { text: new RegExp(k, "i").test(lines) ? lines : `${k}\n${lines}`, source: "report" };
@@ -420,7 +453,7 @@ export function timeline(docs, caseRec = {}) {
 
 export function progress(docs, caseRec = {}) {
   const scores = [
-    ...docs.filter((d) => d.score && d.doc_date).map((d) => ({ date: d.doc_date, score: d.score, bureau: d.bureau })),
+    ...docs.filter((d) => d.doc_date && (d.score || (d.scores && d.scores.length))).flatMap((d) => (d.scores && d.scores.length ? d.scores.map((x) => ({ date: d.doc_date, score: x.score, bureau: x.bureau })) : [{ date: d.doc_date, score: d.score, bureau: d.bureau }])),
     ...(caseRec.scores || []),
   ].sort((a, b) => a.date.localeCompare(b.date));
   const wins = [
@@ -558,6 +591,8 @@ export function mergeParts(parts) {
   return {
     doc_type, doc_date: pick("doc_date"), from: pick("from"), bureau: pick("bureau"), score: pick("score"),
     from_address: pick("from_address"), dispute_address: pick("dispute_address"),
+    bureaus: [...new Set(ok.flatMap((d) => d.bureaus || []).concat(ok.map((d) => d.bureau).filter(Boolean)))],
+    scores: ok.flatMap((d) => d.scores || []).filter((x, i, arr) => arr.findIndex((y) => y.bureau === x.bureau) === i),
     breach_date: pick("breach_date"), breach_what: pick("breach_what"),
     accounts: ok.flatMap((d) => d.accounts || []),
     inquiries,
@@ -574,7 +609,7 @@ export function overview(docs, caseRec = {}) {
   const { accounts, items } = analyze(docs, caseRec);
   const decisions = caseRec.decisions || {};
   const reports = currentDocs(docs).filter((d) => d.doc_type === "credit_report");
-  const bureaus = [...new Set(reports.map((d) => d.bureau).filter(Boolean))];
+  const bureaus = [...new Set(reports.flatMap(docBureaus))];
   const latestReport = [...reports].sort((a, b) => String(b.doc_date).localeCompare(String(a.doc_date)))[0];
   const cols = accounts.filter(isCollection);
   const openCards = accounts.filter((a) => isCard(a) && !/charged|closed|collection/.test(String(a.status || "")) && Number(a.limit) > 0);
