@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 // freshly added item may be missing (or a deleted one still shown) until the
 // page is reopened. This wraps base44.entities so recent writes are layered
 // over whatever the service returns, for long enough for it to catch up.
-const TTL = 30000;
+const TTL = 90000; // longer than the data service's worst-case catch-up time
 const store = {};
 const slot = (name) => store[name] || (store[name] = { added: new Map(), patched: new Map(), removed: new Set() });
 const expire = (fn) => setTimeout(fn, TTL);

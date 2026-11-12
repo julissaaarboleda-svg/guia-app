@@ -72,7 +72,7 @@ exports.handler = async (event, context) => {
   const parts = event.path.replace(/^.*\/backup\/?/, "").split("/").filter(Boolean);
   const [action, arg] = parts;
 
-  const store = getStore("guia-data");
+  const store = getStore({ name: "guia-data", consistency: "strong" });
   const backups = getStore("guia-backups");
   const bPrefix = `${userId}/`;
 

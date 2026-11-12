@@ -51,7 +51,8 @@ exports.handler = async (event, context) => {
   const [entityName, id] = parts;
   if (!entityName) return json(400, { error: "Missing entity name in URL, e.g. /entities/Trip" });
 
-  const store = getStore("guia-data");
+  // Strong reads: the default "eventual" mode can serve a list up to a minute old right after a write.
+  const store = getStore({ name: "guia-data", consistency: "strong" });
   const prefix = `${userId}/${entityName}/`;
 
   try {
