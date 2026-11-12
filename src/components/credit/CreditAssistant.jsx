@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, ChevronRight, Upload, X, Copy, Mail, Check, FileText, Trash2, ExternalLink, ShieldAlert, Loader2, Scale } from "lucide-react";
+import { ChevronDown, ChevronRight, Upload, X, Copy, Mail, Check, FileText, Trash2, ExternalLink, ShieldAlert, Loader2, Scale, Layers, PieChart, CalendarX, CreditCard, AlertCircle } from "lucide-react";
 import { base44, getAiUsage } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
 import { analyze, stepsFor, letterFor, LETTER_TITLE, progress, DOC_LABEL, niceDate, OUTCOMES, WIN, isOverdue, sentDue, noReplySteps, replySteps, followUpLetter, deadlineNudges, mergeParts, overview, money, BUREAU_LETTERS, BUREAUS, BUREAU_SHORT, bureauAddress, bureauKey, CHECKLIST, RIGHTS, uspsTrack } from "@/lib/credit";
@@ -88,6 +88,15 @@ function StepRow({ s, i, done, onToggle, onLetter, onTodo, bureaus = [], missing
   );
 }
 
+// Guía's own inferences (not facts printed on a report) are labeled "Check this".
+const isFlag = (i) => i.kind === "mismatch" || i.kind === "breach" || i.kind === "sold" || (i.kind === "collection" && !!i.twin);
+const STATUS_WORD = { open: "open", closed: "closed", paid: "paid", charged_off: "charged off", collection: "collection", sold: "sold or transferred" };
+function reportFacts(i) {
+  const a = i.account;
+  if (!a) return i.inquiry ? `Hard inquiry by ${i.inquiry.creditor} on ${niceDate(i.inquiry.date)}` : "";
+  const bal = a.amount_requested || a.balance;
+  return [STATUS_WORD[a.status] || a.kind?.replace("_", " ") || "", bal != null ? money(bal) : "", a.opened ? `opened ${niceDate(a.opened)}` : "", a.bureaus.length ? `on ${a.bureaus.join(" and ")}` : ""].filter(Boolean).join(" · ");
+}
 const KIND_TONE = {
   pastdue: "bg-[#F3E6E8] text-[#8F5F65]",
   overlimit: "bg-[#F3E6E8] text-[#8F5F65]",
@@ -458,22 +467,24 @@ export default function CreditAssistant({ scoreItems = [] }) {
   const ov = useMemo(() => (docs.length ? overview(docs, caseForCalc) : null), [docs, caseForCalc]);
   const FILTERS = [
     ["all", "All", () => true],
-    ["mismatch", "Doesn't match", (i) => i.kind === "mismatch"],
     ["pastdue", "Past due", (i) => i.kind === "pastdue"],
     ["overlimit", "Over limit", (i) => i.kind === "overlimit"],
-    ["sold", "Sold, still owed", (i) => i.kind === "sold"],
-    ["twice", "Twice?", (i) => i.kind === "collection" && i.twin],
+    ["check", "Check this", (i) => isFlag(i)],
     ["collection", "Collections", (i) => i.kind === "collection"],
     ["late", "Late", (i) => i.kind === "late"],
     ["utilization", "Balances", (i) => i.kind === "utilization"],
     ["info", "Your info", (i) => i.kind === "info"],
-    ["breach", "After breach", (i) => i.kind === "breach"],
+
   ];
   const fItems = items.filter((FILTERS.find(([k]) => k === filter) || FILTERS[0])[2]);
   const shown = showAll ? fItems : fItems.slice(0, 6);
+  const planDone = (caseRec && caseRec.planDone) || {};
+  const isPlanDone = (p) => !!planDone[p.filter];
+  const planDoneCount = ov ? ov.plan.filter(isPlanDone).length : 0;
+  const togglePlan = (p) => saveCase({ planDone: { ...planDone, [p.filter]: !planDone[p.filter] } });
   const openStep = (p) => {
     if (p.upkeep) return;
-    setFilter(p.filter || "all"); setShowAll(true); setOpenItem(p.keys && p.keys[0]);
+    setFilter(["mismatch", "breach", "sold", "twice"].includes(p.filter) ? "check" : (p.filter || "all")); setShowAll(true); setOpenItem(p.keys && p.keys[0]);
     setTimeout(() => { const el = document.getElementById(`ci-${p.keys && p.keys[0]}`); if (el) el.scrollIntoView({ behavior: "smooth", block: "center" }); }, 50);
   };
 
@@ -558,8 +569,7 @@ export default function CreditAssistant({ scoreItems = [] }) {
   if (!loaded) return null;
 
   return (
-    <div className="mb-4 grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
-      <div className="lg:col-span-7 space-y-3 min-w-0">
+    <div className="mb-4 space-y-3">
       {/* Credit assistant: slim bar with upload */}
       <div className="bg-card border border-border rounded-2xl px-3.5 py-2.5">
         <input ref={fileRef} type="file" multiple accept="application/pdf,.pdf,image/*,image/heic,image/heif,.heic,.heif" className="hidden" onChange={onFiles} />
@@ -605,46 +615,73 @@ export default function CreditAssistant({ scoreItems = [] }) {
       </div>
 
       {ov && (
-        <div className="bg-card border border-border rounded-2xl p-4">
-          <p className="font-heading text-lg text-foreground">At a glance</p>
-          <p className="text-xs text-muted-foreground mb-3">
-            From {docs.length - copies.length} {docs.length - copies.length === 1 ? "document" : "documents"}{ov.bureaus.length ? ` · ${ov.bureaus.join(", ")}` : ""}{ov.latestReport?.doc_date ? ` · latest ${niceDate(ov.latestReport.doc_date)}` : ""}
-            {copies.length > 0 && <> · <button onClick={removeCopies} className="text-[#8F5F65] font-medium">Remove {copies.length} {copies.length === 1 ? "copy" : "copies"}</button></>}
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <div className="rounded-xl bg-secondary/70 p-2.5"><p className="font-heading text-lg text-foreground leading-tight">{ov.score || "—"}{ov.scoreChange && <span className={`ml-1.5 text-[11px] font-body ${ov.scoreChange.delta >= 0 ? "text-[#566033]" : "text-[#8F5F65]"}`}>{ov.scoreChange.delta >= 0 ? "▲" : "▼"} {Math.abs(ov.scoreChange.delta)}</span>}</p><p className="text-[11px] text-muted-foreground">{ov.scoreBureau ? `${ov.scoreBureau} score` : "Score"}{ov.score ? ` · ${ov.score >= 740 ? "Very good" : ov.score >= 670 ? "Good" : ov.score >= 580 ? "Fair" : "Poor"}` : ""}</p></div>
-            <div className="rounded-xl bg-[#F3E6E8] p-2.5"><p className="font-heading text-lg text-[#6E4A4F] leading-tight">{ov.collections.count}{ov.collections.total ? ` · ${money(ov.collections.total)}` : ""}</p><p className="text-[11px] text-[#8F5F65]">Collections</p></div>
-            {ov.pastDueCount > 0 ? (
-              <div className="rounded-xl bg-[#F3E6E8] p-2.5"><p className="font-heading text-lg text-[#6E4A4F] leading-tight">{ov.pastDueCount}{ov.pastDueTotal ? ` · ${money(ov.pastDueTotal)}` : ""}</p><p className="text-[11px] text-[#8F5F65]">Past due now</p></div>
-            ) : (
-              <div className="rounded-xl bg-[#F0E6D6] p-2.5"><p className="font-heading text-lg text-[#6E5430] leading-tight">{ov.lateAccounts}{ov.lateAccounts ? <span className="text-[11px] font-body"> {ov.lateAccounts === 1 ? "account" : "accounts"}</span> : ""}</p><p className="text-[11px] text-[#8B6B3E]">With late payments</p></div>
-            )}
-            {ov.overLimitCount > 0 ? (
-              <div className="rounded-xl bg-[#F3E6E8] p-2.5"><p className="font-heading text-lg text-[#6E4A4F] leading-tight">{ov.overLimitCount} {ov.overLimitCount === 1 ? "card" : "cards"}</p><p className="text-[11px] text-[#8F5F65]">Over the limit</p></div>
-            ) : (() => {
+        <div className="bg-card border border-border rounded-2xl p-4 lg:flex lg:gap-5">
+          <div className="lg:flex-1 min-w-0">
+            <div className="flex items-baseline">
+              <p className="font-heading text-lg text-foreground flex-1">Credit overview</p>
+              <span className="text-[11px] text-muted-foreground">{ov.latestReport?.doc_date ? niceDate(ov.latestReport.doc_date) : ""}</span>
+            </div>
+            {copies.length > 0 && <button onClick={removeCopies} className="text-xs text-[#8F5F65] font-medium">Remove {copies.length} duplicate {copies.length === 1 ? "upload" : "uploads"}</button>}
+            <div className="grid grid-cols-3 mt-3 text-center">
+              {BUREAUS.map((b, i) => {
+                const sc = [...prog.scores].reverse().find((x) => bureauKey(x.bureau || "") === b);
+                const has = reportBureaus.includes(b);
+                const rate = sc && (sc.score >= 740 ? ["Very good", "bg-[#E9EDDD] text-[#566033]"] : sc.score >= 670 ? ["Good", "bg-[#E9EDDD] text-[#566033]"] : sc.score >= 580 ? ["Fair", "bg-[#F0E6D6] text-[#8B6B3E]"] : ["Poor", "bg-[#F3E6E8] text-[#8F5F65]"]);
+                return (
+                  <div key={b} className={i ? "border-l border-border/70" : ""}>
+                    <p className={`font-heading leading-none ${sc ? "text-[26px] text-foreground" : "text-xl text-muted-foreground"}`}>{sc ? sc.score : "—"}</p>
+                    <p className="text-xs text-foreground mt-1.5">{b}</p>
+                    {sc ? <span className={`inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full ${rate[1]}`}>{rate[0]}</span>
+                      : has ? <p className="text-[10.5px] text-muted-foreground mt-1">Report, no score</p>
+                      : !locked ? <button onClick={() => fileRef.current?.click()} className="text-[10.5px] text-[#A7773F] mt-1">+ Add report</button>
+                      : <p className="text-[10.5px] text-muted-foreground mt-1">Not added</p>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 mt-4 lg:mt-0 lg:w-[46%] shrink-0">
+            {(() => {
               const u = ov.usage;
-              const tone = u == null ? ["bg-secondary/70", "text-foreground", "text-muted-foreground"] : u <= 30 ? ["bg-[#E9EDDD]", "text-[#3F4A22]", "text-[#566033]"] : u <= 50 ? ["bg-[#F0E6D6]", "text-[#6E5430]", "text-[#8B6B3E]"] : ["bg-[#F3E6E8]", "text-[#6E4A4F]", "text-[#8F5F65]"];
-              return <div className={`rounded-xl p-2.5 ${tone[0]}`}><p className={`font-heading text-lg leading-tight ${tone[1]}`}>{u == null ? "—" : `${u}%`}</p><p className={`text-[11px] ${tone[2]}`}>Card usage · aim under 30%</p></div>;
+              const uTag = u == null ? null : u > 30 ? ["High", "bg-[#F3E6E8] text-[#8F5F65]"] : u > 10 ? ["OK", "bg-[#F0E6D6] text-[#8B6B3E]"] : ["Good", "bg-[#E9EDDD] text-[#566033]"];
+              const tiles = [
+                { icon: Layers, tone: "text-[#8F5F65]", big: `${ov.collections.count}${ov.collections.total ? ` · ${money(ov.collections.total)}` : ""}`, label: "Collections" },
+                { icon: PieChart, tone: "text-[#8F5F65]", big: u == null ? "—" : `${u}%`, tag: uTag, label: "Card usage" },
+                ov.pastDueCount > 0
+                  ? { icon: AlertCircle, tone: "text-[#8F5F65]", big: `${ov.pastDueCount}${ov.pastDueTotal ? ` · ${money(ov.pastDueTotal)}` : ""}`, label: "Past due now" }
+                  : { icon: CalendarX, tone: "text-[#8B6B3E]", big: `${ov.lateAccounts}`, label: "Accounts with late payments" },
+                { icon: CreditCard, tone: ov.overLimitCount ? "text-[#8F5F65]" : "text-[#566033]", big: `${ov.overLimitCount}`, label: "Cards over limit" },
+              ];
+              return tiles.map((t, i) => (
+                <div key={i} className="rounded-xl bg-secondary/60 p-2.5 flex gap-2">
+                  <t.icon className={`w-4 h-4 shrink-0 mt-0.5 ${t.tone}`} strokeWidth={1.8} />
+                  <div className="min-w-0">
+                    <p className="font-heading text-[17px] text-foreground leading-tight">{t.big}{t.tag && <span className={`ml-1.5 align-middle text-[10px] font-body px-1.5 py-0.5 rounded-full ${t.tag[1]}`}>{t.tag[0]}</span>}</p>
+                    <p className="text-[11px] text-muted-foreground leading-snug">{t.label}</p>
+                  </div>
+                </div>
+              ));
             })()}
           </div>
-          {ov.total > 0 && (
-            <div className="mt-3">
-              <div className="flex items-baseline justify-between text-xs"><span className="text-foreground font-medium">{ov.handled} of {ov.total} handled</span><span className="text-muted-foreground">{ov.lettersSent} {ov.lettersSent === 1 ? "letter" : "letters"} sent · {ov.wins} {ov.wins === 1 ? "win" : "wins"}</span></div>
-              <div className="h-1.5 rounded-full bg-secondary mt-1.5 overflow-hidden"><div className="h-full rounded-full bg-[#7D8A53]" style={{ width: `${Math.round((ov.handled / ov.total) * 100)}%` }} /></div>
-            </div>
-          )}
+        </div>
+      )}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
+      <div className="lg:col-span-7 space-y-3 min-w-0">
+      {ov && ov.plan.length > 0 && (
+        <div className="bg-card border border-border rounded-2xl p-4">
           {ov.plan.length > 0 && (
-            <div className="mt-4">
-              <div className="flex items-baseline mb-1">
-                <p className="font-heading text-base text-foreground flex-1">{ov.upkeep ? "Keep it steady" : "Your plan"}</p>
-                {!ov.upkeep && <span className="text-[11px] text-muted-foreground">{ov.plan.filter((p) => p.started).length} of {ov.plan.length} started</span>}
+            <div>
+              <div className="flex items-baseline">
+                <p className="font-heading text-lg text-foreground flex-1">{ov.upkeep ? "Keep it steady" : "Your plan"}</p>
+                {!ov.upkeep && <span className="text-[11px] text-muted-foreground">{planDoneCount} of {ov.plan.length} done</span>}
               </div>
+              {!ov.upkeep && <div className="h-1.5 rounded-full bg-secondary mt-2 mb-1 overflow-hidden"><div className="h-full rounded-full bg-[#A7773F] transition-all" style={{ width: `${Math.max(4, Math.round((planDoneCount / ov.plan.length) * 100))}%` }} /></div>}
               {ov.upkeep && <p className="text-xs text-muted-foreground mb-1">Nothing on your reports needs fixing right now. Keep doing this:</p>}
               {ov.plan.map((p) => (
-                <button key={p.n} onClick={() => openStep(p)} className={`w-full flex gap-2.5 text-left py-2.5 border-t border-border/70 ${p.upkeep ? "cursor-default" : ""}`}>
-                  <span className={`w-[22px] h-[22px] rounded-full text-[11px] flex items-center justify-center shrink-0 mt-0.5 ${p.started ? "bg-[#7D8A53] text-white" : p.n <= 2 && !p.upkeep ? "bg-foreground text-background" : "bg-[#F0E6D6] text-[#8B6B3E]"}`}>{p.started ? <Check className="w-3 h-3" /> : p.n}</span>
+                <div key={p.n} role="button" tabIndex={0} onClick={() => openStep(p)} onKeyDown={(e) => { if (e.key === "Enter") openStep(p); }} className={`w-full flex gap-2.5 text-left py-2.5 border-t border-border/70 first:border-0 ${p.upkeep ? "cursor-default" : "cursor-pointer"}`}>
+                  <span className={`w-[22px] h-[22px] rounded-full text-[11px] flex items-center justify-center shrink-0 mt-0.5 ${isPlanDone(p) ? "bg-[#7D8A53] text-white" : p.n === 1 && !p.upkeep ? "bg-[#8B6B3E] text-white" : "bg-[#F0E6D6] text-[#8B6B3E]"}`}>{isPlanDone(p) ? <Check className="w-3 h-3" /> : p.n}</span>
                   <span className="flex-1 min-w-0">
-                    <span className="block text-sm font-medium text-foreground">{p.title}</span>
+                    <span className={`block text-sm font-medium ${isPlanDone(p) ? "text-muted-foreground line-through" : "text-foreground"}`}>{p.title}</span>
                     {p.text && <span className="block text-xs text-muted-foreground mt-0.5">{p.text}</span>}
                     {p.rows && (
                       <span className="mt-1.5 grid grid-cols-[1fr_auto_auto] gap-x-3 gap-y-0.5 text-xs">
@@ -660,14 +697,17 @@ export default function CreditAssistant({ scoreItems = [] }) {
                     )}
                     {p.note && <span className="block text-[11px] text-muted-foreground mt-1">{p.note}</span>}
                   </span>
+                  {!p.upkeep && (
+                    <button onClick={(e) => { e.stopPropagation(); togglePlan(p); }} aria-label={isPlanDone(p) ? "Mark not done" : "Mark done"}
+                      className={`w-5 h-5 rounded-full border shrink-0 mt-0.5 flex items-center justify-center ${isPlanDone(p) ? "bg-[#7D8A53] border-[#7D8A53]" : "border-border"}`}>{isPlanDone(p) && <Check className="w-3 h-3 text-white" />}</button>
+                  )}
                   {!p.upkeep && <ChevronRight className="w-4 h-4 text-[#A7773F] shrink-0 mt-0.5" />}
-                </button>
+                </div>
               ))}
               {ov.planNote && <p className="text-[11px] text-muted-foreground mt-1">{ov.planNote}</p>}
               <p className="text-[11px] text-muted-foreground mt-1">Amounts to pay are estimates from your reports' balances and limits.</p>
             </div>
           )}
-          {ov.nextFalloff && new Date(ov.nextFalloff.date) <= new Date(Date.now() + 365 * 86400000) && <p className="text-xs text-muted-foreground mt-3">Next fall-off: {ov.nextFalloff.text.replace(/ falls off$/, "")} · ~{niceDate(ov.nextFalloff.date)}</p>}
         </div>
       )}
       {docs.length > 0 && (
@@ -703,14 +743,22 @@ export default function CreditAssistant({ scoreItems = [] }) {
                 <div key={item.key} id={`ci-${item.key}`} className={`border rounded-xl ${open ? "border-[#A7773F]/50" : "border-border"}`}>
                   <button onClick={() => setOpenItem(open ? null : item.key)} className="w-full text-left px-3 py-2.5">
                     <div className="flex items-center gap-2">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${KIND_TONE[item.kind]}`}>{item.label}</span>
+                      {isFlag(item)
+                        ? <span className="text-[10px] px-1.5 py-0.5 rounded-full shrink-0 border border-dashed border-[#C9A876] text-[#8B6B3E] bg-card">Check this</span>
+                        : <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${KIND_TONE[item.kind]}`}>{item.label}</span>}
                       <span className="text-sm text-foreground truncate flex-1 min-w-0">{item.title}</span>
                       {item.account && item.account.bureaus.length > 0 && <span className="text-[10px] text-muted-foreground shrink-0 hidden sm:inline">{item.account.bureaus.map((b) => BUREAU_SHORT[b] || b).join(" · ")}</span>}
                       {(dec.sent || []).length > 0 && <span className="text-[10px] text-[#566033] shrink-0">Sent</span>}
                       {item.deadline && item.deadline >= todayStr() && <span className="text-[10px] text-[#8F5F65] shrink-0">by {niceDate(item.deadline)}</span>}
                       {open ? <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
                     </div>
-                    {open && <p className="text-xs text-muted-foreground mt-1.5">{item.detail}</p>}
+                    {open && (isFlag(item) ? (
+                      <span className="block mt-2 rounded-lg bg-secondary/60 px-2.5 py-2 text-[11.5px] leading-relaxed">
+                        {reportFacts(item) && <span className="block"><span className="text-muted-foreground">From your report: </span><span className="text-foreground">{reportFacts(item)}</span></span>}
+                        <span className="block mt-0.5"><span className="text-[#8B6B3E] font-medium">Why Guía flagged it ({item.label.toLowerCase()}): </span><span className="text-foreground">{item.detail}</span></span>
+                        <span className="block mt-0.5 text-muted-foreground">This is a possibility to check, not a confirmed error.</span>
+                      </span>
+                    ) : <span className="block text-xs text-muted-foreground mt-1.5">{item.detail}</span>)}
                     {open && item.account && (() => {
                       const a = item.account;
                       const facts = [
@@ -854,7 +902,22 @@ export default function CreditAssistant({ scoreItems = [] }) {
                 </div>
                 {pts ? (
                   <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true"><polyline points={pts} fill="none" stroke="#A7773F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                ) : <p className="text-[11px] text-muted-foreground max-w-[150px] text-right">Add a new score each month to see it move.</p>}
+                ) : last ? (
+                  // One score so far: show it as the starting point, with the next two months as empty slots. No guessed trend.
+                  <svg width={w} height={h + 10} viewBox={`0 0 ${w} ${h + 10}`} aria-hidden="true">
+                    <line x1="6" y1={h - 6} x2={w - 6} y2={h - 6} stroke="#EEE7DC" />
+                    {[0, 1, 2].map((k) => {
+                      const x = 10 + k * ((w - 20) / 2);
+                      const d = new Date(); d.setMonth(d.getMonth() + k);
+                      return (
+                        <g key={k}>
+                          {k === 0 ? <circle cx={x} cy={h - 14} r="4" fill="#A7773F" /> : <circle cx={x} cy={h - 6} r="3" fill="#fff" stroke="#D3C7B5" strokeDasharray="2 2" />}
+                          <text x={x} y={h + 8} fontSize="8" fill="#7a716a" textAnchor="middle">{d.toLocaleDateString("en-US", { month: "short" })}</text>
+                        </g>
+                      );
+                    })}
+                  </svg>
+                ) : null}
               </div>
             );
           })()}
@@ -873,7 +936,20 @@ export default function CreditAssistant({ scoreItems = [] }) {
             return (
               <>
                 {!done.length && !prog.checkBacks.length ? (
-                  <p className="text-xs text-muted-foreground mt-3">No letters mailed yet. Once you send one, what's done and what you're waiting on shows here.</p>
+                  <div className="mt-3 ml-1 border-l border-border pl-3.5 space-y-2 text-[12.5px]">
+                    {(() => {
+                      const first = prog.scores[0];
+                      const nm = new Date(); nm.setMonth(nm.getMonth() + 1);
+                      const dot = (on) => <span className={`absolute -left-[19px] top-1 w-2.5 h-2.5 rounded-full ${on ? "bg-[#7D8A53]" : "bg-card border border-border"}`} />;
+                      return (
+                        <>
+                          <p className="relative">{dot(!!first)}<span className="text-foreground font-medium">Baseline set</span><span className="text-muted-foreground">{first ? ` · ${first.score} on ${niceDate(first.date)}` : " · add a score or report"}</span></p>
+                          <p className="relative">{dot(false)}<span className="text-foreground">Letters and replies</span><span className="text-muted-foreground"> · none mailed yet</span></p>
+                          <p className="relative">{dot(false)}<span className="text-foreground">Next score</span><span className="text-muted-foreground"> · add one in {nm.toLocaleDateString("en-US", { month: "long" })}</span></p>
+                        </>
+                      );
+                    })()}
+                  </div>
                 ) : (
                   <>
                     {head("Done", "text-[#566033]")}
@@ -940,6 +1016,7 @@ export default function CreditAssistant({ scoreItems = [] }) {
 
       </div>
 
+      </div>
       {rightsOpen && <RightsSheet onClose={() => setRightsOpen(false)} />}
       {letter && <LetterSheet letter={letter} onClose={() => setLetter(null)} onSent={markSent} />}
       {toast && createPortal(<div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[85] bg-foreground text-background text-sm px-4 py-2 rounded-full shadow">{toast}</div>, document.body)}

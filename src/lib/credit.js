@@ -560,7 +560,7 @@ export function overview(docs, caseRec = {}) {
     if (twins.length) parts.push(`${names(twins)} may be the same debt`);
     if (s5.some((i) => i.kind === "info")) parts.push("review your names and addresses");
     plan.push({ filter: s5.some((i) => i.kind === "sold") ? "sold" : s5.some((i) => i.kind === "collection") ? "twice" : "info", keys: s5.map((i) => i.key), started: isStarted(s5),
-      title: "Clean up duplicates and your info", text: parts.join(" · ") });
+      title: "Review possible duplicates and your info", text: parts.join(" · ") });
   }
   // Nothing to fix: keep it steady instead of an empty plan.
   const upkeep = !plan.some((p) => p.filter !== "info") && reports.length > 0;
