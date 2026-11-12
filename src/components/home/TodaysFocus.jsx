@@ -9,6 +9,9 @@ const PRIORITY_CHIP = {
   normal: "bg-[#E4E9D5] text-[#566033]",
   low: "bg-muted text-muted-foreground",
 };
+// Routines in the order of the day.
+const SLOT_ORDER = { morning: 0, anytime: 1, evening: 2 };
+
 export default function TodaysFocus({ items, total = 0, onComplete, routines = [], onRoutineToggle, overdue = 0 }) {
   // The bug: sub-item ids (goal sub-tasks, project tasks, packing items)
   // are built from their array index. Completing one shifts every later
@@ -110,26 +113,21 @@ export default function TodaysFocus({ items, total = 0, onComplete, routines = [
                   <span className="normal-case tracking-normal text-[11px]">{doneCount} of {due.length} done</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 px-3 pt-1 pb-3">
-                  {due.map((r) => {
+                  {[...due].sort((x, y) => (SLOT_ORDER[x.slot] ?? 1) - (SLOT_ORDER[y.slot] ?? 1) || String(x.name).localeCompare(String(y.name))).map((r) => {
                     const c = colorOf(r); const n = stepsFor(r).length; const d = doneOn(r, today); const fin = d >= n;
                     const slot = { morning: "Morning", evening: "Evening" }[r.slot] || "Anytime";
                     return (
-                      <div key={r.id} className="rounded-xl border border-border/60 bg-background/40 p-2.5 flex flex-col">
-                        <div className="flex items-start gap-2">
-                          <Link to="/goals?view=routines" className="flex-1 min-w-0">
-                            <span className="block text-[9.5px] tracking-[0.14em] uppercase font-medium" style={{ color: c }}>{slot}</span>
-                            <span className="block font-heading text-[14px] leading-[1.2] text-foreground line-clamp-2 min-h-[2.4em] mt-0.5">{r.name.replace(/^(morning|evening)\s*[·:-]\s*/i, "")}</span>
-                          </Link>
-                          <button onClick={() => onRoutineToggle?.(r, !fin)} aria-label={fin ? `Undo ${r.name}` : `Complete ${r.name}`}
-                            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
-                            style={fin ? { background: c } : { border: `1.5px solid ${c}` }}>
-                            <Check className="w-4 h-4" strokeWidth={2.4} style={{ color: fin ? "#fff" : c }} />
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className="flex-1 h-1 rounded-full bg-[#EFE9DF] overflow-hidden"><span className="block h-full rounded-full transition-all" style={{ width: `${Math.round((d / n) * 100)}%`, background: c }} /></span>
-                          <span className="text-[10.5px] text-muted-foreground whitespace-nowrap">{fin ? "Done" : `${d} of ${n}`}</span>
-                        </div>
+                      <div key={r.id} className="rounded-xl border border-border/60 bg-background/40 px-2.5 py-2 flex items-center gap-2">
+                        <Link to="/goals?view=routines" className="flex-1 min-w-0">
+                          <span className="block text-[9.5px] tracking-[0.14em] uppercase font-medium truncate" style={{ color: c }}>{slot}{n > 1 ? <span className="tracking-normal"> · {fin ? "done" : `${d}/${n}`}</span> : null}</span>
+                          <span className="block font-heading text-[14px] leading-[1.25] text-foreground truncate">{r.name.replace(/^(morning|evening)\s*[·:-]\s*/i, "")}</span>
+                          <span className="block h-[3px] rounded-full bg-[#EFE9DF] overflow-hidden mt-1.5"><span className="block h-full rounded-full transition-all" style={{ width: `${Math.round((d / n) * 100)}%`, background: c }} /></span>
+                        </Link>
+                        <button onClick={() => onRoutineToggle?.(r, !fin)} aria-label={fin ? `Undo ${r.name}` : `Complete ${r.name}`}
+                          className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
+                          style={fin ? { background: c } : { border: `1.5px solid ${c}` }}>
+                          <Check className="w-3.5 h-3.5" strokeWidth={2.4} style={{ color: fin ? "#fff" : c }} />
+                        </button>
                       </div>
                     );
                   })}
