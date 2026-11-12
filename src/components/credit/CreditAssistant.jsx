@@ -109,6 +109,14 @@ const KIND_TONE = {
   utilization: "bg-[#E9EDDD] text-[#566033]",
 };
 
+// Remembered open/closed state for a card (closed by default unless said otherwise).
+function useShut(key, defaultShut = true) {
+  const k = `guia-credit-shut-${key}`;
+  const [shut, setShut] = useState(() => { try { const v = localStorage.getItem(k); return v == null ? defaultShut : v === "1"; } catch { return defaultShut; } });
+  const toggle = () => setShut((v) => { try { localStorage.setItem(k, v ? "0" : "1"); } catch { /* ignore */ } return !v; });
+  return [shut, toggle];
+}
+
 function Section({ id, title, count, children, defaultOpen = true }) {
   const key = `guia-credit-shut-${id}`;
   const [open, setOpen] = useState(() => { try { const v = localStorage.getItem(key); return v == null ? defaultOpen : v !== "1"; } catch { return defaultOpen; } });
@@ -362,6 +370,9 @@ export default function CreditAssistant({ scoreItems = [], onSaveScore, onDelete
   const [rightsOpen, setRightsOpen] = useState(false);
   const [scoreFor, setScoreFor] = useState(null);
   const [chartB, setChartB] = useState(null);
+  const [planShut, togglePlanShut] = useShut("plan2");
+  const [journeyShut, toggleJourneyShut] = useShut("journey2");
+  const [filesOpen, setFilesOpen] = useState(false);
   const [rereadId, setRereadId] = useState(null);
   const [rereading, setRereading] = useState(null);
   const rereadRef = useRef(null);
@@ -652,7 +663,11 @@ export default function CreditAssistant({ scoreItems = [], onSaveScore, onDelete
           <div className="w-8 h-8 rounded-full bg-[#F0E6D6] flex items-center justify-center shrink-0"><FileText className="w-4 h-4 text-[#8B6B3E]" /></div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-foreground whitespace-nowrap">Credit assistant {usage && <span className="ml-1 text-[10px] font-normal px-1.5 py-0.5 rounded-full bg-[#F0E6D6] text-[#8B6B3E]">Plus</span>}</p>
-            <p className="text-[11px] text-muted-foreground truncate">{docs.length ? `${docs.length - copies.length} ${docs.length - copies.length === 1 ? "document" : "documents"}${usage && usage.plan === "trial" ? " · in your trial" : ""}` : "Reports, collection letters, breach notices"}</p>
+            {docs.length ? (
+              <button onClick={() => { setFilesOpen((v) => !v); if (!filesOpen) setTimeout(() => { const el = document.getElementById("credit-files"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 60); }} className="text-[11px] text-[#A7773F] truncate">
+                {docs.length - copies.length} {docs.length - copies.length === 1 ? "document" : "documents"} {filesOpen ? "▾" : "›"}{usage && usage.plan === "trial" ? <span className="text-muted-foreground"> · in your trial</span> : null}
+              </button>
+            ) : <p className="text-[11px] text-muted-foreground truncate">Reports, collection letters, breach notices</p>}
           </div>
           <button onClick={() => setRightsOpen(true)} className="shrink-0 text-xs text-[#8B6B3E] inline-flex items-center gap-1"><Scale className="w-3.5 h-3.5" /><span className="hidden sm:inline">Your rights</span><span className="sm:hidden">Rights</span></button>
           {!locked && (
@@ -784,13 +799,13 @@ export default function CreditAssistant({ scoreItems = [], onSaveScore, onDelete
                 { icon: PieChart, tone: "text-[#8F5F65]", big: u == null ? "—" : `${u}%`, tag: uTag, label: "Card usage" },
                 ov.pastDueCount > 0
                   ? { icon: AlertCircle, tone: "text-[#8F5F65]", big: `${ov.pastDueCount}${ov.pastDueTotal ? ` · ${money(ov.pastDueTotal)}` : ""}`, label: "Past due now" }
-                  : { icon: CalendarX, tone: "text-[#8B6B3E]", big: `${ov.lateAccounts}`, label: "Accounts with late payments" },
+                  : { icon: CalendarX, tone: "text-[#8B6B3E]", big: `${ov.lateAccounts}`, label: "With late payments" },
                 { icon: CreditCard, tone: ov.overLimitCount ? "text-[#8F5F65]" : "text-[#566033]", big: `${ov.overLimitCount}`, label: "Cards over limit" },
               ];
               return tiles.map((t, i) => (
-                <div key={i} className="rounded-xl bg-secondary/60 p-2.5 flex gap-2">
-                  <t.icon className={`w-4 h-4 shrink-0 mt-0.5 ${t.tone}`} strokeWidth={1.8} />
-                  <div className="min-w-0">
+                <div key={i} className="rounded-xl bg-secondary/60 px-2 py-2.5 flex items-center gap-1.5 min-h-[60px]">
+                  <t.icon className={`w-5 h-5 shrink-0 ml-1 ${t.tone}`} strokeWidth={1.7} />
+                  <div className="min-w-0 flex-1 text-center">
                     <p className="font-heading text-[17px] text-foreground leading-tight">{t.big}{t.tag && <span className={`ml-1.5 align-middle text-[10px] font-body px-1.5 py-0.5 rounded-full ${t.tag[1]}`}>{t.tag[0]}</span>}</p>
                     <p className="text-[11px] text-muted-foreground leading-snug">{t.label}</p>
                   </div>
@@ -806,10 +821,21 @@ export default function CreditAssistant({ scoreItems = [], onSaveScore, onDelete
         <div className="bg-card border border-border rounded-2xl p-4">
           {ov.plan.length > 0 && (
             <div>
-              <div className="flex items-baseline">
-                <p className="font-heading text-lg text-foreground flex-1">{ov.upkeep ? "Keep it steady" : "Your plan"}</p>
+              <button onClick={togglePlanShut} className="w-full flex items-center gap-2 text-left">
+                <span className="font-heading text-lg text-foreground flex-1">{ov.upkeep ? "Keep it steady" : "Your plan"}</span>
                 {!ov.upkeep && <span className="text-[11px] text-muted-foreground">{planDoneCount} of {planTotal} done</span>}
-              </div>
+                {planShut ? <ChevronRight className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+              </button>
+              {planShut && (() => {
+                const nx = ov.plan.find((p) => !isPlanDone(p)) || ov.plan[0];
+                return nx ? (
+                  <button onClick={() => openStep(nx)} className="w-full text-left text-xs text-muted-foreground mt-1.5">
+                    {ov.upkeep ? "" : "Next: "}<span className="text-foreground">{nx.title}</span>
+                    {nx.rows && nx.rows[0] ? ` · ${nx.rows[0].name} ${money(nx.rows[0].toLimit || nx.rows[0].to30)}` : nx.text ? ` · ${nx.text.split(" · ")[0]}` : ""}
+                  </button>
+                ) : null;
+              })()}
+              {!planShut && <>
               {!ov.upkeep && <div className="h-1.5 rounded-full bg-secondary mt-2 mb-1 overflow-hidden"><div className="h-full rounded-full bg-[#A7773F] transition-all" style={{ width: `${Math.max(4, Math.round((planDoneCount / Math.max(1, planTotal)) * 100))}%` }} /></div>}
               {ov.upkeep && <p className="text-xs text-muted-foreground mb-1">Nothing on your reports needs fixing right now. Keep doing this:</p>}
               {!ov.upkeep && goneSteps.map((g) => (
@@ -848,12 +874,13 @@ export default function CreditAssistant({ scoreItems = [], onSaveScore, onDelete
               ))}
               {ov.planNote && <p className="text-[11px] text-muted-foreground mt-1">{ov.planNote}</p>}
               <p className="text-[11px] text-muted-foreground mt-1">Amounts to pay are estimates from your reports' balances and limits.</p>
+              </>}
             </div>
           )}
         </div>
       )}
       {docs.length > 0 && (
-        <Section id="items" title="What's affecting your credit" count={items.length}>
+        <Section id="items2" title="What's affecting your credit" count={items.length} defaultOpen={false}>
           {breach && (
             <div className="mb-3 rounded-xl bg-[#F3E6E8] p-3 flex gap-2">
               <ShieldAlert className="w-4 h-4 text-[#8F5F65] shrink-0 mt-0.5" />
@@ -1028,13 +1055,18 @@ export default function CreditAssistant({ scoreItems = [], onSaveScore, onDelete
       {docs.length > 0 && (
         <div className="bg-card border border-border rounded-2xl p-4">
           <div className="flex items-center gap-2">
-            <p className="font-heading text-lg text-foreground flex-1">Your journey</p>
-            {scoreBureaus.length > 1 && (
+            <button onClick={toggleJourneyShut} className="flex-1 flex items-center gap-2 text-left">
+              <span className="font-heading text-lg text-foreground">Your journey</span>
+              {journeyShut && chartScores.length > 0 && <span className="text-xs text-muted-foreground">{curChartB} {chartScores[chartScores.length - 1].score}</span>}
+            </button>
+            {!journeyShut && scoreBureaus.length > 1 && (
               <div className="flex gap-1">
                 {scoreBureaus.map((b) => <button key={b} onClick={() => setChartB(b)} className={`text-[10.5px] rounded-full px-2 py-0.5 border ${curChartB === b ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground"}`}>{BUREAU_SHORT[b] || b}</button>)}
               </div>
             )}
+            <button onClick={toggleJourneyShut} aria-label={journeyShut ? "Open" : "Close"} className="text-muted-foreground">{journeyShut ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}</button>
           </div>
+          {!journeyShut && <>
           {(() => {
             const sc = chartScores;
             const last = sc[sc.length - 1];
@@ -1133,11 +1165,12 @@ export default function CreditAssistant({ scoreItems = [], onSaveScore, onDelete
               </>
             );
           })()}
+          </>}
         </div>
       )}
 
-      {docs.length > 0 && (
-        <Section id="files" title="Your credit file" count={docs.length} defaultOpen={false}>
+      {docs.length > 0 && filesOpen && (
+        <div id="credit-files"><Section id="filesview" title="Your credit file" count={docs.length} defaultOpen={true}>
           {copies.length > 0 && (
             <div className="mb-2.5 rounded-xl bg-[#F3E6E8] p-2.5 flex items-center gap-2">
               <p className="text-xs text-[#6E4A4F] flex-1">{copies.length === 1 ? "1 document looks like a copy" : `${copies.length} documents look like copies`} of another one.</p>
@@ -1160,7 +1193,7 @@ export default function CreditAssistant({ scoreItems = [], onSaveScore, onDelete
               );
             })}
           </div>
-        </Section>
+        </Section></div>
       )}
 
       </div>

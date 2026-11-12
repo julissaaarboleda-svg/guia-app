@@ -3,12 +3,14 @@ import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
 import { isPaid, dueInfo, TONE_CLASS, monthlyEquivalent, billInMonth } from "@/lib/financeHelpers";
 import { monthView, monthsWithData } from "@/lib/spending";
-import { Receipt, ShoppingBag, PiggyBank, Landmark, TrendingUp, Sparkles, Lightbulb, Banknote } from "lucide-react";
+import { overview as creditOverview } from "@/lib/credit";
+import { Receipt, ShoppingBag, PiggyBank, Landmark, TrendingUp, Sparkles, Lightbulb, Banknote, ChevronRight } from "lucide-react";
 
 function monthKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
+const TABS_OK = ["credit_score", "bill", "budget", "savings_goal", "loan", "spending"];
 const fmt = (n) => `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
 export default function FinanceSummary({ items, buckets, onNavigate, onAddFirst }) {
@@ -18,10 +20,14 @@ export default function FinanceSummary({ items, buckets, onNavigate, onAddFirst 
   const [incomeReady, setIncomeReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [retry, setRetry] = useState(0);
-  const [allTips, setAllTips] = useState(false);
   const [statements, setStatements] = useState([]);
   const [incomes, setIncomes] = useState([]);
+  const [creditOv, setCreditOv] = useState(null);
+  const [creditReady, setCreditReady] = useState(false);
   useEffect(() => {
+    Promise.all([ent.CreditDoc.list().catch(() => []), ent.CreditCase.list().catch(() => [])]).then(([docs, cases]) => {
+      try { setCreditOv(docs && docs.length ? creditOverview(docs, (cases && cases[0]) || {}) : null); } catch { setCreditOv(null); }
+    }).finally(() => setCreditReady(true));
     ent.SpendingStatement.list().then(r => setStatements(r || [])).catch(() => {});
     ent.MonthlyIncome.list().then(r => setIncomes(r || [])).catch(() => {});
   }, []);
@@ -53,13 +59,8 @@ export default function FinanceSummary({ items, buckets, onNavigate, onAddFirst 
   const unpaidBills = items.filter(i => i.type === "bill" && !isPaid(i));
   const billsTotal = unpaidBills.reduce((s, b) => s + (b.amount || 0), 0);
 
-  const recurringBills = unpaidBills.filter(b => b.is_fixed && b.billing_cycle && b.billing_cycle !== "one_time");
-  const recurringTotal = recurringBills.reduce((s, b) => s + (b.amount || 0), 0);
   const oneTimeBills = unpaidBills.filter(b => !b.is_fixed || !b.billing_cycle || b.billing_cycle === "one_time");
-  const oneTimeTotal = oneTimeBills.reduce((s, b) => s + (b.amount || 0), 0);
 
-  const subs = items.filter(i => i.type === "subscription");
-  const subMonthly = subs.reduce((sum, sub) => sum + monthlyEquivalent(sub), 0);
 
   const savings = items.filter(i => i.type === "savings_goal");
   const savingsCurrent = savings.reduce((s, g) => s + (g.current_amount || 0), 0);
@@ -94,57 +95,57 @@ export default function FinanceSummary({ items, buckets, onNavigate, onAddFirst 
     { tab: "credit_score", label: "Credit", value: topScore > 0 ? topScore : "—", Icon: TrendingUp },
   ];
 
+  // One focus for the month and two specific actions, from Finance and the credit assistant together.
+  // Saved per month and refreshed only when the numbers change a lot (or the person taps Update).
+  const creditLines = creditOv ? [
+    creditOv.pastDueCount ? `- Past due right now: ${creditOv.pastDueCount} accounts${creditOv.pastDueTotal ? `, ${fmt(creditOv.pastDueTotal)} past due` : ""}` : "",
+    creditOv.overLimitCount ? `- Cards over their limit: ${creditOv.overLimitCount}` : "",
+    creditOv.usage != null ? `- Credit card usage: ${creditOv.usage}% of limits` : "",
+    creditOv.collections.count ? `- Collections: ${creditOv.collections.count} totaling ${fmt(creditOv.collections.total)}` : "",
+    ...creditOv.plan.filter((p) => !p.upkeep).map((p) => `- Credit plan step ${p.n}: ${p.title}${p.text ? ` (${p.text})` : ""}${p.rows ? ` [${p.rows.map((r) => `${r.name}: ${r.toLimit ? `${fmt(r.toLimit)} to get under limit, ` : ""}${fmt(r.to30)} to get under 30%`).join("; ")}]` : ""}`),
+  ].filter(Boolean).join("\n") : "";
+  const sig = [monthKey(new Date()), Math.round((money ? money.left : 0) / 100), savings.length, Math.round(savingsCurrent / 100), loans.length, Math.round(loansOutstanding / 100), creditOv ? creditOv.plan.map((p) => p.filter).join("+") : "", creditOv ? creditOv.overLimitCount : 0, creditOv ? creditOv.pastDueCount : 0].join("|");
+  const CACHE = "guia-fin-insights";
   useEffect(() => {
-    if (!incomeReady) return; // wait for income so the insights never see $0 by mistake
-    if (!items.length && !buckets.length) { setLoading(false); return; }
+    if (!incomeReady || !creditReady) return; // wait for income and credit so the read is complete
+    if (!items.length && !buckets.length && !creditOv) { setLoading(false); return; }
+    if (!retry) {
+      try { const c = JSON.parse(localStorage.getItem(CACHE)); if (c && c.sig === sig && c.data) { setInsights(c.data); setLoading(false); return; } } catch { /* ignore */ }
+    }
     setLoading(true);
     setFailed(false);
     base44.integrations.Core.InvokeLLM({
-      prompt: `You are a personal finance advisor. Based on the following financial snapshot, write a SHORT read on their financial health, then 3 actionable next steps. Plain, warm, specific to the data.
+      prompt: `You help someone decide what to focus on with their money this month. Use ONLY the data below. Be plain, warm and specific.
 
-WRITING RULES (strict): the summary is ONE sentence, 22 words or fewer, naming only the single most important thing (do not list every number or every bill). Each recommendation is ONE sentence, 16 words or fewer, starting with a verb, about one action only. No semicolons, no lists inside a sentence, no repeating figures already shown elsewhere on the page.
+Return ONE focus sentence (22 words or fewer) naming the single most important thing this month, and exactly TWO actions (each 16 words or fewer, starting with a verb, about one thing, naming the account or amount).
 
-IMPORTANT CONTEXT ABOUT BILLS:
-- Recurring bills (labeled "recurring") are ongoing monthly obligations (e.g., rent, utilities). These are NOT one-time debts to "pay off." They are regular expenses that recur each cycle. Frame advice about these as managing the recurring obligation, not clearing the balance.
-- One-time bills (labeled "one-time") are single payments due by a specific date that should be paid promptly.
+PRIORITIES, in order, when present: 1) accounts past due right now (they add a new late mark every month), 2) credit cards over their limit, 3) high card usage, 4) a small cash cushion for emergencies, 5) loans and savings goals. Collections come after these unless the person has a plan step for them. If there is money left over this month, say how to use part of it for the top priority.
 
-Budget utilization: ${budgetUtil.toFixed(0)}% of allocated budget has been spent (${fmt(totalSpent)} of ${fmt(totalAllocated)}). If utilization is above 80%, flag that they're approaching their budget limit. If above 100%, they're over budget.
+NEVER: repeat due dates or totals already shown on the page, promise a credit score change, give legal advice, or recommend paying a collection before asking for proof.
 
-Financial Snapshot:
-- Recurring bills: ${recurringBills.length} bills totaling ${fmt(recurringTotal)}/cycle
-${recurringBills.length > 0 ? recurringBills.map(b => `  - ${b.name}: $${b.amount}/cycle (${b.billing_cycle}, due day ${b.due_day || "N/A"})`).join("\n") : ""}
-- One-time bills due: ${oneTimeBills.length} bills totaling ${fmt(oneTimeTotal)}
-${oneTimeBills.length > 0 ? oneTimeBills.map(b => `  - ${b.name}: $${b.amount}${b.due_date ? ` (due ${b.due_date})` : ""}`).join("\n") : ""}
-- Subscriptions: ${subs.length} active, ${fmt(subMonthly)}/month equivalent
-- Savings goals: ${savings.length} goals, ${fmt(savingsCurrent)} saved of ${fmt(savingsTarget)} target
-- Outstanding loan debt: ${fmt(loansOutstanding)} across ${loans.length} loans\n${loanLines}
-- Top credit score: ${topScore || "N/A"}
-- Monthly income: ${fmt(income)}
-- Budget utilization: ${budgetUtil.toFixed(0)}% (${fmt(totalSpent)} spent of ${fmt(totalAllocated)} allocated)
-- Category breakdown: ${buckets.map(b => `${b.name || b.category || "Other"}: ${fmt(b.spent_amount || 0)}`).join(", ") || "none"}
+Money this month: ${money ? `${fmt(money.inc)} income, ${fmt(money.fixed)} fixed bills and subscriptions, ${fmt(money.loansM)} loan payments, ${fmt(money.everyday)} everyday spending, ${fmt(money.left)} left over` : `income ${fmt(income)}`}
+Savings goals: ${savings.length ? `${savings.length}, ${fmt(savingsCurrent)} saved of ${fmt(savingsTarget)}` : "none"}
+Loans: ${loans.length ? `${fmt(loansOutstanding)} outstanding\n${loanLines}` : "none"}
+Unpaid one-time bills: ${oneTimeBills.length ? oneTimeBills.map((b) => `${b.name} $${b.amount}`).join(", ") : "none"}
+Credit:
+${creditLines || "- no credit reports uploaded"}
 
-LOANS: if there is loan debt, one of the three recommendations must be about paying it down (for example paying off early if that saves money, or the next payment due). Mention the debt in the summary only if it is the biggest issue.
-
-ADDITIONAL ANALYSIS — 50/30/20 RULE:
-If monthly income is greater than 0, evaluate spending against the 50/30/20 guideline (50% needs, 30% wants, 20% savings/debt repayment). Estimate which spending categories fall into needs vs wants based on their names, compute rough percentages of income, and call out whether the user is on track. Mention it in at most ONE recommendation, never in the summary.
-
-Format your response as JSON with this structure:
-{
-  "summary": "one sentence, max 22 words",
-  "recommendations": ["max 16 words", "max 16 words", "max 16 words"]
-}`,
+For each action, "tab" is where it's handled: one of "credit_score", "bill", "budget", "savings_goal", "loan", "spending".
+Respond as JSON: {"focus": "...", "actions": [{"text": "...", "tab": "..."}, {"text": "...", "tab": "..."}]}`,
       response_json_schema: {
         type: "object",
         properties: {
-          summary: { type: "string" },
-          recommendations: { type: "array", items: { type: "string" } }
-        }
+          focus: { type: "string" },
+          actions: { type: "array", items: { type: "object", properties: { text: { type: "string" }, tab: { type: "string" } } } },
+        },
       },
-    }).then(res => {
-      setInsights(res);
+    }).then((res) => {
+      const data = { focus: res && (res.focus || res.summary) || "", actions: (res && Array.isArray(res.actions) ? res.actions : []).filter((a) => a && a.text).slice(0, 2) };
+      setInsights(data);
+      try { localStorage.setItem(CACHE, JSON.stringify({ sig, data })); } catch { /* ignore */ }
       setLoading(false);
     }).catch(() => { setFailed(true); setLoading(false); });
-  }, [items.length, buckets.length, budgetUtil, retry, income, incomeReady, loanLines]);
+  }, [sig, retry, incomeReady, creditReady]);
 
   const utilColor = budgetUtil > 100 ? "text-destructive" : budgetUtil > 80 ? "text-foreground" : "text-muted-foreground";
   const utilBarColor = budgetUtil > 100 ? "bg-destructive" : budgetUtil > 80 ? "bg-[#8B6B3E]" : "bg-[#A7773F]";
@@ -213,7 +214,7 @@ Format your response as JSON with this structure:
             <h3 className="font-heading text-base font-bold text-foreground">AI Insights</h3>
             {loading && <span className="w-3 h-3 border-2 border-muted border-t-foreground rounded-full animate-spin ml-1" />}
           </div>
-          {!loading && insights && <button onClick={() => setRetry(r => r + 1)} className="text-xs text-[#A7773F]">Refresh</button>}
+          {!loading && insights && <button onClick={() => setRetry(r => r + 1)} className="text-xs text-[#A7773F]">Update</button>}
         </div>
         {loading ? (
           <div className="space-y-2">
@@ -227,18 +228,17 @@ Format your response as JSON with this structure:
           </div>
         ) : insights ? (
           <>
-            <p className="text-[15px] text-foreground leading-snug mb-4">{insights.summary}</p>
-            {insights.recommendations?.length > 0 && (
-              <div className="space-y-3 border-t border-border pt-4">
-                {(allTips ? insights.recommendations : insights.recommendations.slice(0, 3)).map((rec, idx) => (
-                  <div key={idx} className="flex items-start gap-2">
+            <p className="text-[10px] font-bold tracking-[0.14em] uppercase text-muted-foreground mb-1">Focus this month</p>
+            <p className="text-[15px] text-foreground leading-snug mb-3">{insights.focus}</p>
+            {insights.actions?.length > 0 && (
+              <div className="space-y-1 border-t border-border pt-2.5">
+                {insights.actions.map((a, idx) => (
+                  <button key={idx} onClick={() => onNavigate && TABS_OK.includes(a.tab) && onNavigate(a.tab)} className="w-full flex items-start gap-2 text-left py-1.5">
                     <Lightbulb className="w-3.5 h-3.5 text-[#A7773F] mt-0.5 flex-shrink-0" strokeWidth={1.5} />
-                    <p className="text-[13px] text-muted-foreground leading-snug">{rec}</p>
-                  </div>
+                    <span className="flex-1 text-[13px] text-foreground leading-snug">{a.text}</span>
+                    {TABS_OK.includes(a.tab) && <ChevronRight className="w-4 h-4 text-[#A7773F] flex-shrink-0" />}
+                  </button>
                 ))}
-                {insights.recommendations.length > 3 && (
-                  <button onClick={() => setAllTips(v => !v)} className="text-xs font-medium text-[#A7773F] pt-1">{allTips ? "Show fewer" : `${insights.recommendations.length - 3} more tip${insights.recommendations.length - 3 === 1 ? "" : "s"} ›`}</button>
-                )}
               </div>
             )}
           </>
