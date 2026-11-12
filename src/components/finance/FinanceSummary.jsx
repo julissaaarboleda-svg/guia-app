@@ -118,7 +118,8 @@ export default function FinanceSummary({ items, buckets, onNavigate, onAddFirst 
       priorities.push(`Cards over their limit: ${over.map((r) => `${r.name} needs ${fmt(r.toLimit)}`).join(", ")} (${fmt(total)} in total${leftOver > 0 ? `, ${total <= leftOver ? `which fits in the ${fmt(leftOver)} left over and leaves ${fmt(leftOver - total)}` : `more than the ${fmt(leftOver)} left over`}` : ""}). Over-limit balances can bring fees and look worse than high usage.`);
     }
     const hi = cardStep.rows.filter((r) => !r.toLimit && r.to30);
-    if (hi.length || creditOv.usage > 30) priorities.push(`High card usage (${creditOv.usage}% of limits). Under 30%: ${cardStep.rows.slice(0, 3).map((r) => `${r.name} ${fmt(r.to30)}`).join(", ")}.`);
+    // When cards are over the limit, the "under 30%" step comes later; listing it now would repeat the same cards.
+    if (!over.length && (hi.length || creditOv.usage > 30)) priorities.push(`High card usage (${creditOv.usage}% of limits). Under 30%: ${cardStep.rows.slice(0, 3).map((r) => `${r.name} ${fmt(r.to30)}`).join(", ")}.`);
   }
   if (!(savingsCurrent > 0)) priorities.push(`No emergency cushion saved yet${leftOver > 0 ? `; even a small amount of the ${fmt(leftOver)} left over helps` : ""}.`);
   if (creditOv && creditOv.collections.count) priorities.push(`Collections: ${creditOv.collections.count} totaling ${fmt(creditOv.collections.total)}. Ask each collector for proof before paying anything.`);
