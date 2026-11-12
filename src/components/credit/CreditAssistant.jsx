@@ -303,7 +303,53 @@ function RightsSheet({ onClose }) {
   );
 }
 
-export default function CreditAssistant({ scoreItems = [] }) {
+// Add or update one bureau's score, with that bureau already picked.
+function ScoreSheet({ bureau, history, onSave, onDelete, onClose }) {
+  const [score, setScore] = useState("");
+  const [source, setSource] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const inputCls = "w-full bg-secondary border border-input rounded-lg px-3 py-2.5 text-sm text-foreground outline-none focus:border-ring";
+  const save = async () => {
+    const v = Number(score);
+    if (!(v >= 300 && v <= 900)) { setErr("Enter a score between 300 and 900."); return; }
+    setBusy(true);
+    try { await onSave({ bureau, score: v, source: source.trim() }); onClose(); } catch { setErr("Couldn't save. Try again."); setBusy(false); }
+  };
+  return createPortal(
+    <div className="fixed inset-0 z-[80] bg-black/40 flex items-end sm:items-center justify-center" onClick={onClose}>
+      <div className="bg-background w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="font-heading text-lg text-foreground">{history.length ? "Update" : "Add"} {bureau} score</h3>
+          <button onClick={onClose} aria-label="Close" className="p-1 text-muted-foreground"><X className="w-5 h-5" /></button>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-foreground mb-1">Score</label>
+          <input value={score} onChange={(e) => { setScore(e.target.value.replace(/\D/g, "").slice(0, 3)); setErr(""); }} inputMode="numeric" placeholder="e.g., 574" className={inputCls} autoFocus />
+          {err && <p className="text-xs text-[#A3423A] mt-1">{err}</p>}
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-foreground mb-1">Where you saw it <span className="font-normal text-muted-foreground">(optional)</span></label>
+          <input value={source} onChange={(e) => setSource(e.target.value)} placeholder="e.g., SoFi, Capital One CreditWise, Experian app" className={inputCls} />
+          <p className="text-[11px] text-muted-foreground mt-1">Scores differ by app and scoring model. Use the same source each time so the changes mean something.</p>
+        </div>
+        <button onClick={save} disabled={busy} className="w-full bg-foreground text-background rounded-xl py-2.5 text-sm font-medium disabled:opacity-60">Save score</button>
+        {history.length > 0 && (
+          <div className="border-t border-border pt-3">
+            <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-1.5">History</p>
+            <div className="flex flex-wrap gap-1.5">
+              {[...history].reverse().slice(0, 8).map((h, i) => <span key={i} className="text-xs rounded-full bg-secondary px-2.5 py-1 text-foreground">{h.score} <span className="text-muted-foreground">· {niceDate(h.date).replace(/, \d{4}$/, "")}</span></span>)}
+            </div>
+            <button onClick={async () => { if (window.confirm(`Remove all ${bureau} scores you've added?`)) { await onDelete(bureau); onClose(); } }} className="mt-3 text-xs text-muted-foreground underline underline-offset-2">Remove {bureau} scores</button>
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+export default function CreditAssistant({ scoreItems = [], onSaveScore, onDeleteScore }) {
   const [docs, setDocs] = useState([]);
   const [caseRec, setCaseRec] = useState(null);
   const [loaded, setLoaded] = useState(false);
@@ -314,6 +360,8 @@ export default function CreditAssistant({ scoreItems = [] }) {
   const [showUploads, setShowUploads] = useState(false);
   const [comingAll, setComingAll] = useState(false);
   const [rightsOpen, setRightsOpen] = useState(false);
+  const [scoreFor, setScoreFor] = useState(null);
+  const [chartB, setChartB] = useState(null);
   const [rereadId, setRereadId] = useState(null);
   const [rereading, setRereading] = useState(null);
   const rereadRef = useRef(null);
@@ -485,6 +533,15 @@ export default function CreditAssistant({ scoreItems = [] }) {
   const planSeen = (caseRec && caseRec.planSeen) || {};
   const livePlan = ov && !ov.upkeep ? ov.plan : [];
   const goneSteps = Object.entries(planSeen).filter(([f, v]) => v && !livePlan.some((p) => p.filter === f)).map(([f, v]) => ({ filter: f, title: v.title, doneOn: v.doneOn }));
+  // Journey chart follows one bureau at a time: scores from different bureaus and apps don't compare.
+  const scoreBureaus = [...new Set(prog.scores.map((x) => bureauKey(x.bureau || "") || "Other"))];
+  const defaultChartB = [...scoreBureaus].sort((a, b) => {
+    const pa = prog.scores.filter((x) => (bureauKey(x.bureau || "") || "Other") === a), pb = prog.scores.filter((x) => (bureauKey(x.bureau || "") || "Other") === b);
+    return pb.length - pa.length || String(pb[pb.length - 1]?.date).localeCompare(String(pa[pa.length - 1]?.date));
+  })[0];
+  const curChartB = scoreBureaus.includes(chartB) ? chartB : defaultChartB;
+  const chartScores = prog.scores.filter((x) => (bureauKey(x.bureau || "") || "Other") === curChartB)
+    .filter((x, i, arr) => arr.findIndex((y) => y.date === x.date) === i);
   const planDone = (caseRec && caseRec.planDone) || {};
   const isPlanDone = (p) => !!planDone[p.filter];
   const planDoneCount = (ov ? ov.plan.filter(isPlanDone).length : 0) + goneSteps.length;
@@ -707,14 +764,13 @@ export default function CreditAssistant({ scoreItems = [] }) {
                 const has = reportBureaus.includes(b);
                 const rate = sc && (sc.score >= 740 ? ["Very good", "bg-[#E9EDDD] text-[#566033]"] : sc.score >= 670 ? ["Good", "bg-[#E9EDDD] text-[#566033]"] : sc.score >= 580 ? ["Fair", "bg-[#F0E6D6] text-[#8B6B3E]"] : ["Poor", "bg-[#F3E6E8] text-[#8F5F65]"]);
                 return (
-                  <div key={b} className={i ? "border-l border-border/70" : ""}>
+                  <button key={b} onClick={() => onSaveScore && setScoreFor(b)} className={`text-center ${i ? "border-l border-border/70" : ""}`}>
                     <p className={`font-heading leading-none ${sc ? "text-[26px] text-foreground" : "text-xl text-muted-foreground"}`}>{sc ? sc.score : "—"}</p>
                     <p className="text-xs text-foreground mt-1.5">{b}</p>
                     {sc ? <span className={`inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full ${rate[1]}`}>{rate[0]}</span>
-                      : has ? <p className="text-[10.5px] text-muted-foreground mt-1">Report, no score</p>
-                      : !locked ? <button onClick={() => fileRef.current?.click()} className="text-[10.5px] text-[#A7773F] mt-1">+ Add report</button>
-                      : <p className="text-[10.5px] text-muted-foreground mt-1">Not added</p>}
-                  </div>
+                      : <span className="block text-[10.5px] text-[#A7773F] mt-1">+ Add score</span>}
+                    <span className="block text-[10px] text-muted-foreground mt-1">{has ? "Report added" : "No report yet"}{sc ? " · update" : ""}</span>
+                  </button>
                 );
               })}
             </div>
@@ -971,9 +1027,16 @@ export default function CreditAssistant({ scoreItems = [] }) {
       <div className="lg:col-span-5 space-y-3 min-w-0">
       {docs.length > 0 && (
         <div className="bg-card border border-border rounded-2xl p-4">
-          <p className="font-heading text-lg text-foreground">Your journey</p>
+          <div className="flex items-center gap-2">
+            <p className="font-heading text-lg text-foreground flex-1">Your journey</p>
+            {scoreBureaus.length > 1 && (
+              <div className="flex gap-1">
+                {scoreBureaus.map((b) => <button key={b} onClick={() => setChartB(b)} className={`text-[10.5px] rounded-full px-2 py-0.5 border ${curChartB === b ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground"}`}>{BUREAU_SHORT[b] || b}</button>)}
+              </div>
+            )}
+          </div>
           {(() => {
-            const sc = prog.scores;
+            const sc = chartScores;
             const last = sc[sc.length - 1];
             const w = 140, h = 40;
             const pts = sc.length > 1 ? (() => {
@@ -1024,7 +1087,7 @@ export default function CreditAssistant({ scoreItems = [] }) {
                 {!done.length && !prog.checkBacks.length ? (
                   <div className="mt-3 ml-1 border-l border-border pl-3.5 space-y-2 text-[12.5px]">
                     {(() => {
-                      const first = prog.scores[0];
+                      const first = chartScores[0];
                       const nm = new Date(); nm.setMonth(nm.getMonth() + 1);
                       const dot = (on) => <span className={`absolute -left-[19px] top-1 w-2.5 h-2.5 rounded-full ${on ? "bg-[#7D8A53]" : "bg-card border border-border"}`} />;
                       return (
@@ -1104,6 +1167,10 @@ export default function CreditAssistant({ scoreItems = [] }) {
 
       </div>
       {rightsOpen && <RightsSheet onClose={() => setRightsOpen(false)} />}
+      {scoreFor && onSaveScore && (
+        <ScoreSheet bureau={scoreFor} onClose={() => setScoreFor(null)} onSave={onSaveScore} onDelete={onDeleteScore || (async () => {})}
+          history={(() => { const it = scoreItems.find((x) => x.bureau === scoreFor || x.name === scoreFor); return it ? (Array.isArray(it.score_history) && it.score_history.length ? it.score_history : it.score ? [{ score: it.score, date: String(it.score_updated || it.created_date || "").slice(0, 10) }] : []) : []; })()} />
+      )}
       {letter && <LetterSheet letter={letter} onClose={() => setLetter(null)} onSent={markSent} />}
       {toast && createPortal(<div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[85] bg-foreground text-background text-sm px-4 py-2 rounded-full shadow">{toast}</div>, document.body)}
     </div>

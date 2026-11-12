@@ -80,7 +80,6 @@ export default function Finance() {
   const [items, setItems] = useState([]);
   const [buckets, setBuckets] = useState([]);
   const [activeTab, setActiveTab] = useState("summary");
-  const [scoresOpen, setScoresOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [importing, setImporting] = useState(false);
   const [spendKey, setSpendKey] = useState(0);
@@ -597,22 +596,27 @@ export default function Finance() {
 
       {activeTab === "loan" && <UpcomingLoans items={items} />}
 
-      {activeTab === "credit_score" && <CreditAssistant scoreItems={items.filter(i => i.type === "credit_score")} />}
       {activeTab === "credit_score" && (
-        <div className="bg-card border border-border rounded-2xl px-4 py-3 mb-3 flex items-center gap-2">
-          <button onClick={() => setScoresOpen(v => !v)} className="flex-1 flex items-center gap-2 text-left">
-            <span className="text-sm text-foreground">Scores you've added</span>
-            <span className="text-xs text-muted-foreground">{items.filter(i => i.type === "credit_score").length}</span>
-          </button>
-          <button onClick={() => { setScoresOpen(true); openAdd("credit_score"); }} className="text-xs text-[#A7773F] font-medium">+ Add</button>
-          <button onClick={() => setScoresOpen(v => !v)} aria-label={scoresOpen ? "Hide scores" : "Show scores"} className="text-muted-foreground">
-            {scoresOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </button>
-        </div>
+        <CreditAssistant
+          scoreItems={items.filter(i => i.type === "credit_score")}
+          onSaveScore={async ({ bureau, score, source }) => {
+            const ex = items.find(i => i.type === "credit_score" && (i.bureau === bureau || i.name === bureau));
+            if (ex) await ent.FinanceItem.update(ex.id, { ...withHistory(ex, score), ...(source ? { notes: `Source: ${source}` } : {}) });
+            else {
+              const today = new Date().toISOString().slice(0, 10);
+              await ent.FinanceItem.create({ type: "credit_score", name: bureau, bureau, score, score_updated: today, score_history: [{ score, date: today }], target_score: null, notes: source ? `Source: ${source}` : "" });
+            }
+            await load();
+          }}
+          onDeleteScore={async (bureau) => {
+            const ex = items.find(i => i.type === "credit_score" && (i.bureau === bureau || i.name === bureau));
+            if (ex) { await ent.FinanceItem.delete(ex.id); await load(); }
+          }}
+        />
       )}
 
       {/* Items */}
-      {activeTab !== "budget" && activeTab !== "spending" && !(activeTab === "credit_score" && !scoresOpen) && (
+      {activeTab !== "budget" && activeTab !== "spending" && activeTab !== "credit_score" && (
       <div className={`grid grid-cols-1 lg:grid-cols-2 ${activeTab === "bill" ? "gap-2" : "gap-3"} [&>*:only-child]:col-span-full`}>
         {tabItems.length === 0 && !adding && activeTab !== "summary" && (
           <div className="text-center py-10 text-muted-foreground bg-card border border-border rounded-2xl">
