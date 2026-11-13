@@ -90,7 +90,7 @@ async function feed(token) {
   const rec = await tokens.get(token, { type: "json" });
   if (!rec || !rec.userId) return null;
   const inc = { ...DEFAULT_INCLUDE, ...(rec.include || {}) };
-  const data = getStore({ name: "guia-data", consistency: "strong" });
+  const data = getStore("guia-data");
   const events = [];
   if (inc.bills) {
     const fin = await readAll(data, rec.userId, "FinanceItem");
