@@ -8,7 +8,7 @@ import { useToast } from "@/components/ui/use-toast";
 import SectionOrderEditor from "@/components/settings/SectionOrderEditor";
 import FeedbackModal from "@/components/feedback/FeedbackModal";
 import PlanUsage from "@/components/settings/PlanUsage";
-import { dataVersion } from "@/api/base44Client";
+import { dataVersion, dataV2Wanted, dataV2Problem } from "@/api/base44Client";
 import CalendarSync from "@/components/settings/CalendarSync";
 import { Link } from "react-router-dom";
 import { DEFAULT_SECTION_ORDER, normalizeSections, normalizeOrder } from "@/lib/navSections";
@@ -329,12 +329,13 @@ export default function Settings() {
         <div className="flex-1 min-w-0">
           <p className="text-sm text-foreground">Instant sync <span className="text-[11px] text-muted-foreground">(testing)</span></p>
           <p className="text-[11px] text-muted-foreground">Changes show up on every page right away. Now: {dataVersion() === 2 ? "Instant" : "Standard"}</p>
+          {dataV2Wanted() && dataVersion() !== 2 && <p className="text-[11px] text-[#8F5F65] mt-0.5">Switched on, but it fell back to Standard: {dataV2Problem() || "unknown reason"}</p>}
         </div>
         <button
-          onClick={() => { try { if (localStorage.getItem("guia-data-v2") === "1") localStorage.removeItem("guia-data-v2"); else localStorage.setItem("guia-data-v2", "1"); sessionStorage.removeItem("guia-data-v2-off"); } catch { /* ignore */ } window.location.reload(); }}
-          role="switch" aria-checked={dataVersion() === 2}
-          className={`w-11 h-6 rounded-full relative transition-colors ${dataVersion() === 2 ? "bg-[#7D8A53]" : "bg-border"}`}>
-          <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${dataVersion() === 2 ? "left-[22px]" : "left-0.5"}`} />
+          onClick={() => { try { if (localStorage.getItem("guia-data-v2") === "1") localStorage.removeItem("guia-data-v2"); else localStorage.setItem("guia-data-v2", "1"); sessionStorage.removeItem("guia-data-v2-off"); sessionStorage.removeItem("guia-data-v2-why"); } catch { /* ignore */ } window.location.reload(); }}
+          role="switch" aria-checked={dataV2Wanted()}
+          className={`w-11 h-6 rounded-full relative transition-colors ${dataV2Wanted() ? "bg-[#7D8A53]" : "bg-border"}`}>
+          <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${dataV2Wanted() ? "left-[22px]" : "left-0.5"}`} />
         </button>
       </div>
       <div className="mb-6"><CalendarSync /></div>

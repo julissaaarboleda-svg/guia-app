@@ -96,6 +96,9 @@ const v2On = () => {
   try { return localStorage.getItem("guia-data-v2") === "1" && sessionStorage.getItem("guia-data-v2-off") !== "1"; } catch { return false; }
 };
 export const dataVersion = () => (v2On() ? 2 : 1);
+// What the person chose, and why the new function was skipped this session (if it was).
+export const dataV2Wanted = () => { try { return localStorage.getItem("guia-data-v2") === "1"; } catch { return false; } };
+export const dataV2Problem = () => { try { return sessionStorage.getItem("guia-data-v2-why") || ""; } catch { return ""; } };
 async function dataFetch(path, opts = {}) {
   const legacy = () => fetch(`${API_BASE}/entities/${path}`, opts);
   if (!v2On()) return legacy();
@@ -104,11 +107,16 @@ async function dataFetch(path, opts = {}) {
     const res = await fetch(`/api/data/${path}`, opts);
     const ours = res.headers.get("x-guia-data") === "2";
     // Fall back if the request never reached the new function, or a read failed on the server.
-    if (!ours || (isRead && res.status >= 500)) throw new Error(`data v2 unavailable (${res.status})`);
+    if (!ours) throw new Error(`the new function didn't answer (${res.status}, ${res.headers.get("content-type") || "no type"})`);
+    if (res.status === 401) throw new Error("the new function couldn't confirm your sign-in");
+    if (isRead && res.status >= 500) {
+      let why = ""; try { why = (await res.clone().json()).error || ""; } catch { /* ignore */ }
+      throw new Error(`server error ${res.status}${why ? `: ${why}` : ""}`);
+    }
     return res;
   } catch (err) {
     console.warn("Falling back to the original data function:", err && err.message);
-    try { sessionStorage.setItem("guia-data-v2-off", "1"); } catch { /* ignore */ }
+    try { sessionStorage.setItem("guia-data-v2-off", "1"); sessionStorage.setItem("guia-data-v2-why", String((err && err.message) || "unknown").slice(0, 200)); } catch { /* ignore */ }
     return legacy();
   }
 }
