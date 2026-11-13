@@ -325,7 +325,18 @@ export default function Settings() {
       </section>
 
       <div className="mb-6"><PlanUsage /></div>
-      <p className="-mt-4 mb-6 text-[11px] text-muted-foreground">Data sync: {dataVersion() === 2 ? "Instant (testing)" : "Standard"}</p>
+      <div className="-mt-3 mb-6 flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-foreground">Instant sync <span className="text-[11px] text-muted-foreground">(testing)</span></p>
+          <p className="text-[11px] text-muted-foreground">Changes show up on every page right away. Now: {dataVersion() === 2 ? "Instant" : "Standard"}</p>
+        </div>
+        <button
+          onClick={() => { try { if (localStorage.getItem("guia-data-v2") === "1") localStorage.removeItem("guia-data-v2"); else localStorage.setItem("guia-data-v2", "1"); sessionStorage.removeItem("guia-data-v2-off"); } catch { /* ignore */ } window.location.reload(); }}
+          role="switch" aria-checked={dataVersion() === 2}
+          className={`w-11 h-6 rounded-full relative transition-colors ${dataVersion() === 2 ? "bg-[#7D8A53]" : "bg-border"}`}>
+          <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${dataVersion() === 2 ? "left-[22px]" : "left-0.5"}`} />
+        </button>
+      </div>
       <div className="mb-6"><CalendarSync /></div>
 
       {/* About */}
