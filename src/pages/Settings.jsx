@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/use-toast";
 import SectionOrderEditor from "@/components/settings/SectionOrderEditor";
 import FeedbackModal from "@/components/feedback/FeedbackModal";
 import PlanUsage from "@/components/settings/PlanUsage";
+import { dataVersion } from "@/api/base44Client";
 import CalendarSync from "@/components/settings/CalendarSync";
 import { Link } from "react-router-dom";
 import { DEFAULT_SECTION_ORDER, normalizeSections, normalizeOrder } from "@/lib/navSections";
@@ -324,6 +325,7 @@ export default function Settings() {
       </section>
 
       <div className="mb-6"><PlanUsage /></div>
+      <p className="-mt-4 mb-6 text-[11px] text-muted-foreground">Data sync: {dataVersion() === 2 ? "Instant (testing)" : "Standard"}</p>
       <div className="mb-6"><CalendarSync /></div>
 
       {/* About */}

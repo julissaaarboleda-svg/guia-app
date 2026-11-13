@@ -82,12 +82,43 @@ async function checkOk(res) {
   return res;
 }
 
+// ---- Data function selection ----
+// The newer data function (/api/data, netlify/functions/data.mjs) reads the latest saved
+// copy every time. It's opt-in while it's being tested: open the app once with ?datav2=1
+// to switch it on for this device (?datav2=0 to switch it off). If it ever fails, the app
+// falls back to the original function (entities.js) for the rest of the session.
+try {
+  const q = new URLSearchParams(window.location.search).get("datav2");
+  if (q === "1") localStorage.setItem("guia-data-v2", "1");
+  if (q === "0") localStorage.removeItem("guia-data-v2");
+} catch { /* ignore */ }
+const v2On = () => {
+  try { return localStorage.getItem("guia-data-v2") === "1" && sessionStorage.getItem("guia-data-v2-off") !== "1"; } catch { return false; }
+};
+export const dataVersion = () => (v2On() ? 2 : 1);
+async function dataFetch(path, opts = {}) {
+  const legacy = () => fetch(`${API_BASE}/entities/${path}`, opts);
+  if (!v2On()) return legacy();
+  const isRead = !opts.method || opts.method === "GET";
+  try {
+    const res = await fetch(`/api/data/${path}`, opts);
+    const ours = res.headers.get("x-guia-data") === "2";
+    // Fall back if the request never reached the new function, or a read failed on the server.
+    if (!ours || (isRead && res.status >= 500)) throw new Error(`data v2 unavailable (${res.status})`);
+    return res;
+  } catch (err) {
+    console.warn("Falling back to the original data function:", err && err.message);
+    try { sessionStorage.setItem("guia-data-v2-off", "1"); } catch { /* ignore */ }
+    return legacy();
+  }
+}
+
 // ---- Generic entity CRUD, matches base44.entities.<EntityName>.<method>() ----
 function makeEntity(entityName) {
   const api = {
     async list(sort, limit) {
       const headers = await authHeaders();
-      const res = await checkOk(await fetch(`${API_BASE}/entities/${entityName}`, { headers }));
+      const res = await checkOk(await dataFetch(`${entityName}`, { headers }));
       let items = await res.json();
       if (sort) {
         const desc = sort.startsWith("-");
@@ -106,27 +137,27 @@ function makeEntity(entityName) {
     },
     async get(id) {
       const headers = await authHeaders();
-      const res = await checkOk(await fetch(`${API_BASE}/entities/${entityName}/${id}`, { headers }));
+      const res = await checkOk(await dataFetch(`${entityName}/${id}`, { headers }));
       return res.json();
     },
     async create(data) {
       const headers = await authHeaders();
       const res = await checkOk(
-        await fetch(`${API_BASE}/entities/${entityName}`, { method: "POST", headers, body: JSON.stringify(data) })
+        await dataFetch(`${entityName}`, { method: "POST", headers, body: JSON.stringify(data) })
       );
       return res.json();
     },
     async update(id, patch) {
       const headers = await authHeaders();
       const res = await checkOk(
-        await fetch(`${API_BASE}/entities/${entityName}/${id}`, { method: "PUT", headers, body: JSON.stringify(patch) })
+        await dataFetch(`${entityName}/${id}`, { method: "PUT", headers, body: JSON.stringify(patch) })
       );
       return res.json();
     },
     async delete(id) {
       const headers = await authHeaders();
       const res = await checkOk(
-        await fetch(`${API_BASE}/entities/${entityName}/${id}`, { method: "DELETE", headers })
+        await dataFetch(`${entityName}/${id}`, { method: "DELETE", headers })
       );
       return res.json();
     },
