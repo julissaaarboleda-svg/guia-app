@@ -1,14 +1,29 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check, Flame } from "lucide-react";
 import { getModule } from "@/lib/homeModules";
-import { colorOf, dayKey, isScheduled, doneOn, completeOn, stepsFor } from "@/lib/routines";
+import { colorOf, dayKey, isScheduled, doneOn, completeOn, stepsFor, streaks } from "@/lib/routines";
 const PRIORITY_CHIP = {
   high: "bg-[#F3E8D6] text-[#8A5F27]",
   urgent: "bg-[#F4E6E7] text-[#8F5F65]",
   normal: "bg-[#E4E9D5] text-[#566033]",
   low: "bg-muted text-muted-foreground",
 };
+// The last 7 days for one routine, oldest first: done, missed, off (not scheduled or before it existed), or today's progress.
+function weekDots(r) {
+  const out = [];
+  const created = String(r.created_date || "").slice(0, 10);
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const key = dayKey(d);
+    const n = stepsFor(r, d).length;
+    if ((created && key < created) || !isScheduled(r, d) || !n) out.push({ key, state: "off" });
+    else if (i === 0) out.push({ key, state: "today", frac: Math.min(1, doneOn(r, key) / n) });
+    else out.push({ key, state: completeOn(r, key) ? "done" : "missed" });
+  }
+  return out;
+}
+
 // Routines in the order of the day.
 const SLOT_ORDER = { morning: 0, anytime: 1, evening: 2 };
 
@@ -115,13 +130,25 @@ export default function TodaysFocus({ items, total = 0, onComplete, routines = [
                 <div className="grid grid-cols-2 gap-2 px-3 pt-1 pb-3">
                   {[...due].sort((x, y) => (SLOT_ORDER[x.slot] ?? 1) - (SLOT_ORDER[y.slot] ?? 1) || String(x.name).localeCompare(String(y.name))).map((r) => {
                     const c = colorOf(r); const n = stepsFor(r).length; const d = doneOn(r, today); const fin = d >= n;
+                    const streak = (() => { try { return streaks(r).current || 0; } catch { return 0; } })();
                     const slot = { morning: "Morning", evening: "Evening" }[r.slot] || "Anytime";
                     return (
                       <div key={r.id} className="rounded-xl border border-border/60 bg-background/40 px-2.5 py-2 flex items-center gap-2">
                         <Link to="/goals?view=routines" className="flex-1 min-w-0">
-                          <span className="block text-[9.5px] tracking-[0.14em] uppercase font-medium truncate" style={{ color: c }}>{slot}{n > 1 ? <span className="tracking-normal"> · {fin ? "done" : `${d}/${n}`}</span> : null}</span>
+                          <span className="flex items-center text-[9.5px] tracking-[0.14em] uppercase font-medium" style={{ color: c }}>
+                            <span className="truncate">{slot}</span>
+                            {streak >= 2 && <span className="ml-auto pl-1 tracking-normal inline-flex items-center gap-0.5 text-[#A7773F] flex-shrink-0" title={`${streak}-day streak`}><Flame className="w-3 h-3" strokeWidth={2} />{streak}</span>}
+                          </span>
                           <span className="block font-heading text-[14px] leading-[1.25] text-foreground truncate">{r.name.replace(/^(morning|evening)\s*[·:-]\s*/i, "")}</span>
-                          <span className="block h-[3px] rounded-full bg-[#EFE9DF] overflow-hidden mt-1.5"><span className="block h-full rounded-full transition-all" style={{ width: `${Math.round((d / n) * 100)}%`, background: c }} /></span>
+                          <span className="flex gap-[3px] mt-1.5" aria-label="Last 7 days">
+                            {weekDots(r).map((dt) => (
+                              <span key={dt.key} className="w-[9px] h-[9px] rounded-full box-border"
+                                style={dt.state === "done" ? { background: c }
+                                  : dt.state === "missed" ? { border: `1.5px solid ${c}55` }
+                                  : dt.state === "today" ? { background: `conic-gradient(${c} 0 ${Math.round(dt.frac * 100)}%, #EFE9DF ${Math.round(dt.frac * 100)}% 100%)`, boxShadow: `0 0 0 1px ${c}40` }
+                                  : { background: "#F2EEE6" }} />
+                            ))}
+                          </span>
                         </Link>
                         <button onClick={() => onRoutineToggle?.(r, !fin)} aria-label={fin ? `Undo ${r.name}` : `Complete ${r.name}`}
                           className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
