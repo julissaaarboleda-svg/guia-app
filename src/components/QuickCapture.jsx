@@ -1,11 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Plus, CheckSquare, FileText, Target, Receipt, Check, X } from "lucide-react";
+import { CheckSquare, FileText, Target, Receipt, Check, X } from "lucide-react";
 import { ent } from "@/lib/freshEntities";
 import { guessType, draftFor, TYPE_INFO } from "@/lib/capture";
-
-// Pages that show the + button. Finance and Journeys have their own add flows, so it stays off there.
-const SHOW_ON = ["/", "/goals", "/notes", "/work", "/career", "/business", "/projects", "/recap", "/review"];
 
 const TYPES = [
   ["task", "To-do", CheckSquare],
@@ -26,7 +23,6 @@ export default function QuickCapture() {
   const taRef = useRef(null);
   const toastTimer = useRef(null);
 
-  const visible = SHOW_ON.includes(location.pathname);
   const type = picked || guessType(text);
   const draft = useMemo(() => (text.trim() ? draftFor(text, type) : null), [text, type]);
 
@@ -82,27 +78,15 @@ export default function QuickCapture() {
 
   return (
     <>
-      {visible && !open && (
-        <button
-          type="button"
-          aria-label="Quick capture"
-          onClick={() => setOpen(true)}
-          className="fixed right-4 z-[45] w-[52px] h-[52px] rounded-full bg-[#A7773F] text-[#F7F3EC] flex items-center justify-center shadow-lg active:scale-95 transition-transform bottom-[calc(env(safe-area-inset-bottom,44px)+72px)] lg:bottom-6 lg:right-6"
-        >
-          <Plus className="w-6 h-6" strokeWidth={2} />
-        </button>
-      )}
-
       {open && (
-        <div className="fixed inset-0 z-[80] flex items-end lg:items-center justify-center">
+        <div className="fixed inset-0 z-[80] flex items-start justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
           <div
             role="dialog"
             aria-label="Quick capture"
-            className="relative w-full lg:max-w-md bg-background rounded-t-3xl lg:rounded-3xl px-5 pt-3 border border-border/60"
-            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 16px) + 16px)" }}
+            className="relative w-full lg:max-w-md lg:mt-16 bg-background rounded-b-3xl lg:rounded-3xl px-5 pb-4 border border-border/60"
+            style={{ paddingTop: "calc(env(safe-area-inset-top) + 14px)" }}
           >
-            <div className="w-9 h-1 rounded-full bg-border mx-auto mb-3 lg:hidden" />
             <div className="flex items-center justify-between mb-2">
               <h2 className="font-heading text-lg text-foreground">Capture</h2>
               <button type="button" aria-label="Close" onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground p-1">
@@ -150,7 +134,7 @@ export default function QuickCapture() {
       {toast && (
         <div
           role="status"
-          className="fixed left-4 right-4 lg:left-auto lg:right-6 lg:w-[360px] z-[85] rounded-xl bg-[#2E2A27] text-[#F7F3EC] px-3.5 py-2.5 flex items-center gap-2 text-[13px] shadow-lg bottom-[calc(env(safe-area-inset-bottom,44px)+72px)] lg:bottom-6"
+          className="fixed left-4 right-4 lg:left-auto lg:right-6 lg:w-[360px] z-[85] rounded-xl bg-[#2E2A27] text-[#F7F3EC] px-3.5 py-2.5 flex items-center gap-2 text-[13px] shadow-lg top-[calc(env(safe-area-inset-top)+60px)] lg:top-20"
         >
           <Check className="w-4 h-4 shrink-0" />
           <span className="flex-1 truncate">Saved to {TYPE_INFO[toast.type].where}</span>

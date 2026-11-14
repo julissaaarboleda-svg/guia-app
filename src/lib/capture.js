@@ -102,6 +102,9 @@ const tidy = (s) => {
 };
 const escapeHtml = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+// Pages that show the + in the header. Finance and Journeys have their own add flows.
+export const CAPTURE_PAGES = ["/", "/goals", "/notes", "/work", "/career", "/business", "/projects", "/recap", "/review"];
+
 export const TYPE_INFO = {
   task: { label: "To-do", where: "Goals › To-dos", path: "/goals" },
   note: { label: "Note", where: "Notes", path: "/notes" },
