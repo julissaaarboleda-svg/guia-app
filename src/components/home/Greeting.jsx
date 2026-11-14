@@ -20,7 +20,7 @@ export default function Greeting({ dateStr, greeting, firstName, status }) {
     <>
       <div ref={sentinel} aria-hidden="true" className="h-px -mb-px" />
       <div
-        className={`sticky top-0 z-20 bg-background/95 backdrop-blur-sm -mx-6 px-6 md:-mx-10 md:px-10 lg:-mx-12 lg:px-12 transition-[padding] duration-200 ${stuck ? "py-2 border-b border-border/50" : "py-0 border-b border-transparent"}`}
+        className={`sticky top-0 z-[25] bg-background -mx-6 px-6 md:-mx-10 md:px-10 lg:-mx-12 lg:px-12 transition-[padding] duration-200 ${stuck ? "py-2 border-b border-border/50" : "py-0 border-b border-transparent"}`}
       >
         <motion.div
           initial={{ opacity: 0, y: 14 }}
