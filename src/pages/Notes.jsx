@@ -70,6 +70,15 @@ export default function Notes() {
 
   useEffect(() => { load(); }, []);
 
+  // Notes added with quick capture show up right away.
+  useEffect(() => {
+    const add = (e) => { const { type, record } = e.detail || {}; if (type === "note") setNotes((n) => [record, ...n.filter((x) => x.id !== record.id)]); };
+    const drop = (e) => { const { type, id } = e.detail || {}; if (type === "note") setNotes((n) => n.filter((x) => x.id !== id)); };
+    window.addEventListener("guia:captured", add);
+    window.addEventListener("guia:capture-undone", drop);
+    return () => { window.removeEventListener("guia:captured", add); window.removeEventListener("guia:capture-undone", drop); };
+  }, []);
+
   const createCollection = async (data) => {
     const created = await ent.Folder.create({
       name: data.name,

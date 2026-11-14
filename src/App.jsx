@@ -24,6 +24,7 @@ import Projects from './pages/Projects';
 import AdminFeedback from './pages/AdminFeedback';
 import Backup from './pages/Backup';
 import Recap from './pages/Recap';
+import WeeklyReview from './pages/WeeklyReview';
 
 
 const AuthenticatedApp = () => {
@@ -120,6 +121,7 @@ const AuthenticatedApp = () => {
         <Route path="/travel" element={<Travel />} />
         <Route path="/projects" element={<Projects />} />
         <Route path="/recap" element={<Recap />} />
+        <Route path="/review" element={<WeeklyReview />} />
         <Route path="/backup" element={<Backup />} />
         <Route path="/admin/feedback" element={<AdminFeedback />} />
 

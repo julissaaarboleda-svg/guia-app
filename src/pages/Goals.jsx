@@ -65,6 +65,23 @@ export default function Goals() {
 
   useEffect(() => { load(); }, []);
 
+  // Items added with quick capture show up right away.
+  useEffect(() => {
+    const add = (e) => {
+      const { type, record } = e.detail || {};
+      if (type === "task") setTasks((t) => [record, ...t.filter((x) => x.id !== record.id)]);
+      if (type === "goal") setGoals((g) => [record, ...g.filter((x) => x.id !== record.id)]);
+    };
+    const drop = (e) => {
+      const { type, id } = e.detail || {};
+      if (type === "task") setTasks((t) => t.filter((x) => x.id !== id));
+      if (type === "goal") setGoals((g) => g.filter((x) => x.id !== id));
+    };
+    window.addEventListener("guia:captured", add);
+    window.addEventListener("guia:capture-undone", drop);
+    return () => { window.removeEventListener("guia:captured", add); window.removeEventListener("guia:capture-undone", drop); };
+  }, []);
+
   const selectedGoal = selected?.type === "goal" ? goals.find(g => g.id === selected.id) : null;
   const selectedTask = selected?.type === "task" ? tasks.find(t => t.id === selected.id) : null;
 
@@ -128,8 +145,9 @@ export default function Goals() {
   };
 
   const toggleTask = async (task) => {
-    setTasks(t => t.map(x => x.id === task.id ? { ...x, completed: !x.completed } : x));
-    await ent.Task.update(task.id, { completed: !task.completed });
+    const completed_at = !task.completed ? new Date().toISOString() : null;
+    setTasks(t => t.map(x => x.id === task.id ? { ...x, completed: !x.completed, completed_at } : x));
+    await ent.Task.update(task.id, { completed: !task.completed, completed_at });
   };
 
   const addSubTask = async (goal, text) => {

@@ -3,9 +3,10 @@ import AdjustableImage from "@/components/ui/AdjustableImage";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { Settings, LogOut, Home, MessageCircle, BarChart3 } from "lucide-react";
+import { Settings, LogOut, Home, MessageCircle, BarChart3, Sparkles } from "lucide-react";
 import FeedbackModal from "@/components/feedback/FeedbackModal";
 import BottomNav from "@/components/BottomNav";
+import QuickCapture from "@/components/QuickCapture";
 import GuiaHeader from "@/components/GuiaHeader";
 import { useAuth } from "@/lib/AuthContext";
 import { SECTION_META, DEFAULT_SECTION_ORDER, normalizeSections, normalizeOrder, isSectionActive } from "@/lib/navSections";
@@ -108,6 +109,10 @@ export default function Layout() {
             {user.email}
           </p>
         )}
+        <Link to="/review" className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors">
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Weekly review</span>
+        </Link>
         <Link to="/recap" className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors">
           <BarChart3 className="w-3.5 h-3.5" />
           <span>Recap</span>
@@ -158,6 +163,7 @@ export default function Layout() {
           </div>
         </main>
         <BottomNav prefs={prefs} onFeedback={() => setShowFeedback(true)} />
+        <QuickCapture />
       </div>
     </div>
   );

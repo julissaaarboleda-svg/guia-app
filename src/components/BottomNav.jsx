@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Settings, MessageCircle, MoreHorizontal, X, LogOut, BarChart3 } from "lucide-react";
+import { Home, Settings, MessageCircle, MoreHorizontal, X, LogOut, BarChart3, Sparkles } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { SECTION_META, DEFAULT_SECTION_ORDER, normalizeSections, normalizeOrder, isSectionActive } from "@/lib/navSections";
 
@@ -100,7 +100,7 @@ export default function BottomNav({ prefs, onFeedback }) {
                 );
               })}
               <div className="border-t border-border my-2" />
-              {[["/recap", "Recap", BarChart3]].map(([path, label, I]) => (
+              {[["/review", "Weekly review", Sparkles], ["/recap", "Recap", BarChart3]].map(([path, label, I]) => (
                 <Link key={path} to={path} onClick={() => setShowMore(false)}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${isActive(path) ? "bg-accent text-accent-foreground font-medium" : "text-foreground hover:bg-secondary"}`}>
                   <I className="w-4 h-4" />

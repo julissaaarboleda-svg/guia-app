@@ -8,6 +8,7 @@ import TodaysFocus from "@/components/home/TodaysFocus";
 import UpNext from "@/components/home/UpNext";
 import LifeProgress from "@/components/home/LifeProgress";
 import Reveal from "@/components/home/Reveal";
+import WeekFocus from "@/components/home/WeekFocus";
 import { Link } from "react-router-dom";
 import RingsCustomizer from "@/components/home/RingsCustomizer";
 import { getAiUsage } from "@/api/base44Client";
@@ -141,6 +142,26 @@ export default function Dashboard() {
     load().catch((e) => { console.error("Home failed to load:", e); setLoaded(true); });
   }, []);
 
+  // Items added with quick capture show up right away.
+  useEffect(() => {
+    const add = (e) => {
+      const { type, record } = e.detail || {};
+      if (type === "task") setTasks((t) => [record, ...t]);
+      if (type === "goal") setGoals((g) => [record, ...g]);
+      if (type === "bill") { setFinItems((f) => [record, ...f]); setAllFin((f) => [record, ...f]); }
+    };
+    const drop = (e) => {
+      const { id } = e.detail || {};
+      setTasks((t) => t.filter((x) => x.id !== id));
+      setGoals((g) => g.filter((x) => x.id !== id));
+      setFinItems((f) => f.filter((x) => x.id !== id));
+      setAllFin((f) => f.filter((x) => x.id !== id));
+    };
+    window.addEventListener("guia:captured", add);
+    window.addEventListener("guia:capture-undone", drop);
+    return () => { window.removeEventListener("guia:captured", add); window.removeEventListener("guia:capture-undone", drop); };
+  }, []);
+
   const focus = useMemo(
     () => buildFocusItems({ tasks, goals, projects, finItems, trips, businessGoals, careerEntries }),
     [tasks, goals, projects, finItems, trips, businessGoals, careerEntries]
@@ -161,6 +182,19 @@ export default function Dashboard() {
     const log = setAllToday(r, done);
     setRoutines((list) => list.map((x) => (x.id === r.id ? { ...x, log } : x)));
     try { await ent.Routine.update(r.id, { log }); } catch { /* will reload next visit */ }
+  };
+  // Check off one of this week's 3 picks (and the to-do behind it, if there is one).
+  const toggleWeekPick = async (item, done) => {
+    const f = prefs?.week_focus;
+    if (!f) return;
+    const week_focus = { ...f, done: { ...(f.done || {}), [item.id]: done } };
+    setPrefs((p) => ({ ...(p || {}), week_focus }));
+    try { if (prefs?.id) await ent.UserPreferences.update(prefs.id, { week_focus }); } catch { /* kept for this visit */ }
+    if (item.kind === "task" && item.refId) {
+      const completed_at = done ? new Date().toISOString() : null;
+      setTasks((prev) => prev.map((t) => (t.id === item.refId ? { ...t, completed: done, completed_at } : t)));
+      try { await ent.Task.update(item.refId, { completed: done, completed_at }); } catch { /* ignore */ }
+    }
   };
   const ringsInHero = heroMode === "photo_rings" && progress.length > 0;
 
@@ -193,7 +227,7 @@ export default function Dashboard() {
   const completeFocus = async (item) => {
     if (item.kind === "task") {
       setTasks((prev) => prev.filter((t) => t.id !== item.refId));
-      await ent.Task.update(item.refId, { completed: true });
+      await ent.Task.update(item.refId, { completed: true, completed_at: new Date().toISOString() });
     } else if (item.kind === "goal") {
       const g = goals.find((x) => x.id === item.refId);
       if (!g) return;
@@ -244,6 +278,8 @@ export default function Dashboard() {
         rings={progress}
         onCustomizeRings={() => setRingsOpen(true)}
       />
+
+      {loaded && <WeekFocus prefs={prefs} onToggle={toggleWeekPick} />}
 
       <div className="space-y-5 lg:space-y-0 lg:grid lg:grid-cols-[minmax(0,1fr)_400px] 2xl:grid-cols-[minmax(0,1fr)_460px] lg:gap-x-8 lg:gap-y-6 lg:items-start">
       <Reveal delay={0.06} className="lg:col-start-1 lg:row-start-1 min-w-0">
