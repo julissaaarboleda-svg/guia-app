@@ -82,10 +82,13 @@ export default function FinanceSummary({ items, buckets, onNavigate, onAddFirst 
     const unpaid = (l.schedule || []).filter((p) => !p.paid).sort((a, b) => String(a.date).localeCompare(String(b.date)));
     const left = unpaid.reduce((t, p) => t + Number(p.amount || 0), 0);
     const payoff = l.payoff_amount != null && l.payoff_amount !== "" ? Number(l.payoff_amount) : null;
-    if (payoff == null || !unpaid.length || l.reduces_balance === false || !(left > payoff)) return null;
+    if (payoff == null || !unpaid.length) return null;
+    // If payments don't lower what's owed, every remaining payment is avoided by paying off now.
+    if (l.reduces_balance === false) return { id: l.id, name: l.name, payoff, left: left + payoff, save: left, count: unpaid.length, monthly: Number(unpaid[0].amount) || 0, feesOnly: true };
+    if (!(left > payoff)) return null;
     return { id: l.id, name: l.name, payoff, left, save: left - payoff, count: unpaid.length, monthly: Number(unpaid[0].amount) || 0 };
   }).filter(Boolean).sort((a, b) => b.save - a.save);
-  const payoffMissing = loans.filter((l) => (l.payoff_amount == null || l.payoff_amount === "" || !(l.schedule || []).some((p) => !p.paid)) && l.reduces_balance !== false).map((l) => l.name);
+  const payoffMissing = loans.filter((l) => l.payoff_amount == null || l.payoff_amount === "" || !(l.schedule || []).some((p) => !p.paid)).map((l) => l.name);
   const loansOutstanding = loans.reduce((s, l) => s + (l.payoff_amount != null ? Number(l.payoff_amount) : (l.total_amount || 0) - (l.amount_paid || 0)), 0);
 
   const credit = items.filter(i => i.type === "credit_score");
@@ -311,6 +314,12 @@ Respond as JSON: {"focus": "...", "actions": [{"text": "...", "tab": "..."}, {"t
             </div>
           </>
         )}
+        {!loading && !payoffOpp && loans.length > 0 && payoffMissing.length > 0 && (
+          <button onClick={() => onNavigate && onNavigate("loan")} className="mt-2.5 w-full flex items-center gap-2 text-left text-[12px] text-muted-foreground">
+            <ArrowRight className="w-3.5 h-3.5 text-[#A7773F] flex-shrink-0" />
+            <span className="flex-1">Add a payoff amount and payment schedule to your loans to see if paying early saves money.</span>
+          </button>
+        )}
         {!loading && payoffOpp && <PayoffBlock opp={payoffOpp} urgent={urgent} open={payoffOpen} setOpen={setPayoffOpen} leftOver={money ? money.left : null} missing={payoffMissing} cardsOver={!!(creditOv && creditOv.overLimitCount)} onNavigate={onNavigate} />}
       </div>
 
@@ -375,7 +384,8 @@ function PayoffBlock({ opp, urgent, open, setOpen, leftOver, missing, cardsOver,
 
   const details = (
     <div className="pt-2">
-      <p className="text-[12.5px] text-muted-foreground mb-1.5">Pay {fmt(opp.pay)} now instead of {fmt(opp.left)} over the remaining payments.</p>
+      <p className="text-[12.5px] text-muted-foreground mb-1.5">Pay {fmt(opp.pay)} now instead of {fmt(opp.left)} by sticking to the schedule.</p>
+      {opp.list.some((x) => x.feesOnly) && <p className="text-[11.5px] text-muted-foreground mb-1.5">Some of these payments don't lower what you owe, so you'd still owe the payoff after making them all.</p>}
       <div className="divide-y divide-border/60">
         {opp.list.map((x) => (
           <div key={x.id} className="flex items-center gap-2 py-2">
