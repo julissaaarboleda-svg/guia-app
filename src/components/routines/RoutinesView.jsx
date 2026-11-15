@@ -71,8 +71,14 @@ export default function RoutinesView({ addSignal = 0 }) {
     </>
   );
 
-  const load = async () => {
-    try { setRoutines(await ent.Routine.list("created_date")); } catch { setRoutines([]); }
+  // A failed refresh keeps what's on screen and tries once more, instead of emptying the list.
+  const load = async (tries = 2) => {
+    try {
+      const list = await ent.Routine.list("created_date");
+      setRoutines(list);
+    } catch {
+      if (tries > 1) { setTimeout(() => load(tries - 1), 1500); return; }
+    }
     setLoaded(true);
   };
   useEffect(() => { load(); }, []);
@@ -101,14 +107,23 @@ export default function RoutinesView({ addSignal = 0 }) {
     const data = { name: form.name.trim(), color: form.color, slot: form.slot, days: form.days && form.days.length && form.days.length < 7 ? form.days : null, steps, remind_at: form.remind_at || null };
     if (form.id) {
       await ent.Routine.update(form.id, data);
-      if (form._mergeFrom) { try { await ent.Routine.delete(form._mergeFrom); } catch { /* still saved */ } }
+      setRoutines((list) => list.map((x) => (x.id === form.id ? { ...x, ...data } : x)));
+      if (form._mergeFrom) {
+        try { await ent.Routine.delete(form._mergeFrom); } catch { /* still saved */ }
+        setRoutines((list) => list.filter((x) => x.id !== form._mergeFrom));
+      }
     }
-    else { const c = await ent.Routine.create({ ...data, log: {}, best_streak: 0 }); setOpenId(c.id); }
+    else {
+      const c = await ent.Routine.create({ ...data, log: {}, best_streak: 0 });
+      if (c?.id) { setRoutines((list) => [...list.filter((x) => x.id !== c.id), c]); setOpenId(c.id); }
+    }
     setForm(null); load();
   };
   const remove = async (id) => {
     if (!confirm("Delete this routine and its history?")) return;
-    await ent.Routine.delete(id); setForm(null); setOpenId(null); load();
+    await ent.Routine.delete(id);
+    setRoutines((list) => list.filter((x) => x.id !== id));
+    setForm(null); setOpenId(null); load();
   };
 
   // ---------- form ----------
