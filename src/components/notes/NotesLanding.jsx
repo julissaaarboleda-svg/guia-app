@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, SlidersHorizontal, FileText, MoreHorizontal, MapPin, ArrowRight, Pin, ChevronDown, ChevronRight } from "lucide-react";
+import { Search, SlidersHorizontal, FileText, MoreHorizontal, MapPin, Pin, ChevronDown, ChevronRight } from "lucide-react";
 import { isToday, isYesterday, format } from "date-fns";
 import CollectionCard from "./CollectionCard";
 import { accentHex, COLLECTION_ACCENTS } from "./collectionAccents";
@@ -30,7 +30,6 @@ export default function NotesLanding({
   onAddPlace, onPlaceMenu, onPlaceOpen,
 }) {
   const [view, setView] = useState("notes"); // "notes" | "checklists" | "places"
-  const [showAllRecent, setShowAllRecent] = useState(false);
   const [query, setQuery] = useState("");
   const [sortNewest, setSortNewest] = useState(true);
   const [placeFilter, setPlaceFilter] = useState("All");
@@ -66,7 +65,28 @@ export default function NotesLanding({
     const base = searching ? plainNotes.filter(matches) : plainNotes.filter((n) => !n.pinned);
     return sortNotes([...base]);
   }, [plainNotes, query, sortNewest]); // eslint-disable-line react-hooks/exhaustive-deps
-  const recent = showAllRecent || searching ? recentAll : recentAll.slice(0, 6);
+  const recent = recentAll;
+
+  // Recent notes fold into time groups so the list stays short. The newest group starts open.
+  const [noteShut, setNoteShut] = useState(() => { try { return JSON.parse(localStorage.getItem("guia-notes-shut") || "null"); } catch { return null; } });
+  const [groupMore, setGroupMore] = useState({});
+  const noteGroups = useMemo(() => {
+    const now = Date.now();
+    const age = (n) => (now - new Date(n.updated_date || n.created_date || 0).getTime()) / 86400000;
+    const g = [
+      { key: "week", label: "This week", list: recentAll.filter((n) => age(n) <= 7) },
+      { key: "month", label: "Earlier this month", list: recentAll.filter((n) => age(n) > 7 && age(n) <= 31) },
+      { key: "older", label: "Older", list: recentAll.filter((n) => age(n) > 31) },
+    ].filter((x) => x.list.length);
+    return sortNewest ? g : g.reverse();
+  }, [recentAll, sortNewest]);
+  const isShut = (key) => (noteShut ? !!noteShut[key] : key !== noteGroups[0]?.key);
+  const toggleNoteGroup = (key) => {
+    const base = noteShut || Object.fromEntries(noteGroups.map((x) => [x.key, x.key !== noteGroups[0]?.key]));
+    const next = { ...base, [key]: !isShut(key) };
+    setNoteShut(next);
+    try { localStorage.setItem("guia-notes-shut", JSON.stringify(next)); } catch { /* optional */ }
+  };
 
   const renderNoteRow = (n, i) => {
     const fname = n.folder_id ? folderName(n.folder_id) : null;
@@ -79,7 +99,7 @@ export default function NotesLanding({
           </span>
           <div className="flex-1 min-w-0">
             <p className="font-heading text-[16px] text-foreground truncate leading-snug">{n.title || "Untitled"}</p>
-            {preview && <p className="font-body text-[12.5px] text-muted-foreground mt-0.5 line-clamp-2 leading-snug">{preview}</p>}
+            {preview && <p className="font-body text-[12.5px] text-muted-foreground mt-0.5 line-clamp-1 leading-snug">{preview}</p>}
             <div className="flex items-center gap-1.5 mt-1.5 min-w-0">
               {n.pinned && <Pin className="w-3 h-3 text-[#A7773F] flex-shrink-0" strokeWidth={1.8} />}
               <span className="font-body text-[11px] text-muted-foreground flex-shrink-0">{noteDateLabel(n.updated_date)}</span>
@@ -214,11 +234,7 @@ export default function NotesLanding({
           <section className="space-y-2.5 pt-2">
             <div className="flex items-end justify-between">
               <h2 className="font-heading text-[20px] text-foreground leading-tight">{searching ? "Results" : pinned.length ? "Recent" : "Recent notes"}</h2>
-              {recentAll.length > 6 && !searching && (
-                <button onClick={() => setShowAllRecent((v) => !v)} className="font-body text-[12px] font-medium text-[#A7773F] flex items-center gap-1">
-                  {showAllRecent ? "Show less" : "View all"} {!showAllRecent && <ArrowRight className="w-3.5 h-3.5" />}
-                </button>
-              )}
+              {!searching && recentAll.length > 0 && <span className="font-body text-[12px] text-muted-foreground">{recentAll.length}</span>}
             </div>
             {loading ? (
               <div className="bg-card border border-border/60 rounded-2xl overflow-hidden">
@@ -231,8 +247,33 @@ export default function NotesLanding({
                 <p className="font-heading text-base text-foreground">{query ? "No notes match your search." : pinned.length ? "Everything else is pinned." : "No notes yet."}</p>
                 {!query && !pinned.length && <p className="text-xs text-muted-foreground mt-1">Tap + Note to write your first one.</p>}
               </div>
-            ) : (
+            ) : searching ? (
               <div className="bg-card border border-border/60 rounded-2xl overflow-hidden">{recent.map(renderNoteRow)}</div>
+            ) : (
+              <div className="bg-card border border-border/60 rounded-2xl overflow-hidden">
+                {noteGroups.map((g, gi) => {
+                  const shut = isShut(g.key);
+                  const shown = groupMore[g.key] ? g.list : g.list.slice(0, 5);
+                  return (
+                    <div key={g.key} className={gi ? "border-t border-border/60" : ""}>
+                      <button onClick={() => toggleNoteGroup(g.key)} aria-expanded={!shut} className="w-full flex items-center gap-1.5 px-4 py-2.5 text-left">
+                        {shut ? <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} />}
+                        <span className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-muted-foreground">{g.label} · {g.list.length}</span>
+                      </button>
+                      {!shut && (
+                        <div className="border-t border-border/40">
+                          {shown.map(renderNoteRow)}
+                          {g.list.length > 5 && (
+                            <button onClick={() => setGroupMore((m) => ({ ...m, [g.key]: !m[g.key] }))} className="w-full border-t border-border/40 px-4 py-2.5 text-left font-body text-[12px] font-medium text-[#A7773F]">
+                              {groupMore[g.key] ? "Show less" : `Show ${g.list.length - 5} more`}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </section>
         </>
