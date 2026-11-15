@@ -137,7 +137,7 @@ export default function TodaysFocus({ items, total = 0, onComplete, routines = [
                       <div key={r.id} className="rounded-xl border border-border/60 bg-background/40 px-2.5 py-2 flex items-center gap-2">
                         <Link to="/goals?view=routines" className="flex-1 min-w-0">
                           <span className="flex items-center text-[9.5px] tracking-[0.14em] uppercase font-medium" style={{ color: c }}>
-                            <span className="truncate">{slot}{r.remind_at ? ` · ${fmtTime(r.remind_at)}` : ""}</span>
+                            <span className="truncate">{r.remind_at ? fmtTime(r.remind_at) : slot}</span>
                             {streak >= 2 && <span className="ml-auto pl-1 tracking-normal inline-flex items-center gap-0.5 text-[#A7773F] flex-shrink-0" title={`${streak}-day streak`}><Flame className="w-3 h-3" strokeWidth={2} />{streak}</span>}
                           </span>
                           <span className="block font-heading text-[14px] leading-[1.25] text-foreground truncate">{r.name.replace(/^(morning|evening)\s*[·:-]\s*/i, "")}</span>
