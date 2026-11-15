@@ -26,6 +26,7 @@ function weekDots(r) {
 
 // Routines in the order of the day.
 const SLOT_ORDER = { morning: 0, anytime: 1, evening: 2 };
+const fmtTime = (t) => { const [h, m] = String(t).split(":").map(Number); return `${((h + 11) % 12) + 1}:${String(m || 0).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`; };
 
 export default function TodaysFocus({ items, total = 0, onComplete, routines = [], onRoutineToggle, overdue = 0 }) {
   // The bug: sub-item ids (goal sub-tasks, project tasks, packing items)
@@ -128,7 +129,7 @@ export default function TodaysFocus({ items, total = 0, onComplete, routines = [
                   <span className="normal-case tracking-normal text-[11px]">{doneCount} of {due.length} done</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 px-3 pt-1 pb-3">
-                  {[...due].sort((x, y) => (SLOT_ORDER[x.slot] ?? 1) - (SLOT_ORDER[y.slot] ?? 1) || String(x.name).localeCompare(String(y.name))).map((r) => {
+                  {[...due].sort((x, y) => (SLOT_ORDER[x.slot] ?? 1) - (SLOT_ORDER[y.slot] ?? 1) || String(x.remind_at || "99").localeCompare(String(y.remind_at || "99")) || String(x.name).localeCompare(String(y.name))).map((r) => {
                     const c = colorOf(r); const n = stepsFor(r).length; const d = doneOn(r, today); const fin = d >= n;
                     const streak = (() => { try { return streaks(r).current || 0; } catch { return 0; } })();
                     const slot = { morning: "Morning", evening: "Evening" }[r.slot] || "Anytime";
@@ -136,7 +137,7 @@ export default function TodaysFocus({ items, total = 0, onComplete, routines = [
                       <div key={r.id} className="rounded-xl border border-border/60 bg-background/40 px-2.5 py-2 flex items-center gap-2">
                         <Link to="/goals?view=routines" className="flex-1 min-w-0">
                           <span className="flex items-center text-[9.5px] tracking-[0.14em] uppercase font-medium" style={{ color: c }}>
-                            <span className="truncate">{slot}</span>
+                            <span className="truncate">{slot}{r.remind_at ? ` · ${fmtTime(r.remind_at)}` : ""}</span>
                             {streak >= 2 && <span className="ml-auto pl-1 tracking-normal inline-flex items-center gap-0.5 text-[#A7773F] flex-shrink-0" title={`${streak}-day streak`}><Flame className="w-3 h-3" strokeWidth={2} />{streak}</span>}
                           </span>
                           <span className="block font-heading text-[14px] leading-[1.25] text-foreground truncate">{r.name.replace(/^(morning|evening)\s*[·:-]\s*/i, "")}</span>
