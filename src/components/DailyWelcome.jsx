@@ -10,7 +10,9 @@ const TONE = { cognac: ["#A7773F14", "#A7773F"], mauve: ["#A77C8118", "#8F5F65"]
 const safe = async (p) => { try { return (await p) || []; } catch { return []; } };
 
 // Breathing: in 4, hold 4, out 6, five rounds.
-const PHASES = [["Breathe in", 4, 1, 528], ["Hold", 4, 1, 0], ["Breathe out", 6, 0.6, 396]];
+const PHASES = [["Breathe in", 4, 1, 528], ["Hold", 4, 1, 0], ["Breathe out", 6, 0, 396]];
+// Ripple rings in the brand colors: base radius 14, each ring spreads further on the breath in.
+const RINGS = [["#A7773F", 0.75], ["#7D8A53", 0.6], ["#A77C81", 0.45], ["#A7773F", 0.3]];
 const ROUNDS = 5;
 
 function Sky({ part }) {
@@ -51,7 +53,7 @@ export default function DailyWelcome({ user, prefs }) {
   const [wx, setWx] = useState(null);
   const [lines, setLines] = useState(null);
   const [chimes, setChimes] = useState(() => { try { return localStorage.getItem(CHIMES_KEY) === "1"; } catch { return false; } });
-  const [cue, setCue] = useState({ text: "Breathe in", count: 4, round: 1, scale: 0.6, dur: 0 });
+  const [cue, setCue] = useState({ text: "Breathe in", count: 4, round: 1, scale: 0, dur: 0 });
   const ctxRef = useRef(null);
   const timerRef = useRef(null);
   const chimesRef = useRef(chimes);
@@ -144,7 +146,7 @@ export default function DailyWelcome({ user, prefs }) {
         if (ph >= PHASES.length) {
           ph = 0; round += 1;
           if (round > ROUNDS) {
-            timerRef.current = setTimeout(() => { setCue({ text: "Well done", count: "", round: 0, scale: 0.8, dur: 1.5 }); chime(660); timerRef.current = setTimeout(close, 1800); }, 1000);
+            timerRef.current = setTimeout(() => { setCue({ text: "Well done", count: "", round: 0, scale: 0.35, dur: 1.5 }); chime(660); timerRef.current = setTimeout(close, 1800); }, 1000);
             return;
           }
         }
@@ -152,7 +154,7 @@ export default function DailyWelcome({ user, prefs }) {
       }
       timerRef.current = setTimeout(step, 1000);
     };
-    setCue({ text: "Get comfortable", count: "", round: 1, scale: 0.6, dur: 0 });
+    setCue({ text: "Get comfortable", count: "", round: 1, scale: 0, dur: 0 });
     timerRef.current = setTimeout(step, 1200);
   };
 
@@ -172,6 +174,8 @@ export default function DailyWelcome({ user, prefs }) {
         @keyframes dwUp{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
         .dw-rise{animation:dwRise 1.2s cubic-bezier(.16,1,.3,1) both}
         .dw-a1{animation:dwUp .6s ease both .2s}.dw-a2{animation:dwUp .6s ease both .45s}.dw-a3{animation:dwUp .6s ease both .7s}.dw-a4{animation:dwUp .6s ease both .95s}
+        @keyframes dwHold{0%,100%{filter:none}50%{filter:brightness(1.15)}}
+        .dw-hold{animation:dwHold 1.4s ease-in-out infinite}
         @media (prefers-reduced-motion: reduce){.dw-rise,.dw-a1,.dw-a2,.dw-a3,.dw-a4{animation:none}}
       `}</style>
       <div className="max-w-md mx-auto px-5 min-h-full flex flex-col" style={{ paddingTop: "calc(env(safe-area-inset-top) + 20px)", paddingBottom: "calc(env(safe-area-inset-bottom) + 20px)" }}>
@@ -217,7 +221,7 @@ export default function DailyWelcome({ user, prefs }) {
               </div>
               <div className="flex items-center gap-2 mt-2.5 pt-2.5 border-t border-[#EFE8DC]">
                 <Volume2 className="w-4 h-4 text-[#7A716A]" strokeWidth={1.5} />
-                <span className="flex-1 text-[12.5px] text-[#7A716A]">Soft chimes</span>
+                <span className="flex-1 text-[12.5px] text-[#7A716A]">Soft chimes{chimes && <span className="block text-[11px]">Turn your ringer on to hear them</span>}</span>
                 <button type="button" role="switch" aria-checked={chimes} aria-label="Soft chimes" onClick={toggleChimes}
                   className={`relative w-[38px] h-[22px] rounded-full transition-colors ${chimes ? "bg-[#A7773F]" : "bg-[#D9CFBF]"}`}>
                   <span className="absolute top-[2px] w-[18px] h-[18px] rounded-full bg-white transition-all" style={{ left: chimes ? 18 : 2 }} />
@@ -237,12 +241,25 @@ export default function DailyWelcome({ user, prefs }) {
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-center">
-            <p className="text-[11px] tracking-[0.2em] text-[#7A716A] mb-8">TAKE A BREATH</p>
-            <div className="w-[160px] h-[160px] rounded-full border-[1.5px] border-[#A7773F] bg-[#A7773F]/15 flex items-center justify-center"
-              style={{ transform: `scale(${cue.scale})`, transition: `transform ${cue.dur}s ease-in-out` }}>
-              <div className="w-16 h-16 rounded-full bg-[#A7773F]" />
+            <p className="text-[11px] tracking-[0.2em] text-[#7A716A] mb-4">TAKE A BREATH</p>
+            <div className="relative w-[230px] h-[230px]" aria-hidden="true">
+              {RINGS.map(([color, op], i) => {
+                const full = 28 + i * 13; // radius at the top of the breath
+                const r = 14 + cue.scale * (14 + i * 13);
+                return (
+                  <span key={i} className={`absolute rounded-full ${cue.text === "Hold" ? "dw-hold" : ""}`}
+                    style={{
+                      width: full * 3.4, height: full * 3.4, left: "50%", top: "50%", marginLeft: -full * 1.7, marginTop: -full * 1.7,
+                      border: `${(1.5 * full) / r}px solid ${color}`,
+                      transform: `scale(${r / full})`, opacity: op * (0.3 + cue.scale * 0.7),
+                      transition: `transform ${cue.dur}s ease-in-out, opacity ${cue.dur}s ease-in-out, border-width ${cue.dur}s ease-in-out`,
+                    }} />
+                );
+              })}
+              <span className="absolute rounded-full bg-[#A7773F]"
+                style={{ width: 50, height: 50, left: "50%", top: "50%", marginLeft: -25, marginTop: -25, transform: `scale(${(10 + cue.scale * 5) / 15})`, transition: `transform ${cue.dur}s ease-in-out` }} />
             </div>
-            <p className="font-heading text-[26px] mt-9 mb-1" aria-live="polite">{cue.text}</p>
+            <p className="font-heading text-[26px] mt-6 mb-1" aria-live="polite">{cue.text}</p>
             <p className="text-[14px] text-[#7A716A] h-5">{cue.count}</p>
             <p className="text-[12px] text-[#7A716A] h-5 mb-8">{cue.round ? `Round ${cue.round} of ${ROUNDS}` : ""}</p>
             <button type="button" onClick={close} className="text-[13px] rounded-full px-5 py-2 border border-[#D9CFBF]">Skip</button>
