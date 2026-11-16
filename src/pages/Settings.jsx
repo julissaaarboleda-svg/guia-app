@@ -9,6 +9,7 @@ import SectionOrderEditor from "@/components/settings/SectionOrderEditor";
 import FeedbackModal from "@/components/feedback/FeedbackModal";
 import PlanUsage from "@/components/settings/PlanUsage";
 import { dataVersion, dataV2Wanted, dataV2Problem } from "@/api/base44Client";
+import WelcomeSettings from "@/components/WelcomeSettings";
 import CalendarSync from "@/components/settings/CalendarSync";
 import { Link } from "react-router-dom";
 import { DEFAULT_SECTION_ORDER, normalizeSections, normalizeOrder } from "@/lib/navSections";
@@ -338,6 +339,7 @@ export default function Settings() {
           <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${dataV2Wanted() ? "left-[22px]" : "left-0.5"}`} />
         </button>
       </div>
+      <div className="mb-6"><WelcomeSettings /></div>
       <div className="mb-6"><CalendarSync /></div>
 
       {/* About */}

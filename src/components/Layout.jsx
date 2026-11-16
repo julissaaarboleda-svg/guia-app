@@ -7,6 +7,7 @@ import { Settings, LogOut, Home, MessageCircle, BarChart3, Sparkles } from "luci
 import FeedbackModal from "@/components/feedback/FeedbackModal";
 import BottomNav from "@/components/BottomNav";
 import QuickCapture from "@/components/QuickCapture";
+import DailyWelcome from "@/components/DailyWelcome";
 import GuiaHeader from "@/components/GuiaHeader";
 import { useAuth } from "@/lib/AuthContext";
 import { SECTION_META, DEFAULT_SECTION_ORDER, normalizeSections, normalizeOrder, isSectionActive } from "@/lib/navSections";
@@ -164,6 +165,7 @@ export default function Layout() {
         </main>
         <BottomNav prefs={prefs} onFeedback={() => setShowFeedback(true)} />
         <QuickCapture />
+        <DailyWelcome user={user} prefs={prefs} />
       </div>
     </div>
   );
