@@ -10,15 +10,19 @@ const PRIORITY_CHIP = {
   low: "bg-muted text-muted-foreground",
 };
 // The last 7 days for one routine, oldest first: done, missed, off (not scheduled or before it existed), or today's progress.
+// This week, Sunday to Saturday: the dots start fresh every Sunday and fill in as the week goes.
 function weekDots(r) {
   const out = [];
   const created = String(r.created_date || "").slice(0, 10);
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i);
+  const today = new Date();
+  const todayKey = dayKey(today);
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today); d.setDate(today.getDate() - today.getDay() + i);
     const key = dayKey(d);
     const n = stepsFor(r, d).length;
-    if ((created && key < created) || !isScheduled(r, d) || !n) out.push({ key, state: "off" });
-    else if (i === 0) out.push({ key, state: "today", frac: Math.min(1, doneOn(r, key) / n) });
+    if (key > todayKey) out.push({ key, state: isScheduled(r, d) && n ? "future" : "off" });
+    else if ((created && key < created) || !isScheduled(r, d) || !n) out.push({ key, state: "off" });
+    else if (key === todayKey) out.push({ key, state: "today", frac: Math.min(1, doneOn(r, key) / n) });
     else out.push({ key, state: completeOn(r, key) ? "done" : "missed" });
   }
   return out;
@@ -147,6 +151,7 @@ export default function TodaysFocus({ items, total = 0, onComplete, routines = [
                                 style={dt.state === "done" ? { background: c }
                                   : dt.state === "missed" ? { border: `1.5px solid ${c}55` }
                                   : dt.state === "today" ? { background: `conic-gradient(${c} 0 ${Math.round(dt.frac * 100)}%, #EFE9DF ${Math.round(dt.frac * 100)}% 100%)`, boxShadow: `0 0 0 1px ${c}40` }
+                                  : dt.state === "future" ? { border: "1px solid #E2D9C9" }
                                   : { background: "#F2EEE6" }} />
                             ))}
                           </span>
