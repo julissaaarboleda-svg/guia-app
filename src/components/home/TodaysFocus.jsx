@@ -10,14 +10,14 @@ const PRIORITY_CHIP = {
   low: "bg-muted text-muted-foreground",
 };
 // The last 7 days for one routine, oldest first: done, missed, off (not scheduled or before it existed), or today's progress.
-// This week, Sunday to Saturday: the dots start fresh every Sunday and fill in as the week goes.
+// This week, Monday to Sunday: the dots start fresh every Monday and fill in as the week goes.
 function weekDots(r) {
   const out = [];
   const created = String(r.created_date || "").slice(0, 10);
   const today = new Date();
   const todayKey = dayKey(today);
   for (let i = 0; i < 7; i++) {
-    const d = new Date(today); d.setDate(today.getDate() - today.getDay() + i);
+    const d = new Date(today); d.setDate(today.getDate() - ((today.getDay() + 6) % 7) + i);
     const key = dayKey(d);
     const n = stepsFor(r, d).length;
     if (key > todayKey) out.push({ key, state: isScheduled(r, d) && n ? "future" : "off" });
