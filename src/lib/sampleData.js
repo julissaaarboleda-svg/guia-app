@@ -90,14 +90,50 @@ function build(today = new Date()) {
   const tripStart = 45;
   const trips = [{
     title: "Lisbon & Porto", country: "Portugal", cities: ["Lisbon", "Porto"], start_date: k(tripStart), end_date: k(tripStart + 8), status: "planning",
-    description: "", flag_emoji: "🇵🇹", hero_image_url: "", budget_target: 3200,
+    description: "", flag_emoji: "🇵🇹", hero_image_url: "/sample/lisbon-hills.jpg", budget_target: 3200,
     itinerary: [
       { day: 1, date: k(tripStart), title: "Arrive in Lisbon", city: "Lisbon", description: "Check in and an easy first evening.", activities: [{ time: "15:00", activity: "Check in", name: "Hotel in Alfama", location: "Alfama, Lisbon", notes: "" }, { time: "19:30", activity: "Dinner", name: "Seafood by the river", location: "Cais do Sodré", notes: "" }] },
       { day: 2, date: k(tripStart + 1), title: "Old town and views", city: "Lisbon", description: "", activities: [{ time: "08:30", activity: "Tram 28", name: "Ride the full route", location: "Martim Moniz", notes: "Go early" }, { time: "18:00", activity: "Sunset", name: "Miradouro da Senhora do Monte", location: "Graça", notes: "" }] },
       { day: 3, date: k(tripStart + 2), title: "Day trip to Sintra", city: "Sintra", description: "", activities: [{ time: "09:00", activity: "Train to Sintra", name: "From Rossio station", location: "Rossio", notes: "" }] },
     ],
     packing_items: [["Passport", "essentials", true], ["Travel adapter", "tech", true], ["Comfortable walking shoes", "clothing", false], ["Light jacket", "clothing", false], ["Sunscreen", "toiletries", false], ["Phone charger", "tech", true], ["Reusable water bottle", "misc", false], ["Daily vitamins", "health", false]].map(([name, category, packed]) => ({ name, category, quantity: 1, packed, source: "sample" })),
-  }];
+  },
+  // A trip she's already taken, full of memories: photos, notes, favorite places and a recap.
+  (() => {
+    const s0 = -128;
+    const day = (n) => k(s0 + n);
+    const img = (f) => `/sample/${f}`;
+    return {
+      title: "Mexico City", country: "Mexico", cities: ["Mexico City"], start_date: day(0), end_date: day(5), status: "completed",
+      description: "", flag_emoji: "🇲🇽", hero_image_url: img("cdmx-street.jpg"), budget_target: 1800,
+      itinerary: [
+        { day: 1, date: day(0), title: "Roma and Condesa", city: "Mexico City", description: "", activities: [{ time: "10:00", activity: "Coffee", name: "Café on Álvaro Obregón", location: "Roma Norte", notes: "" }, { time: "19:00", activity: "Dinner", name: "Tacos al pastor", location: "Condesa", notes: "" }] },
+        { day: 2, date: day(1), title: "Centro Histórico", city: "Mexico City", description: "", activities: [{ time: "11:00", activity: "Walk", name: "Zócalo and the cathedral", location: "Centro", notes: "" }] },
+        { day: 3, date: day(2), title: "Teotihuacan at sunrise", city: "Teotihuacan", description: "", activities: [{ time: "06:00", activity: "Hot air balloon", name: "Sunrise flight", location: "Teotihuacan", notes: "" }] },
+        { day: 4, date: day(3), title: "Markets and gardens", city: "Mexico City", description: "", activities: [{ time: "09:30", activity: "Market", name: "Flower market", location: "Jamaica", notes: "" }] },
+      ],
+      memory_media: [
+        { url: img("cdmx-cafe.jpg"), type: "photo", favorited: false, album: null, tags: [], date: day(0) },
+        { url: img("cdmx-street.jpg"), type: "photo", favorited: true, album: null, tags: [], date: day(0) },
+        { url: img("cdmx-sunset.jpg"), type: "photo", favorited: true, album: null, tags: [], date: day(1) },
+        { url: img("cdmx-pyramid.jpg"), type: "photo", favorited: true, album: null, tags: [], date: day(2) },
+        { url: img("cdmx-flowers.jpg"), type: "photo", favorited: false, album: null, tags: [], date: day(3) },
+      ],
+      journal_entries: [
+        { id: uid(), date: day(0), note: "<p>First coffee in Roma and I already want to live here. Every street is a different color.</p>", photo_url: "" },
+        { id: uid(), date: day(2), note: "<p>Up at 4:30 for the balloon ride. Watching the sun come up over the pyramids was worth every yawn.</p>", photo_url: img("cdmx-pyramid.jpg") },
+        { id: uid(), date: day(3), note: "<p>The flower market smelled incredible. Bought a tiny clay pot to remember it by.</p>", photo_url: "" },
+      ],
+      memory_places: [
+        { id: uid(), name: "Café on Álvaro Obregón", city: "Mexico City", category: "cafe", favorited: true, image: img("cdmx-cafe.jpg") },
+        { id: uid(), name: "Teotihuacan", city: "Teotihuacan", category: "attractions", favorited: true, image: img("cdmx-pyramid.jpg") },
+        { id: uid(), name: "Jamaica flower market", city: "Mexico City", category: "experience", favorited: false, image: img("cdmx-flowers.jpg") },
+        { id: uid(), name: "Rooftop at sunset", city: "Mexico City", category: "experience", favorited: false, image: img("cdmx-sunset.jpg") },
+      ],
+      recap: { summary: "<p>Five slow, colorful days. Mornings in cafés, a sunrise over the pyramids, and more tacos than I can count. Already planning to go back.</p>" },
+      packing_items: [],
+    };
+  })()];
 
   // Finance
   const mk = monthKey(today);
