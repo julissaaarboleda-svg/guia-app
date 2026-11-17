@@ -155,7 +155,7 @@ function build(today = new Date()) {
     filename: "sample-experian-report.pdf", file_hash: null, pages: 6,
   }];
 
-  const business = { name: "Sofia Studio", is_default: true, revenue_goal: 20000 };
+  const business = { name: "Zoe Studio", is_default: true, revenue_goal: 20000 };
   const bizEntries = [
     ["Sale", "Custom tote order", -26, 180, null], ["Sale", "Market booth sales", -19, 640, null], ["Expense", "Canvas and thread", -24, null, 95],
     ["Sale", "Online order, linen set", -11, 220, null], ["Expense", "Booth fee", -20, null, 75], ["Sale", "Workshop tickets", -4, 360, null],
