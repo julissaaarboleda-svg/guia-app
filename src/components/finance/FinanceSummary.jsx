@@ -160,6 +160,7 @@ export default function FinanceSummary({ items, buckets, onNavigate, onAddFirst 
     setLoading(true);
     setFailed(false);
     base44.integrations.Core.InvokeLLM({
+      demo_key: "fin-insights",
       prompt: `You help someone decide what to focus on with their money this month. Use ONLY the data below. Be plain, warm and specific.
 
 PRIORITIES (already ranked, most important first):

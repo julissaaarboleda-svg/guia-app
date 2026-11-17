@@ -48,6 +48,8 @@ export default function Layout() {
             pref = { ...pref, enabled_sections: DEFAULT_SECTION_ORDER };
           }
           setPrefs(pref);
+          // Keep the sample-data AI switch in step with the account (e.g. a demo opened on a new phone).
+          try { if (pref?.sample_data) localStorage.setItem("guia-sample-mode", "1"); else localStorage.removeItem("guia-sample-mode"); } catch { /* ignore */ }
           try { localStorage.setItem("guia:nav-prefs", JSON.stringify(pref)); } catch {}
         }
       } catch {}

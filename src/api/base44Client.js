@@ -229,7 +229,20 @@ export async function getAiUsage() {
   return res.json();
 }
 
-async function InvokeLLM({ prompt, add_context_from_internet, response_json_schema, model, files, quality }) {
+// While sample data is on, AI shows pre-written examples (free, always the same) instead of calling the AI.
+const SAMPLE_MODE_KEY = "guia-sample-mode";
+const inSampleMode = () => { try { return localStorage.getItem(SAMPLE_MODE_KEY) === "1"; } catch { return false; } };
+async function sampleAi(demoKey) {
+  const { SAMPLE_AI } = await import("@/lib/sampleData");
+  await new Promise((r) => setTimeout(r, 700));
+  if (demoKey && SAMPLE_AI[demoKey]) return JSON.parse(JSON.stringify(SAMPLE_AI[demoKey]));
+  const err = new Error("AI shows examples only while sample data is on. Clear sample data in Settings to use AI with your own info.");
+  err.code = "sample_mode";
+  throw err;
+}
+
+async function InvokeLLM({ prompt, add_context_from_internet, response_json_schema, model, files, quality, demo_key }) {
+  if (inSampleMode()) return sampleAi(demo_key);
   const headers = await authHeaders();
   const filePayloads = files && files.length ? await Promise.all(files.map(fileToPayload)) : undefined;
   const res = await checkOk(
@@ -244,6 +257,7 @@ async function InvokeLLM({ prompt, add_context_from_internet, response_json_sche
 }
 
 async function GenerateImage({ prompt }) {
+  if (inSampleMode()) return sampleAi(null);
   const headers = await authHeaders();
   const res = await checkOk(
     await fetch(`${API_BASE}/generate-image`, { method: "POST", headers, body: JSON.stringify({ prompt }) })
@@ -321,6 +335,7 @@ async function DeletePrivateFile({ file_url }) {
 // Reads a statement/bill/receipt and returns suggested finance items.
 // The file is processed for this request only and isn't stored.
 async function ImportFinanceFile({ file, existing = [], mode = "items", part, parts }) {
+  if (inSampleMode()) return sampleAi(null);
   const uploadFile = await compressImageIfNeeded(file);
   const base64Data = await new Promise((resolve, reject) => {
     const r = new FileReader();
