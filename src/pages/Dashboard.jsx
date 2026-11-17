@@ -56,6 +56,9 @@ export default function Dashboard() {
   const [allFin, setAllFin] = useState([]);
   const [spendingProgress, setSpendingProgress] = useState(null);
   const [creditProg, setCreditProg] = useState(null);
+  // Rings wait until every number behind them is in, then fill once (no jump from a placeholder value).
+  const [ringsReady, setRingsReady] = useState(false);
+  const [routinesIn, setRoutinesIn] = useState(false);
   const [ringsOpen, setRingsOpen] = useState(false);
   const [routines, setRoutines] = useState([]);
   const [aiPlan, setAiPlan] = useState(null);
@@ -86,7 +89,7 @@ export default function Dashboard() {
         ent.CreditDoc.list().catch(() => []),
         ent.CreditCase.list().catch(() => []),
       ]);
-      ent.Routine.list().then(setRoutines).catch(() => {});
+      ent.Routine.list().then(setRoutines).catch(() => {}).finally(() => setRoutinesIn(true));
       const [p, g, tr, bizAll, finAll, tsk, proj, bg, career] = await Promise.all([
         ent.UserPreferences.filter({ user_email: u.email }),
         ent.Goal.list("-created_date", 20),
@@ -139,8 +142,12 @@ export default function Dashboard() {
         revenueGoal: defBiz?.revenue_goal || 0,
         revenue: bizAll.filter((e) => !defId || (e.business_id || defId) === defId).reduce((t, e) => t + (e.revenue || 0), 0),
       });
+      setRingsReady(true);
     };
-    load().catch((e) => { console.error("Home failed to load:", e); setLoaded(true); });
+    load().catch((e) => { console.error("Home failed to load:", e); setLoaded(true); setRingsReady(true); });
+    // Never leave the rings waiting forever.
+    const giveUp = setTimeout(() => setRingsReady(true), 8000);
+    return () => clearTimeout(giveUp);
   }, []);
 
   // Items added with quick capture show up right away.
@@ -168,7 +175,11 @@ export default function Dashboard() {
     [tasks, goals, projects, finItems, trips, businessGoals, careerEntries]
   );
   const upNext = useMemo(() => buildUpNext({ trips, projects, bizEntries }), [trips, projects, bizEntries]);
-  const progress = useMemo(() => buildProgress({ routines, selection: prefs?.life_rings, trips, projects, goals, finItems: allFin, business: bizProgress, spending: spendingProgress, credit: creditProg }), [routines, prefs, trips, projects, goals, allFin, bizProgress, spendingProgress, creditProg]);
+  const progress = useMemo(() => {
+    const list = buildProgress({ routines, selection: prefs?.life_rings, trips, projects, goals, finItems: allFin, business: bizProgress, spending: spendingProgress, credit: creditProg });
+    // Until everything is in, show quiet empty rings with their labels.
+    return ringsReady && routinesIn ? list : list.map((c) => ({ ...c, value: 0, display: "", sub: "\u00a0", empty: false }));
+  }, [routines, prefs, trips, projects, goals, allFin, bizProgress, spendingProgress, creditProg, ringsReady, routinesIn]);
 
   const routinesLeft = useMemo(() => routines.filter((r) => isScheduled(r) && stepsFor(r).length && !completeOn(r, dayKey())).length, [routines]);
   const dailyStatus = useMemo(() => {
