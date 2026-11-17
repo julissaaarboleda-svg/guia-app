@@ -309,9 +309,19 @@ export function buildActivity({ notes = [], finItems = [], goals = [], trips = [
   return items;
 }
 
+// "Priorities today": open to-dos due today or earlier, plus urgent/high ones with no date.
+// Home's greeting and the daily welcome both use this, so the counts always match.
+export function todayPriorities(tasks = [], now = new Date()) {
+  const today = format(now, "yyyy-MM-dd");
+  const W = { urgent: 0, high: 1, normal: 2, low: 3 };
+  return (tasks || [])
+    .filter((t) => !t.completed && (t.due_date ? String(t.due_date).slice(0, 10) <= today : t.priority === "urgent" || t.priority === "high"))
+    .sort((a, b) => (W[a.priority] ?? 2) - (W[b.priority] ?? 2) || String(a.due_date || "9999").localeCompare(String(b.due_date || "9999")));
+}
+
 export function buildDailyStatus({ tasks = [], trips = [], finItems = [], goals = [] }) {
   const now = new Date();
-  const openTasks = (tasks || []).filter((t) => !t.completed).length;
+  const openTasks = todayPriorities(tasks, now).length;
   const nextTrip = [...(trips || [])]
     .filter((t) => t.start_date && parseISO(t.start_date) >= now)
     .sort((a, b) => parseISO(a.start_date) - parseISO(b.start_date))[0];

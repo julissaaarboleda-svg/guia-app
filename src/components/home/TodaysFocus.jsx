@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Check, Flame } from "lucide-react";
+import { ArrowRight, Check, Flame, Star } from "lucide-react";
 import { getModule } from "@/lib/homeModules";
 import { colorOf, dayKey, isScheduled, doneOn, completeOn, stepsFor, streaks } from "@/lib/routines";
 const PRIORITY_CHIP = {
@@ -32,7 +32,7 @@ function weekDots(r) {
 const SLOT_ORDER = { morning: 0, anytime: 1, evening: 2 };
 const fmtTime = (t) => { const [h, m] = String(t).split(":").map(Number); return `${((h + 11) % 12) + 1}:${String(m || 0).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`; };
 
-export default function TodaysFocus({ items, total = 0, onComplete, routines = [], onRoutineToggle, overdue = 0 }) {
+export default function TodaysFocus({ items, total = 0, starIds, onComplete, routines = [], onRoutineToggle, overdue = 0 }) {
   // The bug: sub-item ids (goal sub-tasks, project tasks, packing items)
   // are built from their array index. Completing one shifts every later
   // item's index down by one, so a completely different item can inherit
@@ -107,7 +107,10 @@ export default function TodaysFocus({ items, total = 0, onComplete, routines = [
                   <Check className={`w-2.5 h-2.5 text-forest transition-opacity ${isCompleting ? "opacity-100" : "opacity-0 [@media(hover:hover)]:group-hover:opacity-60"}`} />
                 </button>
                 <div className="flex-1 min-w-0">
-                  <p className="font-body text-[13.5px] text-foreground truncate leading-snug">{it.title}</p>
+                  <p className="font-body text-[13.5px] text-foreground leading-snug flex items-center gap-1 min-w-0">
+                    <span className="truncate">{it.title}</span>
+                    {it.kind === "task" && starIds?.has(it.refId) && <Star className="w-3 h-3 text-[#A7773F] flex-shrink-0" strokeWidth={2} aria-label="One of this week's 3" />}
+                  </p>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span
                       className="w-3.5 h-3.5 rounded-full flex items-center justify-center flex-shrink-0"

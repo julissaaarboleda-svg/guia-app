@@ -1,6 +1,7 @@
 // Daily welcome: weather, "your day" and a thought, shown once a day.
 import { dayKey, isScheduled, completeOn, stepsFor, streaks } from "@/lib/routines";
 import { dueInfo, isPaid } from "@/lib/financeHelpers";
+import { todayPriorities } from "@/lib/homeData";
 
 export const SEEN_KEY = "guia-welcome-day";
 export const CHIMES_KEY = "guia-welcome-chimes";
@@ -46,15 +47,17 @@ export async function getWeather(place) {
 
 const fmtTime = (t) => { const [h, m] = String(t).split(":").map(Number); return `${((h + 11) % 12) + 1}:${String(m || 0).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`; };
 const SLOT_ORDER = { morning: 0, anytime: 1, evening: 2 };
-const PRI = { urgent: 0, high: 1, normal: 2, low: 3 };
 
-// Up to four short lines about today, skipping anything that doesn't apply.
+// Up to three short lines, all about today, skipping anything that doesn't apply.
 export function dayLines({ tasks = [], routines = [], finItems = [], trips = [] }, now = new Date()) {
   const lines = [];
   const tk = dayKey(now);
 
-  const dueNow = tasks.filter((t) => !t.completed && t.due_date && String(t.due_date).slice(0, 10) <= tk)
-    .sort((a, b) => (PRI[a.priority] ?? 2) - (PRI[b.priority] ?? 2) || String(a.due_date).localeCompare(String(b.due_date)));
+  // Travel day comes first, and only on the day itself.
+  const leaving = trips.find((t) => t.start_date && String(t.start_date).slice(0, 10) === tk);
+  if (leaving) lines.push({ icon: "trip", tone: "olive", parts: [{ b: leaving.title || "Your trip" }, " starts today"] });
+
+  const dueNow = todayPriorities(tasks, now);
   if (dueNow.length) lines.push({ icon: "target", tone: "cognac", parts: [dueNow.length === 1 ? "1 priority: " : `${dueNow.length} priorities, starting with `, { b: dueNow[0].title }] });
 
   const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
@@ -71,20 +74,16 @@ export function dayLines({ tasks = [], routines = [], finItems = [], trips = [] 
     lines.push({ icon: "flame", tone: "cognac", parts });
   }
 
+  // Bills only when due today or already overdue.
   const bill = finItems.filter((i) => i.type === "bill" && !isPaid(i)).map((b) => ({ b, info: dueInfo(b) }))
-    .filter(({ info }) => info.days != null && info.days >= -7 && info.days <= 3 && info.tone !== "paid")
+    .filter(({ info }) => info.days != null && info.days >= -14 && info.days <= 0 && info.tone !== "paid")
     .sort((a, b) => a.info.days - b.info.days)[0];
   if (bill) {
-    const d = bill.info.days;
-    const when = d < 0 ? "overdue" : d === 0 ? "due today" : d === 1 ? "due tomorrow" : `due ${bill.info.date.toLocaleDateString("en-US", { weekday: "short" })}`;
+    const when = bill.info.days < 0 ? "overdue" : "due today";
     lines.push({ icon: "bill", tone: "mauve", parts: [`${bill.b.name} ${when}${bill.b.amount ? ` · $${Math.round(bill.b.amount).toLocaleString("en-US")}` : ""}`] });
   }
 
-  const trip = trips.filter((t) => t.start_date).map((t) => ({ t, days: Math.round((new Date(`${String(t.start_date).slice(0, 10)}T12:00:00`) - new Date(`${tk}T12:00:00`)) / 86400000) }))
-    .filter((x) => x.days >= 0 && x.days <= 180).sort((a, b) => a.days - b.days)[0];
-  if (trip) lines.push({ icon: "trip", tone: "olive", parts: trip.days === 0 ? [{ b: trip.t.title || "Your trip" }, " starts today"] : [`${trip.t.title || "Your trip"} in `, { b: `${trip.days} day${trip.days === 1 ? "" : "s"}` }] });
-
-  return lines;
+  return lines.slice(0, 3);
 }
 
 const THOUGHTS = [

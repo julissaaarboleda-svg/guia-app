@@ -9,6 +9,7 @@ import UpNext from "@/components/home/UpNext";
 import LifeProgress from "@/components/home/LifeProgress";
 import Reveal from "@/components/home/Reveal";
 import WeekFocus from "@/components/home/WeekFocus";
+import { activeFocus } from "@/lib/weekly";
 import { Link } from "react-router-dom";
 import RingsCustomizer from "@/components/home/RingsCustomizer";
 import { getAiUsage } from "@/api/base44Client";
@@ -183,13 +184,25 @@ export default function Dashboard() {
     setRoutines((list) => list.map((x) => (x.id === r.id ? { ...x, log } : x)));
     try { await ent.Routine.update(r.id, { log }); } catch { /* will reload next visit */ }
   };
-  // Check off one of this week's 3 picks (and the to-do behind it, if there is one).
-  const toggleWeekPick = async (item, done) => {
+  // This week's 3: a pick counts as done when ticked, or when its to-do is completed anywhere.
+  const weekFocusNow = activeFocus(prefs);
+  const isPickDone = (it) => {
+    if (weekFocusNow?.done?.[it.id]) return true;
+    if (it.kind === "task" && it.refId) return !!tasks.find((t) => t.id === it.refId)?.completed;
+    return false;
+  };
+  const starIds = useMemo(() => new Set((weekFocusNow?.items || []).filter((x) => x.kind === "task" && x.refId).map((x) => x.refId)), [weekFocusNow]);
+  const markPickDone = async (id, done) => {
     const f = prefs?.week_focus;
     if (!f) return;
-    const week_focus = { ...f, done: { ...(f.done || {}), [item.id]: done } };
+    const week_focus = { ...f, done: { ...(f.done || {}), [id]: done } };
     setPrefs((p) => ({ ...(p || {}), week_focus }));
     try { if (prefs?.id) await ent.UserPreferences.update(prefs.id, { week_focus }); } catch { /* kept for this visit */ }
+  };
+  // Check off one of this week's 3 picks (and the to-do behind it, if there is one).
+  const toggleWeekPick = async (item, done) => {
+    if (!prefs?.week_focus) return;
+    markPickDone(item.id, done);
     if (item.kind === "task" && item.refId) {
       const completed_at = done ? new Date().toISOString() : null;
       setTasks((prev) => prev.map((t) => (t.id === item.refId ? { ...t, completed: done, completed_at } : t)));
@@ -226,6 +239,9 @@ export default function Dashboard() {
 
   const completeFocus = async (item) => {
     if (item.kind === "task") {
+      // If this to-do is one of this week's 3, tick it there too.
+      const pick = weekFocusNow?.items.find((x) => x.kind === "task" && x.refId === item.refId);
+      if (pick) markPickDone(pick.id, true);
       setTasks((prev) => prev.filter((t) => t.id !== item.refId));
       await ent.Task.update(item.refId, { completed: true, completed_at: new Date().toISOString() });
     } else if (item.kind === "goal") {
@@ -279,12 +295,12 @@ export default function Dashboard() {
         onCustomizeRings={() => setRingsOpen(true)}
       />
 
-      {loaded && <WeekFocus prefs={prefs} onToggle={toggleWeekPick} />}
+      {loaded && <WeekFocus prefs={prefs} isDone={isPickDone} onToggle={toggleWeekPick} />}
 
       <div className="space-y-5 lg:space-y-0 lg:grid lg:grid-cols-[minmax(0,1fr)_400px] 2xl:grid-cols-[minmax(0,1fr)_460px] lg:gap-x-8 lg:gap-y-6 lg:items-start">
       <Reveal delay={0.06} className="lg:col-start-1 lg:row-start-1 min-w-0">
         {loaded ? (
-          <TodaysFocus items={focus.items} total={focus.total} onComplete={completeFocus} routines={routines} onRoutineToggle={toggleRoutine} overdue={overdue} />
+          <TodaysFocus items={focus.items} total={focus.total} starIds={starIds} onComplete={completeFocus} routines={routines} onRoutineToggle={toggleRoutine} overdue={overdue} />
         ) : (
           <section>
             <div className="flex items-end justify-between mb-2.5">
