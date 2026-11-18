@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { ent } from "@/lib/freshEntities";
 import { parseISO, differenceInCalendarDays } from "date-fns";
-import { Plus, Trash2, Check, Calendar, ArrowLeft, ChevronDown, ChevronUp, Star } from "lucide-react";
-import { quarterId, shiftQ, qLabel, qShort, qDaysLeft, qElapsed, MAX_FOCUS } from "@/lib/quarters";
+import { Plus, Trash2, Check, Calendar, ArrowLeft, ChevronDown, ChevronUp, Star, MoreHorizontal, StickyNote } from "lucide-react";
+import { quarterId, shiftQ, qLabel, qShort, qDaysLeft, MAX_FOCUS } from "@/lib/quarters";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
@@ -19,6 +19,18 @@ const STATUS_LABELS = { not_started: "Not started", in_progress: "In progress", 
 const CATEGORIES = ["personal", "finance", "career", "business", "health", "travel"];
 const PRIORITY_CHIP = { urgent: "bg-[#F4E6E7] text-[#8F5F65]", high: "bg-[#F3E8D6] text-[#8A5F27]" };
 const SECTION_ORDER = ["Overdue", "Today", "This week", "Later", "No date"];
+// On pace? Compares progress with how much of the time (from creation to the target date) has passed.
+function paceOf(g, pct, left) {
+  if (!g.target_date || !(g.sub_tasks || []).length) return null;
+  const start = new Date(g.created_date || Date.now()).getTime();
+  const end = new Date(`${String(g.target_date).slice(0, 10)}T23:59:00`).getTime();
+  if (left != null && left < 0) return "Behind";
+  const elapsed = end > start ? Math.min(1, Math.max(0, (Date.now() - start) / (end - start))) : 1;
+  const expected = elapsed * 100;
+  if (pct >= expected + 20) return "Ahead";
+  if (pct >= expected - 15) return "On track";
+  return "Behind";
+}
 const shortDate = (d) => parseISO(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 const daysFrom = (d) => differenceInCalendarDays(parseISO(d), new Date()); // negative = past
 
@@ -43,6 +55,11 @@ export default function Goals() {
   const [showDoneGoals, setShowDoneGoals] = useState(false);
   const [showDoneSteps, setShowDoneSteps] = useState(false);
   const [picking, setPicking] = useState(false);
+  const [saveState, setSaveState] = useState("");
+  const [goalMenu, setGoalMenu] = useState(false);
+  const [editingSteps, setEditingSteps] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [qMsg, setQMsg] = useState("");
   const [pickSel, setPickSel] = useState([]);
   const [pickMsg, setPickMsg] = useState("");
 
@@ -87,6 +104,17 @@ export default function Goals() {
   }, []);
 
   const selectedGoal = selected?.type === "goal" ? goals.find(g => g.id === selected.id) : null;
+
+  // Goal details save on their own, a moment after you stop typing.
+  useEffect(() => {
+    if (!editGoalData?.id || saveState !== "saving") return;
+    const t = setTimeout(async () => {
+      try { await saveGoal(editGoalData); setSaveState("saved"); } catch { setSaveState(""); }
+    }, 700);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editGoalData]);
+  useEffect(() => { setGoalMenu(false); setEditingSteps(false); setNotesOpen(false); setSaveState(""); setQMsg(""); }, [selected?.id]);
   const selectedTask = selected?.type === "task" ? tasks.find(t => t.id === selected.id) : null;
 
 
@@ -227,9 +255,11 @@ export default function Goals() {
     const finished = goalIsDone(g);
     const nextStep = sub.find(t => !t.completed);
     const left = g.target_date ? daysFrom(g.target_date) : null;
+    const pace = finished ? null : paceOf(g, pct, left);
+    const open = () => { setSelected({ type: "goal", id: g.id }); setEditGoalData({ ...g }); setAdding(false); };
     return (
-      <button key={g.id} onClick={() => { setSelected({ type: "goal", id: g.id }); setEditGoalData({ ...g }); setAdding(false); }}
-        className={`w-full text-left p-3.5 rounded-2xl bg-card border transition-colors ${selected?.id === g.id ? "border-[#A7773F]/60 shadow-sm" : "border-border/70 hover:border-[#A7773F]/40"}`}>
+      <div key={g.id} role="button" tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === "Enter") open(); }}
+        className={`w-full text-left p-3.5 rounded-2xl bg-card border transition-colors cursor-pointer ${selected?.id === g.id ? "border-[#A7773F]/60 shadow-sm" : "border-border/70 hover:border-[#A7773F]/40"}`}>
         <div className="flex items-center gap-3">
           <div className="relative w-11 h-11 flex-shrink-0">
             <svg viewBox="0 0 44 44" className="w-11 h-11 -rotate-90">
@@ -240,23 +270,24 @@ export default function Goals() {
           </div>
           <div className="min-w-0 flex-1">
             <p className="font-heading text-[16px] text-foreground truncate flex items-center gap-1.5">{g.focus_quarter === quarterId() && !finished && <Star className="w-3.5 h-3.5 text-[#A7773F] flex-shrink-0" strokeWidth={2} />}<span className="truncate">{g.title}</span></p>
-            <p className="text-xs text-muted-foreground capitalize mt-0.5">{g.category} · {sub.length > 0 ? `${doneCount} of ${sub.length} steps` : STATUS_LABELS[g.status]}</p>
+            <p className="text-xs text-muted-foreground mt-0.5"><span className="capitalize">{g.category}</span> · {sub.length > 0 ? `${doneCount} of ${sub.length} steps` : STATUS_LABELS[g.status]}{!finished && left != null ? ` · ${left < 0 ? `${-left}d overdue` : left === 0 ? "due today" : `${left} ${left === 1 ? "day" : "days"} left`}` : ""}</p>
           </div>
           {finished ? (
             <span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full bg-[#E4E9D5] text-[#566033] flex-shrink-0">Done</span>
-          ) : left != null ? (
-            <span className={`text-[10.5px] font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${left < 0 ? "bg-[#F4E6E7] text-[#8F5F65]" : "bg-[#F3E8D6] text-[#8A5F27]"}`}>
-              {left < 0 ? `${-left}d overdue` : left === 0 ? "Due today" : `${left} ${left === 1 ? "day" : "days"} left`}
-            </span>
+          ) : pace ? (
+            <span className={`text-[10.5px] font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${pace === "Behind" ? "bg-[#F4E6E7] text-[#8F5F65]" : "bg-[#E4E9D5] text-[#566033]"}`}>{pace}</span>
           ) : null}
         </div>
         {!finished && nextStep && (
-          <div className="mt-3 pt-2.5 border-t border-border/60 flex items-center gap-2 min-w-0">
+          <div className="mt-3 pt-2.5 border-t border-border/60 flex items-center gap-2.5 min-w-0">
+            <button type="button" aria-label={`Check off: ${nextStep.text}`}
+              onClick={(e) => { e.stopPropagation(); toggleSubTask(g, sub.indexOf(nextStep)); }}
+              className="w-5 h-5 rounded-full border-[1.5px] border-[#D9CFBF] hover:border-[#A7773F] flex-shrink-0" />
             <span className="text-[10px] tracking-[0.12em] uppercase text-muted-foreground flex-shrink-0">Next</span>
             <span className="text-[13px] text-foreground truncate">{nextStep.text}</span>
           </div>
         )}
-      </button>
+      </div>
     );
   };
 
@@ -387,7 +418,6 @@ export default function Goals() {
                       <span className="text-[12px] text-muted-foreground">{qLabel(curQ)} · {qDaysLeft(curQ)} days left</span>
                       <button type="button" onClick={startPicking} className="ml-auto text-[12px] text-[#A7773F]">Edit</button>
                     </div>
-                    <div className="h-1 rounded-full bg-[#EFE8DC] overflow-hidden mt-2 mb-1"><div className="h-full bg-[#A7773F] rounded-full" style={{ width: `${Math.round(qElapsed(curQ) * 100)}%` }} /></div>
                   </div>
                   {focus.map(renderGoalCard)}
                   {later.length > 0 && (
@@ -544,105 +574,137 @@ export default function Goals() {
           const sub = selectedGoal.sub_tasks || [];
           const doneCount = sub.filter(t => t.completed).length;
           const pct = sub.length > 0 ? Math.round((doneCount / sub.length) * 100) : 0;
+          const setGd = (patch) => { setEditGoalData({ ...gd, ...patch }); setSaveState("saving"); };
+          const qVal = gd.focus_quarter === curQ ? "focus" : gd.quarter && upcoming.includes(gd.quarter) ? gd.quarter : "someday";
+          const setQ = (v) => {
+            const patch = v === "focus" ? { focus_quarter: curQ, quarter: curQ } : v === "someday" ? { focus_quarter: null, quarter: null } : { focus_quarter: null, quarter: v };
+            if (v === "focus" && gd.focus_quarter !== curQ && focus.length >= MAX_FOCUS) { setQMsg("This quarter already has 3 focus goals. Remove one first."); return; }
+            setQMsg("");
+            setGoals((list) => list.map((x) => (x.id === gd.id ? { ...x, ...patch } : x)));
+            setEditGoalData({ ...gd, ...patch });
+            ent.Goal.update(gd.id, patch).catch(() => {});
+          };
+          const moveStep = async (idx, dir) => {
+            const j = idx + dir; if (j < 0 || j >= sub.length) return;
+            const updated = [...sub]; [updated[idx], updated[j]] = [updated[j], updated[idx]];
+            setGoals(g => g.map(x => x.id === selectedGoal.id ? { ...x, sub_tasks: updated } : x));
+            await ent.Goal.update(selectedGoal.id, { sub_tasks: updated });
+          };
+          const stepRow = ({ t, idx }, i) => (
+            <div key={idx} className={`flex items-center gap-3 py-2.5 ${i ? "border-t border-border/50" : ""}`}>
+              <button onClick={() => toggleSubTask(selectedGoal, idx)} aria-label={t.completed ? "Mark step not done" : "Mark step done"} className="flex-shrink-0"><Tick done={t.completed} /></button>
+              <span className={`text-sm flex-1 ${t.completed ? "line-through text-muted-foreground" : "text-foreground"}`}>{t.text}</span>
+              {editingSteps && (
+                <span className="flex items-center gap-1 flex-shrink-0">
+                  {!t.completed && <button onClick={() => moveStep(idx, -1)} aria-label="Move up" className="p-1 text-muted-foreground"><ChevronUp className="w-4 h-4" /></button>}
+                  {!t.completed && <button onClick={() => moveStep(idx, 1)} aria-label="Move down" className="p-1 text-muted-foreground"><ChevronDown className="w-4 h-4" /></button>}
+                  <button onClick={() => deleteSubTask(selectedGoal, idx)} aria-label="Delete step" className="p-1 text-muted-foreground/60 hover:text-rose-400"><Trash2 className="w-3.5 h-3.5" /></button>
+                </span>
+              )}
+            </div>
+          );
+          const openSteps = sub.map((t, idx) => ({ t, idx })).filter(({ t }) => !t.completed);
+          const doneSteps = sub.map((t, idx) => ({ t, idx })).filter(({ t }) => t.completed);
           return (
             <div className="w-full max-w-3xl mx-auto">
-              <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm px-6 pb-4 border-b border-border flex items-center justify-between" style={{ paddingTop: "1rem" }}>
-                <button onClick={() => setSelected(null)} className="text-muted-foreground hover:text-foreground mr-2 flex-shrink-0">
-                  <ArrowLeft className="w-4 h-4" />
+              <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm px-5 pb-3 border-b border-border flex items-center gap-2" style={{ paddingTop: "1rem" }}>
+                <button onClick={() => { if (saveState === "saving" && editGoalData?.id) saveGoal(editGoalData); setSelected(null); }} aria-label="Back" className="text-muted-foreground hover:text-foreground flex-shrink-0 p-1 -ml-1">
+                  <ArrowLeft className="w-5 h-5" />
                 </button>
                 <input
                   value={gd.title}
-                  onChange={e => setEditGoalData({ ...gd, title: e.target.value })}
-                  className="flex-1 bg-transparent border-0 border-b border-border text-foreground text-xl font-heading px-0 py-1 outline-none focus:border-ring transition-colors"
+                  onChange={e => setGd({ title: e.target.value })}
+                  className="flex-1 min-w-0 bg-transparent border-0 text-foreground text-[22px] font-heading px-0 py-1 outline-none"
                 />
-                <button onClick={() => removeGoal(selectedGoal.id)} className="text-muted-foreground/40 hover:text-rose-400 ml-4 flex-shrink-0 transition-colors">
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="relative flex-shrink-0">
+                  <button onClick={() => setGoalMenu((v) => !v)} aria-label="More options" className="p-1.5 text-muted-foreground hover:text-foreground"><MoreHorizontal className="w-5 h-5" /></button>
+                  {goalMenu && (
+                    <div className="absolute right-0 top-9 z-20 bg-card border border-border rounded-xl shadow-lg py-1 w-40">
+                      <button onClick={() => { setGoalMenu(false); if (confirm("Delete this goal?")) removeGoal(selectedGoal.id); }} className="w-full text-left px-3.5 py-2 text-sm text-[#8F5F65] flex items-center gap-2"><Trash2 className="w-3.5 h-3.5" />Delete goal</button>
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="p-6 flex flex-col gap-4">
+              <div className="px-5 py-4 flex flex-col gap-4">
 
               <div className="flex flex-wrap items-center gap-2">
-                <Select value={gd.category || "personal"} onValueChange={v => setEditGoalData({ ...gd, category: v })}>
-                  <SelectTrigger className="text-xs h-8 px-3 bg-card border border-border rounded-full capitalize"><SelectValue /></SelectTrigger>
+                <Select value={gd.category || "personal"} onValueChange={v => setGd({ category: v })}>
+                  <SelectTrigger className="w-auto text-[12.5px] h-8 px-3 gap-1.5 bg-card border border-border rounded-full capitalize"><SelectValue /></SelectTrigger>
                   <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}</SelectContent>
                 </Select>
-                <Select value={gd.status || "in_progress"} onValueChange={v => setEditGoalData({ ...gd, status: v })}>
-                  <SelectTrigger className="text-xs h-8 px-3 bg-card border border-border rounded-full"><SelectValue /></SelectTrigger>
+                <Select value={gd.status || "in_progress"} onValueChange={v => setGd({ status: v })}>
+                  <SelectTrigger className="w-auto text-[12.5px] h-8 px-3 gap-1.5 bg-card border border-border rounded-full"><SelectValue /></SelectTrigger>
                   <SelectContent>{Object.entries(STATUS_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
                 </Select>
-                <div className="flex items-center gap-1.5">
-                  <Calendar className="w-3 h-3 text-muted-foreground" />
-                  <DateInput value={gd.target_date || ""} onChange={e => setEditGoalData({ ...gd, target_date: e.target.value })}
-                    className="text-xs text-muted-foreground bg-transparent outline-none" />
-                </div>
+                <label className="flex items-center gap-1.5 h-8 pl-3 pr-1 bg-card border border-border rounded-full text-[12.5px] text-muted-foreground">
+                  Target
+                  <DateInput value={gd.target_date || ""} onChange={e => setGd({ target_date: e.target.value })}
+                    className="text-[12.5px] text-foreground bg-transparent outline-none border-0 px-1 py-0 h-7" />
+                </label>
               </div>
 
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-body font-semibold text-muted-foreground">Steps</span>
-                  <span className="text-xs text-muted-foreground font-body">{doneCount} of {sub.length} · {pct}%</span>
+              <div>
+                <p className="text-[10.5px] tracking-[0.14em] uppercase font-semibold text-muted-foreground mb-1.5">Quarter</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[["focus", `★ This quarter`], ...upcoming.map((q) => [q, qShort(q, curQ)]), ["someday", "Someday"]].map(([v, label]) => (
+                    <button key={v} type="button" onClick={() => setQ(v)} aria-pressed={qVal === v}
+                      className={`text-[12px] px-3 py-1 rounded-full border transition-colors ${qVal === v ? "bg-[#2E2A27] border-[#2E2A27] text-[#F7F3EC]" : "border-border text-muted-foreground bg-card"}`}>{label}</button>
+                  ))}
+                </div>
+                {qMsg && <p className="text-[12px] text-destructive mt-1">{qMsg}</p>}
+              </div>
+
+              <div>
+                <div className="flex items-baseline gap-3 mb-1.5">
+                  <p className="text-[10.5px] tracking-[0.14em] uppercase font-semibold text-muted-foreground">Steps</p>
+                  <span className="ml-auto text-xs text-muted-foreground">{doneCount} of {sub.length}</span>
+                  {sub.length > 0 && <button onClick={() => setEditingSteps((v) => !v)} className="text-xs text-[#A7773F]">{editingSteps ? "Done" : "Edit"}</button>}
                 </div>
                 {sub.length > 0 && (
-                  <div className="h-1.5 rounded-full bg-secondary overflow-hidden -mt-1 mb-1">
-                    <div className="h-full rounded-full bg-accent transition-all duration-300" style={{ width: `${pct}%` }} />
+                  <div className="h-1 rounded-full bg-[#EFE8DC] overflow-hidden mb-2">
+                    <div className="h-full rounded-full bg-[#A7773F] transition-all duration-300" style={{ width: `${pct}%` }} />
                   </div>
                 )}
-                <div className="flex items-center gap-2 ">
-                  <input
-                    value={subTaskInputs[selectedGoal.id] || ""}
-                    onChange={e => setSubTaskInputs(prev => ({ ...prev, [selectedGoal.id]: e.target.value }))}
-                    onKeyDown={e => e.key === "Enter" && addSubTask(selectedGoal, subTaskInputs[selectedGoal.id] || "")}
-                    placeholder="Add a step…"
-                    enterKeyHint="done"
-                    className="flex-1 bg-card border border-border rounded-xl px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-[#A7773F] transition-colors"
-                  />
-                  <button onClick={() => addSubTask(selectedGoal, subTaskInputs[selectedGoal.id] || "")} className="bg-[#A7773F] text-[#F7F3EC] w-10 h-10 flex items-center justify-center rounded-xl hover:opacity-90 transition-colors flex-shrink-0" aria-label="Add step">
-                    <Plus className="w-4 h-4" />
-                  </button>
+                <div className="bg-card border border-border rounded-2xl px-3.5">
+                  {openSteps.map(stepRow)}
+                  {doneSteps.length > 0 && (
+                    <button onClick={() => setShowDoneSteps(v => !v)} className={`w-full flex items-center gap-1.5 py-2.5 text-[10.5px] tracking-[0.16em] uppercase font-semibold text-muted-foreground ${openSteps.length ? "border-t border-border/50" : ""}`}>
+                      Done · {doneSteps.length}
+                      {showDoneSteps ? <ChevronUp className="w-3.5 h-3.5" strokeWidth={1.5} /> : <ChevronDown className="w-3.5 h-3.5" strokeWidth={1.5} />}
+                    </button>
+                  )}
+                  {showDoneSteps && doneSteps.map((x) => stepRow(x, 1))}
+                  <div className={`flex items-center gap-2.5 py-2 ${sub.length ? "border-t border-border/50" : ""}`}>
+                    <Plus className="w-4 h-4 text-[#A7773F] flex-shrink-0 ml-0.5" />
+                    <input
+                      value={subTaskInputs[selectedGoal.id] || ""}
+                      onChange={e => setSubTaskInputs(prev => ({ ...prev, [selectedGoal.id]: e.target.value }))}
+                      onKeyDown={e => e.key === "Enter" && addSubTask(selectedGoal, subTaskInputs[selectedGoal.id] || "")}
+                      placeholder="Add a step"
+                      enterKeyHint="done"
+                      className="flex-1 bg-transparent py-1 text-sm text-foreground outline-none placeholder:text-[#A7773F]/80"
+                    />
+                    {(subTaskInputs[selectedGoal.id] || "").trim() && (
+                      <button onClick={() => addSubTask(selectedGoal, subTaskInputs[selectedGoal.id] || "")} className="text-[12.5px] font-medium text-[#A7773F] px-1">Add</button>
+                    )}
+                  </div>
                 </div>
-
-                {(() => {
-                  const open = sub.map((t, idx) => ({ t, idx })).filter(({ t }) => !t.completed);
-                  const done = sub.map((t, idx) => ({ t, idx })).filter(({ t }) => t.completed);
-                  return (
-                    <>
-                      {open.length > 0 && <p className="text-[10.5px] tracking-[0.16em] uppercase font-semibold text-muted-foreground mt-1">Next up</p>}
-                      {open.map(({ t, idx }) => (
-                        <div key={idx} className="flex items-center gap-3 group">
-                          <button onClick={() => toggleSubTask(selectedGoal, idx)}
-                            aria-label="Mark step done" className="flex-shrink-0"><Tick done={false} /></button>
-                          <span className="text-sm flex-1 text-foreground">{t.text}</span>
-                          <button onClick={() => deleteSubTask(selectedGoal, idx)} className="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-rose-400 transition-all">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                      {done.length > 0 && (
-                        <button onClick={() => setShowDoneSteps(v => !v)} className="self-start mt-3 flex items-center gap-1.5 text-[10.5px] tracking-[0.16em] uppercase font-semibold text-muted-foreground">
-                          Done · {done.length}
-                          {showDoneSteps ? <ChevronUp className="w-3.5 h-3.5" strokeWidth={1.5} /> : <ChevronDown className="w-3.5 h-3.5" strokeWidth={1.5} />}
-                        </button>
-                      )}
-                      {showDoneSteps && done.map(({ t, idx }) => (
-                        <div key={idx} className="flex items-center gap-3 group opacity-70">
-                          <button onClick={() => toggleSubTask(selectedGoal, idx)} aria-label="Mark step not done" className="flex-shrink-0"><Tick done /></button>
-                          <span className="text-sm flex-1 line-through text-muted-foreground">{t.text}</span>
-                          <button onClick={() => deleteSubTask(selectedGoal, idx)} className="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-rose-400 transition-all">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                    </>
-                  );
-                })()}
               </div>
 
-              <div className="bg-card rounded-xl overflow-hidden border border-border quill-notes">
-                <ReactQuill theme="snow" value={gd.notes || ""} placeholder="Notes (optional)" onChange={val => setEditGoalData({ ...gd, notes: val })}
-                  modules={{ toolbar: [['bold', 'italic', 'underline'], [{ list: 'ordered' }, { list: 'bullet' }]] }} style={{ minHeight: "120px" }} />
-              </div>
+              {notesOpen || (gd.notes && gd.notes !== "<p><br></p>") ? (
+                <div className="bg-card rounded-xl overflow-hidden border border-border quill-notes">
+                  <ReactQuill theme="snow" value={gd.notes || ""} placeholder="Notes" onChange={val => { if (val !== (gd.notes || "")) setGd({ notes: val }); }}
+                    modules={{ toolbar: [['bold', 'italic', 'underline'], [{ list: 'ordered' }, { list: 'bullet' }]] }} style={{ minHeight: "120px" }} />
+                </div>
+              ) : (
+                <button onClick={() => setNotesOpen(true)} className="flex items-center gap-2 px-3.5 py-3 bg-card border border-border rounded-2xl text-[13px] text-muted-foreground text-left">
+                  <StickyNote className="w-4 h-4" />Add notes
+                </button>
+              )}
 
-              <button onClick={() => saveGoal(gd)} className="self-start bg-[#A7773F] text-[#F7F3EC] px-4 py-2 rounded-full text-sm font-medium hover:opacity-90 transition-colors">Save</button>
+              <p className="text-center text-[12px] text-muted-foreground flex items-center justify-center gap-1.5 min-h-[18px]">
+                {saveState === "saving" ? "Saving…" : saveState === "saved" ? <><Check className="w-3.5 h-3.5 text-[#7D8A53]" />Saved</> : ""}
+              </p>
               </div>
             </div>
           );
