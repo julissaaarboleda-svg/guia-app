@@ -28,7 +28,7 @@ export async function getWeather(place) {
   const cacheKey = `guia-wx-${place.lat.toFixed(2)},${place.lon.toFixed(2)}`;
   try { const c = JSON.parse(sessionStorage.getItem(cacheKey) || "null"); if (c && Date.now() - c.at < 3600000) return c.data; } catch { /* ignore */ }
   const f = place.us !== false; // Fahrenheit for US places
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&forecast_days=1&timezone=auto${f ? "&temperature_unit=fahrenheit" : ""}`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&hourly=precipitation_probability&forecast_days=1&timezone=auto${f ? "&temperature_unit=fahrenheit" : ""}`;
   const r = await fetch(url);
   if (!r.ok) throw new Error("weather failed");
   const j = await r.json();
@@ -39,10 +39,37 @@ export async function getWeather(place) {
     hi: Math.round(j.daily?.temperature_2m_max?.[0]),
     lo: Math.round(j.daily?.temperature_2m_min?.[0]),
     rain: j.daily?.precipitation_probability_max?.[0] ?? null,
+    // First hour from now with a 50%+ chance of rain, e.g. 15 for 3 PM.
+    rainFrom: (() => {
+      const times = j.hourly?.time || [], probs = j.hourly?.precipitation_probability || [];
+      const nowH = new Date().getHours();
+      for (let i = 0; i < times.length; i++) { const h = Number(String(times[i]).slice(11, 13)); if (h >= nowH && probs[i] >= 50) return h; }
+      return null;
+    })(),
     unit: f ? "F" : "C",
   };
   try { sessionStorage.setItem(cacheKey, JSON.stringify({ at: Date.now(), data })); } catch { /* ignore */ }
   return data;
+}
+
+// "68° and sunny", "58° and rainy", "62° with storms".
+export function weatherPhrase(wx, w, night = false) {
+  const L = { Clear: night ? "and clear" : "and sunny", "Mostly sunny": night ? "and mostly clear" : "and mostly sunny", "Partly cloudy": "and partly cloudy", Cloudy: "and cloudy", Foggy: "and foggy", Drizzle: "and drizzly", Rain: "and rainy", Snow: "and snowy", Showers: "with showers", Thunderstorms: "with storms" }[w?.label] || "";
+  return `${wx.temp}°${L ? ` ${L}` : ""}`;
+}
+
+// One short, useful tip for the day's weather, or nothing.
+export function weatherTip(wx, kind) {
+  if (!wx) return "";
+  const hour = (h) => (h === 0 ? "midnight" : h === 12 ? "noon" : `${((h + 11) % 12) + 1} ${h < 12 ? "AM" : "PM"}`);
+  const f = wx.unit === "F";
+  if (kind === "storm") return "Storms today. Plan to stay in if you can.";
+  if (kind === "snow") return "Bundle up. Roads may be slick.";
+  if (wx.rainFrom != null && wx.rainFrom > new Date().getHours()) return `Rain likely after ${hour(wx.rainFrom)}. Bring an umbrella.`;
+  if (kind === "rain" || kind === "drizzle" || (wx.rain != null && wx.rain >= 60)) return "Rain likely today. Bring an umbrella.";
+  if (wx.hi >= (f ? 95 : 35)) return "A hot one today. Stay hydrated.";
+  if (wx.lo <= (f ? 40 : 4)) return "Chilly start. Grab a jacket.";
+  return "";
 }
 
 const fmtTime = (t) => { const [h, m] = String(t).split(":").map(Number); return `${((h + 11) % 12) + 1}:${String(m || 0).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`; };

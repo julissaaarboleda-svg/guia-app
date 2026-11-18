@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Sun, CloudSun, Cloud, CloudFog, CloudDrizzle, CloudRain, Snowflake, CloudLightning, Moon, Target, Flame, Receipt, Plane, Wind, Volume2 } from "lucide-react";
 import { ent } from "@/lib/freshEntities";
 import { dayKey } from "@/lib/routines";
-import { SEEN_KEY, CHIMES_KEY, partOfDay, getWeather, describeWx, dayLines, thoughtFor } from "@/lib/welcome";
+import { SEEN_KEY, CHIMES_KEY, partOfDay, getWeather, describeWx, dayLines, thoughtFor, weatherTip, weatherPhrase } from "@/lib/welcome";
+import WeatherSky from "@/components/WeatherSky";
 
 const WX_ICON = { sun: Sun, sunCloud: CloudSun, cloud: Cloud, fog: CloudFog, drizzle: CloudDrizzle, rain: CloudRain, snow: Snowflake, storm: CloudLightning };
 const LINE_ICON = { target: Target, flame: Flame, bill: Receipt, trip: Plane };
@@ -181,20 +182,19 @@ export default function DailyWelcome({ user, prefs }) {
       <div className="max-w-md mx-auto px-5 min-h-full flex flex-col" style={{ paddingTop: "calc(env(safe-area-inset-top) + 20px)", paddingBottom: "calc(env(safe-area-inset-bottom) + 20px)" }}>
         {mode === "welcome" ? (
           <>
-            <Sky part={part} />
+            {wx && w ? <WeatherSky kind={w.icon} night={part === "evening" || !wx.isDay} part={part} /> : <Sky part={part} />}
             <p className="dw-a1 text-center text-[11px] tracking-[0.2em] text-[#7A716A] mt-2">{dateStr}</p>
             <h1 className="dw-a1 font-heading text-center text-[30px] leading-[1.15] mt-1">{greet}{first ? "," : ""}<br />{first}</h1>
-            <p className="dw-a1 text-center text-[13px] italic text-[#7A716A] mt-1 mb-4">Clarity to navigate. Freedom to be you.</p>
-
-            {wx && w && (
-              <div className="dw-a2 bg-white border border-[#E8E0D2] rounded-2xl px-4 py-3 flex items-center gap-3 mb-2.5">
-                <WxIcon className="w-8 h-8 text-[#A7773F] flex-shrink-0" strokeWidth={1.5} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[22px] leading-tight">{wx.temp}°<span className="text-[13px] text-[#7A716A]"> · {w.label}</span></p>
-                  <p className="text-[12px] text-[#7A716A] truncate">{place?.name} · high {wx.hi}°, low {wx.lo}°</p>
-                </div>
-                {wx.rain != null && <div className="text-right"><p className="text-[12px] text-[#7A716A]">Rain</p><p className="text-[13px]">{wx.rain}%</p></div>}
+            {wx && w ? (
+              <div className="dw-a1 text-center mt-1.5 mb-4">
+                <p className="text-[14px] text-[#2E2A27] flex items-center justify-center gap-1.5">
+                  <WxIcon className="w-[17px] h-[17px] text-[#A7773F]" strokeWidth={1.75} />
+                  {weatherPhrase(wx, w, part === "evening" || !wx.isDay)} · {part === "evening" ? `low ${wx.lo}°` : `high ${wx.hi}°`}
+                </p>
+                {weatherTip(wx, w.icon) && <p className="text-[12.5px] text-[#7A716A] mt-1">{weatherTip(wx, w.icon)}</p>}
               </div>
+            ) : (
+              <p className="dw-a1 text-center text-[13px] italic text-[#7A716A] mt-1 mb-4">Clarity to navigate. Freedom to be you.</p>
             )}
 
             {lines && lines.length > 0 && (
