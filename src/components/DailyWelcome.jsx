@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Sun, CloudSun, Cloud, CloudFog, CloudDrizzle, CloudRain, Snowflake, CloudLightning, Moon, Target, Flame, Receipt, Plane, Wind, Volume2 } from "lucide-react";
 import { ent } from "@/lib/freshEntities";
-import { SEEN_KEY, CHIMES_KEY, findPlaces, partOfDay, getWeather, describeWx, dayLines, thoughtFor, weatherTip, weatherPhrase } from "@/lib/welcome";
+import { CHIMES_KEY, findPlaces, partOfDay, getWeather, describeWx, dayLines, thoughtFor, weatherTip, weatherPhrase } from "@/lib/welcome";
 import WeatherSky from "@/components/WeatherSky";
 
 const WX_ICON = { sun: Sun, sunCloud: CloudSun, cloud: Cloud, fog: CloudFog, drizzle: CloudDrizzle, rain: CloudRain, snow: Snowflake, storm: CloudLightning };
@@ -14,6 +14,12 @@ const PHASES = [["Breathe in", 4, 1, 528], ["Hold", 4, 1, 0], ["Breathe out", 6,
 // Ripple rings in the brand colors: base radius 14, each ring spreads further on the breath in.
 const RINGS = [["#A7773F", 0.75], ["#7D8A53", 0.6], ["#A77C81", 0.45], ["#A7773F", 0.3]];
 const ROUNDS = 5;
+
+// One welcome per app start (module state resets only when the app restarts).
+const BOOT = { shown: false };
+const isReload = () => {
+  try { return performance.getEntriesByType("navigation")[0]?.type === "reload"; } catch { return false; }
+};
 
 function Sky({ part }) {
   if (part === "evening") {
@@ -94,12 +100,11 @@ export default function DailyWelcome({ user, prefs }) {
     if (!user) return;
     const open = (force) => {
       // Shows each time the app starts fresh (fully closed, then opened).
-      // sessionStorage survives reloads and switching apps, but is cleared
-      // when the app is closed, so that is our "fresh start" signal.
-      let seen = null;
-      try { seen = sessionStorage.getItem(SEEN_KEY); } catch { /* ignore */ }
-      if (!force && (seen || prefs?.welcome_off)) return;
-      try { sessionStorage.setItem(SEEN_KEY, "1"); } catch { /* ignore */ }
+      // A fresh start = this JavaScript just loaded and it wasn't a reload.
+      // (iPhone home-screen apps can keep sessionStorage after being closed,
+      // so we don't rely on it.) BOOT guards against showing twice per start.
+      if (!force && (BOOT.shown || isReload() || prefs?.welcome_off)) return;
+      BOOT.shown = true;
       // Settings may have just changed the city; read the latest saved copy.
       try { const raw = JSON.parse(localStorage.getItem("guia:nav-prefs") || "null"); if (raw?.weather_place) setFreshPlace(raw.weather_place); } catch { /* ignore */ }
       setMode("welcome"); setLeaving(false); setShow(true);
