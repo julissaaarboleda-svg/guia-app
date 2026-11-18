@@ -83,6 +83,7 @@ export default function DailyWelcome({ user, prefs }) {
   };
   const pickCity = async (r) => {
     setFreshPlace(r); setCityOpen(false); setCityRes(null);
+    window.dispatchEvent(new CustomEvent("guia:weather-place", { detail: r }));
     try {
       if (prefs?.id) await ent.UserPreferences.update(prefs.id, { weather_place: r });
       else if (user?.email) {

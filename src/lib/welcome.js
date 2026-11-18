@@ -53,6 +53,8 @@ export async function getWeather(place) {
 }
 
 // "68° and sunny", "58° and rainy", "62° with storms".
+export const hourLabel = (h) => (h === 0 ? "midnight" : h === 12 ? "noon" : `${((h + 11) % 12) + 1} ${h < 12 ? "AM" : "PM"}`);
+
 export function weatherPhrase(wx, w, night = false) {
   const L = { Clear: night ? "and clear" : "and sunny", "Mostly sunny": night ? "and mostly clear" : "and mostly sunny", "Partly cloudy": "and partly cloudy", Cloudy: "and cloudy", Foggy: "and foggy", Drizzle: "and drizzly", Rain: "and rainy", Snow: "and snowy", Showers: "with showers", Thunderstorms: "with storms" }[w?.label] || "";
   return `${wx.temp}°${L ? ` ${L}` : ""}`;

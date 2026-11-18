@@ -44,6 +44,13 @@ const QUOTES = [
 
 export default function Dashboard() {
   const [prefs, setPrefs] = useState(null);
+  // City for the weather pill; the welcome screen can set it, so listen for that too.
+  const [pickedPlace, setPickedPlace] = useState(null);
+  useEffect(() => {
+    const on = (e) => setPickedPlace(e.detail || null);
+    window.addEventListener("guia:weather-place", on);
+    return () => window.removeEventListener("guia:weather-place", on);
+  }, []);
   const [user, setUser] = useState(null);
   const [goals, setGoals] = useState([]);
   const [trips, setTrips] = useState([]);
@@ -204,6 +211,7 @@ export default function Dashboard() {
   };
   // This week's 3: a pick counts as done when ticked, or when its to-do is completed anywhere.
   const weekFocusNow = activeFocus(prefs);
+  const weatherPlace = pickedPlace || prefs?.weather_place || (() => { try { return JSON.parse(localStorage.getItem("guia:nav-prefs") || "null")?.weather_place || null; } catch { return null; } })();
   const isPickDone = (it) => {
     if (weekFocusNow?.done?.[it.id]) return true;
     if (it.kind === "task" && it.refId) return !!tasks.find((t) => t.id === it.refId)?.completed;
@@ -292,7 +300,7 @@ export default function Dashboard() {
   return (
     <div className="px-6 md:px-10 lg:px-12 pb-5 md:pb-7 max-w-[1180px] 2xl:max-w-[1400px] mx-auto w-full space-y-5" style={{ paddingTop: "1.25rem" }}>
 
-      <Greeting dateStr={dateStr} greeting={greeting} firstName={firstName} status={dailyStatus} />
+      <Greeting dateStr={dateStr} greeting={greeting} firstName={firstName} status={dailyStatus} place={weatherPlace} />
       {aiPlan?.plan === "trial" && (!aiPlan.beta || aiPlan.trialDaysLeft <= 7) && (
         <Link to="/settings" className={`inline-flex items-center gap-1.5 -mt-2 mb-3 text-[12px] rounded-full px-3 py-1 ${aiPlan.trialDaysLeft <= 3 ? "bg-[#A7773F] text-[#F7F3EC]" : "bg-card border border-border/60 text-muted-foreground"}`}>
           {aiPlan.trialDaysLeft <= 3
