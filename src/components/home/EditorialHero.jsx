@@ -31,7 +31,7 @@ export default function EditorialHero({ image, imagePos, onAdjust, quote, mode, 
           <HeroRings circles={rings} onCustomize={onCustomizeRings} />
         </div>
       )}
-      <div className={`absolute inset-y-0 left-0 overflow-hidden bg-charcoal ${split ? "right-[54%] lg:right-[45%] rounded-l-[24px]" : "right-0 rounded-[24px]"}`}>
+      <div className={`absolute inset-y-0 left-0 overflow-hidden ${showPhoto && !image ? "bg-[#EFE8DC] animate-pulse" : "bg-charcoal"} ${split ? "right-[54%] lg:right-[45%] rounded-l-[24px]" : "right-0 rounded-[24px]"}`}>
         {showPhoto && image && (
           <AdjustableImage src={image} pos={imagePos} className="absolute inset-0" />
         )}

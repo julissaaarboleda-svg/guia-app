@@ -75,7 +75,9 @@ export default function Dashboard() {
   const dayOfYear = useMemo(() => Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000), []);
   const [heroPositions, setHeroPositions] = useState(() => { try { return JSON.parse(localStorage.getItem("guia-hero-positions") || "{}"); } catch { return {}; } });
   const dailyQuote = QUOTES[dayOfYear % QUOTES.length];
-  const dailyImage = userHeroImages[0] || HERO_IMAGES[dayOfYear % HERO_IMAGES.length];
+  // Until your saved photos are known, show nothing rather than flashing a stock photo first.
+  const [heroKnown, setHeroKnown] = useState(() => userHeroImages.length > 0);
+  const dailyImage = userHeroImages[0] || (heroKnown ? HERO_IMAGES[dayOfYear % HERO_IMAGES.length] : null);
 
   useEffect(() => {
     const load = async () => {
@@ -109,13 +111,18 @@ export default function Dashboard() {
         setPrefs(p[0]);
         if (p[0].hero_mode2) setHeroMode(p[0].hero_mode2);
         if (p[0].hero_positions && typeof p[0].hero_positions === "object") setHeroPositions(p[0].hero_positions);
-        if (Array.isArray(p[0].hero_images) && p[0].hero_images.length > 0) setUserHeroImages(p[0].hero_images);
+        if (Array.isArray(p[0].hero_images) && p[0].hero_images.length > 0) {
+          setUserHeroImages(p[0].hero_images);
+          // Remember them on this device so the next visit shows your photo straight away.
+          try { localStorage.setItem("guia-hero-images", JSON.stringify(p[0].hero_images)); } catch { /* optional */ }
+        }
       }
       setGoals(g); setTrips(tr); setBizEntries(bizAll.slice(0, 30));
       setFinItems(finAll.slice(0, 30)); setTasks(tsk); setProjects(proj);
       setBusinessGoals(bg); setCareerEntries(career);
       setAllFin(finAll);
       setLoaded(true);
+      setHeroKnown(true);
 
       // Ring numbers that need a few more lists fill in a moment later, without holding up the page.
       const [bizList, stmts, buckets, creditDocs, creditCases] = await extras;
@@ -144,7 +151,7 @@ export default function Dashboard() {
       });
       setRingsReady(true);
     };
-    load().catch((e) => { console.error("Home failed to load:", e); setLoaded(true); setRingsReady(true); });
+    load().catch((e) => { console.error("Home failed to load:", e); setLoaded(true); setRingsReady(true); setHeroKnown(true); });
     // Never leave the rings waiting forever.
     const giveUp = setTimeout(() => setRingsReady(true), 8000);
     return () => clearTimeout(giveUp);
