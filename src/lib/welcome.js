@@ -1,9 +1,9 @@
-// Daily welcome: weather, "your day" and a thought, shown once a day.
+// Daily welcome: weather, "your day" and a thought, shown each time the app is opened fresh.
 import { dayKey, isScheduled, completeOn, stepsFor, streaks } from "@/lib/routines";
 import { dueInfo, isPaid } from "@/lib/financeHelpers";
 import { todayPriorities } from "@/lib/homeData";
 
-export const SEEN_KEY = "guia-welcome-day";
+export const SEEN_KEY = "guia-welcome-session";
 export const CHIMES_KEY = "guia-welcome-chimes";
 
 export const partOfDay = (d = new Date()) => (d.getHours() < 12 ? "morning" : d.getHours() < 17 ? "afternoon" : "evening");

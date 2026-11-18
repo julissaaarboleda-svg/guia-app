@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Sun, CloudSun, Cloud, CloudFog, CloudDrizzle, CloudRain, Snowflake, CloudLightning, Moon, Target, Flame, Receipt, Plane, Wind, Volume2 } from "lucide-react";
 import { ent } from "@/lib/freshEntities";
-import { dayKey } from "@/lib/routines";
 import { SEEN_KEY, CHIMES_KEY, partOfDay, getWeather, describeWx, dayLines, thoughtFor, weatherTip, weatherPhrase } from "@/lib/welcome";
 import WeatherSky from "@/components/WeatherSky";
 
@@ -64,15 +63,17 @@ export default function DailyWelcome({ user, prefs }) {
   const [freshPlace, setFreshPlace] = useState(null);
   const place = freshPlace || prefs?.weather_place;
 
-  // Decide whether to show today.
+  // Decide whether to show on this app start.
   useEffect(() => {
     if (!user) return;
     const open = (force) => {
-      const today = dayKey(new Date());
+      // Shows each time the app starts fresh (fully closed, then opened).
+      // sessionStorage survives reloads and switching apps, but is cleared
+      // when the app is closed, so that is our "fresh start" signal.
       let seen = null;
-      try { seen = localStorage.getItem(SEEN_KEY); } catch { /* ignore */ }
-      if (!force && (seen === today || prefs?.welcome_off)) return;
-      try { localStorage.setItem(SEEN_KEY, today); } catch { /* ignore */ }
+      try { seen = sessionStorage.getItem(SEEN_KEY); } catch { /* ignore */ }
+      if (!force && (seen || prefs?.welcome_off)) return;
+      try { sessionStorage.setItem(SEEN_KEY, "1"); } catch { /* ignore */ }
       // Settings may have just changed the city; read the latest saved copy.
       try { const raw = JSON.parse(localStorage.getItem("guia:nav-prefs") || "null"); if (raw?.weather_place) setFreshPlace(raw.weather_place); } catch { /* ignore */ }
       setMode("welcome"); setLeaving(false); setShow(true);

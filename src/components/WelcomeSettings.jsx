@@ -53,7 +53,7 @@ export default function WelcomeSettings() {
       <div className="flex items-center gap-3">
         <div className="flex-1 min-w-0">
           <h2 className="font-heading text-lg text-foreground">Daily welcome</h2>
-          <p className="text-xs text-muted-foreground">A short good-morning screen the first time you open Guía each day.</p>
+          <p className="text-xs text-muted-foreground">A short welcome screen each time you open Guía after fully closing it.</p>
         </div>
         <button type="button" role="switch" aria-checked={on} aria-label="Daily welcome" onClick={() => patch({ welcome_off: on })}
           className="relative w-10 h-6 rounded-full flex-shrink-0 transition-colors" style={{ backgroundColor: on ? "#A7773F" : "#E7D9C6" }}>
