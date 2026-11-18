@@ -37,6 +37,8 @@ export default function SalesTaxCard({ business, entries, readOnly, onEntriesCha
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
   const [showHistory, setShowHistory] = useState(false);
+  const [exp, setExp] = useState({});
+  const [histOpen, setHistOpen] = useState(null);
   const enabled = !!business?.sales_tax?.enabled;
   const bizId = business?.id;
 
@@ -73,6 +75,8 @@ export default function SalesTaxCard({ business, entries, readOnly, onEntriesCha
   const ensureFilingTask = async (qtr) => {
     try {
       const tasks = (await ent.Task.list()) || [];
+      // Clear reminders for quarters past the one that's actually next (left over from a mis-tap).
+      await Promise.all(tasks.filter((t) => t.source === "sales_tax" && !t.completed && t.tax_period && t.tax_period > qtr.id).map((t) => ent.Task.delete(t.id).catch(() => {})));
       const has = tasks.find((t) => t.source === "sales_tax" && t.tax_period === qtr.id);
       if (!has) await ent.Task.create({ title: `File Texas sales tax (${qtr.label})`, notes: `Return for ${qtr.longLabel}. File and pay in Webfile on the Comptroller's site.`, priority: "high", due_date: qtr.due, completed: false, source: "sales_tax", tax_period: qtr.id, category: "business" });
     } catch { /* reminders are a bonus */ }
@@ -84,7 +88,8 @@ export default function SalesTaxCard({ business, entries, readOnly, onEntriesCha
     } catch { /* ignore */ }
   };
 
-  const filedIds = useMemo(() => new Set((periods || []).filter((p) => p.filed).map((p) => p.period)), [periods]);
+  // A quarter can only be filed once it has started; ignore anything marked filed before that.
+  const filedIds = useMemo(() => new Set((periods || []).filter((p) => p.filed && quarterStart(p.period) <= today()).map((p) => p.period)), [periods]);
   const next = useMemo(() => nextReturn(new Date(), filedIds), [filedIds]);
   useEffect(() => { if (enabled && periods && !readOnly) ensureFilingTask(next); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [enabled, periods, next.id]);
 
@@ -170,6 +175,17 @@ export default function SalesTaxCard({ business, entries, readOnly, onEntriesCha
     setBusy("");
   };
 
+  const undo = async (p) => {
+    if (!confirm(`Undo ${labelOf(p.period, true)}? Its status and any unpaid sales tax bills are removed.`)) return;
+    setBusy(p.period);
+    try {
+      for (const id of [p.tax_bill_id, p.penalty_bill_id]) { const b = id && billOf(id); if (b && !b.paid) await dropBill(id); }
+      await ent.SalesTaxPeriod.delete(p.id);
+      setPeriods((list) => (list || []).filter((x) => x.id !== p.id));
+    } catch { setErr("Couldn't undo. Try again."); }
+    setBusy("");
+  };
+
   if (!business) return null;
 
   if (!enabled) {
@@ -216,17 +232,31 @@ export default function SalesTaxCard({ business, entries, readOnly, onEntriesCha
         <div className="bg-card border border-[#A77C81]/50 rounded-2xl p-4">
           <p className="text-[10.5px] font-semibold tracking-[0.12em] uppercase text-[#8F5F65]">Catch up · {catchUp.length} past quarter{catchUp.length === 1 ? "" : "s"}</p>
           {owedTotal > 0 && <p className="text-[13px] text-foreground mt-1">{money(owedTotal)} owed right now. It's in your Finance bills.</p>}
+          {catchUp.filter((q) => byId[q.id]?.penalty > 0 && byId[q.id]?.penalty_status === "due").length > 2 && (
+            <p className="text-[12px] text-muted-foreground mt-1">One waiver request can cover up to 2 quarters, so you may need two requests.</p>
+          )}
           <div className="mt-1 divide-y divide-border/60">
             {catchUp.map((q) => {
               const p = byId[q.id];
               const d = draft[q.id] || {};
               const editing = !p || open[q.id];
+              const expanded = !p || open[q.id] || exp[q.id];
+              const summary = p ? [
+                p.tax_owed > 0 && !p.tax_paid ? `Tax ${money(p.tax_owed)} owed` : null,
+                p.penalty > 0 ? `Penalty ${money(p.penalty)}${p.penalty_status === "pending" ? ", waiver pending" : p.penalty_status === "denied" ? ", waiver denied" : ""}` : null,
+              ].filter(Boolean).join(" · ") : "Needs an update";
               return (
                 <div key={q.id} className="py-3">
-                  <div className="flex items-baseline gap-2">
-                    <p className="text-[14px] text-foreground">{q.longLabel}</p>
-                    <span className="text-[12px] text-muted-foreground">due {niceDate(q.due)}</span>
-                    {p && !open[q.id] && !readOnly && <button type="button" onClick={() => { setOpen((o) => ({ ...o, [q.id]: true })); setDraft((x) => ({ ...x, [q.id]: { tax: p.tax_owed || "", penalty: p.penalty || "" } })); }} className="ml-auto text-[12px] text-[#A7773F]">Edit</button>}
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => p && setExp((x) => ({ ...x, [q.id]: !x[q.id] }))} aria-expanded={!!expanded} className="flex items-center gap-1.5 text-left min-w-0 flex-1">
+                      {p && (expanded ? <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />)}
+                      <span className="min-w-0">
+                        <span className="text-[14px] text-foreground">{q.longLabel}</span>
+                        <span className="text-[12px] text-muted-foreground"> · due {niceDate(q.due)}</span>
+                        {!expanded && <span className="block text-[12px] text-[#8F5F65] truncate">{summary}</span>}
+                      </span>
+                    </button>
+                    {p && expanded && !open[q.id] && !readOnly && <button type="button" onClick={() => { setOpen((o) => ({ ...o, [q.id]: true })); setDraft((x) => ({ ...x, [q.id]: { tax: p.tax_owed || "", penalty: p.penalty || "" } })); }} className="text-[12px] text-[#A7773F] shrink-0">Edit</button>}
                   </div>
 
                   {!p && !readOnly && !d.mode && (
@@ -256,8 +286,8 @@ export default function SalesTaxCard({ business, entries, readOnly, onEntriesCha
                     </div>
                   )}
 
-                  {p && !open[q.id] && (
-                    <div className="mt-1.5 space-y-2">
+                  {p && !open[q.id] && expanded && (
+                    <div className="mt-1.5 space-y-2 pl-[22px]">
                       {p.tax_owed > 0 && (
                         <div className="flex items-center gap-2 text-[13px]">
                           <span className={`w-[18px] h-[18px] rounded-full flex items-center justify-center shrink-0 ${p.tax_paid ? "bg-[#7D8A53]" : "border-[1.5px] border-[#A7773F]"}`}>{p.tax_paid && <Check className="w-3 h-3 text-white" strokeWidth={3} />}</span>
@@ -311,7 +341,9 @@ export default function SalesTaxCard({ business, entries, readOnly, onEntriesCha
           <div className="rounded-xl bg-background/70 px-3 py-2"><p className="text-[11.5px] text-muted-foreground">From your entries</p><p className="text-[13px] text-foreground mt-0.5">{sales.count} sale{sales.count === 1 ? "" : "s"}</p></div>
         </div>
         <p className="text-[12px] text-muted-foreground mt-2.5 flex items-center gap-1.5"><Bell className="w-3.5 h-3.5 text-[#A7773F]" />A to-do and calendar reminders a week before and the day before</p>
-        {!readOnly && (filing ? (
+        {today() < next.start ? (
+          <p className="text-[12.5px] text-muted-foreground mt-3">Nothing to file yet. You can file this one once the quarter ends on {niceDate(next.end)}.</p>
+        ) : !readOnly && (filing ? (
           <div className="mt-3">
             <div className="flex gap-2 items-end">
               <MoneyInput label="Tax on this return" value={filing.tax} onChange={(v) => setFiling((f) => ({ ...f, tax: v }))} />
@@ -347,9 +379,17 @@ export default function SalesTaxCard({ business, entries, readOnly, onEntriesCha
                 const tag = !p.filed ? "Not filed" : owed ? (p.late ? "Filed late · owed" : "Filed · owed") : p.late ? "Filed late · settled" : "Filed on time";
                 const good = p.filed && !owed && !p.late;
                 return (
-                  <div key={p.id} className="flex items-center gap-2 py-2 text-[13px]">
-                    <span className="flex-1 text-foreground">{labelOf(p.period, true)}</span>
-                    <span className={`text-[11px] px-2 py-0.5 rounded-full ${good ? "bg-[#7D8A53]/15 text-[#566033]" : owed ? "bg-[#A77C81]/15 text-[#8F5F65]" : "bg-muted text-muted-foreground"}`}>{tag}</span>
+                  <div key={p.id} className="py-2 text-[13px]">
+                    <button type="button" onClick={() => setHistOpen((h) => (h === p.id ? null : p.id))} className="w-full flex items-center gap-2 text-left">
+                      <span className="flex-1 text-foreground">{labelOf(p.period, true)}{quarterStart(p.period) > today() ? <span className="text-muted-foreground"> · hasn't started</span> : null}</span>
+                      <span className={`text-[11px] px-2 py-0.5 rounded-full ${good ? "bg-[#7D8A53]/15 text-[#566033]" : owed ? "bg-[#A77C81]/15 text-[#8F5F65]" : "bg-muted text-muted-foreground"}`}>{tag}</span>
+                    </button>
+                    {histOpen === p.id && !readOnly && (
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className="text-[12px] text-muted-foreground flex-1">{p.filed_date ? `Marked filed ${niceDate(p.filed_date)}` : ""}</span>
+                        <Btn disabled={busy === p.period} onClick={() => undo(p)}>Undo</Btn>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -360,6 +400,11 @@ export default function SalesTaxCard({ business, entries, readOnly, onEntriesCha
       <p className="text-[11px] text-muted-foreground px-0.5">Due dates assume the 20th, moved to Monday on weekends. Check the Comptroller's site for holiday changes. Not tax advice.</p>
     </section>
   );
+}
+
+function quarterStart(id) {
+  const [y, q] = String(id).split("-Q").map(Number);
+  return `${y}-${String((q - 1) * 3 + 1).padStart(2, "0")}-01`;
 }
 
 function labelOf(id, long = false) {
