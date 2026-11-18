@@ -402,6 +402,12 @@ export default function Goals() {
                 </>
               ) : (
                 <>
+                  {activeGoals.length === 0 && goals.length > 0 && !adding && (
+                    <div className="rounded-2xl border border-dashed border-border px-4 py-5 text-center">
+                      <p className="font-heading text-[17px] text-foreground">No goals in progress</p>
+                      <p className="text-[12.5px] text-muted-foreground mt-1">Add one with +, then pick up to 3 as this quarter's focus.</p>
+                    </div>
+                  )}
                   {activeGoals.length > 0 && (
                     <button type="button" onClick={startPicking} className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-2xl border border-dashed border-[#A7773F]/50 text-[13px] text-[#8A5F27]">
                       <Star className="w-4 h-4" strokeWidth={1.75} />Set this quarter's focus
