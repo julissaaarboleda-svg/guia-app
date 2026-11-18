@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Sun, CloudSun, Cloud, CloudFog, CloudDrizzle, CloudRain, Snowflake, CloudLightning, Moon, Target, Flame, Receipt, Plane, Wind, Volume2 } from "lucide-react";
+import { MapPin, Search, LocateFixed, Loader2, Sun, CloudSun, Cloud, CloudFog, CloudDrizzle, CloudRain, Snowflake, CloudLightning, Moon, Target, Flame, Receipt, Plane, Wind, Volume2 } from "lucide-react";
 import { ent } from "@/lib/freshEntities";
-import { CHIMES_KEY, findPlaces, partOfDay, getWeather, describeWx, dayLines, thoughtFor, weatherTip, weatherPhrase } from "@/lib/welcome";
+import { CHIMES_KEY, findPlaces, locatePlace, refreshAutoPlace, partOfDay, getWeather, describeWx, dayLines, thoughtFor, weatherTip, weatherPhrase } from "@/lib/welcome";
 import WeatherSky from "@/components/WeatherSky";
 
 const WX_ICON = { sun: Sun, sunCloud: CloudSun, cloud: Cloud, fog: CloudFog, drizzle: CloudDrizzle, rain: CloudRain, snow: Snowflake, storm: CloudLightning };
@@ -81,20 +81,40 @@ export default function DailyWelcome({ user, prefs }) {
       setCityRes(r); setCityMsg(r.length ? "" : "No places found. Try just the city name.");
     } catch { setCityMsg("Couldn't search right now."); }
   };
-  const pickCity = async (r) => {
-    setFreshPlace(r); setCityOpen(false); setCityRes(null);
-    window.dispatchEvent(new CustomEvent("guia:weather-place", { detail: r }));
+  const savePrefs = async (data) => {
     try {
-      if (prefs?.id) await ent.UserPreferences.update(prefs.id, { weather_place: r });
+      if (prefs?.id) await ent.UserPreferences.update(prefs.id, data);
       else if (user?.email) {
         const found = await ent.UserPreferences.filter({ user_email: user.email });
-        if (found[0]) await ent.UserPreferences.update(found[0].id, { weather_place: r });
-        else await ent.UserPreferences.create({ user_email: user.email, weather_place: r });
+        if (found[0]) await ent.UserPreferences.update(found[0].id, data);
+        else await ent.UserPreferences.create({ user_email: user.email, ...data });
       }
       const raw = JSON.parse(localStorage.getItem("guia:nav-prefs") || "null");
-      if (raw) localStorage.setItem("guia:nav-prefs", JSON.stringify({ ...raw, weather_place: r }));
+      if (raw) localStorage.setItem("guia:nav-prefs", JSON.stringify({ ...raw, ...data }));
     } catch { /* weather still shows for now */ }
   };
+  const applyPlace = (r, extra = {}) => {
+    setFreshPlace(r); setCityOpen(false); setCityRes(null); setCityMsg("");
+    window.dispatchEvent(new CustomEvent("guia:weather-place", { detail: r }));
+    savePrefs({ weather_place: r, ...extra });
+  };
+  const pickCity = (r) => applyPlace(r, { weather_auto: false });
+  const [locating, setLocating] = useState(false);
+  const locateMe = async () => {
+    setLocating(true); setCityMsg("");
+    try { applyPlace(await locatePlace(), { weather_auto: true }); }
+    catch { setCityMsg("Location is off for Guía. You can type a city instead."); setCityOpen(true); }
+    setLocating(false);
+  };
+
+  // "Use my location" on: quietly follow the person when they've moved.
+  // Runs once per app start, and never shows a permission prompt by itself.
+  const autoRan = useRef(false);
+  useEffect(() => {
+    if (!user || !prefs?.weather_auto || autoRan.current) return;
+    autoRan.current = true;
+    refreshAutoPlace(prefs.weather_place).then((p) => { if (p) applyPlace(p, { weather_auto: true }); }).catch(() => {});
+  }, [user, prefs?.weather_auto]);
 
   // Decide whether to show on this app start.
   useEffect(() => {
@@ -225,6 +245,7 @@ export default function DailyWelcome({ user, prefs }) {
                   {weatherPhrase(wx, w, part === "evening" || !wx.isDay)} · {part === "evening" ? `low ${wx.lo}°` : `high ${wx.hi}°`}
                 </p>
                 {weatherTip(wx, w.icon) && <p className="text-[12.5px] text-[#7A716A] mt-1">{weatherTip(wx, w.icon)}</p>}
+                {place?.name && <p className="text-[11px] text-[#9A9088] mt-1 flex items-center justify-center gap-1"><MapPin className="w-3 h-3" strokeWidth={1.6} />{place.name}</p>}
               </div>
             ) : (
               <p className="dw-a1 text-center text-[13px] italic text-[#7A716A] mt-1 mb-4">Clarity to navigate. Freedom to be you.</p>
@@ -270,7 +291,18 @@ export default function DailyWelcome({ user, prefs }) {
             <div className="mt-auto">
               <button type="button" onClick={close} className="dw-a4 w-full h-12 rounded-2xl bg-[#2E2A27] text-[#F7F3EC] text-[15px]">Start my day</button>
               {!place && !cityOpen && (
-                <button type="button" onClick={() => setCityOpen(true)} className="block mx-auto text-[12.5px] text-[#A7773F] mt-3 underline underline-offset-2">Add your city to see the weather</button>
+                <div className="mt-3 rounded-2xl border border-[#E4DCCF] bg-white p-3">
+                  <p className="text-[13px] text-[#2E2A27] text-center mb-2.5">See today's weather here</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button type="button" onClick={locateMe} disabled={locating} className="h-10 rounded-xl border border-[#A7773F] text-[#8A5F2F] text-[13px] flex items-center justify-center gap-1.5 disabled:opacity-60">
+                      {locating ? <Loader2 className="w-4 h-4 animate-spin" /> : <LocateFixed className="w-4 h-4" strokeWidth={1.6} />}Use my location
+                    </button>
+                    <button type="button" onClick={() => setCityOpen(true)} className="h-10 rounded-xl border border-[#E4DCCF] text-[#6B635C] text-[13px] flex items-center justify-center gap-1.5">
+                      <Search className="w-4 h-4" strokeWidth={1.6} />Type a city
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-[#9A9088] text-center mt-2">Only your city is kept, never your exact spot.</p>
+                </div>
               )}
               {!place && cityOpen && (
                 <div className="mt-3">

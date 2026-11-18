@@ -153,3 +153,53 @@ export const thoughtFor = (d = new Date()) => {
   const n = Math.floor((d - start) / 86400000);
   return THOUGHTS[n % THOUGHTS.length];
 };
+
+// ---- "Use my location" ----
+// Only a rough spot is kept: coordinates rounded to 2 decimals (about half a
+// mile to a mile), plus the city name. Never a precise address.
+const round2 = (n) => Math.round(n * 100) / 100;
+
+function position(timeout = 10000) {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) { reject(new Error("unsupported")); return; }
+    navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: false, timeout, maximumAge: 30 * 60 * 1000 });
+  });
+}
+
+async function cityFor(lat, lon) {
+  try {
+    const r = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
+    if (!r.ok) throw new Error("lookup failed");
+    const j = await r.json();
+    const us = j.countryCode === "US";
+    return { name: j.city || j.locality || "Your location", region: us ? (j.principalSubdivision || "") : (j.countryName || ""), us };
+  } catch { return { name: "Your location", region: "", us: true }; }
+}
+
+// Asks the phone for its location (shows the permission prompt the first
+// time). Call only from a tap. Resolves to a place, or throws.
+export async function locatePlace() {
+  const p = await position();
+  const lat = round2(p.coords.latitude), lon = round2(p.coords.longitude);
+  return { ...(await cityFor(lat, lon)), lat, lon, auto: true };
+}
+
+// True only when permission was already given, so we never pop a prompt
+// on our own. Browsers that can't tell us return false.
+export async function locationAllowed() {
+  try {
+    if (!navigator.permissions?.query) return false;
+    const s = await navigator.permissions.query({ name: "geolocation" });
+    return s.state === "granted";
+  } catch { return false; }
+}
+
+// On app start: if "Use my location" is on and allowed, update the place when
+// the person has moved (more than ~3 miles). Returns the new place or null.
+export async function refreshAutoPlace(current) {
+  if (!(await locationAllowed())) return null;
+  const p = await position(8000);
+  const lat = round2(p.coords.latitude), lon = round2(p.coords.longitude);
+  if (current && Math.abs(current.lat - lat) < 0.05 && Math.abs(current.lon - lon) < 0.05) return null;
+  return { ...(await cityFor(lat, lon)), lat, lon, auto: true };
+}
