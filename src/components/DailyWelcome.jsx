@@ -136,15 +136,20 @@ export default function DailyWelcome({ user, prefs }) {
     return () => window.removeEventListener("guia:welcome-show", onForce);
   }, [user, prefs?.welcome_off]);
 
-  // Load the day once it's showing.
+  // Load the day once it's showing. The content waits until the day and the
+  // weather are both in (or 2.5s pass), then everything comes in together,
+  // top to bottom, so nothing pops in or jumps around afterwards.
+  const [ready, setReady] = useState(false);
   useEffect(() => {
     if (!show) return;
     let alive = true;
-    (async () => {
+    const day = (async () => {
       const [tasks, routines, finItems, trips] = await Promise.all([safe(ent.Task.list()), safe(ent.Routine.list()), safe(ent.FinanceItem.list()), safe(ent.Trip.list())]);
       if (alive) setLines(dayLines({ tasks, routines, finItems, trips }));
     })();
-    if (place) getWeather(place).then((w) => { if (alive) setWx(w); }).catch(() => {});
+    const weather = place ? getWeather(place).then((w) => { if (alive) setWx(w); }).catch(() => {}) : Promise.resolve();
+    const cap = new Promise((r) => setTimeout(r, 2500));
+    Promise.race([Promise.all([day, weather]), cap]).then(() => { if (alive) setReady(true); });
     return () => { alive = false; };
   }, [show, place]);
 
@@ -183,7 +188,7 @@ export default function DailyWelcome({ user, prefs }) {
   const close = () => {
     clearTimeout(timerRef.current);
     setLeaving(true);
-    setTimeout(() => setShow(false), 500);
+    setTimeout(() => { setShow(false); setReady(false); }, 500);
   };
 
   const breathe = () => {
@@ -227,19 +232,20 @@ export default function DailyWelcome({ user, prefs }) {
         @keyframes dwRise{from{transform:translateY(36px);opacity:0}to{transform:none;opacity:1}}
         @keyframes dwUp{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
         .dw-rise{animation:dwRise 1.2s cubic-bezier(.16,1,.3,1) both}
-        .dw-a1{animation:dwUp .6s ease both .2s}.dw-a2{animation:dwUp .6s ease both .45s}.dw-a3{animation:dwUp .6s ease both .7s}.dw-a4{animation:dwUp .6s ease both .95s}
+        .dw-a1{animation:dwUp .55s ease both .15s}.dw-a2{animation:dwUp .55s ease both .27s}.dw-a3{animation:dwUp .55s ease both .39s}.dw-a4{animation:dwUp .55s ease both .51s}.dw-a5{animation:dwUp .55s ease both .63s}.dw-a6{animation:dwUp .55s ease both .75s}
+        @keyframes dwFade{from{opacity:0}to{opacity:1}}.dw-late{animation:dwFade .6s ease both}
         @keyframes dwHold{0%,100%{filter:none}50%{filter:brightness(1.15)}}
         .dw-hold{animation:dwHold 1.4s ease-in-out infinite}
-        @media (prefers-reduced-motion: reduce){.dw-rise,.dw-a1,.dw-a2,.dw-a3,.dw-a4{animation:none}}
+        @media (prefers-reduced-motion: reduce){.dw-rise,.dw-a1,.dw-a2,.dw-a3,.dw-a4,.dw-a5,.dw-a6,.dw-late{animation:none}}
       `}</style>
       <div className="max-w-md mx-auto px-5 min-h-full flex flex-col" style={{ paddingTop: "calc(env(safe-area-inset-top) + 20px)", paddingBottom: "calc(env(safe-area-inset-bottom) + 20px)" }}>
-        {mode === "welcome" ? (
+        {mode === "welcome" && !ready ? null : mode === "welcome" ? (
           <>
             {wx && w ? <WeatherSky kind={w.icon} night={part === "evening" || !wx.isDay} part={part} /> : <Sky part={part} />}
             <p className="dw-a1 text-center text-[11px] tracking-[0.2em] text-[#7A716A] mt-2">{dateStr}</p>
             <h1 className="dw-a1 font-heading text-center text-[30px] leading-[1.15] mt-1">{greet}{first ? "," : ""}<br />{first}</h1>
             {wx && w ? (
-              <div className="dw-a1 text-center mt-1.5 mb-4">
+              <div className="dw-a2 text-center mt-1.5 mb-4">
                 <p className="text-[14px] text-[#2E2A27] flex items-center justify-center gap-1.5">
                   <WxIcon className="w-[17px] h-[17px] text-[#A7773F]" strokeWidth={1.75} />
                   {weatherPhrase(wx, w, part === "evening" || !wx.isDay)} · {part === "evening" ? `low ${wx.lo}°` : `high ${wx.hi}°`}
@@ -248,7 +254,7 @@ export default function DailyWelcome({ user, prefs }) {
                 {place?.name && <p className="text-[11px] text-[#9A9088] mt-1 flex items-center justify-center gap-1"><MapPin className="w-3 h-3" strokeWidth={1.6} />{place.name}</p>}
               </div>
             ) : (
-              <p className="dw-a1 text-center text-[13px] italic text-[#7A716A] mt-1 mb-4">Clarity to navigate. Freedom to be you.</p>
+              <p className="dw-a2 text-center text-[13px] italic text-[#7A716A] mt-1 mb-4">Clarity to navigate. Freedom to be you.</p>
             )}
 
             {lines && lines.length > 0 && (
@@ -267,7 +273,7 @@ export default function DailyWelcome({ user, prefs }) {
               </div>
             )}
 
-            <div className="dw-a3 bg-white border border-[#7D8A53]/40 rounded-2xl px-4 py-3 mb-2.5">
+            <div className="dw-a4 bg-white border border-[#7D8A53]/40 rounded-2xl px-4 py-3 mb-2.5">
               <div className="flex items-center gap-2.5">
                 <span className="w-[34px] h-[34px] rounded-full bg-[#7D8A53]/10 text-[#566033] flex items-center justify-center flex-shrink-0"><Wind className="w-[18px] h-[18px]" strokeWidth={1.75} /></span>
                 <div className="flex-1 min-w-0"><p className="text-[14px]">Take a breath</p><p className="text-[12px] text-[#7A716A]">1 minute · calm start</p></div>
@@ -283,13 +289,13 @@ export default function DailyWelcome({ user, prefs }) {
               </div>
             </div>
 
-            <div className="dw-a4 text-center px-2 pt-2 pb-4">
+            <div className="dw-a5 text-center px-2 pt-2 pb-4">
               <p className="text-[10.5px] tracking-[0.14em] text-[#7A716A] mb-1">A THOUGHT FOR TODAY</p>
               <p className="font-heading italic text-[15px] leading-relaxed">{thoughtFor()}</p>
             </div>
 
-            <div className="mt-auto">
-              <button type="button" onClick={close} className="dw-a4 w-full h-12 rounded-2xl bg-[#2E2A27] text-[#F7F3EC] text-[15px]">Start my day</button>
+            <div className="mt-auto dw-a6">
+              <button type="button" onClick={close} className="w-full h-12 rounded-2xl bg-[#2E2A27] text-[#F7F3EC] text-[15px]">Start my day</button>
               {!place && !cityOpen && (
                 <div className="mt-3 rounded-2xl border border-[#E4DCCF] bg-white p-3">
                   <p className="text-[13px] text-[#2E2A27] text-center mb-2.5">See today's weather here</p>
