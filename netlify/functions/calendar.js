@@ -28,12 +28,17 @@ const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "
 const fold = (line) => { const out = []; let s = line; while (s.length > 74) { out.push(s.slice(0, 74)); s = " " + s.slice(74); } out.push(s); return out.join("\r\n"); };
 // alarm: a 9am heads-up on the day (shows as a phone notification from the calendar app)
 const ALARM = ["BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:Reminder", "TRIGGER:PT9H", "END:VALARM"];
+// Filing deadlines: 9am a week before and 9am the day before.
+const EARLY_ALARMS = [
+  "BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:Due in a week", "TRIGGER:-P6DT15H", "END:VALARM",
+  "BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:Due tomorrow", "TRIGGER:-PT15H", "END:VALARM",
+];
 function allDay(uid, title, start, endExclusive, { rrule, desc, alarm } = {}) {
   return [
     "BEGIN:VEVENT", `UID:${uid}@guia`, `DTSTAMP:${stamp}`,
     `DTSTART;VALUE=DATE:${ymd(start)}`, `DTEND;VALUE=DATE:${ymd(endExclusive || nextDay(start))}`,
     `SUMMARY:${esc(title)}`, ...(desc ? [`DESCRIPTION:${esc(desc)}`] : []), ...(rrule ? [`RRULE:${rrule}`] : []),
-    "TRANSP:TRANSPARENT", ...(alarm ? ALARM : []), "END:VEVENT",
+    "TRANSP:TRANSPARENT", ...(alarm === "early" ? [...EARLY_ALARMS, ...ALARM] : alarm ? ALARM : []), "END:VEVENT",
   ].map(fold).join("\r\n");
 }
 // Routine reminder: a short repeating event at the person's own local time ("floating" time,
@@ -104,7 +109,7 @@ async function feed(token) {
   }
   if (inc.tasks) {
     (await readAll(data, rec.userId, "Task")).filter((t) => t.due_date && !t.completed).forEach((t) => {
-      events.push(allDay(`task-${t.id}`, t.title || "Task", t.due_date, null, { desc: t.notes || "", alarm: t.source === "credit" }));
+      events.push(allDay(`task-${t.id}`, t.title || "Task", t.due_date, null, { desc: t.notes || "", alarm: t.source === "sales_tax" ? "early" : t.source === "credit" }));
     });
   }
   if (inc.routines) {

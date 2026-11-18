@@ -19,6 +19,7 @@ import BusinessDocuments from "@/components/business/BusinessDocuments";
 import BusinessLog from "@/components/business/BusinessLog";
 import GoalsOverview, { goalIsDone, goalPct, isCount, metaOf, daysLeft, Bar } from "@/components/business/GoalsOverview";
 import BusinessSwitcher from "@/components/business/BusinessSwitcher";
+import SalesTaxCard from "@/components/business/SalesTaxCard";
 import { money } from "@/components/business/BusinessLog";
 
 const TABS = [["overview", "Overview"], ["goals", "Goals"], ["documents", "Documents"], ["log", "Log"]];
@@ -567,6 +568,14 @@ export default function Business({ switcher = null }) {
               ))}
             </div>
           </div>
+
+          <SalesTaxCard
+            business={readOnly ? businesses.find((b) => b.id === defaultId) : activeBusiness || businesses.find((b) => b.id === defaultId)}
+            entries={entries}
+            readOnly={readOnly}
+            onEntriesChange={loadEntries}
+            onBusinessChange={(b) => setBusinesses((list) => list.map((x) => (x.id === b.id ? b : x)))}
+          />
 
           {sectionHead("goals", "Goals", "See all", () => setTab("goals"))}
           {!shut.goals && <div className="bg-card border border-border rounded-2xl p-4 mb-5 space-y-4">
