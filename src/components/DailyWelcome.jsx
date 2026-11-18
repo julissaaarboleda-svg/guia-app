@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Sun, CloudSun, Cloud, CloudFog, CloudDrizzle, CloudRain, Snowflake, CloudLightning, Moon, Target, Flame, Receipt, Plane, Wind, Volume2 } from "lucide-react";
 import { ent } from "@/lib/freshEntities";
-import { SEEN_KEY, CHIMES_KEY, partOfDay, getWeather, describeWx, dayLines, thoughtFor, weatherTip, weatherPhrase } from "@/lib/welcome";
+import { SEEN_KEY, CHIMES_KEY, findPlaces, partOfDay, getWeather, describeWx, dayLines, thoughtFor, weatherTip, weatherPhrase } from "@/lib/welcome";
 import WeatherSky from "@/components/WeatherSky";
 
 const WX_ICON = { sun: Sun, sunCloud: CloudSun, cloud: Cloud, fog: CloudFog, drizzle: CloudDrizzle, rain: CloudRain, snow: Snowflake, storm: CloudLightning };
@@ -62,6 +62,32 @@ export default function DailyWelcome({ user, prefs }) {
   const part = partOfDay();
   const [freshPlace, setFreshPlace] = useState(null);
   const place = freshPlace || prefs?.weather_place;
+  const [cityOpen, setCityOpen] = useState(false);
+  const [cityQ, setCityQ] = useState("");
+  const [cityRes, setCityRes] = useState(null);
+  const [cityMsg, setCityMsg] = useState("");
+
+  const searchCity = async () => {
+    if (!cityQ.trim()) return;
+    setCityMsg("Searching…"); setCityRes(null);
+    try {
+      const r = await findPlaces(cityQ.trim());
+      setCityRes(r); setCityMsg(r.length ? "" : "No places found. Try just the city name.");
+    } catch { setCityMsg("Couldn't search right now."); }
+  };
+  const pickCity = async (r) => {
+    setFreshPlace(r); setCityOpen(false); setCityRes(null);
+    try {
+      if (prefs?.id) await ent.UserPreferences.update(prefs.id, { weather_place: r });
+      else if (user?.email) {
+        const found = await ent.UserPreferences.filter({ user_email: user.email });
+        if (found[0]) await ent.UserPreferences.update(found[0].id, { weather_place: r });
+        else await ent.UserPreferences.create({ user_email: user.email, weather_place: r });
+      }
+      const raw = JSON.parse(localStorage.getItem("guia:nav-prefs") || "null");
+      if (raw) localStorage.setItem("guia:nav-prefs", JSON.stringify({ ...raw, weather_place: r }));
+    } catch { /* weather still shows for now */ }
+  };
 
   // Decide whether to show on this app start.
   useEffect(() => {
@@ -237,7 +263,28 @@ export default function DailyWelcome({ user, prefs }) {
 
             <div className="mt-auto">
               <button type="button" onClick={close} className="dw-a4 w-full h-12 rounded-2xl bg-[#2E2A27] text-[#F7F3EC] text-[15px]">Start my day</button>
-              {!place && <p className="text-center text-[11.5px] text-[#7A716A] mt-2">Add your city in Settings to see the weather here.</p>}
+              {!place && !cityOpen && (
+                <button type="button" onClick={() => setCityOpen(true)} className="block mx-auto text-[12.5px] text-[#A7773F] mt-3 underline underline-offset-2">Add your city to see the weather</button>
+              )}
+              {!place && cityOpen && (
+                <div className="mt-3">
+                  <div className="flex gap-2">
+                    <input value={cityQ} onChange={(e) => setCityQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && searchCity()} placeholder="City, e.g. Houston" autoFocus
+                      className="flex-1 h-10 rounded-xl border border-[#E4DCCF] bg-white px-3 text-[14px] outline-none focus:border-[#A7773F]" />
+                    <button type="button" onClick={searchCity} className="h-10 px-4 rounded-xl border border-[#A7773F] text-[#A7773F] text-[14px]">Search</button>
+                  </div>
+                  {cityMsg && <p className="text-[12px] text-[#7A716A] mt-2 text-center">{cityMsg}</p>}
+                  {cityRes?.length > 0 && (
+                    <div className="mt-2 rounded-xl border border-[#E4DCCF] bg-white divide-y divide-[#EFE8DC] max-h-44 overflow-y-auto">
+                      {cityRes.map((r, i) => (
+                        <button key={i} type="button" onClick={() => pickCity(r)} className="w-full text-left px-3 py-2.5 text-[14px] text-[#2E2A27]">
+                          {r.name}<span className="text-[#7A716A]">{r.region ? `, ${r.region}` : ""}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </>
         ) : (
