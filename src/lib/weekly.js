@@ -1,6 +1,7 @@
 // Sunday weekly review: everything comes from data Guía already has.
 import { dayKey, isScheduled, completeOn, stepsFor, streaks, colorOf } from "@/lib/routines";
 import { isPaid, isRecurringBill, isYearlyBill, dueInfo } from "@/lib/financeHelpers";
+import { quarterId } from "@/lib/quarters";
 
 const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
 const noon = (d) => { const x = new Date(d); x.setHours(12, 0, 0, 0); return x; };
@@ -120,7 +121,9 @@ export function buildReview({ routines = [], tasks = [], goals = [], finItems = 
   billsSoon.slice(0, 1).forEach(({ b }) => push({ text: `Pay ${b.name}`, kind: "bill", refId: b.id }));
   routineRows.filter((r) => { const s = r.days.filter((x) => x !== "off").length; const d = r.days.filter((x) => x === "done").length; return s >= 2 && d / s < 0.6; })
     .slice(0, 1).forEach((r) => push({ text: `Get ${r.name} back on track`, kind: "routine", refId: r.id }));
-  goals.filter((g) => g.status !== "done").sort((a, b) => String(a.target_date || "9999").localeCompare(String(b.target_date || "9999")))
+  // This quarter's focus goals come first, so each week builds toward them.
+  const qNow = quarterId(today);
+  goals.filter((g) => g.status !== "done").sort((a, b) => (b.focus_quarter === qNow) - (a.focus_quarter === qNow) || String(a.target_date || "9999").localeCompare(String(b.target_date || "9999")))
     .slice(0, 2).forEach((g) => {
       const next = (g.sub_tasks || []).find((s) => !s.completed);
       push({ text: next ? `${next.text} (${g.title})` : `Take a step on ${g.title}`, kind: "goal", refId: g.id });

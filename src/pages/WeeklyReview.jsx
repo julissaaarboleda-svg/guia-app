@@ -6,6 +6,7 @@ import { ent } from "@/lib/freshEntities";
 import { reviewWeek, buildReview } from "@/lib/weekly";
 import { monthView } from "@/lib/spending";
 import { monthKeyOf } from "@/lib/financeHelpers";
+import { quarterId, shiftQ, qLabel, usesQuarters, goalDone, MAX_FOCUS } from "@/lib/quarters";
 
 const DAY_LETTERS = ["S", "M", "T", "W", "T", "F", "S"];
 const ICONS = { alert: AlertCircle, bill: Receipt, task: CalendarDays, trip: Plane };
@@ -31,6 +32,9 @@ export default function WeeklyReview() {
   const [line, setLine] = useState("");
   const [msg, setMsg] = useState("");
   const [saving, setSaving] = useState(false);
+  const [allGoals, setAllGoals] = useState([]);
+  const [qPicks, setQPicks] = useState([]);
+  const [qMsg, setQMsg] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -43,6 +47,7 @@ export default function WeeklyReview() {
         safe(ent.SpendingStatement.list()), safe(ent.BudgetBucket.list()),
       ]);
       setPrefs(p[0] || null);
+      setAllGoals(goals);
       const mk = monthKeyOf();
       const spending = { spent: monthView(stmts, mk)?.total || 0, planned: buckets.filter((b) => b.month === mk).reduce((t, b) => t + (Number(b.allocated_amount) || 0), 0) };
       setData(buildReview({ routines, tasks, goals, finItems, trips, spending }, week));
@@ -59,6 +64,20 @@ export default function WeeklyReview() {
     const base = data?.suggestions || [];
     return [...base, ...extra.filter((e) => !base.some((b) => b.text === e.text))];
   }, [data, extra]);
+
+  // A new quarter starts with the coming week: ask once for its focus goals (only if quarters are in use).
+  const newQ = quarterId(new Date(`${week.nextKey}T12:00:00`));
+  const prevQ = shiftQ(newQ, -1);
+  const askQuarter = usesQuarters(allGoals) && !allGoals.some((g) => g.focus_quarter === newQ);
+  const qCandidates = askQuarter ? allGoals.filter((g) => !goalDone(g))
+    .map((g) => ({ g, tag: g.focus_quarter === prevQ ? "carry over" : g.quarter === newQ ? `planned ${qLabel(newQ)}` : "" }))
+    .sort((a, b) => (b.tag ? 1 : 0) - (a.tag ? 1 : 0)) : [];
+  const toggleQ = (id) => {
+    setQMsg("");
+    if (qPicks.includes(id)) { setQPicks(qPicks.filter((x) => x !== id)); return; }
+    if (qPicks.length >= MAX_FOCUS) { setQMsg("3 is the limit. Unpick one first."); return; }
+    setQPicks([...qPicks, id]);
+  };
 
   const toggle = (text) => {
     setMsg("");
@@ -87,6 +106,9 @@ export default function WeeklyReview() {
     try {
       if (prefs?.id) await ent.UserPreferences.update(prefs.id, patch);
       else if (user?.email) await ent.UserPreferences.create({ user_email: user.email, ...patch });
+      if (askQuarter && qPicks.length) {
+        await Promise.all(qPicks.map((id) => ent.Goal.update(id, { focus_quarter: newQ, quarter: newQ }).catch(() => {})));
+      }
       if (line.trim()) {
         const esc = line.trim().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         await ent.Note.create({ title: `Week of ${week.label}`, content: `<p>${esc}</p>`, note_type: "text", folder_id: null });
@@ -209,6 +231,27 @@ export default function WeeklyReview() {
         />
         <p className="text-[12px] text-muted-foreground mt-1.5">Optional. Saved to Notes.</p>
       </Card>
+
+      {askQuarter && qCandidates.length > 0 && (
+        <Card title={`New quarter · ${qLabel(newQ)}`} tone="#A7773F">
+          <p className="font-heading text-[18px] text-foreground -mt-1">Pick this quarter's focus</p>
+          <p className="text-[12px] text-muted-foreground mb-2">Up to 3 goals. Optional, you can also do this later in Goals.</p>
+          <div className="space-y-1.5">
+            {qCandidates.map(({ g, tag }) => {
+              const on = qPicks.includes(g.id);
+              return (
+                <button key={g.id} type="button" onClick={() => toggleQ(g.id)}
+                  className={`w-full flex items-center gap-2.5 text-left text-[13px] px-3 py-2.5 rounded-xl border transition-colors ${on ? "bg-[#2E2A27] border-[#2E2A27] text-[#F7F3EC]" : "bg-background border-border text-foreground"}`}>
+                  <span className={`w-4 h-4 rounded-[5px] border flex items-center justify-center shrink-0 ${on ? "bg-[#A7773F] border-[#A7773F]" : "border-border"}`}>{on && <Check className="w-3 h-3 text-white" strokeWidth={3} />}</span>
+                  <span className="truncate flex-1">{g.title}</span>
+                  {tag && <span className={`text-[11px] shrink-0 ${on ? "opacity-70" : "text-muted-foreground"}`}>{tag}</span>}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[12px] text-destructive mt-1.5 min-h-[16px]">{qMsg}</p>
+        </Card>
+      )}
 
       <Card>
         <div className="flex items-baseline">

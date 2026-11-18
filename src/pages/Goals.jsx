@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { ent } from "@/lib/freshEntities";
 import { parseISO, differenceInCalendarDays } from "date-fns";
-import { Plus, Trash2, Check, Calendar, ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Trash2, Check, Calendar, ArrowLeft, ChevronDown, ChevronUp, Star } from "lucide-react";
+import { quarterId, shiftQ, qLabel, qShort, qDaysLeft, qElapsed, MAX_FOCUS } from "@/lib/quarters";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
@@ -41,6 +42,9 @@ export default function Goals() {
   const [showDoneTasks, setShowDoneTasks] = useState(false);
   const [showDoneGoals, setShowDoneGoals] = useState(false);
   const [showDoneSteps, setShowDoneSteps] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const [pickSel, setPickSel] = useState([]);
+  const [pickMsg, setPickMsg] = useState("");
 
   // Add form state
   const [title, setTitle] = useState("");
@@ -235,7 +239,7 @@ export default function Goals() {
             <span className="absolute inset-0 flex items-center justify-center font-heading text-[11px] text-foreground">{pct}%</span>
           </div>
           <div className="min-w-0 flex-1">
-            <p className="font-heading text-[16px] text-foreground truncate">{g.title}</p>
+            <p className="font-heading text-[16px] text-foreground truncate flex items-center gap-1.5">{g.focus_quarter === quarterId() && !finished && <Star className="w-3.5 h-3.5 text-[#A7773F] flex-shrink-0" strokeWidth={2} />}<span className="truncate">{g.title}</span></p>
             <p className="text-xs text-muted-foreground capitalize mt-0.5">{g.category} · {sub.length > 0 ? `${doneCount} of ${sub.length} steps` : STATUS_LABELS[g.status]}</p>
           </div>
           {finished ? (
@@ -255,6 +259,47 @@ export default function Goals() {
       </button>
     );
   };
+
+  // ── Quarter focus ──
+  const curQ = quarterId();
+  const focus = activeGoals.filter((g) => g.focus_quarter === curQ);
+  const later = activeGoals.filter((g) => g.focus_quarter !== curQ);
+  const upcoming = [1, 2, 3].map((n) => shiftQ(curQ, n));
+  const startPicking = () => { setPickSel(focus.map((g) => g.id)); setPicking(true); setPickMsg(""); };
+  const togglePick = (id) => {
+    setPickMsg("");
+    setPickSel((sel) => {
+      if (sel.includes(id)) return sel.filter((x) => x !== id);
+      if (sel.length >= MAX_FOCUS) { setPickMsg("3 is the limit. Unpick one first."); return sel; }
+      return [...sel, id];
+    });
+  };
+  const saveFocus = async () => {
+    const changes = goals.map((g) => {
+      const want = pickSel.includes(g.id);
+      const has = g.focus_quarter === curQ;
+      if (want && !has) return [g, { focus_quarter: curQ, quarter: curQ }];
+      if (!want && has) return [g, { focus_quarter: null, quarter: null }];
+      return null;
+    }).filter(Boolean);
+    setGoals((list) => list.map((g) => { const c = changes.find(([x]) => x.id === g.id); return c ? { ...g, ...c[1] } : g; }));
+    setPicking(false);
+    await Promise.all(changes.map(([g, patch]) => ent.Goal.update(g.id, patch).catch(() => {})));
+  };
+  const planQuarter = async (g, qid) => {
+    const next = g.quarter === qid ? null : qid;
+    setGoals((list) => list.map((x) => (x.id === g.id ? { ...x, quarter: next } : x)));
+    try { await ent.Goal.update(g.id, { quarter: next }); } catch { /* kept on screen */ }
+  };
+  const QuarterChips = ({ g }) => (
+    <div className="flex items-center gap-1 px-3 pb-2.5 -mt-1">
+      <span className="text-[11px] text-muted-foreground mr-1">{g.quarter && upcoming.includes(g.quarter) ? "Planned for" : "Someday ·"}</span>
+      {upcoming.map((qid) => (
+        <button key={qid} type="button" onClick={() => planQuarter(g, qid)} aria-pressed={g.quarter === qid}
+          className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${g.quarter === qid ? "bg-[#2E2A27] border-[#2E2A27] text-[#F7F3EC]" : "border-border text-muted-foreground"}`}>{qShort(qid, curQ)}</button>
+      ))}
+    </div>
+  );
 
   const showingDetail = selected || adding;
 
@@ -310,7 +355,62 @@ export default function Goals() {
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5">
           {activeTab === "goals" && (
             <>
-              {activeGoals.map(renderGoalCard)}
+              {picking ? (
+                <div className="rounded-2xl bg-card border border-[#A7773F]/50 p-3.5">
+                  <p className="text-[10.5px] tracking-[0.14em] uppercase font-semibold text-[#A7773F]">{qLabel(curQ)} · {qDaysLeft(curQ)} days left</p>
+                  <p className="font-heading text-[18px] text-foreground mt-0.5">Pick this quarter's focus</p>
+                  <p className="text-[12px] text-muted-foreground mb-2.5">Up to 3 goals. The rest wait for later.</p>
+                  <div className="space-y-1.5">
+                    {activeGoals.map((g) => {
+                      const on = pickSel.includes(g.id);
+                      return (
+                        <button key={g.id} type="button" onClick={() => togglePick(g.id)}
+                          className={`w-full flex items-center gap-2.5 text-left text-[13.5px] px-3 py-2.5 rounded-xl border transition-colors ${on ? "bg-[#2E2A27] border-[#2E2A27] text-[#F7F3EC]" : "bg-background border-border text-foreground"}`}>
+                          <span className={`w-4 h-4 rounded-[5px] border flex items-center justify-center flex-shrink-0 ${on ? "bg-[#A7773F] border-[#A7773F]" : "border-border"}`}>{on && <Check className="w-3 h-3 text-white" strokeWidth={3} />}</span>
+                          <span className="truncate flex-1">{g.title}</span>
+                          {g.quarter === curQ && !on && <span className="text-[11px] text-muted-foreground">planned</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[12px] text-destructive mt-1.5 min-h-[16px]">{pickMsg}</p>
+                  <div className="flex gap-2 mt-1">
+                    <button type="button" onClick={saveFocus} className="flex-1 h-10 rounded-xl bg-[#2E2A27] text-[#F7F3EC] text-[13.5px]">Save focus</button>
+                    <button type="button" onClick={() => setPicking(false)} className="h-10 px-4 rounded-xl border border-border text-[13px] text-foreground">Cancel</button>
+                  </div>
+                </div>
+              ) : focus.length > 0 ? (
+                <>
+                  <div className="px-1 pt-0.5">
+                    <div className="flex items-baseline gap-2">
+                      <h2 className="font-heading text-[19px] text-foreground">This quarter</h2>
+                      <span className="text-[12px] text-muted-foreground">{qLabel(curQ)} · {qDaysLeft(curQ)} days left</span>
+                      <button type="button" onClick={startPicking} className="ml-auto text-[12px] text-[#A7773F]">Edit</button>
+                    </div>
+                    <div className="h-1 rounded-full bg-[#EFE8DC] overflow-hidden mt-2 mb-1"><div className="h-full bg-[#A7773F] rounded-full" style={{ width: `${Math.round(qElapsed(curQ) * 100)}%` }} /></div>
+                  </div>
+                  {focus.map(renderGoalCard)}
+                  {later.length > 0 && (
+                    <h3 className="font-heading text-[16px] text-foreground px-1 pt-3">Later</h3>
+                  )}
+                  {[...later].sort((a, b) => String(a.quarter || "9999").localeCompare(String(b.quarter || "9999"))).map((g) => (
+                    <div key={g.id} className="rounded-2xl">
+                      {renderGoalCard(g)}
+                      <QuarterChips g={g} />
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <>
+                  {activeGoals.length > 0 && (
+                    <button type="button" onClick={startPicking} className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-2xl border border-dashed border-[#A7773F]/50 text-[13px] text-[#8A5F27]">
+                      <Star className="w-4 h-4" strokeWidth={1.75} />Set this quarter's focus
+                      <span className="ml-auto text-[11.5px] text-muted-foreground">{qLabel(curQ)}</span>
+                    </button>
+                  )}
+                  {activeGoals.map(renderGoalCard)}
+                </>
+              )}
               {doneGoals.length > 0 && (
                 <div className="pt-2">
                   <button onClick={() => setShowDoneGoals(v => !v)} className="w-full flex items-center justify-between px-1 py-1.5 text-[10.5px] tracking-[0.16em] uppercase font-semibold text-muted-foreground">

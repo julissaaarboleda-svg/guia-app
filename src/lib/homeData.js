@@ -168,6 +168,7 @@ export const RING_CATALOG = [
   { id: "trip", label: "Trip planning", desc: "Packing and itinerary for the next trip", group: "area" },
   { id: "finance", label: "Finance", desc: "Savings goals saved so far", group: "area" },
   { id: "goal", label: "Personal goals", desc: "Steps done on a goal you pick", group: "more", pick: "goal" },
+  { id: "quarter", label: "This quarter", desc: "Progress on this quarter's focus goals", group: "more" },
   { id: "project", label: "One project", desc: "Tasks done in a single project", group: "more", pick: "project" },
   { id: "loans", label: "Loan pay-down", desc: "How much of your loans you've paid", group: "more" },
   { id: "bills", label: "Bills this month", desc: "Bills paid out of bills due", group: "more" },
@@ -232,6 +233,14 @@ export function buildProgress({ routines = [], selection = null, trips = [], pro
       const l = builders.loans();
       return l.empty ? empty("Finance", "Add a savings goal", "/finance") : { ...l, label: "Finance" };
     },
+    quarter: () => {
+      const qid = `${new Date().getFullYear()}-Q${Math.floor(new Date().getMonth() / 3) + 1}`;
+      const focus = goals.filter((g) => g.focus_quarter === qid);
+      if (!focus.length) return empty("This quarter", "Pick quarter goals", "/goals");
+      const pctOf = (g) => { const st = g.sub_tasks || []; return st.length ? (st.filter((t) => t.completed).length / st.length) * 100 : (g.status === "done" ? 100 : 0); };
+      const avg = Math.round(focus.reduce((t, g) => t + pctOf(g), 0) / focus.length);
+      return ring("This quarter", avg, `${focus.length} focus goal${focus.length === 1 ? "" : "s"}`, "/goals");
+    },
     goal: (ref) => {
       const open = goals.filter((g) => g.status !== "completed");
       const g = goals.find((x) => x.id === ref)
@@ -274,7 +283,7 @@ export function buildProgress({ routines = [], selection = null, trips = [], pro
   };
 
   const picks = (selection && selection.length ? selection : DEFAULT_RINGS).filter((r) => builders[r.id]).slice(0, MAX_RINGS);
-  const RING_COLOR = { business: "#A7773F", finance: "#7D8A53", routines: "#A77C81", projects: "#2E2A27", project: "#2E2A27", trip: "#A7773F", goal: "#7D8A53", loans: "#7D8A53", bills: "#A77C81", spending: "#A77C81", credit: "#7D8A53" };
+  const RING_COLOR = { business: "#A7773F", finance: "#7D8A53", routines: "#A77C81", projects: "#2E2A27", project: "#2E2A27", trip: "#A7773F", goal: "#7D8A53", quarter: "#A7773F", loans: "#7D8A53", bills: "#A77C81", spending: "#A77C81", credit: "#7D8A53" };
   return picks.map((r) => ({ ...builders[r.id](r.ref), color: RING_COLOR[r.id] || "#A7773F", short: r.id }));
 }
 
