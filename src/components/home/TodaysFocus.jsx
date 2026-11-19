@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Check, Flame, Star } from "lucide-react";
 import { getModule } from "@/lib/homeModules";
+import RoutineSheet from "@/components/home/RoutineSheet";
 import { colorOf, dayKey, isScheduled, doneOn, completeOn, stepsFor, streaks } from "@/lib/routines";
 const PRIORITY_CHIP = {
   high: "bg-[#F3E8D6] text-[#8A5F27]",
@@ -32,7 +33,9 @@ function weekDots(r) {
 const SLOT_ORDER = { morning: 0, anytime: 1, evening: 2 };
 const fmtTime = (t) => { const [h, m] = String(t).split(":").map(Number); return `${((h + 11) % 12) + 1}:${String(m || 0).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`; };
 
-export default function TodaysFocus({ items, total = 0, starIds, onComplete, routines = [], onRoutineToggle, overdue = 0 }) {
+export default function TodaysFocus({ items, total = 0, starIds, onComplete, routines = [], onRoutineToggle, onRoutineStep, overdue = 0 }) {
+  const [sheetId, setSheetId] = useState(null);
+  const sheetRoutine = sheetId ? routines.find((x) => x.id === sheetId) : null;
   // The bug: sub-item ids (goal sub-tasks, project tasks, packing items)
   // are built from their array index. Completing one shifts every later
   // item's index down by one, so a completely different item can inherit
@@ -142,7 +145,7 @@ export default function TodaysFocus({ items, total = 0, starIds, onComplete, rou
                     const slot = { morning: "Morning", evening: "Evening" }[r.slot] || "Anytime";
                     return (
                       <div key={r.id} className="rounded-xl border border-border/60 bg-background/40 px-2.5 py-2 flex items-center gap-2">
-                        <Link to="/goals?view=routines" className="flex-1 min-w-0">
+                        <button type="button" onClick={() => setSheetId(r.id)} className="flex-1 min-w-0 text-left">
                           <span className="flex items-center text-[9.5px] tracking-[0.14em] uppercase font-medium" style={{ color: c }}>
                             <span className="truncate">{r.remind_at ? fmtTime(r.remind_at) : slot}</span>
                             {streak >= 2 && <span className="ml-auto pl-1 tracking-normal inline-flex items-center gap-0.5 text-[#A7773F] flex-shrink-0" title={`${streak}-day streak`}><Flame className="w-3 h-3" strokeWidth={2} />{streak}</span>}
@@ -158,7 +161,7 @@ export default function TodaysFocus({ items, total = 0, starIds, onComplete, rou
                                   : { background: "#F2EEE6" }} />
                             ))}
                           </span>
-                        </Link>
+                        </button>
                         <button onClick={() => onRoutineToggle?.(r, !fin)} aria-label={fin ? `Undo ${r.name}` : `Complete ${r.name}`}
                           className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
                           style={fin ? { background: c } : { border: `1.5px solid ${c}` }}>
@@ -173,6 +176,11 @@ export default function TodaysFocus({ items, total = 0, starIds, onComplete, rou
           </div>
         );
       })()}
+      {sheetRoutine && (
+        <RoutineSheet routine={sheetRoutine}
+          timeLabel={sheetRoutine.remind_at ? fmtTime(sheetRoutine.remind_at) : ({ morning: "Morning", evening: "Evening" }[sheetRoutine.slot] || "Anytime")}
+          onStep={(r, id) => onRoutineStep?.(r, id)} onAll={(r, done) => onRoutineToggle?.(r, done)} onClose={() => setSheetId(null)} />
+      )}
     </section>
   );
 }

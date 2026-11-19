@@ -82,6 +82,17 @@ export default function RoutinesView({ addSignal = 0 }) {
     setLoaded(true);
   };
   useEffect(() => { load(); }, []);
+  // Opened from Home with ?edit=<id>: jump straight into editing that routine.
+  const editAsked = useRef(false);
+  useEffect(() => {
+    if (editAsked.current || !routines.length) return;
+    let id = null;
+    try { id = new URLSearchParams(window.location.search).get("edit"); } catch { /* ignore */ }
+    if (!id) return;
+    editAsked.current = true;
+    const r = routines.find((x) => x.id === id);
+    if (r) setForm({ ...r, steps: r.steps?.length ? r.steps : [{ id: newId(), text: "", note: "" }] });
+  }, [routines]);
   useEffect(() => { if (addSignal) setForm(blank()); }, [addSignal]);
 
   const save = async (r, patch) => {
@@ -104,7 +115,7 @@ export default function RoutinesView({ addSignal = 0 }) {
   const submit = async () => {
     const steps = (form.steps || []).filter((s) => s.text.trim()).map((s) => ({ id: s.id, text: s.text.trim(), note: (s.note || "").trim(), days: s.days && s.days.length && s.days.length < 7 ? s.days : null }));
     if (!form.name.trim() || !steps.length) return;
-    const data = { name: form.name.trim(), color: form.color, slot: form.slot, days: form.days && form.days.length && form.days.length < 7 ? form.days : null, steps, remind_at: form.remind_at || null };
+    const data = { name: form.name.trim(), hint: (form.hint || "").trim() || null, color: form.color, slot: form.slot, days: form.days && form.days.length && form.days.length < 7 ? form.days : null, steps, remind_at: form.remind_at || null };
     if (form.id) {
       await ent.Routine.update(form.id, data);
       setRoutines((list) => list.map((x) => (x.id === form.id ? { ...x, ...data } : x)));
@@ -138,6 +149,7 @@ export default function RoutinesView({ addSignal = 0 }) {
           <button onClick={() => setForm(null)} aria-label="Close" className="p-1 text-muted-foreground"><X className="w-5 h-5" strokeWidth={1.5} /></button>
         </div>
         <input value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="Name, e.g. Facial routine" className={FIELD} />
+        <input value={form.hint || ""} onChange={(e) => set({ hint: e.target.value })} placeholder="Short reminder (optional), e.g. With breakfast" className={`${FIELD} text-[13px] py-2 mt-2`} />
 
         <p className={`${label} mt-4 mb-2`}>Color</p>
         <div className="flex gap-2 flex-wrap">
@@ -193,7 +205,7 @@ export default function RoutinesView({ addSignal = 0 }) {
               <span className="text-xs text-muted-foreground w-4 pt-3 text-right">{i + 1}</span>
               <div className="flex-1 space-y-1.5">
                 <input value={s.text} onChange={(e) => setStep(i, { text: e.target.value })} placeholder="Step, e.g. Cleanser or Shoulder press" className={FIELD} />
-                <input value={s.note || ""} onChange={(e) => setStep(i, { note: e.target.value })} placeholder="Note (optional), e.g. 3 × 10 · 15 lb" className={`${FIELD} text-[13px] py-2`} />
+                <input value={s.note || ""} onChange={(e) => setStep(i, { note: e.target.value })} placeholder="How to (optional), e.g. with food · 3 × 10" className={`${FIELD} text-[13px] py-2`} />
                 <div className="flex items-center gap-1 flex-wrap">
                   <span className="text-[11px] text-muted-foreground mr-1">{s.days && s.days.length ? "Only on" : "Every time · or only on"}</span>
                   {[1, 2, 3, 4, 5, 6, 0].map((d) => {

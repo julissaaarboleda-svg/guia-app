@@ -13,7 +13,7 @@ import { activeFocus } from "@/lib/weekly";
 import { Link } from "react-router-dom";
 import RingsCustomizer from "@/components/home/RingsCustomizer";
 import { getAiUsage } from "@/api/base44Client";
-import { isScheduled, completeOn, dayKey, setAllToday, stepsFor } from "@/lib/routines";
+import { isScheduled, completeOn, dayKey, setAllToday, stepsFor, toggleStep } from "@/lib/routines";
 import { monthView } from "@/lib/spending";
 import { monthKeyOf } from "@/lib/financeHelpers";
 import { buildFocusItems, buildUpNext, buildProgress, buildDailyStatus } from "@/lib/homeData";
@@ -204,6 +204,11 @@ export default function Dashboard() {
     const t0 = dayKey();
     return tasks.filter((t) => !t.completed && t.due_date && String(t.due_date).slice(0, 10) < t0).length;
   }, [tasks]);
+  const toggleRoutineStep = async (r, stepId) => {
+    const log = toggleStep(r, stepId);
+    setRoutines((list) => list.map((x) => (x.id === r.id ? { ...x, log } : x)));
+    try { await ent.Routine.update(r.id, { log }); } catch { /* will reload next visit */ }
+  };
   const toggleRoutine = async (r, done) => {
     const log = setAllToday(r, done);
     setRoutines((list) => list.map((x) => (x.id === r.id ? { ...x, log } : x)));
@@ -326,7 +331,7 @@ export default function Dashboard() {
       <div className="space-y-5 lg:space-y-0 lg:grid lg:grid-cols-[minmax(0,1fr)_400px] 2xl:grid-cols-[minmax(0,1fr)_460px] lg:gap-x-8 lg:gap-y-6 lg:items-start">
       <Reveal delay={0.06} className="lg:col-start-1 lg:row-start-1 min-w-0">
         {loaded ? (
-          <TodaysFocus items={focus.items} total={focus.total} starIds={starIds} onComplete={completeFocus} routines={routines} onRoutineToggle={toggleRoutine} overdue={overdue} />
+          <TodaysFocus items={focus.items} total={focus.total} starIds={starIds} onComplete={completeFocus} routines={routines} onRoutineToggle={toggleRoutine} onRoutineStep={toggleRoutineStep} overdue={overdue} />
         ) : (
           <section>
             <div className="flex items-end justify-between mb-2.5">
