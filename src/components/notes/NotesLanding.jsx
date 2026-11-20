@@ -334,9 +334,10 @@ export default function NotesLanding({
                   </button>
                   {!placeShut[g.key] && g.list.map((p) => (
                     <div key={p.id} className="flex items-center gap-3 py-2.5 px-4 border-t border-border/40">
-                      <span className="w-11 h-11 rounded-xl bg-[#A7773F1F] flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      <button type="button" onClick={() => (onPlaceOpen ? onPlaceOpen(p) : onPlaceMenu(p))} aria-label={`Open ${p.name || "place"}`}
+                        className="w-11 h-11 rounded-xl bg-[#A7773F1F] flex items-center justify-center flex-shrink-0 overflow-hidden">
                         {p.photo_url ? <img src={p.photo_url} alt="" className="w-full h-full object-cover" /> : <MapPin className="w-4 h-4 text-[#A7773F]" strokeWidth={1.8} />}
-                      </span>
+                      </button>
                       <button onClick={() => (onPlaceOpen ? onPlaceOpen(p) : onPlaceMenu(p))} className="flex-1 min-w-0 text-left">
                         <p className="font-heading text-[16px] text-foreground truncate leading-snug">{p.name || "Untitled place"}</p>
                         <p className="font-body text-[12px] text-muted-foreground mt-0.5 truncate">

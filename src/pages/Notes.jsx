@@ -923,8 +923,8 @@ function PlaceViewSheet({ place, onClose, onEdit, onPatch }) {
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
       <div className="relative w-full sm:max-w-md bg-card rounded-t-3xl sm:rounded-3xl shadow-2xl border border-border overflow-hidden max-h-[88vh] overflow-y-auto">
         {place.photo_url ? (
-          <div className="relative h-44 bg-charcoal">
-            <img src={place.photo_url} alt="" className="w-full h-full object-cover" />
+          <div className="relative bg-charcoal">
+            <img src={place.photo_url} alt="" className="block w-full h-auto min-h-[176px] max-h-[52vh] object-cover" />
             <button onClick={onClose} aria-label="Close" className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/45 text-white flex items-center justify-center"><X className="w-4 h-4" /></button>
             {place.photo_credit && <span className="absolute bottom-2 right-3 text-[10px] text-white/80">{place.photo_credit}</span>}
           </div>
