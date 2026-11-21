@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
-import { Plus, Check, ArrowLeft, X, Trash2, Flame, Upload, Loader2 } from "lucide-react";
+import { Plus, Check, ArrowLeft, X, Trash2, Flame, Upload, Loader2, EyeOff } from "lucide-react";
 import {
   ROUTINE_COLORS, SLOTS, DAY_LETTERS, colorOf, dayKey, isScheduled, doneOn, completeOn,
   scheduleLabel, streaks, completionRate, weekDays, toggleStep, stepsFor, stepOn, daysLabel, setAllToday, combineRoutines,
@@ -119,7 +119,7 @@ export default function RoutinesView({ addSignal = 0 }) {
     let steps = (form.steps || []).filter((s) => s.text.trim()).map((s) => ({ id: s.id, text: s.text.trim(), note: (s.note || "").trim(), days: s.days && s.days.length && s.days.length < 7 ? s.days : null }));
     if (!form.name.trim()) return;
     if (!steps.length) steps = [{ id: form._implicitId || newId(), text: form.name.trim(), note: "", days: null, implicit: true }];
-    const data = { name: form.name.trim(), hint: (form.hint || "").trim() || null, color: form.color, slot: form.slot, days: form.days && form.days.length && form.days.length < 7 ? form.days : null, steps, remind_at: form.remind_at || null };
+    const data = { name: form.name.trim(), hint: (form.hint || "").trim() || null, color: form.color, slot: form.slot, days: form.days && form.days.length && form.days.length < 7 ? form.days : null, steps, remind_at: form.remind_at || null, hide_home: !!form.hide_home };
     if (form.id) {
       await ent.Routine.update(form.id, data);
       setRoutines((list) => list.map((x) => (x.id === form.id ? { ...x, ...data } : x)));
@@ -201,6 +201,17 @@ export default function RoutinesView({ addSignal = 0 }) {
           )}
         </div>
         {form.remind_at && <p className="text-[11.5px] text-muted-foreground mt-1.5">Shows up with an alert in your calendar on the days above, once Calendar sync is on (Settings).</p>}
+
+        <div className="flex items-center gap-3 mt-4 pt-4 border-t border-border/60">
+          <div className="flex-1 min-w-0">
+            <p className="text-[14px] text-foreground">Show on Home</p>
+            <p className="text-[11.5px] text-muted-foreground">Off: track it here in Routines only. Reminders still come.</p>
+          </div>
+          <button type="button" role="switch" aria-checked={!form.hide_home} aria-label="Show on Home" onClick={() => set({ hide_home: !form.hide_home })}
+            className="relative w-10 h-6 rounded-full flex-shrink-0 transition-colors" style={{ backgroundColor: !form.hide_home ? "#A7773F" : "#E7D9C6" }}>
+            <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-all" style={{ left: !form.hide_home ? "18px" : "2px" }} />
+          </button>
+        </div>
 
         <p className={`${label} mt-4 mb-1`}>Steps · optional</p>
         {!form.steps.length && <p className="text-[12px] text-muted-foreground mb-2">No steps needed. It'll be one simple check each day.</p>}
@@ -416,6 +427,7 @@ export default function RoutinesView({ addSignal = 0 }) {
                           {s.current > 0 && <span className="text-[11.5px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap inline-flex items-center gap-1" style={{ color: c, background: `${c}1F` }}><Flame className="w-3 h-3" strokeWidth={2} />{s.current}</span>}
                         </div>
                         <p className="text-[11.5px] text-muted-foreground mt-0.5">{scheduleLabel(r)} · {sched ? (d >= n && n ? "done today" : isSimple(r) ? "to do today" : `${d} of ${n} steps today`) : "rest day"}</p>
+                        {r.hide_home && <span className="inline-flex items-center gap-1 mt-1 text-[10.5px] px-2 py-0.5 rounded-full bg-[#EFE8DC] text-[#6B635C]"><EyeOff className="w-3 h-3" />Hidden from Home</span>}
                         <div className="h-[5px] rounded-full bg-[#EFE8DC] mt-2 overflow-hidden"><div className="h-full rounded-full" style={{ width: sched && n ? `${Math.round((d / n) * 100)}%` : 0, background: c }} /></div>
                       </button>
                       {n > 0 && (

@@ -203,7 +203,9 @@ export default function Dashboard() {
     return ringsReady && routinesIn ? list : list.map((c) => ({ ...c, value: 0, display: "", sub: "\u00a0", empty: false }));
   }, [routines, prefs, trips, projects, goals, allFin, bizProgress, spendingProgress, creditProg, ringsReady, routinesIn]);
 
-  const routinesLeft = useMemo(() => routines.filter((r) => isScheduled(r) && stepsFor(r).length && !completeOn(r, dayKey())).length, [routines]);
+  // Routines switched off "Show on Home" stay in the Routines tab only.
+  const homeRoutines = useMemo(() => routines.filter((r) => !r.hide_home), [routines]);
+  const routinesLeft = useMemo(() => homeRoutines.filter((r) => isScheduled(r) && stepsFor(r).length && !completeOn(r, dayKey())).length, [homeRoutines]);
   const dailyStatus = useMemo(() => {
     const base = buildDailyStatus({ tasks, trips, finItems, goals });
     return routinesLeft ? `${base} · ${routinesLeft} routine${routinesLeft === 1 ? "" : "s"} left` : base;
@@ -339,7 +341,7 @@ export default function Dashboard() {
       <div className="space-y-5 lg:space-y-0 lg:grid lg:grid-cols-[minmax(0,1fr)_400px] 2xl:grid-cols-[minmax(0,1fr)_460px] lg:gap-x-8 lg:gap-y-6 lg:items-start">
       <Reveal delay={0.06} className="lg:col-start-1 lg:row-start-1 min-w-0">
         {loaded ? (
-          <TodaysFocus items={focus.items} total={focus.total} starIds={starIds} onComplete={completeFocus} routines={routines} onRoutineToggle={toggleRoutine} onRoutineStep={toggleRoutineStep} overdue={overdue} />
+          <TodaysFocus items={focus.items} total={focus.total} starIds={starIds} onComplete={completeFocus} routines={homeRoutines} onRoutineToggle={toggleRoutine} onRoutineStep={toggleRoutineStep} overdue={overdue} />
         ) : (
           <section>
             <div className="flex items-end justify-between mb-2.5">

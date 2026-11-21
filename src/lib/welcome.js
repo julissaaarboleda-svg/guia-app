@@ -90,7 +90,7 @@ export function dayLines({ tasks = [], routines = [], finItems = [], trips = [],
   if (dueNow.length) lines.push({ icon: "target", tone: "cognac", parts: [dueNow.length === 1 ? "1 priority: " : `${dueNow.length} priorities, starting with `, { b: dueNow[0].title }] });
 
   const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-  const todays = routines.filter((r) => (r.steps || []).length && isScheduled(r, now) && stepsFor(r, now).length && !completeOn(r, tk))
+  const todays = routines.filter((r) => !r.hide_home && (r.steps || []).length && isScheduled(r, now) && stepsFor(r, now).length && !completeOn(r, tk))
     .sort((a, b) => (SLOT_ORDER[a.slot] ?? 1) - (SLOT_ORDER[b.slot] ?? 1) || String(a.remind_at || "99").localeCompare(String(b.remind_at || "99")));
   const nextR = todays.find((r) => r.remind_at && r.remind_at >= hhmm) || todays[0];
   if (nextR) {
