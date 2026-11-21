@@ -9,7 +9,10 @@ import {
 
 const newId = () => Math.random().toString(36).slice(2, 10);
 const fmtTime = (t) => { const [h, m] = String(t).split(":").map(Number); return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`; };
-const blank = () => ({ name: "", color: "cognac", slot: "morning", days: null, steps: [{ id: newId(), text: "", note: "" }] });
+const blank = () => ({ name: "", color: "cognac", slot: "morning", days: null, steps: [] });
+// A routine saved without steps gets one hidden step, so it works as a single check everywhere.
+const isSimple = (r) => (r.steps || []).length === 1 && !!r.steps[0].implicit;
+const toForm = (r) => ({ ...r, steps: (r.steps || []).filter((st) => !st.implicit), _implicitId: (r.steps || []).find((st) => st.implicit)?.id });
 const label = "text-[10.5px] font-semibold tracking-[0.14em] uppercase text-muted-foreground";
 const FIELD = "w-full bg-card border border-border rounded-xl px-3 py-2.5 text-sm text-foreground outline-none focus:border-[#A7773F]";
 
@@ -91,7 +94,7 @@ export default function RoutinesView({ addSignal = 0 }) {
     if (!id) return;
     editAsked.current = true;
     const r = routines.find((x) => x.id === id);
-    if (r) setForm({ ...r, steps: r.steps?.length ? r.steps : [{ id: newId(), text: "", note: "" }] });
+    if (r) setForm(toForm(r));
   }, [routines]);
   useEffect(() => { if (addSignal) setForm(blank()); }, [addSignal]);
 
@@ -113,8 +116,9 @@ export default function RoutinesView({ addSignal = 0 }) {
   };
 
   const submit = async () => {
-    const steps = (form.steps || []).filter((s) => s.text.trim()).map((s) => ({ id: s.id, text: s.text.trim(), note: (s.note || "").trim(), days: s.days && s.days.length && s.days.length < 7 ? s.days : null }));
-    if (!form.name.trim() || !steps.length) return;
+    let steps = (form.steps || []).filter((s) => s.text.trim()).map((s) => ({ id: s.id, text: s.text.trim(), note: (s.note || "").trim(), days: s.days && s.days.length && s.days.length < 7 ? s.days : null }));
+    if (!form.name.trim()) return;
+    if (!steps.length) steps = [{ id: form._implicitId || newId(), text: form.name.trim(), note: "", days: null, implicit: true }];
     const data = { name: form.name.trim(), hint: (form.hint || "").trim() || null, color: form.color, slot: form.slot, days: form.days && form.days.length && form.days.length < 7 ? form.days : null, steps, remind_at: form.remind_at || null };
     if (form.id) {
       await ent.Routine.update(form.id, data);
@@ -198,7 +202,8 @@ export default function RoutinesView({ addSignal = 0 }) {
         </div>
         {form.remind_at && <p className="text-[11.5px] text-muted-foreground mt-1.5">Shows up with an alert in your calendar on the days above, once Calendar sync is on (Settings).</p>}
 
-        <p className={`${label} mt-4 mb-2`}>Steps</p>
+        <p className={`${label} mt-4 mb-1`}>Steps · optional</p>
+        {!form.steps.length && <p className="text-[12px] text-muted-foreground mb-2">No steps needed. It'll be one simple check each day.</p>}
         <div className="space-y-2">
           {form.steps.map((s, i) => (
             <div key={s.id} className="flex gap-2 items-start">
@@ -257,7 +262,7 @@ export default function RoutinesView({ addSignal = 0 }) {
         {form._mergeFrom && <p className="mt-4 text-[12.5px] text-[#8A5F27] bg-[#F3E8D6] rounded-lg px-3 py-2">Combined. Check the steps above, then Save. "{routines.find((r) => r.id === form._mergeFrom)?.name}" will be removed when you save.</p>}
 
         <div className="flex items-center gap-4 mt-6">
-          <button onClick={submit} disabled={!form.name.trim() || !form.steps.some((s) => s.text.trim())}
+          <button onClick={submit} disabled={!form.name.trim()}
             className="bg-[#A7773F] text-[#F7F3EC] px-6 py-2.5 rounded-full text-sm font-medium disabled:opacity-40">Save routine</button>
           {form.id && <button onClick={() => remove(form.id)} className="inline-flex items-center gap-1 text-sm text-[#8F5F65]"><Trash2 className="w-4 h-4" strokeWidth={1.5} /> Delete</button>}
         </div>
@@ -281,10 +286,10 @@ export default function RoutinesView({ addSignal = 0 }) {
               <Tick on={r.include} color={colorOf(r)} />
               <span className="min-w-0">
                 <span className="block font-heading text-[16px] text-foreground truncate">{r.name}</span>
-                <span className="block text-[11.5px] text-muted-foreground">{SLOTS.find(([k]) => k === r.slot)?.[1]} · {scheduleLabel(r)} · {r.steps.length} steps</span>
+                <span className="block text-[11.5px] text-muted-foreground">{SLOTS.find(([k]) => k === r.slot)?.[1]} · {scheduleLabel(r)}{isSimple(r) ? "" : ` · ${r.steps.length} steps`}</span>
               </span>
             </button>
-            <p className="text-[12px] text-muted-foreground mt-1.5 ml-[34px] line-clamp-2">{r.steps.map((st) => st.text).join(" · ")}</p>
+            {!isSimple(r) && <p className="text-[12px] text-muted-foreground mt-1.5 ml-[34px] line-clamp-2">{r.steps.map((st) => st.text).join(" · ")}</p>}
           </div>
         ))}
         <button onClick={saveFound} disabled={!n} className="mt-3 bg-[#A7773F] text-[#F7F3EC] px-6 py-2.5 rounded-full text-sm font-medium disabled:opacity-40">Save {n} routine{n === 1 ? "" : "s"}</button>
@@ -305,7 +310,7 @@ export default function RoutinesView({ addSignal = 0 }) {
         <button onClick={() => setOpenId(null)} className="inline-flex items-center gap-1 text-[13px] text-muted-foreground mb-3"><ArrowLeft className="w-4 h-4" strokeWidth={1.5} /> Routines</button>
         <div className="flex items-baseline justify-between">
           <h2 className="font-heading text-[26px] text-foreground leading-tight">{open.name}</h2>
-          <button onClick={() => setForm({ ...open, steps: open.steps?.length ? open.steps : [{ id: newId(), text: "", note: "" }] })} className="text-[13px] font-medium text-[#A7773F]">Edit</button>
+          <button onClick={() => setForm(toForm(open))} className="text-[13px] font-medium text-[#A7773F]">Edit</button>
         </div>
         <p className="font-heading italic text-[14px] text-muted-foreground mb-4">{SLOTS.find(([k]) => k === open.slot)?.[1] || "Anytime"} · {scheduleLabel(open).toLowerCase()}{open.remind_at ? ` · reminder ${fmtTime(open.remind_at)}` : ""}</p>
 
@@ -332,7 +337,7 @@ export default function RoutinesView({ addSignal = 0 }) {
         </div>
 
         <div className="flex items-center justify-between mb-1.5">
-          <p className={label}>{todayOn ? "Today's steps" : "Steps · not scheduled today"}</p>
+          <p className={label}>{isSimple(open) ? (todayOn ? "Today" : "Not scheduled today") : todayOn ? "Today's steps" : "Steps · not scheduled today"}</p>
           {stepsFor(open).length > 1 && (completeOn(open, today)
             ? <button onClick={() => setAll(open, false)} className="text-[12.5px] text-muted-foreground">Clear all</button>
             : <button onClick={() => setAll(open, true)} className="inline-flex items-center gap-1 text-[12.5px] font-medium px-3 py-1 rounded-full text-white" style={{ background: c }}><Check className="w-3.5 h-3.5" strokeWidth={2.4} /> Complete all</button>)}
@@ -410,7 +415,7 @@ export default function RoutinesView({ addSignal = 0 }) {
                           <span className="font-heading text-[17px] text-foreground truncate">{r.name}</span>
                           {s.current > 0 && <span className="text-[11.5px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap inline-flex items-center gap-1" style={{ color: c, background: `${c}1F` }}><Flame className="w-3 h-3" strokeWidth={2} />{s.current}</span>}
                         </div>
-                        <p className="text-[11.5px] text-muted-foreground mt-0.5">{scheduleLabel(r)} · {sched ? (d >= n && n ? "done today" : `${d} of ${n} steps today`) : "rest day"}</p>
+                        <p className="text-[11.5px] text-muted-foreground mt-0.5">{scheduleLabel(r)} · {sched ? (d >= n && n ? "done today" : isSimple(r) ? "to do today" : `${d} of ${n} steps today`) : "rest day"}</p>
                         <div className="h-[5px] rounded-full bg-[#EFE8DC] mt-2 overflow-hidden"><div className="h-full rounded-full" style={{ width: sched && n ? `${Math.round((d / n) * 100)}%` : 0, background: c }} /></div>
                       </button>
                       {n > 0 && (

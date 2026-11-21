@@ -51,12 +51,15 @@ export default function RoutineSheet({ routine, timeLabel, onStep, onAll, onClos
               </p>
               <h2 className="font-heading text-[21px] leading-tight text-[#2E2A27] mt-1">{name}</h2>
             </div>
-            <span className="text-[12px] mt-1" style={{ color: all ? "#7D8A53" : "#8A8078" }}>{done} of {steps.length}</span>
+            {!(steps.length === 1 && steps[0].implicit) && <span className="text-[12px] mt-1" style={{ color: all ? "#7D8A53" : "#8A8078" }}>{done} of {steps.length}</span>}
             <button type="button" onClick={close} aria-label="Close" className="p-1 -mr-1 text-[#8A8078]"><X className="w-5 h-5" strokeWidth={1.5} /></button>
           </div>
         </div>
 
         <div className="px-5 overflow-y-auto">
+          {steps.length === 1 && steps[0].implicit ? (
+            <p className="text-[13px] text-[#8A8078] mt-3">{all ? "Done for today." : "One simple check. Tap Mark done when it's done."}</p>
+          ) : (
           <div className="bg-white border border-[#E8E0D2] rounded-2xl px-4 mt-3">
             {steps.map((st, i) => {
               const on = doneIds.has(st.id);
@@ -75,6 +78,7 @@ export default function RoutineSheet({ routine, timeLabel, onStep, onAll, onClos
               );
             })}
           </div>
+          )}
 
           <div className="grid grid-cols-2 gap-2 mt-3">
             <button type="button" onClick={() => onAll(routine, !all)}
