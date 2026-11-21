@@ -9,7 +9,7 @@ import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
 import {
   Plus, Trash2, List, FileText, Check, ArrowLeft, Paperclip, Pencil,
-  Folder as FolderIcon, Share2, Download, MoreHorizontal, Navigation, X, Pin, Link2,
+  Folder as FolderIcon, Share2, Download, MoreHorizontal, Navigation, X, Pin, Link2, Globe, Instagram, Music2,
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import AttachmentSheet from "@/components/notes/AttachmentSheet";
@@ -273,12 +273,12 @@ export default function Notes() {
   };
 
   // ---- Saved Places ----
-  const openAddPlace = () => setPlaceForm({ name: "", type: "", address: "", place_id: "", maps_url: "", photo_url: "", photo_credit: "", notes: "", visited: false, rating: 0, visited_on: "", source_url: "", source_kind: "" });
-  const openEditPlace = (p) => { setPlaceMenu(null); setPlaceForm({ id: p.id, name: p.name || "", type: p.type || "", address: p.address || "", place_id: p.place_id || "", maps_url: p.maps_url || "", photo_url: p.photo_url || "", photo_credit: p.photo_credit || "", notes: p.notes || "", visited: !!p.visited, rating: Number(p.rating) || 0, visited_on: p.visited_on || "", source_url: p.source_url || "", source_kind: p.source_kind || "" }); };
+  const openAddPlace = () => setPlaceForm({ name: "", type: "", address: "", place_id: "", maps_url: "", photo_url: "", photo_credit: "", notes: "", visited: false, rating: 0, visited_on: "", source_url: "", source_kind: "", website_url: "", instagram_url: "", tiktok_url: "" });
+  const openEditPlace = (p) => { setPlaceMenu(null); setPlaceForm({ id: p.id, name: p.name || "", type: p.type || "", address: p.address || "", place_id: p.place_id || "", maps_url: p.maps_url || "", photo_url: p.photo_url || "", photo_credit: p.photo_credit || "", notes: p.notes || "", visited: !!p.visited, rating: Number(p.rating) || 0, visited_on: p.visited_on || "", source_url: p.source_url || "", source_kind: p.source_kind || "", website_url: p.website_url || "", instagram_url: p.instagram_url || "", tiktok_url: p.tiktok_url || "" }); };
 
   const savePlace = async () => {
     if (!placeForm?.name?.trim()) return;
-    const patch = { name: placeForm.name.trim(), type: placeForm.type.trim(), address: placeForm.address.trim(), place_id: placeForm.place_id || null, maps_url: placeForm.maps_url || null, photo_url: placeForm.photo_url || null, photo_credit: placeForm.photo_credit || null, notes: (placeForm.notes || "").trim(), visited: !!placeForm.visited, rating: placeForm.visited ? Number(placeForm.rating) || 0 : 0, visited_on: placeForm.visited ? placeForm.visited_on || null : null, source_url: placeForm.source_url || null, source_kind: placeForm.source_kind || null };
+    const patch = { name: placeForm.name.trim(), type: placeForm.type.trim(), address: placeForm.address.trim(), place_id: placeForm.place_id || null, maps_url: placeForm.maps_url || null, photo_url: placeForm.photo_url || null, photo_credit: placeForm.photo_credit || null, notes: (placeForm.notes || "").trim(), visited: !!placeForm.visited, rating: placeForm.visited ? Number(placeForm.rating) || 0 : 0, visited_on: placeForm.visited ? placeForm.visited_on || null : null, source_url: placeForm.source_url || null, source_kind: placeForm.source_kind || null, website_url: normUrl(placeForm.website_url), instagram_url: normSocial(placeForm.instagram_url, "instagram"), tiktok_url: normSocial(placeForm.tiktok_url, "tiktok"), links_checked: true };
     if (placeForm.id) {
       await ent.SavedPlace.update(placeForm.id, patch);
       setSavedPlaces(prev => prev.map(p => p.id === placeForm.id ? { ...p, ...patch } : p));
@@ -293,10 +293,11 @@ export default function Notes() {
   const savePlacesFromLink = async (hits, source) => {
     const made = [];
     for (const h of hits) {
-      const rec = { name: h.name, type: guessPlaceType(h.types, h.primaryType), address: h.address || "", place_id: h.placeId, maps_url: null, photo_url: null, photo_credit: null, notes: h.why ? `From the post: "${h.why}"` : "", visited: false, rating: 0, visited_on: null, source_url: source?.url || null, source_kind: source?.kind || null };
+      const rec = { name: h.name, type: guessPlaceType(h.types, h.primaryType), address: h.address || "", place_id: h.placeId, maps_url: null, photo_url: null, photo_credit: null, notes: h.why ? `From the post: "${h.why}"` : "", visited: false, rating: 0, visited_on: null, source_url: source?.url || null, source_kind: source?.kind || null, website_url: null, instagram_url: null, tiktok_url: null, links_checked: true };
       try {
         const d = await base44.integrations.Core.LookupPlace({ place_id: h.placeId });
-        rec.address = d.address || rec.address; rec.maps_url = d.mapsUrl || null; rec.type = guessPlaceType(d.types, d.primaryType) || rec.type;
+        rec.address = d.address || rec.address; rec.maps_url = d.mapsUrl || null;
+        rec.website_url = d.website || null; rec.instagram_url = d.instagram || null; rec.tiktok_url = d.tiktok || null; rec.type = guessPlaceType(d.types, d.primaryType) || rec.type;
         if (d.url) {
           const blob = await (await fetch(d.url)).blob();
           const { file_url } = await base44.integrations.Core.UploadFile({ file: new File([blob], "place.jpg", { type: blob.type || "image/jpeg" }) });
@@ -708,6 +709,22 @@ function guessPlaceType(types = [], primary = "") {
 
 // Add/edit a saved place. Type a name to find the real place: its address,
 // category and a photo fill in automatically. A place can still be typed by hand.
+// Tidy a typed web address or social handle into a full link.
+function normUrl(v) {
+  const t = String(v || "").trim();
+  if (!t) return null;
+  return /^https?:\/\//i.test(t) ? t : `https://${t}`;
+}
+function normSocial(v, kind) {
+  const t = String(v || "").trim();
+  if (!t) return null;
+  if (/^https?:\/\//i.test(t) || /\.(com|net)\//i.test(t)) return normUrl(t);
+  const h = t.replace(/^@/, "");
+  return kind === "tiktok" ? `https://www.tiktok.com/@${h}` : `https://www.instagram.com/${h}/`;
+}
+const handleOf = (url) => { const m = String(url || "").match(/(?:instagram\.com\/|tiktok\.com\/@)([A-Za-z0-9._]+)/); return m ? `@${m[1]}` : ""; };
+const hostOf = (url) => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; } };
+
 function PlaceFormSheet({ form, onChange, onClose, onSave, onSaveMany }) {
   const [nameHits, setNameHits] = useState([]);
   const [nameSearching, setNameSearching] = useState(false);
@@ -778,6 +795,9 @@ function PlaceFormSheet({ form, onChange, onClose, onSave, onSaveMany }) {
         address: d.address || formRef.current.address,
         maps_url: d.mapsUrl || "",
         type: guessPlaceType(d.types, d.primaryType) || formRef.current.type,
+        website_url: d.website || formRef.current.website_url || "",
+        instagram_url: d.instagram || formRef.current.instagram_url || "",
+        tiktok_url: d.tiktok || formRef.current.tiktok_url || "",
       });
       if (d.url) {
         const blob = await (await fetch(d.url)).blob();
@@ -900,6 +920,18 @@ function PlaceFormSheet({ form, onChange, onClose, onSave, onSaveMany }) {
             )}
           </div>
           <div>
+            <label className="font-body text-[12px] text-muted-foreground mb-1 block">Links</label>
+            <div className="space-y-1.5">
+              {[["website_url", Globe, "Website"], ["instagram_url", Instagram, "Instagram, e.g. @caiahouston"], ["tiktok_url", Music2, "TikTok, e.g. @caiahouston"]].map(([k, Icon, ph]) => (
+                <div key={k} className="flex items-center gap-2 bg-secondary border border-border rounded-xl px-3">
+                  <Icon className="w-4 h-4 text-muted-foreground flex-shrink-0" strokeWidth={1.6} />
+                  <input value={form[k] || ""} onChange={(e) => patch({ [k]: e.target.value })} placeholder={ph} autoComplete="off" inputMode="url"
+                    className="flex-1 min-w-0 bg-transparent py-2.5 text-[14px] text-foreground outline-none" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
             <label className="font-body text-[12px] text-muted-foreground mb-1 block">Notes</label>
             <textarea
               value={form.notes || ""}
@@ -948,6 +980,15 @@ function PlaceFormSheet({ form, onChange, onClose, onSave, onSaveMany }) {
 }
 
 function PlaceViewSheet({ place, onClose, onEdit, onPatch }) {
+  // Places saved before links existed: look up the website and socials once.
+  useEffect(() => {
+    if (!place || !place.place_id || place.links_checked) return;
+    let alive = true;
+    base44.integrations.Core.LookupPlace({ place_id: place.place_id, links_only: true })
+      .then((d) => { if (alive) onPatch(place.id, { website_url: place.website_url || d.website || null, instagram_url: place.instagram_url || d.instagram || null, tiktok_url: place.tiktok_url || d.tiktok || null, links_checked: true }); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [place?.id]);
   if (!place) return null;
   const rating = Number(place.rating) || 0;
   const visitedLabel = place.visited_on ? new Date(`${place.visited_on}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
@@ -989,10 +1030,24 @@ function PlaceViewSheet({ place, onClose, onEdit, onPatch }) {
             ? <p className="text-[14.5px] text-foreground whitespace-pre-wrap leading-relaxed">{place.notes}</p>
             : <button onClick={() => onEdit(place)} className="text-[13.5px] text-muted-foreground">No notes yet. <span className="text-[#A7773F]">Add a note</span></button>}
 
-          {place.source_url && (
-            <a href={place.source_url} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center gap-1.5 text-[13px] text-[#A7773F]">
-              <Link2 className="w-4 h-4" /> Open the {place.source_kind === "tiktok" ? "TikTok" : place.source_kind === "instagram" ? "Instagram post" : "link"}
-            </a>
+          {(place.website_url || place.instagram_url || place.tiktok_url || place.source_url) && (
+            <>
+              <p className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-muted-foreground mt-5 mb-1">Links</p>
+              <div className="divide-y divide-border/60">
+                {[
+                  [place.website_url, Globe, hostOf(place.website_url), "Website"],
+                  [place.instagram_url, Instagram, handleOf(place.instagram_url) || "Instagram", "Instagram"],
+                  [place.tiktok_url, Music2, handleOf(place.tiktok_url) || "TikTok", "TikTok"],
+                  [place.source_url, Link2, place.source_kind === "tiktok" ? "The TikTok you saved" : place.source_kind === "instagram" ? "The Instagram post you saved" : "The link you saved", "Saved from"],
+                ].filter(([u]) => u).map(([u, Icon, label, kind]) => (
+                  <a key={kind} href={u} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 py-2.5">
+                    <Icon className="w-4 h-4 text-[#A7773F] flex-shrink-0" strokeWidth={1.6} />
+                    <span className="flex-1 min-w-0 text-[14px] text-foreground truncate">{label}</span>
+                    <span className="text-[11.5px] text-muted-foreground">{kind}</span>
+                  </a>
+                ))}
+              </div>
+            </>
           )}
 
           <div className="flex gap-2 mt-6">

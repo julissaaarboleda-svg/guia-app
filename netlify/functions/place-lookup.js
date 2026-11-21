@@ -15,7 +15,27 @@ const CORS = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
-const FIELDS = "id,displayName,formattedAddress,googleMapsUri,types,primaryTypeDisplayName,photos";
+const FIELDS = "id,displayName,formattedAddress,googleMapsUri,types,primaryTypeDisplayName,photos,websiteUri";
+
+// Instagram and TikTok accounts linked from the place's own website (Google doesn't list them).
+const SKIP = /^(p|reel|reels|explore|stories|accounts|share|sharer|intent|embed|tv|about|legal|developer|tag|music|discover)$/i;
+async function socialsFrom(website) {
+  const out = { instagram: "", tiktok: "" };
+  if (!/^https?:\/\//i.test(website || "")) return out;
+  const c = new AbortController(); const t = setTimeout(() => c.abort(), 5000);
+  try {
+    const r = await fetch(website, { redirect: "follow", signal: c.signal, headers: { "User-Agent": "Mozilla/5.0 (compatible; GuiaBot/1.0)" } });
+    if (!r.ok) return out;
+    const html = (await r.text()).slice(0, 600000);
+    for (const m of html.matchAll(/https?:\/\/(?:www\.)?instagram\.com\/([A-Za-z0-9._]{2,30})\/?(?=["'?#<\s])/g)) {
+      if (!SKIP.test(m[1])) { out.instagram = `https://www.instagram.com/${m[1]}/`; break; }
+    }
+    for (const m of html.matchAll(/https?:\/\/(?:www\.)?tiktok\.com\/@([A-Za-z0-9._]{2,30})/g)) {
+      out.tiktok = `https://www.tiktok.com/@${m[1]}`; break;
+    }
+  } catch { /* the website is a nice-to-have */ } finally { clearTimeout(t); }
+  return out;
+}
 
 exports.handler = async (event, context) => {
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: CORS, body: "" };
@@ -28,7 +48,7 @@ exports.handler = async (event, context) => {
   if (!apiKey) return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: "GOOGLE_PLACES_API_KEY not set" }) };
 
   try {
-    const { place_id } = JSON.parse(event.body || "{}");
+    const { place_id, links_only } = JSON.parse(event.body || "{}");
     if (!place_id || !/^[A-Za-z0-9_-]+$/.test(place_id)) {
       return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "Missing or invalid 'place_id'" }) };
     }
@@ -46,7 +66,13 @@ exports.handler = async (event, context) => {
       primaryType: p.primaryTypeDisplayName?.text || "",
       url: null,
       attribution: null,
+      website: p.websiteUri || "",
+      instagram: "",
+      tiktok: "",
     };
+    const socials = await socialsFrom(result.website);
+    result.instagram = socials.instagram; result.tiktok = socials.tiktok;
+    if (links_only) return { statusCode: 200, headers: CORS, body: JSON.stringify(result) };
 
     // The photo is a nice-to-have: any failure here still returns the place itself.
     try {

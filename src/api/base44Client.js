@@ -282,12 +282,12 @@ async function GetPlaceDetails({ place_id }) {
 }
 
 // Everything about one picked place (name, address, category, Maps link, one photo).
-async function LookupPlace({ place_id }) {
+async function LookupPlace({ place_id, links_only = false }) {
   const headers = await authHeaders();
   const res = await checkOk(
-    await fetch(`${API_BASE}/place-lookup`, { method: "POST", headers, body: JSON.stringify({ place_id }) })
+    await fetch(`${API_BASE}/place-lookup`, { method: "POST", headers, body: JSON.stringify({ place_id, links_only }) })
   );
-  return res.json(); // { name, address, mapsUrl, types, primaryType, url, attribution }
+  return res.json(); // { name, address, mapsUrl, types, primaryType, url, attribution, website, instagram, tiktok }
 }
 
 // Places named in a shared link (TikTok, Instagram, Maps, web) or a screenshot.

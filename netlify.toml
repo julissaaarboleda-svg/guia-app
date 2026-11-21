@@ -18,6 +18,10 @@
 [functions."link-place"]
   timeout = 26
 
+# Looking up a place now also checks its website for Instagram/TikTok links.
+[functions."place-lookup"]
+  timeout = 20
+
 # Backups read every record, which can take a few seconds.
 [functions."backup"]
   timeout = 26
