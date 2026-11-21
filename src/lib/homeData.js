@@ -120,6 +120,31 @@ function tripRange(t) {
   return `${format(s, "MMM d")} – ${format(e, "MMM d")}`;
 }
 
+// Things due after today, within two weeks: tasks, dated goal steps, unpaid bills.
+export function buildComingUp({ tasks = [], goals = [], finItems = [] }, now = new Date(), limit = 3) {
+  const out = [];
+  const within = (d) => { if (!d) return null; const n = differenceInCalendarDays(parseISO(String(d).slice(0, 10)), now); return n >= 1 && n <= 14 ? n : null; };
+  tasks.forEach((t) => {
+    const n = !t.completed && within(t.due_date); if (!n) return;
+    out.push({ id: `task-${t.id}`, kind: "task", title: t.title, sub: "Tasks", path: `/goals?task=${t.id}`, _days: n, due: t.due_date });
+  });
+  goals.forEach((g) => {
+    if (g.status === "done") return;
+    (g.sub_tasks || []).forEach((st, i) => {
+      const n = !st.completed && within(st.due_date); if (!n) return;
+      out.push({ id: `step-${g.id}-${i}`, kind: "step", title: st.text, sub: g.title, path: `/goals?goal=${g.id}`, _days: n, due: st.due_date });
+    });
+  });
+  finItems.forEach((f) => {
+    if (f.type !== "bill" || f.paid) return;
+    const n = within(f.due_date); if (!n) return;
+    const amt = Number(f.amount);
+    out.push({ id: `bill-${f.id}`, kind: "bill", title: amt ? `${f.name} · $${amt.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : f.name, sub: "Finance", path: "/finance", _days: n, due: f.due_date });
+  });
+  out.sort((a, b) => a._days - b._days);
+  return out.slice(0, limit).map((x) => ({ ...x, when: x._days === 1 ? "Tomorrow" : x._days <= 6 ? format(parseISO(String(x.due).slice(0, 10)), "EEE · MMM d") : format(parseISO(String(x.due).slice(0, 10)), "MMM d") }));
+}
+
 export function buildUpNext({ trips = [], projects = [], bizEntries = [] }) {
   const now = new Date();
   const items = [];
@@ -134,7 +159,7 @@ export function buildUpNext({ trips = [], projects = [], bizEntries = [] }) {
         planned: (t.itinerary || []).filter((d) => (d.activities || []).length > 0).length, days: (t.itinerary || []).length,
       },
       dateLabel: tripRange(t), countdown: daysLabel(days) || `${days} days`,
-      status: cap(t.status), path: "/travel", _days: days,
+      status: cap(t.status), path: `/travel?openTrip=${t.id}`, _days: days,
       image: t.hero_image_url || null, imagePos: t.hero_image_pos || null,
     });
   });
@@ -145,7 +170,7 @@ export function buildUpNext({ trips = [], projects = [], bizEntries = [] }) {
     items.push({
       id: `proj-${p.id}`, title: p.title, module: "projects",
       dateLabel: `Due ${format(parseISO(p.target_date), "MMM d")}`, countdown: daysLabel(days) || `${days} days`,
-      status: cap(p.status), path: "/projects", _days: days,
+      status: cap(p.status), path: `/projects?open=${p.id}`, _days: days,
       image: p.cover_image_url || null, imagePos: p.cover_image_pos || null, accentColor: p.accent_color || "#A7773F",
     });
   });

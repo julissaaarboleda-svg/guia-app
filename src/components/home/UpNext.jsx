@@ -1,19 +1,22 @@
 import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, CircleCheck, Target, Receipt } from "lucide-react";
 import { getModule } from "@/lib/homeModules";
 import AdjustableImage from "@/components/ui/AdjustableImage";
 
-export default function UpNext({ items }) {
+const KIND = {
+  task: { Icon: CircleCheck, color: "#A7773F" },
+  step: { Icon: Target, color: "#A7773F" },
+  bill: { Icon: Receipt, color: "#A77C81" },
+};
+
+export default function UpNext({ items, comingUp = [] }) {
   return (
     <section className="h-full flex flex-col">
       <div className="flex items-end justify-between mb-2.5">
         <h2 className="font-heading text-[20px] text-foreground">Up Next</h2>
-        <Link to="/travel" className="flex items-center gap-1 text-[11px] font-medium text-[#A7773F] transition-colors">
-          View all <ArrowRight className="w-3 h-3" />
-        </Link>
       </div>
 
-      {items.length === 0 ? (
+      {items.length === 0 && comingUp.length > 0 ? null : items.length === 0 ? (
         <p className="text-[12px] text-muted-foreground font-body py-4 text-center flex-1 flex items-center justify-center">No upcoming commitments.</p>
       ) : (
         <div className="flex gap-2.5 overflow-x-auto no-scrollbar snap-x snap-mandatory flex-1 lg:grid lg:grid-cols-1 lg:overflow-visible lg:content-start">
@@ -73,6 +76,30 @@ export default function UpNext({ items }) {
                     )}
                   </div>
                 </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
+      {comingUp.length > 0 && (
+        <div className={`rounded-2xl border border-border/60 bg-card px-3.5 pb-1 ${items.length ? "mt-2.5" : ""}`}>
+          <div className="flex items-center justify-between pt-2.5 pb-1.5">
+            <span className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-muted-foreground">Coming up</span>
+            <Link to="/goals?view=tasks" className="flex items-center gap-1 text-[11px] font-medium text-[#A7773F]">All tasks <ArrowRight className="w-3 h-3" /></Link>
+          </div>
+          {comingUp.map((c) => {
+            const k = KIND[c.kind] || KIND.task; const Icon = k.Icon;
+            return (
+              <Link key={c.id} to={c.path} className="flex items-center gap-2.5 py-2.5 border-t border-border/40">
+                <span className="w-[26px] h-[26px] rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${k.color}1A`, color: k.color }}>
+                  <Icon className="w-[15px] h-[15px]" strokeWidth={1.7} />
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[13.5px] text-foreground truncate">{c.title}</span>
+                  <span className="block text-[10.5px] text-muted-foreground truncate">{c.sub}</span>
+                </span>
+                <span className="text-[11px] text-muted-foreground flex-shrink-0">{c.when}</span>
               </Link>
             );
           })}

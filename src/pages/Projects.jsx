@@ -44,6 +44,11 @@ export default function Projects() {
     try {
       const data = await ent.Project.list("-created_date");
       setProjects(data);
+      // Opened from Home's Up Next with ?open=<id>
+      try {
+        const sp = new URLSearchParams(window.location.search); const id = sp.get("open");
+        if (id) { const pr = data.find((x) => x.id === id); if (pr) setSelected(pr); sp.delete("open"); window.history.replaceState(null, "", `${window.location.pathname}${sp.toString() ? `?${sp}` : ""}`); }
+      } catch { /* ignore */ }
     } catch (err) {
       console.error("Failed to load projects:", err);
     } finally {

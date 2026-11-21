@@ -83,6 +83,15 @@ export default function Goals() {
     ]);
     setGoals(g);
     setTasks(t);
+    // Opened from Home's Up Next with ?task=<id> or ?goal=<id>
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      const tid = sp.get("task"), gid = sp.get("goal");
+      const tk = tid && t.find((x) => x.id === tid), gl = gid && g.find((x) => x.id === gid);
+      if (tk) { setActiveTab("tasks"); setSelected({ type: "task", id: tk.id }); setEditTaskData({ ...tk }); }
+      else if (gl) { setActiveTab("goals"); setSelected({ type: "goal", id: gl.id }); setEditGoalData({ ...gl }); }
+      if (tid || gid) { sp.delete("task"); sp.delete("goal"); window.history.replaceState(null, "", `${window.location.pathname}${sp.toString() ? `?${sp}` : ""}`); }
+    } catch { /* ignore */ }
   };
 
   useEffect(() => { load(); }, []);
