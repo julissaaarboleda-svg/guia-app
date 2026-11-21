@@ -55,15 +55,46 @@ async function fetchText(url, ms = 7000) {
   } finally { clearTimeout(t); }
 }
 
+// Follow short links (tiktok.com/t/…, vm.tiktok.com, maps.app.goo.gl, instagr.am)
+// to the full address, hop by hop, without loading the pages.
+async function expand(u) {
+  let cur = u.toString();
+  for (let i = 0; i < 6; i++) {
+    const c = new AbortController(); const t = setTimeout(() => c.abort(), 6000);
+    let r;
+    try { r = await fetch(cur, { method: "GET", redirect: "manual", headers: { "User-Agent": UA }, signal: c.signal }); }
+    catch { break; } finally { clearTimeout(t); }
+    const loc = r.headers.get("location");
+    if (!(r.status >= 300 && r.status < 400) || !loc) break;
+    const next = new URL(loc, cur).toString();
+    if (!safeUrl(next)) break;
+    cur = next;
+  }
+  return new URL(cur);
+}
+
+// A post's own address without tracking bits (oEmbed is picky about these).
+const clean = (u) => { const x = new URL(u.toString()); x.search = ""; x.hash = ""; return x.toString(); };
+
+// Pull the caption out of a TikTok/Instagram page's embedded data.
+function embeddedCaption(html) {
+  const pick = (re) => { const m = html.match(re); if (!m) return ""; try { return JSON.parse(`"${m[1]}"`); } catch { return m[1]; } };
+  return [pick(/"desc"\s*:\s*"((?:[^"\\]|\\.){4,2000})"/), pick(/"caption"\s*:\s*\{[^}]*?"text"\s*:\s*"((?:[^"\\]|\\.){4,2000})"/),
+    pick(/"(?:poi|location)(?:Name)?"\s*:\s*\{[^}]*?"name"\s*:\s*"((?:[^"\\]|\\.){2,200})"/)].filter(Boolean).join(" | ");
+}
+
 // Read what the link says about itself.
-async function readLink(u) {
+async function readLink(u0) {
+  const short = /^(vm|vt)\.tiktok\.com$|(^|\.)tiktok\.com$|^instagr\.am$|^maps\.app\.goo\.gl$|^goo\.gl$/.test(u0.hostname.replace(/^www\./, ""))
+    && (/^(vm|vt)\./.test(u0.hostname) || /^\/t\//.test(u0.pathname) || /goo\.gl|instagr\.am/.test(u0.hostname));
+  const u = short ? await expand(u0) : u0;
   const host = u.hostname.replace(/^www\./, "");
-  const src = { kind: "web", url: u.toString(), title: "", thumbnail: "" };
+  const src = { kind: "web", url: u0.toString(), title: "", thumbnail: "" };
   let text = "";
   if (/(^|\.)tiktok\.com$/.test(host)) {
     src.kind = "tiktok";
     try {
-      const r = await fetchText(`https://www.tiktok.com/oembed?url=${encodeURIComponent(u.toString())}`);
+      const r = await fetchText(`https://www.tiktok.com/oembed?url=${encodeURIComponent(clean(u))}`);
       const j = JSON.parse(r.text);
       src.title = j.title || ""; src.thumbnail = j.thumbnail_url || "";
       text = `TikTok by ${j.author_name || "unknown"}: ${j.title || ""}`;
@@ -71,7 +102,7 @@ async function readLink(u) {
   } else if (/(^|\.)instagram\.com$/.test(host)) {
     src.kind = "instagram";
     try {
-      const r = await fetchText(`https://graph.facebook.com/v25.0/instagram_oembed?url=${encodeURIComponent(u.toString())}`);
+      const r = await fetchText(`https://graph.facebook.com/v25.0/instagram_oembed?url=${encodeURIComponent(clean(u))}`);
       const j = JSON.parse(r.text);
       if (!j.error) {
         src.thumbnail = j.thumbnail_url || "";
@@ -91,12 +122,13 @@ async function readLink(u) {
     const m = finalUrl.match(/\/maps\/place\/([^/@?]+)/) || finalUrl.match(/[?&]q=([^&]+)/);
     if (m) text += ` Google Maps place: ${decodeURIComponent(m[1].replace(/\+/g, " "))}`;
     const title = strip((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || "");
-    const parts = [meta(html, "og:title"), title, meta(html, "og:description"), meta(html, "description")].filter(Boolean);
+    const parts = [meta(html, "og:title"), title, meta(html, "og:description"), meta(html, "description"), embeddedCaption(html)].filter(Boolean);
     if (!src.title) src.title = (parts[0] || "").slice(0, 200);
     if (!src.thumbnail) src.thumbnail = meta(html, "og:image");
     text += ` ${parts.join(" | ")}`;
     if (src.kind === "web" && text.length < 300) text += ` ${strip(html).slice(0, 3000)}`;
   }
+  console.log("link-place read", { kind: src.kind, url: src.url, chars: text.trim().length, sample: text.trim().slice(0, 160) });
   return { src, text: text.trim().slice(0, 6000) };
 }
 
