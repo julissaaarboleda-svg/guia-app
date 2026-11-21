@@ -1,15 +1,9 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Check, Flame, Star } from "lucide-react";
 import { getModule } from "@/lib/homeModules";
 import RoutineSheet from "@/components/home/RoutineSheet";
 import { colorOf, dayKey, isScheduled, doneOn, completeOn, stepsFor, streaks } from "@/lib/routines";
-const PRIORITY_CHIP = {
-  high: "bg-[#F3E8D6] text-[#8A5F27]",
-  urgent: "bg-[#F4E6E7] text-[#8F5F65]",
-  normal: "bg-[#E4E9D5] text-[#566033]",
-  low: "bg-muted text-muted-foreground",
-};
 // The last 7 days for one routine, oldest first: done, missed, off (not scheduled or before it existed), or today's progress.
 // This week, Monday to Sunday: the dots start fresh every Monday and fill in as the week goes.
 function weekDots(r) {
@@ -33,8 +27,11 @@ function weekDots(r) {
 const SLOT_ORDER = { morning: 0, anytime: 1, evening: 2 };
 const fmtTime = (t) => { const [h, m] = String(t).split(":").map(Number); return `${((h + 11) % 12) + 1}:${String(m || 0).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`; };
 
+const fmtShort = (d) => { try { return new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }); } catch { return ""; } };
+
 export default function TodaysFocus({ items, total = 0, starIds, onComplete, routines = [], onRoutineToggle, onRoutineStep, overdue = 0 }) {
   const [sheetId, setSheetId] = useState(null);
+  const navigate = useNavigate();
   const sheetRoutine = sheetId ? routines.find((x) => x.id === sheetId) : null;
   // The bug: sub-item ids (goal sub-tasks, project tasks, packing items)
   // are built from their array index. Completing one shifts every later
@@ -109,7 +106,7 @@ export default function TodaysFocus({ items, total = 0, starIds, onComplete, rou
                 >
                   <Check className={`w-2.5 h-2.5 text-forest transition-opacity ${isCompleting ? "opacity-100" : "opacity-0 [@media(hover:hover)]:group-hover:opacity-60"}`} />
                 </button>
-                <div className="flex-1 min-w-0">
+                <div className={`flex-1 min-w-0 ${it.path ? "cursor-pointer" : ""}`} role={it.path ? "link" : undefined} onClick={() => it.path && navigate(it.path)}>
                   <p className="font-body text-[13.5px] text-foreground leading-snug flex items-center gap-1 min-w-0">
                     <span className="truncate">{it.title}</span>
                     {it.kind === "task" && starIds?.has(it.refId) && <Star className="w-3 h-3 text-[#A7773F] flex-shrink-0" strokeWidth={2} aria-label="One of this week's 3" />}
@@ -121,18 +118,12 @@ export default function TodaysFocus({ items, total = 0, starIds, onComplete, rou
                     >
                       <Icon className="w-2 h-2" />
                     </span>
-                    <span className="font-body text-[10px] text-muted-foreground truncate">{it.kind === "goal" && it.sub ? it.sub : mod.label}</span>
+                    <span className="font-body text-[10px] text-muted-foreground truncate">{it.kind === "goal" && it.sub ? it.sub : mod.label}{(it.priority === "high" || it.priority === "urgent") && it.kind !== "goal" && it.kind !== "bill" ? ` · ${it.priority === "urgent" ? "Urgent" : "High"}` : ""}</span>
                   </div>
                 </div>
-                {it.kind === "goal" ? (
-                  <span className={`text-[9px] font-body font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${it.dueIn < 0 ? "bg-[#F4E6E7] text-[#8F5F65]" : "bg-[#F3E8D6] text-[#8A5F27]"}`}>
-                    {it.dueIn < 0 ? "Overdue" : "Today"}
-                  </span>
-                ) : (
-                <span className={`text-[9px] font-body font-medium px-2 py-0.5 rounded-full capitalize flex-shrink-0 ${PRIORITY_CHIP[it.priority] || PRIORITY_CHIP.normal}`}>
-                  {it.priority}
+                <span className={`text-[9.5px] font-body font-medium px-2 py-0.5 rounded-full flex-shrink-0 whitespace-nowrap ${it.dueIn < 0 ? "bg-[#F4E6E7] text-[#8F5F65]" : "bg-[#F3E8D6] text-[#8A5F27]"}`}>
+                  {it.dueIn < 0 ? `Overdue · ${fmtShort(it.due)}` : "Today"}
                 </span>
-                )}
               </div>
             );
           })}

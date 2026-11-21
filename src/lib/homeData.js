@@ -97,22 +97,14 @@ export function buildFocusItems({ tasks = [], goals = [], projects = [], finItem
     });
   }
 
-  // Today only holds what's actually for today: due today or overdue. Undated
-  // items stay only if they're high/urgent tasks or unpaid bills; everything
-  // with a later date moves to Up Next › Coming up.
-  const forToday = items.filter((it) => it.dueIn != null ? it.dueIn <= 0
-    : (it.kind === "task" && (it.priority === "urgent" || it.priority === "high")) || it.kind === "bill");
+  // Today only holds what's due today or overdue. Everything else lives in
+  // Up Next › Coming up (dated) or its "no date" row.
+  const PATH = { task: (it) => `/goals?task=${it.refId}`, goal: (it) => `/goals?goal=${it.refId}`, project: (it) => `/projects?open=${it.refId}`,
+    bill: () => "/finance", pack: (it) => `/travel?openTrip=${it.refId}`, bgoal: () => "/business", career: () => "/career" };
+  const forToday = items.filter((it) => it.dueIn != null && it.dueIn <= 0).map((it) => ({ ...it, path: (PATH[it.kind] || (() => null))(it) }));
   items.length = 0; items.push(...forToday);
 
-  items.sort((a, b) => {
-    const pa = PRIORITY_WEIGHT[a.priority] || 2;
-    const pb = PRIORITY_WEIGHT[b.priority] || 2;
-    if (pa !== pb) return pb - pa;
-    if (a.dueIn != null && b.dueIn != null) return a.dueIn - b.dueIn;
-    if (a.dueIn != null) return -1;
-    if (b.dueIn != null) return 1;
-    return 0;
-  });
+  items.sort((a, b) => (a.dueIn - b.dueIn) || ((PRIORITY_WEIGHT[b.priority] || 2) - (PRIORITY_WEIGHT[a.priority] || 2)));
   return { items: items.slice(0, 3), total: items.length };
 }
 
@@ -128,6 +120,11 @@ function tripRange(t) {
 }
 
 // Things due after today, within two weeks: tasks, dated goal steps, unpaid bills.
+// Open tasks and unpaid bills that have no date at all.
+export function countUndated({ tasks = [], finItems = [] }) {
+  return tasks.filter((t) => !t.completed && !t.due_date).length + finItems.filter((f) => f.type === "bill" && !f.paid && !f.due_date).length;
+}
+
 export function buildComingUp({ tasks = [], goals = [], finItems = [], projects = [] }, now = new Date(), limit = 3) {
   const out = [];
   const within = (d) => { if (!d) return null; const n = differenceInCalendarDays(parseISO(String(d).slice(0, 10)), now); return n >= 1 && n <= 14 ? n : null; };

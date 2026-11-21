@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, CircleCheck, Target, Receipt } from "lucide-react";
+import { ArrowRight, CircleCheck, Target, Receipt, CalendarOff, ChevronRight } from "lucide-react";
 import { getModule } from "@/lib/homeModules";
 import AdjustableImage from "@/components/ui/AdjustableImage";
 
@@ -9,14 +9,15 @@ const KIND = {
   bill: { Icon: Receipt, color: "#A77C81" },
 };
 
-export default function UpNext({ items, comingUp = [] }) {
+export default function UpNext({ items, comingUp = [], undated = 0 }) {
+  const showList = comingUp.length > 0 || undated > 0;
   return (
     <section className="h-full flex flex-col">
       <div className="flex items-end justify-between mb-2.5">
         <h2 className="font-heading text-[20px] text-foreground">Up Next</h2>
       </div>
 
-      {items.length === 0 && comingUp.length > 0 ? null : items.length === 0 ? (
+      {items.length === 0 && showList ? null : items.length === 0 ? (
         <p className="text-[12px] text-muted-foreground font-body py-4 text-center flex-1 flex items-center justify-center">No upcoming commitments.</p>
       ) : (
         <div className="flex gap-2.5 overflow-x-auto no-scrollbar snap-x snap-mandatory flex-1 lg:grid lg:grid-cols-1 lg:overflow-visible lg:content-start">
@@ -82,7 +83,7 @@ export default function UpNext({ items, comingUp = [] }) {
         </div>
       )}
 
-      {comingUp.length > 0 && (
+      {showList && (
         <div className={`rounded-2xl border border-border/60 bg-card px-3.5 pb-1 ${items.length ? "mt-2.5" : ""}`}>
           <div className="flex items-center justify-between pt-2.5 pb-1.5">
             <span className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-muted-foreground">Coming up</span>
@@ -103,6 +104,13 @@ export default function UpNext({ items, comingUp = [] }) {
               </Link>
             );
           })}
+          {undated > 0 && (
+            <Link to="/goals?view=tasks" className="flex items-center gap-2.5 py-2.5 border-t border-border/40">
+              <span className="w-[26px] h-[26px] rounded-lg flex items-center justify-center flex-shrink-0 bg-[#EFE8DC] text-[#8A8078]"><CalendarOff className="w-[15px] h-[15px]" strokeWidth={1.7} /></span>
+              <span className="flex-1 text-[13px] text-muted-foreground">{undated} {undated === 1 ? "item" : "items"} with no date</span>
+              <ChevronRight className="w-4 h-4 text-muted-foreground/60" />
+            </Link>
+          )}
         </div>
       )}
     </section>

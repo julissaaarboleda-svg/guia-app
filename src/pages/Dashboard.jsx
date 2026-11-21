@@ -16,7 +16,7 @@ import { getAiUsage } from "@/api/base44Client";
 import { isScheduled, completeOn, dayKey, setAllToday, stepsFor, toggleStep } from "@/lib/routines";
 import { monthView } from "@/lib/spending";
 import { monthKeyOf } from "@/lib/financeHelpers";
-import { buildFocusItems, buildUpNext, buildComingUp, buildProgress, buildDailyStatus } from "@/lib/homeData";
+import { buildFocusItems, buildUpNext, buildComingUp, countUndated, buildProgress, buildDailyStatus } from "@/lib/homeData";
 import { creditProgress, staleReports } from "@/lib/credit";
 
 const HERO_IMAGES = [
@@ -189,6 +189,7 @@ export default function Dashboard() {
     [tasks, goals, projects, finItems, trips, businessGoals, careerEntries]
   );
   const upNext = useMemo(() => buildUpNext({ trips, projects, bizEntries }), [trips, projects, bizEntries]);
+  const undated = useMemo(() => countUndated({ tasks, finItems }), [tasks, finItems]);
   const comingUp = useMemo(() => buildComingUp({ tasks, goals, finItems, projects }), [tasks, goals, finItems, projects]);
   const progress = useMemo(() => {
     const list = buildProgress({ routines, selection: prefs?.life_rings, trips, projects, goals, finItems: allFin, business: bizProgress, spending: spendingProgress, credit: creditProg });
@@ -355,7 +356,7 @@ export default function Dashboard() {
       </Reveal>
 
       <Reveal delay={0.08} className="lg:col-start-2 lg:row-start-1 min-w-0">
-        <UpNext items={upNext} comingUp={comingUp} />
+        <UpNext items={upNext} comingUp={comingUp} undated={undated} />
       </Reveal>
 
       {progress.length > 0 && !ringsInHero && (
