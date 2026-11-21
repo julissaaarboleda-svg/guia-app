@@ -41,7 +41,11 @@ const AuthenticatedApp = () => {
       try {
         const u = await base44.auth.me();
         const p = await ent.UserPreferences.filter({ user_email: u.email });
-        if (alive) setOnboardingDone(p.length > 0 && !!p[0].onboarding_complete);
+        let localDone = false;
+        try { localDone = localStorage.getItem(`guia-onboarded:${String(u.email).toLowerCase()}`) === "1"; } catch { /* ignore */ }
+        const serverDone = p.length > 0 && p.some((x) => x.onboarding_complete);
+        if (serverDone) { try { localStorage.setItem(`guia-onboarded:${String(u.email).toLowerCase()}`, "1"); } catch { /* ignore */ } }
+        if (alive) setOnboardingDone(serverDone || localDone);
       } catch (err) {
         // A failed lookup (expired session, network, server hiccup) must NOT be
         // treated as "new user" — that dropped returning users onto the welcome

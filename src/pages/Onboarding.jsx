@@ -51,6 +51,9 @@ export default function Onboarding() {
       } else {
         await ent.UserPreferences.create(data);
       }
+      // The server's list can lag a few seconds behind a new save, so remember
+      // on this device that onboarding is done; App.jsx checks this too.
+      try { localStorage.setItem(`guia-onboarded:${String(user.email).toLowerCase()}`, "1"); } catch { /* ignore */ }
       window.location.href = "/";
     } catch (err) {
       console.error("Onboarding finish() failed:", err);

@@ -6,10 +6,21 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(undefined); // undefined = not yet known
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  // Arriving from the "confirm your email" link: the widget confirms the account
+  // and signs the person in by itself. Wait for that instead of popping the
+  // login/sign-up box on top of it.
+  const [confirming, setConfirming] = useState(() => {
+    try { return /(confirmation|invite|recovery)_token=/.test(window.location.hash); } catch { return false; }
+  });
+  useEffect(() => {
+    if (!confirming) return;
+    const t = setTimeout(() => setConfirming(false), 8000);
+    return () => clearTimeout(t);
+  }, [confirming]);
 
   useEffect(() => {
     const onInit = (u) => { setUser(u || null); setIsLoadingAuth(false); };
-    const onLogin = (u) => { setUser(u); netlifyIdentity.close(); };
+    const onLogin = (u) => { setUser(u); setConfirming(false); netlifyIdentity.close(); };
     const onLogout = () => setUser(null);
 
     netlifyIdentity.on("init", onInit);
@@ -33,12 +44,12 @@ export function AuthProvider({ children }) {
   // concept). Netlify Identity has no built-in allowlist, so everything unauthenticated
   // is just "auth_required" here. If you want an invite-only allowlist later, that'd be
   // a small additional check against a stored list of approved emails.
-  const authError = user === null ? { type: "auth_required" } : null;
+  const authError = user === null && !confirming ? { type: "auth_required" } : null;
 
   const value = {
     user,
     isAuthenticated,
-    isLoadingAuth,
+    isLoadingAuth: isLoadingAuth || (confirming && !user),
     isLoadingPublicSettings: false, // Base44-specific concept; nothing to load here
     authError,
     navigateToLogin: () => netlifyIdentity.open("login"),
