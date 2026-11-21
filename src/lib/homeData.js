@@ -97,6 +97,13 @@ export function buildFocusItems({ tasks = [], goals = [], projects = [], finItem
     });
   }
 
+  // Today only holds what's actually for today: due today or overdue. Undated
+  // items stay only if they're high/urgent tasks or unpaid bills; everything
+  // with a later date moves to Up Next › Coming up.
+  const forToday = items.filter((it) => it.dueIn != null ? it.dueIn <= 0
+    : (it.kind === "task" && (it.priority === "urgent" || it.priority === "high")) || it.kind === "bill");
+  items.length = 0; items.push(...forToday);
+
   items.sort((a, b) => {
     const pa = PRIORITY_WEIGHT[a.priority] || 2;
     const pb = PRIORITY_WEIGHT[b.priority] || 2;
@@ -121,7 +128,7 @@ function tripRange(t) {
 }
 
 // Things due after today, within two weeks: tasks, dated goal steps, unpaid bills.
-export function buildComingUp({ tasks = [], goals = [], finItems = [] }, now = new Date(), limit = 3) {
+export function buildComingUp({ tasks = [], goals = [], finItems = [], projects = [] }, now = new Date(), limit = 3) {
   const out = [];
   const within = (d) => { if (!d) return null; const n = differenceInCalendarDays(parseISO(String(d).slice(0, 10)), now); return n >= 1 && n <= 14 ? n : null; };
   tasks.forEach((t) => {
@@ -133,6 +140,12 @@ export function buildComingUp({ tasks = [], goals = [], finItems = [] }, now = n
     (g.sub_tasks || []).forEach((st, i) => {
       const n = !st.completed && within(st.due_date); if (!n) return;
       out.push({ id: `step-${g.id}-${i}`, kind: "step", title: st.text, sub: g.title, path: `/goals?goal=${g.id}`, _days: n, due: st.due_date });
+    });
+  });
+  projects.forEach((p) => {
+    (p.tasks || []).forEach((tk) => {
+      const n = !tk.completed && within(tk.due_date); if (!n) return;
+      out.push({ id: `ptask-${p.id}-${tk.id || tk.title}`, kind: "task", title: tk.title, sub: p.title, path: `/projects?open=${p.id}`, _days: n, due: tk.due_date });
     });
   });
   finItems.forEach((f) => {

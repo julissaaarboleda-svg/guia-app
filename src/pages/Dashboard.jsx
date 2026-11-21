@@ -189,7 +189,7 @@ export default function Dashboard() {
     [tasks, goals, projects, finItems, trips, businessGoals, careerEntries]
   );
   const upNext = useMemo(() => buildUpNext({ trips, projects, bizEntries }), [trips, projects, bizEntries]);
-  const comingUp = useMemo(() => buildComingUp({ tasks, goals, finItems }), [tasks, goals, finItems]);
+  const comingUp = useMemo(() => buildComingUp({ tasks, goals, finItems, projects }), [tasks, goals, finItems, projects]);
   const progress = useMemo(() => {
     const list = buildProgress({ routines, selection: prefs?.life_rings, trips, projects, goals, finItems: allFin, business: bizProgress, spending: spendingProgress, credit: creditProg });
     // Until everything is in, show quiet empty rings with their labels.
