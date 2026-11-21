@@ -122,7 +122,10 @@ function tripRange(t) {
 // Things due after today, within two weeks: tasks, dated goal steps, unpaid bills.
 // Open tasks and unpaid bills that have no date at all.
 export function countUndated({ tasks = [], finItems = [] }) {
-  return tasks.filter((t) => !t.completed && !t.due_date).length + finItems.filter((f) => f.type === "bill" && !f.paid && !f.due_date).length;
+  return [
+    ...tasks.filter((t) => !t.completed && !t.due_date).map((t) => ({ id: `task-${t.id}`, kind: "task", title: t.title, sub: "Tasks", path: `/goals?task=${t.id}` })),
+    ...finItems.filter((f) => f.type === "bill" && !f.paid && !f.due_date).map((f) => ({ id: `bill-${f.id}`, kind: "bill", title: f.name, sub: "Finance", path: "/finance" })),
+  ];
 }
 
 export function buildComingUp({ tasks = [], goals = [], finItems = [], projects = [] }, now = new Date(), limit = 3) {

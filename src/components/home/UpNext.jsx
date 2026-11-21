@@ -9,8 +9,9 @@ const KIND = {
   bill: { Icon: Receipt, color: "#A77C81" },
 };
 
-export default function UpNext({ items, comingUp = [], undated = 0 }) {
-  const showList = comingUp.length > 0 || undated > 0;
+export default function UpNext({ items, comingUp = [], undated = [] }) {
+  const showList = comingUp.length > 0 || undated.length > 0;
+  const one = undated.length === 1 ? undated[0] : null;
   return (
     <section className="h-full flex flex-col">
       <div className="flex items-end justify-between mb-2.5">
@@ -104,11 +105,21 @@ export default function UpNext({ items, comingUp = [], undated = 0 }) {
               </Link>
             );
           })}
-          {undated > 0 && (
+          {one && (() => { const k = KIND[one.kind] || KIND.task; const Icon = k.Icon; return (
+            <Link to={one.path} className="flex items-center gap-2.5 py-2.5 border-t border-border/40">
+              <span className="w-[26px] h-[26px] rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${k.color}1A`, color: k.color }}><Icon className="w-[15px] h-[15px]" strokeWidth={1.7} /></span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-[13.5px] text-foreground truncate">{one.title}</span>
+                <span className="block text-[10.5px] text-muted-foreground truncate">{one.sub}</span>
+              </span>
+              <span className="text-[11px] text-muted-foreground flex-shrink-0">No date</span>
+            </Link>
+          ); })()}
+          {undated.length > 1 && (
             <Link to="/goals?view=tasks" className="flex items-center gap-2.5 py-2.5 border-t border-border/40">
               <span className="w-[26px] h-[26px] rounded-lg flex items-center justify-center flex-shrink-0 bg-[#EFE8DC] text-[#8A8078]"><CalendarOff className="w-[15px] h-[15px]" strokeWidth={1.7} /></span>
-              <span className="flex-1 text-[13px] text-muted-foreground">{undated} {undated === 1 ? "item" : "items"} with no date</span>
-              <ChevronRight className="w-4 h-4 text-muted-foreground/60" />
+              <span className="flex-1 min-w-0 text-[13px] text-muted-foreground truncate">{undated.length} with no date: {undated.slice(0, 2).map((u) => u.title).join(", ")}{undated.length > 2 ? "…" : ""}</span>
+              <ChevronRight className="w-4 h-4 text-muted-foreground/60 flex-shrink-0" />
             </Link>
           )}
         </div>
