@@ -14,6 +14,10 @@
 [functions."import-finance"]
   timeout = 26
 
+# Reading a shared link, asking AI for the places in it, then finding each one.
+[functions."link-place"]
+  timeout = 26
+
 # Backups read every record, which can take a few seconds.
 [functions."backup"]
   timeout = 26

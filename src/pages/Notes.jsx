@@ -9,13 +9,14 @@ import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
 import {
   Plus, Trash2, List, FileText, Check, ArrowLeft, Paperclip, Pencil,
-  Folder as FolderIcon, Share2, Download, MoreHorizontal, Navigation, X, Pin,
+  Folder as FolderIcon, Share2, Download, MoreHorizontal, Navigation, X, Pin, Link2,
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import AttachmentSheet from "@/components/notes/AttachmentSheet";
 import NoteAttachments from "@/components/notes/NoteAttachments";
 import AttachmentViewer from "@/components/notes/AttachmentViewer";
 import NotesLanding from "@/components/notes/NotesLanding";
+import LinkPlaceImport from "@/components/notes/LinkPlaceImport";
 import CollectionSheet from "@/components/notes/CollectionSheet";
 import NewCollectionSheet from "@/components/notes/NewCollectionSheet";
 import { accentHex } from "@/components/notes/collectionAccents";
@@ -272,12 +273,12 @@ export default function Notes() {
   };
 
   // ---- Saved Places ----
-  const openAddPlace = () => setPlaceForm({ name: "", type: "", address: "", place_id: "", maps_url: "", photo_url: "", photo_credit: "", notes: "", visited: false, rating: 0, visited_on: "" });
-  const openEditPlace = (p) => { setPlaceMenu(null); setPlaceForm({ id: p.id, name: p.name || "", type: p.type || "", address: p.address || "", place_id: p.place_id || "", maps_url: p.maps_url || "", photo_url: p.photo_url || "", photo_credit: p.photo_credit || "", notes: p.notes || "", visited: !!p.visited, rating: Number(p.rating) || 0, visited_on: p.visited_on || "" }); };
+  const openAddPlace = () => setPlaceForm({ name: "", type: "", address: "", place_id: "", maps_url: "", photo_url: "", photo_credit: "", notes: "", visited: false, rating: 0, visited_on: "", source_url: "", source_kind: "" });
+  const openEditPlace = (p) => { setPlaceMenu(null); setPlaceForm({ id: p.id, name: p.name || "", type: p.type || "", address: p.address || "", place_id: p.place_id || "", maps_url: p.maps_url || "", photo_url: p.photo_url || "", photo_credit: p.photo_credit || "", notes: p.notes || "", visited: !!p.visited, rating: Number(p.rating) || 0, visited_on: p.visited_on || "", source_url: p.source_url || "", source_kind: p.source_kind || "" }); };
 
   const savePlace = async () => {
     if (!placeForm?.name?.trim()) return;
-    const patch = { name: placeForm.name.trim(), type: placeForm.type.trim(), address: placeForm.address.trim(), place_id: placeForm.place_id || null, maps_url: placeForm.maps_url || null, photo_url: placeForm.photo_url || null, photo_credit: placeForm.photo_credit || null, notes: (placeForm.notes || "").trim(), visited: !!placeForm.visited, rating: placeForm.visited ? Number(placeForm.rating) || 0 : 0, visited_on: placeForm.visited ? placeForm.visited_on || null : null };
+    const patch = { name: placeForm.name.trim(), type: placeForm.type.trim(), address: placeForm.address.trim(), place_id: placeForm.place_id || null, maps_url: placeForm.maps_url || null, photo_url: placeForm.photo_url || null, photo_credit: placeForm.photo_credit || null, notes: (placeForm.notes || "").trim(), visited: !!placeForm.visited, rating: placeForm.visited ? Number(placeForm.rating) || 0 : 0, visited_on: placeForm.visited ? placeForm.visited_on || null : null, source_url: placeForm.source_url || null, source_kind: placeForm.source_kind || null };
     if (placeForm.id) {
       await ent.SavedPlace.update(placeForm.id, patch);
       setSavedPlaces(prev => prev.map(p => p.id === placeForm.id ? { ...p, ...patch } : p));
@@ -285,6 +286,26 @@ export default function Notes() {
       const created = await ent.SavedPlace.create(patch);
       setSavedPlaces(prev => [created, ...prev]);
     }
+    setPlaceForm(null);
+  };
+
+  // Several places from one shared link: look each up (address, photo) and save them all.
+  const savePlacesFromLink = async (hits, source) => {
+    const made = [];
+    for (const h of hits) {
+      const rec = { name: h.name, type: guessPlaceType(h.types, h.primaryType), address: h.address || "", place_id: h.placeId, maps_url: null, photo_url: null, photo_credit: null, notes: h.why ? `From the post: "${h.why}"` : "", visited: false, rating: 0, visited_on: null, source_url: source?.url || null, source_kind: source?.kind || null };
+      try {
+        const d = await base44.integrations.Core.LookupPlace({ place_id: h.placeId });
+        rec.address = d.address || rec.address; rec.maps_url = d.mapsUrl || null; rec.type = guessPlaceType(d.types, d.primaryType) || rec.type;
+        if (d.url) {
+          const blob = await (await fetch(d.url)).blob();
+          const { file_url } = await base44.integrations.Core.UploadFile({ file: new File([blob], "place.jpg", { type: blob.type || "image/jpeg" }) });
+          rec.photo_url = file_url; rec.photo_credit = d.attribution || "Google";
+        }
+      } catch (e) { console.error("Lookup failed:", e); }
+      made.push(await ent.SavedPlace.create(rec));
+    }
+    setSavedPlaces(prev => [...made, ...prev]);
     setPlaceForm(null);
   };
 
@@ -611,6 +632,7 @@ export default function Notes() {
         form={placeForm}
         onChange={setPlaceForm}
         onClose={() => setPlaceForm(null)}
+        onSaveMany={savePlacesFromLink}
         onSave={savePlace}
       />
       <PlaceViewSheet
@@ -686,7 +708,7 @@ function guessPlaceType(types = [], primary = "") {
 
 // Add/edit a saved place. Type a name to find the real place: its address,
 // category and a photo fill in automatically. A place can still be typed by hand.
-function PlaceFormSheet({ form, onChange, onClose, onSave }) {
+function PlaceFormSheet({ form, onChange, onClose, onSave, onSaveMany }) {
   const [nameHits, setNameHits] = useState([]);
   const [nameSearching, setNameSearching] = useState(false);
   const [typedName, setTypedName] = useState(false);
@@ -697,7 +719,8 @@ function PlaceFormSheet({ form, onChange, onClose, onSave }) {
   const debounceTimer = useRef(null);
   const formRef = useRef(form);
   formRef.current = form;
-  const patch = (p) => onChange({ ...formRef.current, ...p });
+  // Keep the ref current between quick back-to-back patches (e.g. link source, then the place).
+  const patch = (p) => { formRef.current = { ...formRef.current, ...p }; onChange(formRef.current); };
 
   useEffect(() => {
     if (!form || !typedName || form.name.trim().length < 2) { setNameHits([]); return; }
@@ -742,7 +765,7 @@ function PlaceFormSheet({ form, onChange, onClose, onSave }) {
     setNameHits([]);
     setTypedName(false);
     patch({
-      name: hit.name || hit.description.split(",")[0],
+      name: hit.name || (hit.description || "").split(",")[0],
       address: hit.secondary || hit.description,
       place_id: hit.placeId,
       type: guessPlaceType(hit.types) || formRef.current.type,
@@ -780,6 +803,17 @@ function PlaceFormSheet({ form, onChange, onClose, onSave }) {
           </button>
         </div>
         <div className="px-5 pb-6 pt-2 space-y-3">
+          {!form.id && !form.place_id && !form.name && (
+            <>
+              <LinkPlaceImport
+                onPickOne={(p, src) => { patch({ source_url: src?.url || "", source_kind: src?.kind || "", notes: p.why ? `From the post: "${p.why}"` : formRef.current.notes }); choosePlace({ placeId: p.placeId, name: p.name, secondary: p.address, types: p.types }); }}
+                onSaveMany={onSaveMany} />
+              <p className="text-center text-[11px] text-muted-foreground">or search by name</p>
+            </>
+          )}
+          {form.source_url && !form.id && (
+            <p className="text-[11.5px] text-muted-foreground">From {form.source_kind === "tiktok" ? "TikTok" : form.source_kind === "instagram" ? "Instagram" : "a link"}. Check it's right, then save.</p>
+          )}
           <div className="relative">
             <label className="font-body text-[12px] text-muted-foreground mb-1 block">Name</label>
             <input
@@ -954,6 +988,12 @@ function PlaceViewSheet({ place, onClose, onEdit, onPatch }) {
           {place.notes
             ? <p className="text-[14.5px] text-foreground whitespace-pre-wrap leading-relaxed">{place.notes}</p>
             : <button onClick={() => onEdit(place)} className="text-[13.5px] text-muted-foreground">No notes yet. <span className="text-[#A7773F]">Add a note</span></button>}
+
+          {place.source_url && (
+            <a href={place.source_url} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center gap-1.5 text-[13px] text-[#A7773F]">
+              <Link2 className="w-4 h-4" /> Open the {place.source_kind === "tiktok" ? "TikTok" : place.source_kind === "instagram" ? "Instagram post" : "link"}
+            </a>
+          )}
 
           <div className="flex gap-2 mt-6">
             {href && (
