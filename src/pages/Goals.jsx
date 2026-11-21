@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { ent } from "@/lib/freshEntities";
 import { parseISO, differenceInCalendarDays, format, addDays } from "date-fns";
-import { Plus, Trash2, Check, Calendar, ArrowLeft, ChevronDown, ChevronUp, Star, MoreHorizontal, StickyNote } from "lucide-react";
+import { Plus, Trash2, Check, Calendar, Search, X, ArrowLeft, ChevronDown, ChevronUp, Star, MoreHorizontal, StickyNote } from "lucide-react";
 import { quarterId, shiftQ, qLabel, qShort, qDaysLeft, MAX_FOCUS } from "@/lib/quarters";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ReactQuill from "react-quill";
@@ -46,6 +46,7 @@ export default function Goals() {
     try { return new URLSearchParams(window.location.search).get("view") === "routines" ? "routines" : new URLSearchParams(window.location.search).get("view") === "tasks" ? "tasks" : "goals"; } catch { return "goals"; }
   });
   const [routineAdd, setRoutineAdd] = useState(0);
+  const [query, setQuery] = useState("");
   const [goals, setGoals] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [adding, setAdding] = useState(false);
@@ -218,10 +219,13 @@ export default function Goals() {
   };
 
   const goalIsDone = g => g.status === "done" || ((g.sub_tasks || []).length > 0 && (g.sub_tasks || []).every(t => t.completed));
-  const activeGoals = goals.filter(g => !goalIsDone(g));
-  const doneGoals = goals.filter(goalIsDone);
-  const openTasks = tasks.filter(t => !t.completed);
-  const completedTasks = tasks.filter(t => t.completed);
+  const q = query.trim().toLowerCase();
+  const hit = (...xs) => !q || xs.some((x) => String(x || "").toLowerCase().includes(q));
+  const goalHit = (g) => hit(g.title, g.category, ...(g.sub_tasks || []).map((st) => st.text));
+  const activeGoals = goals.filter(g => !goalIsDone(g) && goalHit(g));
+  const doneGoals = goals.filter(g => goalIsDone(g) && goalHit(g));
+  const openTasks = tasks.filter(t => !t.completed && hit(t.title, t.description, t.category));
+  const completedTasks = tasks.filter(t => t.completed && hit(t.title, t.description, t.category));
 
   const sectionOf = (t) => {
     if (!t.due_date) return "No date";
@@ -361,20 +365,27 @@ export default function Goals() {
     </div>
   );
 
+  const addLabel = activeTab === "routines" ? "New routine" : activeTab === "tasks" ? "New task" : "New goal";
+  const addRow = (
+    <div className="flex items-center gap-3 px-4 pt-3">
+      {activeTab !== "routines" ? (
+        <div className="flex-1 min-w-0 flex items-center gap-2 bg-card border border-border rounded-full px-4 h-10">
+          <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" strokeWidth={1.6} />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={activeTab === "tasks" ? "Search tasks…" : "Search goals…"}
+            className="flex-1 min-w-0 bg-transparent text-[14px] text-foreground outline-none placeholder:text-muted-foreground" />
+          {query && <button type="button" onClick={() => setQuery("")} aria-label="Clear search" className="text-muted-foreground"><X className="w-4 h-4" /></button>}
+        </div>
+      ) : <div className="flex-1" />}
+      <button type="button" onClick={activeTab === "routines" ? () => setRoutineAdd((n) => n + 1) : openAdd}
+        className="text-[14px] font-medium text-[#A7773F] whitespace-nowrap flex-shrink-0">+ {addLabel}</button>
+    </div>
+  );
+
   if (activeTab === "routines") {
     return (
       <div className="max-w-[1200px] mx-auto w-full">
-        <PageHeader
-          title="Goals"
-          subtitle="Small steps, every day."
-          actions={
-            <button onClick={() => setRoutineAdd((n) => n + 1)} aria-label="New routine" title="New routine"
-              className="w-9 h-9 flex items-center justify-center rounded-full bg-[#A7773F] text-[#F7F3EC] hover:opacity-90 transition-opacity">
-              <Plus className="w-[18px] h-[18px]" strokeWidth={1.8} />
-            </button>
-          }
-        />
-        <div className="md:px-4">{tabBar}<RoutinesView addSignal={routineAdd} /></div>
+        <PageHeader title="Goals & Tasks" subtitle="Small steps, every day." />
+        <div className="md:px-4">{tabBar}{addRow}<RoutinesView addSignal={routineAdd} /></div>
       </div>
     );
   }
@@ -384,22 +395,10 @@ export default function Goals() {
       <div className="flex flex-1 min-h-0 h-full">
       {/* Sidebar */}
       <div className={`w-full md:w-64 lg:w-[380px] flex-shrink-0 bg-background border-r border-border flex-col ${showingDetail ? "hidden" : "flex"}`}>
-        <PageHeader
-          title="Goals & Tasks"
-          subtitle="Where you're headed."
-          actions={
-            <button
-              onClick={openAdd}
-              className="w-9 h-9 flex items-center justify-center rounded-full bg-[#A7773F] text-[#F7F3EC] hover:opacity-90 transition-opacity"
-              aria-label={`New ${activeTab === "goals" ? "goal" : "task"}`}
-              title={`New ${activeTab === "goals" ? "goal" : "task"}`}
-            >
-              <Plus className="w-[18px] h-[18px]" strokeWidth={1.8} />
-            </button>
-          }
-        />
+        <PageHeader title="Goals & Tasks" subtitle="Where you're headed." />
 
         {tabBar}
+        {addRow}
 
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5">
           {activeTab === "goals" && (
@@ -474,7 +473,8 @@ export default function Goals() {
                   {showDoneGoals && <div className="space-y-2.5 mt-1">{doneGoals.map(renderGoalCard)}</div>}
                 </div>
               )}
-              {goals.length === 0 && !adding && <p className="text-muted-foreground text-sm p-3 text-center">No goals yet. Tap + to add your first one.</p>}
+              {goals.length === 0 && !adding && <p className="text-muted-foreground text-sm p-3 text-center">No goals yet. Tap + New goal to add your first one.</p>}
+              {goals.length > 0 && q && !activeGoals.length && !doneGoals.length && <p className="text-muted-foreground text-sm p-3 text-center">No goals match "{query.trim()}".</p>}
             </>
           )}
           {activeTab === "tasks" && (

@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Check, Flame, Star } from "lucide-react";
 import { getModule } from "@/lib/homeModules";
 import RoutineSheet from "@/components/home/RoutineSheet";
-import { colorOf, dayKey, isScheduled, doneOn, completeOn, stepsFor, streaks } from "@/lib/routines";
+import { colorOf, dayKey, isScheduled, doneOn, completeOn, stepsFor, streaks, scheduleLabel, DAY_SHORT } from "@/lib/routines";
 // The last 7 days for one routine, oldest first: done, missed, off (not scheduled or before it existed), or today's progress.
 // This week, Monday to Sunday: the dots start fresh every Monday and fill in as the week goes.
 function weekDots(r) {
@@ -26,6 +26,15 @@ function weekDots(r) {
 // Routines in the order of the day.
 const SLOT_ORDER = { morning: 0, anytime: 1, evening: 2 };
 const fmtTime = (t) => { const [h, m] = String(t).split(":").map(Number); return `${((h + 11) % 12) + 1}:${String(m || 0).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`; };
+
+// When an off-day routine is next due: "Tomorrow", "Next: Mon", or null.
+const nextDue = (r) => {
+  for (let i = 1; i <= 7; i++) {
+    const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + i);
+    if (isScheduled(r, d) && stepsFor(r, d).length) return i === 1 ? "Tomorrow" : `Next: ${DAY_SHORT[d.getDay()]}`;
+  }
+  return null;
+};
 
 const fmtShort = (d) => { try { return new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }); } catch { return ""; } };
 
@@ -73,11 +82,12 @@ export default function TodaysFocus({ items, total = 0, starIds, onComplete, rou
       {(() => {
         const today = dayKey();
         const due = routines.filter((r) => isScheduled(r) && stepsFor(r).length);
+        const off = routines.filter((r) => !(isScheduled(r) && stepsFor(r).length) && (r.steps || []).length);
         const doneCount = due.filter((r) => completeOn(r, today)).length;
         const head = "flex items-center justify-between px-3.5 pt-2.5 pb-1 text-[10px] tracking-[0.14em] uppercase text-muted-foreground";
         return (
           <div className="rounded-2xl bg-card border border-border/60 overflow-hidden">
-            {(localItems.length > 0 || due.length > 0) && (
+            {(localItems.length > 0 || due.length > 0 || off.length > 0) && (
               <div className={head}>
                 <span>Tasks</span>
                 {overdue > 0 && <Link to="/goals?view=tasks" className="normal-case tracking-normal text-[11px] font-medium text-[#8F5F65]">{overdue} overdue</Link>}
@@ -129,11 +139,11 @@ export default function TodaysFocus({ items, total = 0, starIds, onComplete, rou
           })}
         </div>
       )}
-            {due.length > 0 && (
+            {(due.length > 0 || off.length > 0) && (
               <>
                 <div className={`${head} border-t border-border/60 mt-1`}>
                   <span>Routines</span>
-                  <span className="normal-case tracking-normal text-[11px]">{doneCount} of {due.length} done</span>
+                  <span className="normal-case tracking-normal text-[11px]">{due.length ? `${doneCount} of ${due.length} done today` : "None due today"}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 px-3 pt-1 pb-3">
                   {[...due].sort((x, y) => (SLOT_ORDER[x.slot] ?? 1) - (SLOT_ORDER[y.slot] ?? 1) || String(x.remind_at || "99").localeCompare(String(y.remind_at || "99")) || String(x.name).localeCompare(String(y.name))).map((r) => {
@@ -165,6 +175,29 @@ export default function TodaysFocus({ items, total = 0, starIds, onComplete, rou
                           <Check className="w-3.5 h-3.5" strokeWidth={2.4} style={{ color: fin ? "#fff" : c }} />
                         </button>
                       </div>
+                    );
+                  })}
+                  {off.map((r) => {
+                    const c = colorOf(r);
+                    const when = nextDue(r);
+                    return (
+                      <button key={r.id} type="button" onClick={() => setSheetId(r.id)}
+                        className="rounded-xl border border-dashed border-border bg-[#FBF8F3] px-2.5 py-2 flex items-center gap-2 text-left">
+                        <span className="flex-1 min-w-0">
+                          <span className="block text-[9.5px] tracking-[0.14em] uppercase font-medium text-muted-foreground truncate">{scheduleLabel(r)}</span>
+                          <span className="block font-heading text-[14px] leading-[1.25] text-muted-foreground truncate">{r.name.replace(/^(morning|evening)\s*[·:-]\s*/i, "")}</span>
+                          <span className="flex gap-[3px] mt-1.5" aria-label="Last 7 days">
+                            {weekDots(r).map((dt) => (
+                              <span key={dt.key} className="w-[9px] h-[9px] rounded-full box-border"
+                                style={dt.state === "done" ? { background: c }
+                                  : dt.state === "missed" ? { border: `1.5px solid ${c}55` }
+                                  : dt.state === "future" ? { border: "1px solid #E2D9C9" }
+                                  : { background: "#F2EEE6" }} />
+                            ))}
+                          </span>
+                        </span>
+                        {when && <span className="text-[10.5px] text-muted-foreground flex-shrink-0 whitespace-nowrap">{when}</span>}
+                      </button>
                     );
                   })}
                 </div>

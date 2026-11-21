@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { Check, Pencil, X } from "lucide-react";
-import { colorOf, dayKey, stepsFor } from "@/lib/routines";
+import { colorOf, dayKey, stepsFor, scheduleLabel } from "@/lib/routines";
 
 // A routine's checklist for today, sliding up over Home so you never leave it.
 // Swipe down, tap outside, or tap X to close.
@@ -28,6 +28,7 @@ export default function RoutineSheet({ routine, timeLabel, onStep, onAll, onClos
   const doneIds = new Set((routine.log || {})[dayKey()] || []);
   const done = steps.filter((s) => doneIds.has(s.id)).length;
   const all = steps.length > 0 && done >= steps.length;
+  const offToday = steps.length === 0;
   const name = routine.name.replace(/^(morning|evening)\s*[·:-]\s*/i, "");
 
   const onTouchStart = (e) => { startY.current = e.touches[0].clientY; };
@@ -51,13 +52,27 @@ export default function RoutineSheet({ routine, timeLabel, onStep, onAll, onClos
               </p>
               <h2 className="font-heading text-[21px] leading-tight text-[#2E2A27] mt-1">{name}</h2>
             </div>
-            {!(steps.length === 1 && steps[0].implicit) && <span className="text-[12px] mt-1" style={{ color: all ? "#7D8A53" : "#8A8078" }}>{done} of {steps.length}</span>}
+            {!offToday && !(steps.length === 1 && steps[0].implicit) && <span className="text-[12px] mt-1" style={{ color: all ? "#7D8A53" : "#8A8078" }}>{done} of {steps.length}</span>}
             <button type="button" onClick={close} aria-label="Close" className="p-1 -mr-1 text-[#8A8078]"><X className="w-5 h-5" strokeWidth={1.5} /></button>
           </div>
         </div>
 
         <div className="px-5 overflow-y-auto">
-          {steps.length === 1 && steps[0].implicit ? (
+          {offToday ? (
+            <div className="mt-3">
+              <p className="text-[13px] text-[#8A8078]">Not due today. It's on {scheduleLabel(routine)}.</p>
+              {!(routine.steps || []).every((st) => st.implicit) && (
+                <ul className="bg-white border border-[#E8E0D2] rounded-2xl px-4 mt-3">
+                  {(routine.steps || []).map((st, i) => (
+                    <li key={st.id} className={`py-2.5 ${i ? "border-t border-[#EFE8DC]" : ""}`}>
+                      <span className="block text-[14px] text-[#6B635C]">{st.text}</span>
+                      {st.note && <span className="block text-[12px] text-[#9A9088] mt-0.5">{st.note}</span>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ) : steps.length === 1 && steps[0].implicit ? (
             <p className="text-[13px] text-[#8A8078] mt-3">{all ? "Done for today." : "One simple check. Tap Mark done when it's done."}</p>
           ) : (
           <div className="bg-white border border-[#E8E0D2] rounded-2xl px-4 mt-3">
@@ -81,8 +96,10 @@ export default function RoutineSheet({ routine, timeLabel, onStep, onAll, onClos
           )}
 
           <div className="grid grid-cols-2 gap-2 mt-3">
+            {offToday ? <span /> : (
             <button type="button" onClick={() => onAll(routine, !all)}
               className="h-11 rounded-xl bg-[#2E2A27] text-[#F7F3EC] text-[14px]">{all ? "Undo all" : "Mark all done"}</button>
+            )}
             <Link to={`/goals?view=routines&edit=${routine.id}`}
               className="h-11 rounded-xl border border-[#E4DCCF] text-[#6B635C] text-[14px] flex items-center justify-center gap-1.5">
               <Pencil className="w-4 h-4" strokeWidth={1.5} />Edit
