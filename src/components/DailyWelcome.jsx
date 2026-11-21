@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MapPin, Search, LocateFixed, Loader2, Sun, CloudSun, Cloud, CloudFog, CloudDrizzle, CloudRain, Snowflake, CloudLightning, Moon, Target, Flame, Receipt, Plane, Wind, Volume2 } from "lucide-react";
 import { ent } from "@/lib/freshEntities";
+import { weeklyDue } from "@/lib/weekly";
 import { CHIMES_KEY, findPlaces, locatePlace, refreshAutoPlace, partOfDay, getWeather, describeWx, dayLines, thoughtFor, weatherTip, weatherPhrase } from "@/lib/welcome";
 import WeatherSky from "@/components/WeatherSky";
 
@@ -125,6 +126,8 @@ export default function DailyWelcome({ user, prefs }) {
       // (iPhone home-screen apps can keep sessionStorage after being closed,
       // so we don't rely on it.) BOOT guards against showing twice per start.
       if (!force && (BOOT.shown || isReload() || prefs?.welcome_off)) return;
+      // The weekly review pop-up takes this start's turn instead.
+      if (!force && weeklyDue(prefs)) return;
       BOOT.shown = true;
       // Settings may have just changed the city; read the latest saved copy.
       try { const raw = JSON.parse(localStorage.getItem("guia:nav-prefs") || "null"); if (raw?.weather_place) setFreshPlace(raw.weather_place); } catch { /* ignore */ }

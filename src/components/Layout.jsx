@@ -8,6 +8,7 @@ import FeedbackModal from "@/components/feedback/FeedbackModal";
 import BottomNav from "@/components/BottomNav";
 import QuickCapture from "@/components/QuickCapture";
 import DailyWelcome from "@/components/DailyWelcome";
+import WeeklyPopup from "@/components/WeeklyPopup";
 import GuiaHeader from "@/components/GuiaHeader";
 import { useAuth } from "@/lib/AuthContext";
 import { SECTION_META, DEFAULT_SECTION_ORDER, normalizeSections, normalizeOrder, isSectionActive } from "@/lib/navSections";
@@ -23,6 +24,12 @@ export default function Layout() {
   const [prefs, setPrefs] = useState(() => {
     try { const raw = localStorage.getItem("guia:nav-prefs"); return raw ? JSON.parse(raw) : null; } catch { return null; }
   });
+  // Other screens (like the weekly pop-up) can update preferences in place.
+  useEffect(() => {
+    const on = (e) => setPrefs((p) => ({ ...(p || {}), ...(e.detail || {}) }));
+    window.addEventListener("guia:prefs-patch", on);
+    return () => window.removeEventListener("guia:prefs-patch", on);
+  }, []);
   const [user, setUser] = useState(null);
   const [showFeedback, setShowFeedback] = useState(false);
 
@@ -168,6 +175,7 @@ export default function Layout() {
         <BottomNav prefs={prefs} onFeedback={() => setShowFeedback(true)} />
         <QuickCapture />
         <DailyWelcome user={user} prefs={prefs} />
+        <WeeklyPopup user={user} prefs={prefs} />
       </div>
     </div>
   );

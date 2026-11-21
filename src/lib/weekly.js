@@ -23,6 +23,32 @@ export function reviewWeek(today = new Date()) {
 // The review card shows on Home on Sundays and Mondays until it's done.
 export const isReviewDay = (d = new Date()) => d.getDay() === 0 || d.getDay() === 1;
 
+// ---- Weekly review pop-up ----
+// Day choices: Saturday (6), Sunday (0) or Monday (1); they all review the
+// Sunday–Saturday week that just ended. Default: Sunday from 6 PM.
+export const WEEKLY_DAYS = [[6, "Saturday"], [0, "Sunday"], [1, "Monday"]];
+export const WEEKLY_SEEN_KEY = "guia-weekly-seen";
+export function weeklySettings(prefs) {
+  const day = [6, 0, 1].includes(Number(prefs?.weekly_day)) ? Number(prefs.weekly_day) : 0;
+  const time = /^\d{2}:\d{2}$/.test(prefs?.weekly_time || "") ? prefs.weekly_time : "18:00";
+  return { day, time, off: !!prefs?.weekly_popup_off };
+}
+// Is the pop-up waiting? From the chosen day and time until the end of the
+// next day (so missing Sunday night still shows it Monday), once per week.
+export function weeklyDue(prefs, now = new Date()) {
+  if (!prefs) return false;
+  const { day, time, off } = weeklySettings(prefs);
+  if (off) return false;
+  const week = reviewWeek(now);
+  if (prefs.review_done_week === week.key) return false;
+  try { if (localStorage.getItem(WEEKLY_SEEN_KEY) === week.key) return false; } catch { /* ignore */ }
+  const offset = day === 6 ? 0 : day === 0 ? 1 : 2; // days after the week's Saturday
+  const [h, m] = time.split(":").map(Number);
+  const start = new Date(week.end); start.setDate(start.getDate() + offset); start.setHours(h, m, 0, 0);
+  const end = new Date(start); end.setDate(end.getDate() + 1); end.setHours(23, 59, 59, 999);
+  return now >= start && now <= end;
+}
+
 // This week's picks apply from the Sunday after the reviewed week through the next Saturday.
 export function activeFocus(prefs, today = new Date()) {
   const f = prefs?.week_focus;
@@ -130,6 +156,10 @@ export function buildReview({ routines = [], tasks = [], goals = [], finItems = 
     });
   tripsSoon.slice(0, 1).forEach(({ t }) => push({ text: `Plan ${t.title || "your trip"}`, kind: "trip", refId: t.id }));
 
+  // Goal steps finished this week, and how much went to bills.
+  const stepsDone = goals.reduce((n, g) => n + (g.sub_tasks || []).filter((st) => st.completed && inWeek(localDay(st.completed_at))).length, 0);
+  const billsPaidAmt = paidThisWeek.reduce((t, b) => t + (Number(b.amount) || 0), 0);
+
   // Headline.
   let headline = "A fresh week ahead";
   if (rate != null && rate >= 80) headline = "A strong week";
@@ -140,5 +170,5 @@ export function buildReview({ routines = [], tasks = [], goals = [], finItems = 
     ? `You showed up ${showUp} of 7 days.`
     : "Nothing logged last week. Pick a few things to start this one.";
 
-  return { headline, sub, rate, tasksDone: finished.length, routineRows, best, wins: wins.slice(0, 4), money: moneyCard, comingUp: comingUp.slice(0, 5), suggestions: sug.slice(0, 6) };
+  return { headline, sub, rate, tasksDone: finished.length, stepsDone, billsPaid: paidThisWeek.length, billsPaidAmt, routineRows, best, wins: wins.slice(0, 4), money: moneyCard, comingUp: comingUp.slice(0, 5), suggestions: sug.slice(0, 6) };
 }

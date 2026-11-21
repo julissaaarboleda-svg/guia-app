@@ -44,6 +44,12 @@ const QUOTES = [
 
 export default function Dashboard() {
   const [prefs, setPrefs] = useState(null);
+  // The weekly pop-up saves new picks; show them right away.
+  useEffect(() => {
+    const on = (e) => setPrefs((p) => ({ ...(p || {}), ...(e.detail || {}) }));
+    window.addEventListener("guia:prefs-patch", on);
+    return () => window.removeEventListener("guia:prefs-patch", on);
+  }, []);
   // City for the weather pill; the welcome screen can set it, so listen for that too.
   const [pickedPlace, setPickedPlace] = useState(null);
   useEffect(() => {

@@ -10,6 +10,7 @@ import FeedbackModal from "@/components/feedback/FeedbackModal";
 import PlanUsage from "@/components/settings/PlanUsage";
 import { dataVersion, dataV2Wanted, dataV2Problem } from "@/api/base44Client";
 import WelcomeSettings from "@/components/WelcomeSettings";
+import WeeklySettings from "@/components/WeeklySettings";
 import SampleDataSettings from "@/components/SampleDataSettings";
 import CalendarSync from "@/components/settings/CalendarSync";
 import { Link } from "react-router-dom";
@@ -341,6 +342,7 @@ export default function Settings() {
         </button>
       </div>
       <div className="mb-6"><WelcomeSettings /></div>
+      <div className="mb-6"><WeeklySettings /></div>
       <div className="mb-6"><SampleDataSettings /></div>
       <div className="mb-6"><CalendarSync /></div>
 
