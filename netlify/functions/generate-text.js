@@ -150,7 +150,7 @@ const handler = async (event, context) => {
         response = await ai.models.generateContent({ model: "gemini-3.6-flash", ...request });
       } catch (firstErr) {
         console.error("generate-text first attempt failed, retrying:", firstErr);
-        response = await ai.models.generateContent({ model: "gemini-3.5-flash", ...request });
+        response = await ai.models.generateContent({ model: "gemini-3.8-flash", ...request });
       }
       text = response.text;
      } catch (geminiErr) {

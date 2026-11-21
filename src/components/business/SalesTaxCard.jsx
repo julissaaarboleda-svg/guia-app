@@ -42,11 +42,18 @@ export default function SalesTaxCard({ business, entries, readOnly, onEntriesCha
   const enabled = !!business?.sales_tax?.enabled;
   const bizId = business?.id;
 
+  const [loadFailed, setLoadFailed] = useState(false);
+  // A failed load keeps what's already on screen (retrying once) instead of acting as if nothing was
+  // ever filed, which would move the filing reminder back to a quarter that's already done.
   const load = async () => {
-    const [p, b] = await Promise.all([
-      ent.SalesTaxPeriod.list().catch(() => []),
-      ent.FinanceItem.list().catch(() => []),
-    ]);
+    const attempt = () => Promise.all([ent.SalesTaxPeriod.list(), ent.FinanceItem.list()]);
+    let res;
+    try { res = await attempt(); } catch {
+      await new Promise((r) => setTimeout(r, 1500));
+      try { res = await attempt(); } catch (e) { console.error("Sales tax failed to load:", e); setLoadFailed(true); return; }
+    }
+    const [p, b] = res;
+    setLoadFailed(false);
     setPeriods((p || []).filter((x) => x.business_id === bizId));
     setBills((b || []).filter((x) => x.source === "sales_tax"));
   };
@@ -202,6 +209,12 @@ export default function SalesTaxCard({ business, entries, readOnly, onEntriesCha
     );
   }
 
+  if (!periods && loadFailed) return (
+    <div className="rounded-2xl border border-border p-4 mb-5 text-sm text-muted-foreground flex items-center justify-between gap-3">
+      <span>Sales tax couldn't load. Check your connection.</span>
+      <button type="button" onClick={() => { setLoadFailed(false); load(); }} className="text-[#A7773F] font-medium shrink-0">Try again</button>
+    </div>
+  );
   if (!periods) return <div className="h-28 rounded-2xl bg-muted/40 animate-pulse mb-5" />;
 
   // Past quarters (last four) that still need something: not marked yet, money owed, or a penalty open.

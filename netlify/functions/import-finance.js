@@ -300,7 +300,7 @@ const handler = async (event, context) => {
         response = await ai.models.generateContent({ model: "gemini-3.6-flash", contents: [{ role: "user", parts }], config: { responseMimeType: "application/json" } });
       } catch (firstErr) {
         console.error("import-finance first attempt failed, retrying:", firstErr);
-        response = await ai.models.generateContent({ model: "gemini-3.5-flash", contents: [{ role: "user", parts }], config: { responseMimeType: "application/json" } });
+        response = await ai.models.generateContent({ model: "gemini-3.8-flash", contents: [{ role: "user", parts }], config: { responseMimeType: "application/json" } });
       }
       rawText = response.text || "";
     }

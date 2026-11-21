@@ -36,10 +36,15 @@ const handler = async (event, context) => {
     if (!prompt) throw new Error("Missing 'prompt'");
 
     const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-image",
-      contents: prompt,
-    });
+    // Nano Banana 2.1 is current; the older (deprecated) image model stays as a backup for now.
+    let response;
+    try {
+      response = await ai.models.generateContent({ model: "gemini-nano-banana-2.1", contents: prompt });
+      if (!(response.candidates?.[0]?.content?.parts || []).some((p) => p.inlineData)) throw new Error("No image returned");
+    } catch (firstErr) {
+      console.error("generate-image first attempt failed, retrying:", firstErr);
+      response = await ai.models.generateContent({ model: "gemini-3.1-flash-image", contents: prompt });
+    }
 
     const parts = response.candidates?.[0]?.content?.parts || [];
     const imagePart = parts.find((p) => p.inlineData);
