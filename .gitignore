@@ -1,0 +1,11 @@
+# Built and installed locally; Netlify builds its own copy on deploy
+node_modules/
+dist/
+.netlify/
+
+# Secrets
+.env
+.env.*
+
+# Mac Finder files
+.DS_Store
