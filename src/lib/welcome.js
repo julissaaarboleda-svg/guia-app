@@ -78,7 +78,7 @@ const fmtTime = (t) => { const [h, m] = String(t).split(":").map(Number); return
 const SLOT_ORDER = { morning: 0, anytime: 1, evening: 2 };
 
 // Up to three short lines, all about today, skipping anything that doesn't apply.
-export function dayLines({ tasks = [], routines = [], finItems = [], trips = [] }, now = new Date()) {
+export function dayLines({ tasks = [], routines = [], finItems = [], trips = [], goals = [] }, now = new Date()) {
   const lines = [];
   const tk = dayKey(now);
 
@@ -86,7 +86,7 @@ export function dayLines({ tasks = [], routines = [], finItems = [], trips = [] 
   const leaving = trips.find((t) => t.start_date && String(t.start_date).slice(0, 10) === tk);
   if (leaving) lines.push({ icon: "trip", tone: "olive", parts: [{ b: leaving.title || "Your trip" }, " starts today"] });
 
-  const dueNow = todayPriorities(tasks, now);
+  const dueNow = todayPriorities(tasks, now, goals);
   if (dueNow.length) lines.push({ icon: "target", tone: "cognac", parts: [dueNow.length === 1 ? "1 priority: " : `${dueNow.length} priorities, starting with `, { b: dueNow[0].title }] });
 
   const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;

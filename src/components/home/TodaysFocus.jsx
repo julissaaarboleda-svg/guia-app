@@ -121,12 +121,18 @@ export default function TodaysFocus({ items, total = 0, starIds, onComplete, rou
                     >
                       <Icon className="w-2 h-2" />
                     </span>
-                    <span className="font-body text-[10px] text-muted-foreground">{mod.label}</span>
+                    <span className="font-body text-[10px] text-muted-foreground truncate">{it.kind === "goal" && it.sub ? it.sub : mod.label}</span>
                   </div>
                 </div>
+                {it.kind === "goal" ? (
+                  <span className={`text-[9px] font-body font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${it.dueIn < 0 ? "bg-[#F4E6E7] text-[#8F5F65]" : "bg-[#F3E8D6] text-[#8A5F27]"}`}>
+                    {it.dueIn < 0 ? "Overdue" : "Today"}
+                  </span>
+                ) : (
                 <span className={`text-[9px] font-body font-medium px-2 py-0.5 rounded-full capitalize flex-shrink-0 ${PRIORITY_CHIP[it.priority] || PRIORITY_CHIP.normal}`}>
                   {it.priority}
                 </span>
+                )}
               </div>
             );
           })}

@@ -144,8 +144,8 @@ export default function DailyWelcome({ user, prefs }) {
     if (!show) return;
     let alive = true;
     const day = (async () => {
-      const [tasks, routines, finItems, trips] = await Promise.all([safe(ent.Task.list()), safe(ent.Routine.list()), safe(ent.FinanceItem.list()), safe(ent.Trip.list())]);
-      if (alive) setLines(dayLines({ tasks, routines, finItems, trips }));
+      const [tasks, routines, finItems, trips, goals] = await Promise.all([safe(ent.Task.list()), safe(ent.Routine.list()), safe(ent.FinanceItem.list()), safe(ent.Trip.list()), safe(ent.Goal.list())]);
+      if (alive) setLines(dayLines({ tasks, routines, finItems, trips, goals }));
     })();
     const weather = place ? getWeather(place).then((w) => { if (alive) setWx(w); }).catch(() => {}) : Promise.resolve();
     const cap = new Promise((r) => setTimeout(r, 2500));

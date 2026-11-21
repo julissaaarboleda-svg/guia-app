@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { ent } from "@/lib/freshEntities";
-import { parseISO, differenceInCalendarDays } from "date-fns";
+import { parseISO, differenceInCalendarDays, format, addDays } from "date-fns";
 import { Plus, Trash2, Check, Calendar, ArrowLeft, ChevronDown, ChevronUp, Star, MoreHorizontal, StickyNote } from "lucide-react";
 import { quarterId, shiftQ, qLabel, qShort, qDaysLeft, MAX_FOCUS } from "@/lib/quarters";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -57,6 +57,7 @@ export default function Goals() {
   const [picking, setPicking] = useState(false);
   const [saveState, setSaveState] = useState("");
   const [goalMenu, setGoalMenu] = useState(false);
+  const [datingStep, setDatingStep] = useState(null); // index of the step whose date picker is open
   const [editingSteps, setEditingSteps] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [qMsg, setQMsg] = useState("");
@@ -190,8 +191,13 @@ export default function Goals() {
     await ent.Goal.update(goal.id, { sub_tasks: updated });
   };
 
+  const setStepDate = async (goal, idx, date) => {
+    const updated = (goal.sub_tasks || []).map((t, i) => i === idx ? { ...t, due_date: date || null } : t);
+    setGoals(g => g.map(x => x.id === goal.id ? { ...x, sub_tasks: updated } : x));
+    await ent.Goal.update(goal.id, { sub_tasks: updated });
+  };
   const toggleSubTask = async (goal, idx) => {
-    const updated = (goal.sub_tasks || []).map((t, i) => i === idx ? { ...t, completed: !t.completed } : t);
+    const updated = (goal.sub_tasks || []).map((t, i) => i === idx ? { ...t, completed: !t.completed, completed_at: !t.completed ? new Date().toISOString() : null } : t);
     setGoals(g => g.map(x => x.id === goal.id ? { ...x, sub_tasks: updated } : x));
     await ent.Goal.update(goal.id, { sub_tasks: updated });
   };
@@ -285,6 +291,9 @@ export default function Goals() {
               className="w-5 h-5 rounded-full border-[1.5px] border-[#D9CFBF] hover:border-[#A7773F] flex-shrink-0" />
             <span className="text-[10px] tracking-[0.12em] uppercase text-muted-foreground flex-shrink-0">Next</span>
             <span className="text-[13px] text-foreground truncate">{nextStep.text}</span>
+            {nextStep.due_date && (() => { const nd = daysFrom(nextStep.due_date); return (
+              <span className={`ml-auto flex-shrink-0 text-[11px] ${nd < 0 ? "text-[#8F5F65]" : nd === 0 ? "text-[#8A5F27]" : "text-muted-foreground"}`}>{nd < 0 ? "Overdue" : nd === 0 ? "Today" : shortDate(nextStep.due_date)}</span>
+            ); })()}
           </div>
         )}
       </div>
@@ -590,10 +599,28 @@ export default function Goals() {
             setGoals(g => g.map(x => x.id === selectedGoal.id ? { ...x, sub_tasks: updated } : x));
             await ent.Goal.update(selectedGoal.id, { sub_tasks: updated });
           };
-          const stepRow = ({ t, idx }, i) => (
-            <div key={idx} className={`flex items-center gap-3 py-2.5 ${i ? "border-t border-border/50" : ""}`}>
+          const iso = (d) => format(d, "yyyy-MM-dd");
+          const stepRow = ({ t, idx }, i) => {
+            const sd = t.due_date ? daysFrom(t.due_date) : null;
+            const dating = datingStep === idx;
+            return (
+            <div key={idx} className={`py-2.5 ${i ? "border-t border-border/50" : ""}`}>
+            <div className="flex items-start gap-3">
               <button onClick={() => toggleSubTask(selectedGoal, idx)} aria-label={t.completed ? "Mark step not done" : "Mark step done"} className="flex-shrink-0"><Tick done={t.completed} /></button>
-              <span className={`text-sm flex-1 ${t.completed ? "line-through text-muted-foreground" : "text-foreground"}`}>{t.text}</span>
+              <span className="flex-1 min-w-0">
+                <span className={`block text-sm ${t.completed ? "line-through text-muted-foreground" : "text-foreground"}`}>{t.text}</span>
+                {!t.completed && t.due_date && (
+                  <button type="button" onClick={() => setDatingStep(dating ? null : idx)}
+                    className={sd < 0 ? "mt-1 text-[10.5px] font-medium px-2 py-0.5 rounded-full bg-[#F4E6E7] text-[#8F5F65]"
+                      : sd === 0 ? "mt-1 text-[10.5px] font-medium px-2 py-0.5 rounded-full bg-[#F3E8D6] text-[#8A5F27]"
+                      : "mt-0.5 text-[11.5px] text-muted-foreground inline-flex items-center gap-1"}>
+                    {sd < 0 ? `${-sd} ${-sd === 1 ? "day" : "days"} overdue · ${shortDate(t.due_date)}` : sd === 0 ? "Due today" : <><Calendar className="w-3 h-3" />{shortDate(t.due_date)}</>}
+                  </button>
+                )}
+              </span>
+              {editingSteps && !t.completed && !t.due_date && (
+                <button onClick={() => setDatingStep(dating ? null : idx)} aria-label="Add a due date" className="p-1 text-muted-foreground flex-shrink-0"><Calendar className="w-4 h-4" strokeWidth={1.5} /></button>
+              )}
               {editingSteps && (
                 <span className="flex items-center gap-1 flex-shrink-0">
                   {!t.completed && <button onClick={() => moveStep(idx, -1)} aria-label="Move up" className="p-1 text-muted-foreground"><ChevronUp className="w-4 h-4" /></button>}
@@ -602,7 +629,21 @@ export default function Goals() {
                 </span>
               )}
             </div>
-          );
+            {dating && !t.completed && (
+              <div className="mt-2 ml-8 flex flex-wrap items-center gap-1.5">
+                {[["Today", iso(new Date())], ["Tomorrow", iso(addDays(new Date(), 1))], ["Next week", iso(addDays(new Date(), 7))]].map(([l, v]) => (
+                  <button key={l} type="button" onClick={() => { setStepDate(selectedGoal, idx, v); setDatingStep(null); }}
+                    className={`text-[12px] px-3 py-1 rounded-full border ${t.due_date === v ? "bg-[#A7773F] border-[#A7773F] text-[#F7F3EC]" : "border-border text-muted-foreground bg-card"}`}>{l}</button>
+                ))}
+                <div className="w-[150px]">
+                  <DateInput value={t.due_date || ""} onChange={(e) => { setStepDate(selectedGoal, idx, e.target.value); if (e.target.value) setDatingStep(null); }} className="h-8 text-[12.5px] rounded-full" />
+                </div>
+                {t.due_date && <button type="button" onClick={() => { setStepDate(selectedGoal, idx, null); setDatingStep(null); }} className="text-[12px] px-2 py-1 text-muted-foreground">Clear</button>}
+              </div>
+            )}
+            </div>
+            );
+          };
           const openSteps = sub.map((t, idx) => ({ t, idx })).filter(({ t }) => !t.completed);
           const doneSteps = sub.map((t, idx) => ({ t, idx })).filter(({ t }) => t.completed);
           return (

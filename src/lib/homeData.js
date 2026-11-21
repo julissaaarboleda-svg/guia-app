@@ -26,14 +26,18 @@ export function buildFocusItems({ tasks = [], goals = [], projects = [], finItem
     });
   });
 
+  // Goal steps show up only once they have a date that's today or past.
   goals.forEach((g) => {
+    if (g.status === "done") return;
     (g.sub_tasks || []).forEach((s, i) => {
-      if (s.completed) return;
+      if (s.completed || !s.due_date) return;
+      const d = inDays(s.due_date);
+      if (d == null || d > 0) return;
       items.push({
         id: `goal-${g.id}-${i}`, kind: "goal", refId: g.id, subIndex: i,
-        title: s.text, module: "goals",
-        priority: g.status === "in_progress" ? "normal" : "low",
-        due: g.target_date, dueIn: inDays(g.target_date),
+        title: s.text, module: "goals", sub: g.title,
+        priority: d < 0 ? "high" : "normal",
+        due: s.due_date, dueIn: d,
       });
     });
   });
@@ -320,17 +324,31 @@ export function buildActivity({ notes = [], finItems = [], goals = [], trips = [
 
 // "Priorities today": open to-dos due today or earlier, plus urgent/high ones with no date.
 // Home's greeting and the daily welcome both use this, so the counts always match.
-export function todayPriorities(tasks = [], now = new Date()) {
+// Goal steps with a date of today or earlier, shaped like tasks.
+export function dueGoalSteps(goals = [], now = new Date()) {
+  const today = format(now, "yyyy-MM-dd");
+  const out = [];
+  (goals || []).forEach((g) => {
+    if (g.status === "done") return;
+    (g.sub_tasks || []).forEach((s, i) => {
+      if (s.completed || !s.due_date || String(s.due_date).slice(0, 10) > today) return;
+      out.push({ id: `goal-${g.id}-${i}`, title: s.text, due_date: s.due_date, priority: String(s.due_date).slice(0, 10) < today ? "high" : "normal", completed: false, goal: g.title });
+    });
+  });
+  return out;
+}
+
+export function todayPriorities(tasks = [], now = new Date(), goals = []) {
   const today = format(now, "yyyy-MM-dd");
   const W = { urgent: 0, high: 1, normal: 2, low: 3 };
-  return (tasks || [])
+  return [...(tasks || []), ...dueGoalSteps(goals, now)]
     .filter((t) => !t.completed && (t.due_date ? String(t.due_date).slice(0, 10) <= today : t.priority === "urgent" || t.priority === "high"))
     .sort((a, b) => (W[a.priority] ?? 2) - (W[b.priority] ?? 2) || String(a.due_date || "9999").localeCompare(String(b.due_date || "9999")));
 }
 
 export function buildDailyStatus({ tasks = [], trips = [], finItems = [], goals = [] }) {
   const now = new Date();
-  const openTasks = todayPriorities(tasks, now).length;
+  const openTasks = todayPriorities(tasks, now, goals).length;
   const nextTrip = [...(trips || [])]
     .filter((t) => t.start_date && parseISO(t.start_date) >= now)
     .sort((a, b) => parseISO(a.start_date) - parseISO(b.start_date))[0];
