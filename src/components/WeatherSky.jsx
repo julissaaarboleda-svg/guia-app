@@ -4,7 +4,6 @@ const L = "#A7773F", INK = "#2E2A27", OLIVE = "#7D8A53", HY = 122;
 
 const Horizon = () => (
   <>
-    <line x1="20" y1={HY} x2="300" y2={HY} stroke={INK} strokeOpacity=".45" strokeWidth="1.5" />
     <line x1="90" y1={HY + 6} x2="230" y2={HY + 6} stroke={INK} strokeOpacity=".22" />
   </>
 );
