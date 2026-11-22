@@ -1,5 +1,6 @@
 // Client helpers for backing up, restoring and exporting the user's data.
 import { base44, authHeaders, API_BASE } from "@/api/base44Client";
+import { saveFile } from "@/lib/saveFile";
 
 export const ENTITY_NAMES = [
   "Trip", "UserPreferences", "FinanceItem", "Note", "Folder", "Project", "Goal", "Task",
@@ -54,11 +55,7 @@ export async function fetchBackup() {
 }
 
 export function download(filename, text, type = "application/json") {
-  const url = URL.createObjectURL(new Blob([text], { type }));
-  const a = document.createElement("a");
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  return saveFile(new Blob([text], { type }), filename, type).catch(() => {});
 }
 
 export const stamp = () => new Date().toISOString().slice(0, 10);

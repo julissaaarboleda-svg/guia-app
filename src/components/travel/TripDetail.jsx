@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { saveFile } from "@/lib/saveFile";
 import AdjustableImage from "@/components/ui/AdjustableImage";
 import ImageAdjuster from "@/components/ui/ImageAdjuster";
 import { searchCities, searchCountries } from "@/lib/cityData";
@@ -130,12 +131,7 @@ export default function TripDetail({ trip, onBack, onUpdate, initialTab, initial
     try {
       const response = await base44.functions.invoke("exportTripPdf", { tripId: trip.id });
       const blob = new Blob([response.data], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${trip.title.replace(/[^a-z0-9]/gi, "_")}_itinerary.pdf`;
-      link.click();
-      window.URL.revokeObjectURL(url);
+      await saveFile(blob, `${trip.title.replace(/[^a-z0-9]/gi, "_")}_itinerary.pdf`, "application/pdf");
     } catch (error) {
       console.error("Failed to export PDF:", error);
     }

@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { saveFile } from "@/lib/saveFile";
 import { ArrowLeft } from "lucide-react";
 import { format, parseISO, differenceInCalendarDays } from "date-fns";
 import { pickCoverImage, visibleMedia, visiblePlaces, tripDuration } from "@/lib/memoryUtils";
@@ -421,16 +422,7 @@ export default function TripCardsPage({ trip, onBack }) {
     return new File([blob], `${slug}-${cards[i].kind}-${size}.png`, { type: "image/png" });
   };
 
-  const download = (file) => {
-    const url = URL.createObjectURL(file);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = file.name;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-  };
+  const download = (file) => saveFile(file, file.name, file.type).catch(() => {});
 
   const run = async (label, fn) => {
     if (busy) return;

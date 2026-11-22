@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { saveFile } from "@/lib/saveFile";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 
@@ -244,13 +245,8 @@ export default function Notes() {
     if (!note) return;
     const text = getNoteText(note);
     const blob = new Blob([text], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${note.title.replace(/[^a-z0-9]/gi, "_")}.txt`;
-    link.click();
-    URL.revokeObjectURL(url);
-    toast({ title: "Note downloaded" });
+    saveFile(blob, `${(note.title || "note").replace(/[^a-z0-9]/gi, "_")}.txt`, "text/plain")
+      .then((r) => { if (r !== "cancelled") toast({ title: "Note saved" }); }).catch(() => {});
   };
 
   const shareNote = async (note) => {

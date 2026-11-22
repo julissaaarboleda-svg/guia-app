@@ -1,4 +1,5 @@
 import { base44 } from "@/api/base44Client";
+import { saveFile } from "@/lib/saveFile";
 import { fmtMonth } from "@/lib/careerFormat";
 
 // ---------- text helpers ----------
@@ -150,7 +151,7 @@ export async function exportResumePdf(resume, header, filename = "resume") {
   if (resume.skills.length) { section("Skills"); text(resume.skills.join("  ·  ")); }
   if (resume.education.length) { section("Education"); resume.education.forEach((e) => text(`${e.title}${e.org ? ` — ${e.org}` : ""}${e.dates ? `  (${e.dates})` : ""}`, { gap: 2 })); }
   if (resume.certs.length) { section("Certifications"); resume.certs.forEach((c) => text(c, { gap: 2 })); }
-  doc.save(`${filename}.pdf`);
+  await saveFile(doc.output("blob"), `${filename}.pdf`, "application/pdf");
 }
 
 export async function exportLetterPdf(letter, header, filename = "cover-letter") {
@@ -166,14 +167,12 @@ export async function exportLetterPdf(letter, header, filename = "cover-letter")
     const lines = doc.splitTextToSize(para || " ", CW);
     lines.forEach((l) => { if (y > 792 - M) { doc.addPage(); y = M; } doc.text(l, M, y); y += 15; });
   });
-  doc.save(`${filename}.pdf`);
+  await saveFile(doc.output("blob"), `${filename}.pdf`, "application/pdf");
 }
 
 // ---------- export: Word ----------
 async function saveBlob(blob, name) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  await saveFile(blob, name);
 }
 
 export async function exportResumeDocx(resume, header, filename = "resume") {

@@ -1,12 +1,20 @@
+import { useEffect, useRef } from "react";
 import { X, Download } from "lucide-react";
+import { saveFile } from "@/lib/saveFile";
 export default function AttachmentViewer({ attachment, onClose }) {
+  // Fetch the file as soon as it opens, so saving can hand it to the share
+  // sheet right on the tap (phones only allow that straight after a tap).
+  const blobRef = useRef(null);
+  useEffect(() => {
+    blobRef.current = null;
+    if (!attachment?.url) return;
+    let alive = true;
+    fetch(attachment.url).then((r) => r.blob()).then((b) => { if (alive) blobRef.current = b; }).catch(() => {});
+    return () => { alive = false; };
+  }, [attachment?.url]);
   if (!attachment) return null;
   const handleDownload = () => {
-    const link = document.createElement("a");
-    link.href = attachment.url;
-    link.download = attachment.name || "attachment";
-    link.target = "_blank";
-    link.click();
+    saveFile(blobRef.current || attachment.url, attachment.name || "attachment").catch(() => {});
   };
   return (
     <div className="fixed inset-0 z-[80] bg-black/90 flex flex-col" onClick={onClose}>
