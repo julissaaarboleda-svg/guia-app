@@ -55,6 +55,14 @@ function Sky({ part }) {
 
 export default function DailyWelcome({ user, prefs }) {
   const [show, setShow] = useState(false);
+  // While deciding whether the welcome shows on this start, cover Home with a
+  // plain ivory screen so Home doesn't flash first and then get covered.
+  const [deciding, setDeciding] = useState(() => {
+    if (BOOT.shown || isReload()) return false;
+    try { const raw = JSON.parse(localStorage.getItem("guia:nav-prefs") || "null"); if (raw?.welcome_off) return false; } catch { /* ignore */ }
+    return true;
+  });
+  useEffect(() => { if (!deciding) return; const t = setTimeout(() => setDeciding(false), 4000); return () => clearTimeout(t); }, [deciding]);
   const [leaving, setLeaving] = useState(false);
   const [mode, setMode] = useState("welcome"); // welcome | breathe
   const [wx, setWx] = useState(null);
@@ -125,7 +133,7 @@ export default function DailyWelcome({ user, prefs }) {
       // A fresh start = this JavaScript just loaded and it wasn't a reload.
       // (iPhone home-screen apps can keep sessionStorage after being closed,
       // so we don't rely on it.) BOOT guards against showing twice per start.
-      if (!force && (BOOT.shown || isReload() || prefs?.welcome_off)) return;
+      if (!force && (BOOT.shown || isReload() || prefs?.welcome_off)) { setDeciding(false); return; }
       // The weekly review pop-up takes this start's turn instead. The prefs we
       // start with can be an old cached copy, so confirm with the saved ones.
       if (!force && weeklyDue(prefs)) {
@@ -134,13 +142,14 @@ export default function DailyWelcome({ user, prefs }) {
           let fresh = null;
           try { const list = await ent.UserPreferences.filter({ user_email: user.email }); fresh = list?.find((x) => x.id === prefs?.id) || list?.[0] || null; } catch { /* keep cached */ }
           if (fresh && !weeklyDue({ ...prefs, ...fresh })) { setMode("welcome"); setLeaving(false); setShow(true); }
+          setDeciding(false);
         })();
         return;
       }
       BOOT.shown = true;
       // Settings may have just changed the city; read the latest saved copy.
       try { const raw = JSON.parse(localStorage.getItem("guia:nav-prefs") || "null"); if (raw?.weather_place) setFreshPlace(raw.weather_place); } catch { /* ignore */ }
-      setMode("welcome"); setLeaving(false); setShow(true);
+      setMode("welcome"); setLeaving(false); setShow(true); setDeciding(false);
     };
     open(false);
     const onForce = () => open(true);
@@ -229,7 +238,7 @@ export default function DailyWelcome({ user, prefs }) {
     timerRef.current = setTimeout(step, 1200);
   };
 
-  if (!show) return null;
+  if (!show) return deciding ? <div className="fixed inset-0 z-[79] bg-[#F7F3EC]" aria-hidden="true" /> : null;
 
   const first = (prefs?.display_name || user?.full_name || "").trim().split(/\s+/)[0];
   const greet = part === "morning" ? "Good morning" : part === "afternoon" ? "Good afternoon" : "Good evening";
