@@ -26,7 +26,11 @@ export default function Layout() {
   });
   // Other screens (like the weekly pop-up) can update preferences in place.
   useEffect(() => {
-    const on = (e) => setPrefs((p) => ({ ...(p || {}), ...(e.detail || {}) }));
+    const on = (e) => setPrefs((p) => {
+      const next = { ...(p || {}), ...(e.detail || {}) };
+      try { localStorage.setItem("guia:nav-prefs", JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
     window.addEventListener("guia:prefs-patch", on);
     return () => window.removeEventListener("guia:prefs-patch", on);
   }, []);

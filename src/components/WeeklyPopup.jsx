@@ -56,7 +56,18 @@ export default function WeeklyPopup({ user, prefs }) {
   // Open by itself when it's due (once per app start); open from Home's "Change".
   useEffect(() => {
     if (!user || !prefs || BOOT.shown || open) return;
-    if (weeklyDue(prefs)) { BOOT.shown = true; start("review"); }
+    if (!weeklyDue(prefs)) return;
+    BOOT.shown = true;
+    // The prefs we start with can be a cached copy from before the review was
+    // done; check the saved ones before opening.
+    (async () => {
+      let fresh = prefs;
+      try {
+        const list = await ent.UserPreferences.filter({ user_email: user.email });
+        if (list?.length) fresh = list.find((x) => x.id === prefs.id) || list[0];
+      } catch { /* go with what we have */ }
+      if (weeklyDue({ ...prefs, ...fresh })) start("review");
+    })();
   }, [user, prefs]);
   useEffect(() => {
     const on = (e) => start(e.detail?.mode === "review" ? "review" : "change");

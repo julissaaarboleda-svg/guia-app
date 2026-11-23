@@ -41,6 +41,9 @@ export function weeklyDue(prefs, now = new Date()) {
   if (off) return false;
   const week = reviewWeek(now);
   if (prefs.review_done_week === week.key) return false;
+  // Picks for the coming week already chosen (here, on another device, or via
+  // Change on Home) also count as done.
+  if (prefs.week_focus?.week === week.nextKey && (prefs.week_focus.items || []).length) return false;
   try { if (localStorage.getItem(WEEKLY_SEEN_KEY) === week.key) return false; } catch { /* ignore */ }
   const offset = day === 6 ? 0 : day === 0 ? 1 : 2; // days after the week's Saturday
   const [h, m] = time.split(":").map(Number);
