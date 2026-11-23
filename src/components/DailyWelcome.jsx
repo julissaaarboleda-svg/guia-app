@@ -126,8 +126,17 @@ export default function DailyWelcome({ user, prefs }) {
       // (iPhone home-screen apps can keep sessionStorage after being closed,
       // so we don't rely on it.) BOOT guards against showing twice per start.
       if (!force && (BOOT.shown || isReload() || prefs?.welcome_off)) return;
-      // The weekly review pop-up takes this start's turn instead.
-      if (!force && weeklyDue(prefs)) return;
+      // The weekly review pop-up takes this start's turn instead. The prefs we
+      // start with can be an old cached copy, so confirm with the saved ones.
+      if (!force && weeklyDue(prefs)) {
+        BOOT.shown = true;
+        (async () => {
+          let fresh = null;
+          try { const list = await ent.UserPreferences.filter({ user_email: user.email }); fresh = list?.find((x) => x.id === prefs?.id) || list?.[0] || null; } catch { /* keep cached */ }
+          if (fresh && !weeklyDue({ ...prefs, ...fresh })) { setMode("welcome"); setLeaving(false); setShow(true); }
+        })();
+        return;
+      }
       BOOT.shown = true;
       // Settings may have just changed the city; read the latest saved copy.
       try { const raw = JSON.parse(localStorage.getItem("guia:nav-prefs") || "null"); if (raw?.weather_place) setFreshPlace(raw.weather_place); } catch { /* ignore */ }
