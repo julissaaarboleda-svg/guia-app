@@ -345,7 +345,7 @@ export default function Goals() {
     try { await ent.Goal.update(g.id, { quarter: next }); } catch { /* kept on screen */ }
   };
   const QuarterChips = ({ g }) => (
-    <div className="flex items-center gap-1 px-3 pb-2.5 -mt-1">
+    <div className="flex flex-wrap items-center gap-1 px-3 pt-2 pb-3">
       <span className="text-[11px] text-muted-foreground mr-1">{g.quarter && upcoming.includes(g.quarter) ? "Planned for" : "Someday ·"}</span>
       {upcoming.map((qid) => (
         <button key={qid} type="button" onClick={() => planQuarter(g, qid)} aria-pressed={g.quarter === qid}
