@@ -18,6 +18,7 @@ import { monthView } from "@/lib/spending";
 import { monthKeyOf } from "@/lib/financeHelpers";
 import { buildFocusItems, buildUpNext, buildComingUp, countUndated, buildProgress, buildDailyStatus } from "@/lib/homeData";
 import { creditProgress, staleReports } from "@/lib/credit";
+const CREDIT_ASSISTANT_ON = false;
 
 const HERO_IMAGES = [
   "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
@@ -143,7 +144,8 @@ export default function Dashboard() {
       // A gentle to-do when a credit report is about 45 days old, once per report.
       try {
         const cc = (creditCases && creditCases[0]) || null;
-        const due = staleReports(creditDocs || []).filter((x) => !((cc && cc.staleNudged) || {})[`${x.bureau}|${x.date}`]);
+        // The credit assistant is hidden for now (credit lives as a money goal), so no report nudges.
+        const due = CREDIT_ASSISTANT_ON ? staleReports(creditDocs || []).filter((x) => !((cc && cc.staleNudged) || {})[`${x.bureau}|${x.date}`]) : [];
         if (due.length) {
           await ent.Task.create({ title: `Upload a new ${due.map((x) => x.bureau).join(" and ")} credit report`, notes: "From the credit assistant. Free every week at AnnualCreditReport.com. Guía will show what changed since your last one.", priority: "medium", due_date: new Date().toISOString().slice(0, 10), completed: false, source: "credit" });
           const staleNudged = { ...((cc && cc.staleNudged) || {}) };

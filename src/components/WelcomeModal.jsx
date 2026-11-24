@@ -6,7 +6,7 @@ const SECTIONS = [
   { icon: FileText, label: "Notes", desc: "Capture thoughts and ideas" },
   { icon: Briefcase, label: "Career", desc: "Track jobs, reviews, and growth" },
   { icon: Building2, label: "Business", desc: "Monitor revenue and expenses" },
-  { icon: CreditCard, label: "Finance", desc: "Manage bills, credit, and savings" },
+  { icon: CreditCard, label: "Finance", desc: "Manage bills, budget and money goals" },
   { icon: Plane, label: "Travel", desc: "Plan trips and itineraries" },
   { icon: FolderOpen, label: "Projects", desc: "Organize personal projects" },
 ];

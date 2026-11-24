@@ -20,7 +20,7 @@ const ALL_SECTIONS = [
   { id: "tasks",    label: "Tasks",    icon: CheckCircle, description: "Daily to-dos and reminders" },
   { id: "goals",    label: "Goals",    icon: Target, description: "Long-term goals and milestones" },
   { id: "work",     label: "Work",     icon: Briefcase, description: "Career and business, together" },
-  { id: "finance",  label: "Finance",  icon: CreditCard, description: "Credit, savings, loans, subscriptions, budget" },
+  { id: "finance",  label: "Finance",  icon: CreditCard, description: "Bills, budget, loans, money goals" },
   { id: "travel",   label: "Journeys", icon: Plane, description: "Trips and itineraries" },
   { id: "projects", label: "Projects", icon: FolderOpen, description: "Personal projects and phases" },
   { id: "notes",    label: "Notes",    icon: FileText, description: "Free-form writing and logs" },

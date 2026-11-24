@@ -79,10 +79,10 @@ const SECTIONS = [
     Icon: CreditCard, 
     label: "Finance", 
     path: "/finance",
-    desc: "Credit scores, savings, and bills",
+    desc: "Bills, budget, loans and money goals",
     color: "from-[#6B7A5B] to-[#5A6B4A]",
     actions: [
-      { icon: Plus, text: "Track credit scores over time" },
+      { icon: Plus, text: "Money goals: save, pay off debt, or reach a credit score" },
       { icon: Check, text: "Set savings goals" },
       { icon: TrendingUp, text: "Monitor bills and payment status" }
     ]

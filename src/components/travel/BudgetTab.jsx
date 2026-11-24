@@ -1,4 +1,5 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { ent } from "@/lib/freshEntities";
 import { Plus, Trash2, DollarSign, Edit2, Check, X, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
@@ -72,6 +73,24 @@ export default function BudgetTab({ trip, onUpdate }) {
     return queueRef.current;
   };
 
+  // A Finance money goal saving for this trip (optional, linked from either side).
+  const [goal, setGoal] = useState(null);
+  const [goalBusy, setGoalBusy] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    ent.FinanceItem.list().then((list) => { if (alive) setGoal((list || []).find((x) => x.type === "savings_goal" && x.trip_id === trip.id) || null); }).catch(() => {});
+    return () => { alive = false; };
+  }, [trip.id]);
+  const startSaving = async () => {
+    setGoalBusy(true);
+    try {
+      const g = await ent.FinanceItem.create({ type: "savings_goal", goal_kind: "save", name: `${trip.title} trip`, trip_id: trip.id, target_amount: Number(trip.budget_target) || null, current_amount: 0, target_date: trip.start_date || null, notes: "" });
+      setGoal(g);
+      toast.success("Money goal created in Finance");
+    } catch { toast.error("Couldn't create the goal. Try again."); }
+    setGoalBusy(false);
+  };
+
   const expenses = trip.expense_items || [];
   const budgetTarget = trip.budget_target || 0;
   const totalSpent = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
@@ -106,8 +125,14 @@ export default function BudgetTab({ trip, onUpdate }) {
   };
 
   const saveBudget = async () => {
-    await save(() => ({ budget_target: budgetInput ? Number(budgetInput) : null }));
+    const nextBudget = budgetInput ? Number(budgetInput) : null;
+    await save(() => ({ budget_target: nextBudget }));
     setEditingBudget(false);
+    // Linked money goal: ask before changing its target, never change it silently.
+    if (goal && nextBudget && Number(goal.target_amount) !== nextBudget
+      && window.confirm(`Update your "${goal.name}" money goal target to $${nextBudget.toLocaleString()} too?`)) {
+      try { const g = await ent.FinanceItem.update(goal.id, { target_amount: nextBudget }); setGoal(g || { ...goal, target_amount: nextBudget }); } catch { /* keep as is */ }
+    }
   };
 
   const addExpense = async () => {
@@ -123,6 +148,18 @@ export default function BudgetTab({ trip, onUpdate }) {
   return (
     <div className="space-y-4 font-body">
       <SpendingBreakdown expenses={expenses} totalSpent={totalSpent} />
+
+      {goal ? (
+        <Link to="/finance?tab=savings_goal" className="flex items-center gap-3 bg-card border border-border rounded-2xl px-4 py-3">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#7D8A53] flex-shrink-0" />
+          <span className="flex-1 min-w-0 text-[13.5px] text-foreground">Saving: ${Number(goal.current_amount || 0).toLocaleString()}{goal.target_amount ? ` of $${Number(goal.target_amount).toLocaleString()}` : ""}</span>
+          <span className="text-[11.5px] text-muted-foreground">Money goal ›</span>
+        </Link>
+      ) : (
+        <button type="button" onClick={startSaving} disabled={goalBusy} className="text-[12.5px] text-[#A7773F] disabled:opacity-60">
+          {goalBusy ? "Creating…" : "+ Start saving for this trip"}
+        </button>
+      )}
 
       {/* Budget summary */}
       {editingBudget ? (

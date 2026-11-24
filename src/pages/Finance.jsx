@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, Fragment } from "react";
 import { createPortal } from "react-dom";
+import { Link } from "react-router-dom";
 import { ent } from "@/lib/freshEntities";
 import { Trash2, ChevronDown, ChevronUp, ChevronRight, Pencil, X, MoreHorizontal, Check, Plus } from "lucide-react";
 import { isPaid, paidPatch, dueInfo, TONE_CLASS, monthKeyOf, billInMonth, isCanceled, monthlyEquivalent, needsReview } from "@/lib/financeHelpers";
@@ -13,9 +14,9 @@ import SpendingTab from "@/components/finance/SpendingTab";
 import FinanceSummary from "@/components/finance/FinanceSummary";
 import ImportSheet from "@/components/finance/ImportSheet";
 import LoanDetails, { UpcomingLoans } from "@/components/finance/LoanDetails";
-import CreditAssistant from "@/components/credit/CreditAssistant";
 
-const TABS = ["summary", "budget", "bill", "savings_goal", "loan", "credit_score"];
+// Credit now lives as a kind of money goal; the credit assistant is hidden for now.
+const TABS = ["summary", "budget", "bill", "savings_goal", "loan"];
 
 const PRESET_CATEGORIES = [
   "Housing", "Utilities", "Groceries", "Dining", "Transportation",
@@ -74,7 +75,7 @@ function RowMenu({ open, onToggle, onClose, children }) {
 const menuBtn = "w-full flex items-center gap-2 text-left px-3 py-2 text-xs hover:bg-secondary";
 
 const ADD_LABELS = { credit_score: "score", savings_goal: "goal", bill: "bill", loan: "loan", subscription: "subscription", budget: "bucket" };
-const TAB_LABELS = { summary: "Summary", credit_score: "Credit", savings_goal: "Savings Goals", bill: "Bills", loan: "Loans", subscription: "Subscriptions", budget: "Budget", spending: "Spending" };
+const TAB_LABELS = { summary: "Summary", credit_score: "Credit", savings_goal: "Money goals", bill: "Bills", loan: "Loans", subscription: "Subscriptions", budget: "Budget", spending: "Spending" };
 
 export default function Finance() {
   const [items, setItems] = useState([]);
@@ -97,6 +98,10 @@ export default function Finance() {
   const [contribId, setContribId] = useState(null);
   const [contribAmt, setContribAmt] = useState("");
   const [scoreId, setScoreId] = useState(null);
+  const [trips, setTrips] = useState([]);
+  useEffect(() => { ent.Trip.list().then((t) => setTrips(t || [])).catch(() => {}); }, []);
+  // Opened from a trip: /finance?tab=savings_goal
+  useEffect(() => { try { const t = new URLSearchParams(window.location.search).get("tab"); if (t && TABS.includes(t)) setActiveTab(t); } catch { /* ignore */ } }, []);
   const [scoreVal, setScoreVal] = useState("");
 
   const load = async () => {
@@ -112,7 +117,9 @@ export default function Finance() {
 
   const tabItems = activeTab === "bill"
     ? items.filter(i => (i.type === "bill" || i.type === "subscription") && !isCanceled(i))
-    : items.filter(i => i.type === activeTab);
+    : activeTab === "savings_goal"
+      ? items.filter(i => i.type === "savings_goal" || i.type === "credit_score")
+      : items.filter(i => i.type === activeTab);
   if (activeTab === "bill") {
     tabItems.sort((a, b) => {
       if (a.type !== b.type) return a.type === "bill" ? -1 : 1;
@@ -131,21 +138,32 @@ export default function Finance() {
     }, 0);
 
   const openAdd = (tab = activeTab) => {
-    setForm({ type: tab, subType: "bill", name: "", score: "", target_score: "", bureau: "", current_amount: "", target_amount: "", amount: "", due_date: "", paid: false, monthly_payment: "", total_amount: "", amount_paid: "", billing_cycle: "monthly", renewal_date: "",       is_fixed: false, category: "", customCategory: "", recurrence: "one_time", due_day: "", addToBudget: false });
+    setForm({ type: tab, subType: "bill", name: "", score: "", target_score: "", bureau: "", current_amount: "", target_amount: "", amount: "", due_date: "", paid: false, monthly_payment: "", total_amount: "", amount_paid: "", billing_cycle: "monthly", renewal_date: "",       is_fixed: false, category: "", customCategory: "", recurrence: "one_time", due_day: "", addToBudget: false, goal_kind: "", trip_id: "", loan_id: "", target_date: "" });
     setAdding(true);
   };
 
   const add = async () => {
     if (!form.name) return;
-    const formType = activeTab === "bill" ? (form.subType || "bill") : activeTab;
+    let formType = activeTab === "bill" ? (form.subType || "bill") : activeTab;
+    // Money goals: a credit score goal is a credit_score item (it keeps a score history).
+    if (formType === "savings_goal" && form.goal_kind === "credit") formType = "credit_score";
     const data = { type: formType, name: form.name, notes: form.notes || "" };
     if (formType === "credit_score") {
-      data.bureau = form.bureau;
+      data.bureau = form.bureau || "";
       data.score = Number(form.score) || null;
       data.target_score = Number(form.target_score) || null;
+      data.target_date = form.target_date || null;
+      if (data.score) { data.score_updated = new Date().toISOString().slice(0, 10); data.score_history = [{ score: data.score, date: data.score_updated }]; }
     } else if (formType === "savings_goal") {
-      data.current_amount = Number(form.current_amount) || 0;
-      data.target_amount = Number(form.target_amount) || null;
+      data.goal_kind = form.goal_kind === "payoff" ? "payoff" : "save";
+      data.target_date = form.target_date || null;
+      if (data.goal_kind === "payoff") {
+        data.loan_id = form.loan_id || null;
+      } else {
+        data.current_amount = Number(form.current_amount) || 0;
+        data.target_amount = Number(form.target_amount) || null;
+        data.trip_id = form.trip_id || null;
+      }
     } else if (formType === "loan") {
       data.monthly_payment = Number(form.monthly_payment) || null;
       data.total_amount = Number(form.total_amount) || null;
@@ -268,8 +286,14 @@ export default function Finance() {
       if (data.score && data.score !== item.score) Object.assign(data, withHistory(item, data.score));
       data.target_score = Number(editItemForm.target_score) || null;
     } else if (item.type === "savings_goal") {
-      data.current_amount = Number(editItemForm.current_amount) || 0;
-      data.target_amount = Number(editItemForm.target_amount) || null;
+      if (item.goal_kind === "payoff") {
+        data.loan_id = editItemForm.loan_id || item.loan_id || null;
+      } else {
+        data.current_amount = Number(editItemForm.current_amount) || 0;
+        data.target_amount = Number(editItemForm.target_amount) || null;
+        data.trip_id = editItemForm.trip_id || null;
+      }
+      data.target_date = editItemForm.target_date || null;
     } else if (item.type === "bill") {
       data.amount = Number(editItemForm.amount) || null;
       data.due_date = editItemForm.due_date || null;
@@ -336,7 +360,7 @@ export default function Finance() {
 
       {/* Summary tab */}
       {activeTab === "summary" && (
-        <FinanceSummary items={items.filter(i => !isCanceled(i))} buckets={buckets} onNavigate={(t) => { if (t === "spending") { setActiveTab("budget"); setBudgetView("spending"); } else { setActiveTab(t); if (t === "budget") setBudgetView("budget"); } setAdding(false); setEditingItemId(null); }} onAddFirst={() => { setActiveTab("bill"); openAdd("bill"); }} />
+        <FinanceSummary items={items.filter(i => !isCanceled(i))} buckets={buckets} onNavigate={(t0) => { const t = t0 === "credit_score" ? "savings_goal" : t0; if (t === "spending") { setActiveTab("budget"); setBudgetView("spending"); } else { setActiveTab(t); if (t === "budget") setBudgetView("budget"); } setAdding(false); setEditingItemId(null); }} onAddFirst={() => { setActiveTab("bill"); openAdd("bill"); }} />
       )}
 
       {/* Budget tab — self-contained */}
@@ -393,8 +417,75 @@ export default function Finance() {
             </>
           )}
 
-          {activeTab === "savings_goal" && (
+          {activeTab === "savings_goal" && !form.goal_kind && (
+            <div>
+              <p className="font-heading text-[17px] text-foreground mb-2">What's the goal?</p>
+              <div className="bg-card border border-border rounded-2xl divide-y divide-border/60">
+                {[["save", "Save money", "A trip, an emergency fund, a new machine", "#7D8A53"], ["payoff", "Pay off debt", "Pick a card or loan. Progress follows its balance.", "#A77C81"], ["credit", "Credit score", "Your score now, the score you want, and when", "#A7773F"]].map(([k, t, d, c]) => (
+                  <button key={k} type="button" onClick={() => setForm(f => ({ ...f, goal_kind: k }))} className="w-full flex items-center gap-3 px-3.5 py-3 text-left">
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: c }} />
+                    <span className="flex-1 min-w-0"><span className="block text-[14.5px] text-foreground">{t}</span><span className="block text-[12px] text-muted-foreground">{d}</span></span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "savings_goal" && form.goal_kind === "payoff" && (
             <>
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">Which card or loan?</label>
+                <select value={form.loan_id || ""} onChange={e => { const l = items.find(x => x.id === e.target.value); setForm(f => ({ ...f, loan_id: e.target.value, name: f.name || (l ? `Pay off ${l.name}` : "") })); }}
+                  className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors">
+                  <option value="">Choose one</option>
+                  {items.filter(x => x.type === "loan").map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                </select>
+                {!items.some(x => x.type === "loan") && <p className="text-[11.5px] text-muted-foreground mt-1">Add the card or loan in Loans first.</p>}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">Goal name</label>
+                <input value={form.name || ""} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g., Pay off the Chase card" className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">Paid off by (optional)</label>
+                <DateInput value={form.target_date || ""} onChange={e => setForm(f => ({ ...f, target_date: e.target.value }))} className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors" />
+              </div>
+            </>
+          )}
+
+          {activeTab === "savings_goal" && form.goal_kind === "credit" && (
+            <>
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">Goal name</label>
+                <input value={form.name || ""} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g., Mortgage ready" className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors" autoFocus />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-medium text-foreground mb-1">Score now</label>
+                  <input type="number" inputMode="numeric" value={form.score || ""} onChange={e => setForm(f => ({ ...f, score: e.target.value }))} placeholder="652" className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-foreground mb-1">Target score</label>
+                  <input type="number" inputMode="numeric" value={form.target_score || ""} onChange={e => setForm(f => ({ ...f, target_score: e.target.value }))} placeholder="700" className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">By (optional)</label>
+                <DateInput value={form.target_date || ""} onChange={e => setForm(f => ({ ...f, target_date: e.target.value }))} className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors" />
+              </div>
+            </>
+          )}
+
+          {activeTab === "savings_goal" && form.goal_kind === "save" && (
+            <>
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">For a trip? (optional)</label>
+                <select value={form.trip_id || ""} onChange={e => { const t = trips.find(x => x.id === e.target.value); setForm(f => ({ ...f, trip_id: e.target.value, name: f.name || (t ? `${t.title} trip` : ""), target_amount: t?.budget_target ? String(t.budget_target) : f.target_amount, target_date: t?.start_date || f.target_date })); }}
+                  className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring transition-colors">
+                  <option value="">No trip</option>
+                  {trips.filter(t => !t.end_date || t.end_date >= new Date().toISOString().slice(0, 10)).map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
+                </select>
+              </div>
               <div>
                 <label className="block text-xs font-medium text-foreground mb-1">Goal name</label>
                 <input value={form.name || ""} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g., Emergency Fund"
@@ -596,25 +687,6 @@ export default function Finance() {
 
       {activeTab === "loan" && <UpcomingLoans items={items} />}
 
-      {activeTab === "credit_score" && (
-        <CreditAssistant
-          scoreItems={items.filter(i => i.type === "credit_score")}
-          onSaveScore={async ({ bureau, score, source }) => {
-            const ex = items.find(i => i.type === "credit_score" && (i.bureau === bureau || i.name === bureau));
-            if (ex) await ent.FinanceItem.update(ex.id, { ...withHistory(ex, score), ...(source ? { notes: `Source: ${source}` } : {}) });
-            else {
-              const today = new Date().toISOString().slice(0, 10);
-              await ent.FinanceItem.create({ type: "credit_score", name: bureau, bureau, score, score_updated: today, score_history: [{ score, date: today }], target_score: null, notes: source ? `Source: ${source}` : "" });
-            }
-            await load();
-          }}
-          onDeleteScore={async (bureau) => {
-            const ex = items.find(i => i.type === "credit_score" && (i.bureau === bureau || i.name === bureau));
-            if (ex) { await ent.FinanceItem.delete(ex.id); await load(); }
-          }}
-        />
-      )}
-
       {/* Items */}
       {activeTab !== "budget" && activeTab !== "spending" && activeTab !== "credit_score" && (
       <div className={`grid grid-cols-1 lg:grid-cols-2 ${activeTab === "bill" ? "gap-2" : "gap-3"} [&>*:only-child]:col-span-full`}>
@@ -713,7 +785,27 @@ export default function Finance() {
                       <input value={editItemForm.name} onChange={e => setEditItemForm(f => ({ ...f, name: e.target.value }))} autoFocus
                         className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                    {item.goal_kind === "payoff" ? (
+                      <div>
+                        <label className="block text-xs font-medium text-foreground mb-1">Card or loan</label>
+                        <select value={editItemForm.loan_id || item.loan_id || ""} onChange={e => setEditItemForm(f => ({ ...f, loan_id: e.target.value }))} className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring">
+                          {items.filter(x => x.type === "loan").map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                        </select>
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="block text-xs font-medium text-foreground mb-1">For a trip</label>
+                        <select value={editItemForm.trip_id ?? item.trip_id ?? ""} onChange={e => setEditItemForm(f => ({ ...f, trip_id: e.target.value }))} className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring">
+                          <option value="">No trip (unlinked)</option>
+                          {trips.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
+                        </select>
+                      </div>
+                    )}
+                    <div>
+                      <label className="block text-xs font-medium text-foreground mb-1">By (optional)</label>
+                      <DateInput value={editItemForm.target_date ?? item.target_date ?? ""} onChange={e => setEditItemForm(f => ({ ...f, target_date: e.target.value }))} className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
+                    </div>
+                    {item.goal_kind !== "payoff" && <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="block text-xs font-medium text-foreground mb-1">Amount saved</label>
                         <input type="number" value={editItemForm.current_amount} onChange={e => setEditItemForm(f => ({ ...f, current_amount: e.target.value }))}
@@ -724,7 +816,7 @@ export default function Finance() {
                         <input type="number" value={editItemForm.target_amount} onChange={e => setEditItemForm(f => ({ ...f, target_amount: e.target.value }))}
                           className="w-full bg-secondary border border-input rounded-lg px-3 py-2 text-foreground text-sm outline-none focus:border-ring" />
                       </div>
-                    </div>
+                    </div>}
                   </>
                 )}
 
@@ -915,6 +1007,10 @@ export default function Finance() {
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
+                    {activeTab === "savings_goal" && (() => {
+                      const k = item.type === "credit_score" ? ["Credit score", "#A7773F"] : item.goal_kind === "payoff" ? ["Pay off", "#A77C81"] : ["Save", "#7D8A53"];
+                      return <p className="text-[10px] tracking-[0.14em] uppercase font-medium mb-0.5" style={{ color: k[1] }}>{k[0]}</p>;
+                    })()}
                     <div className="flex items-center gap-2">
                       <p className="font-heading text-base text-foreground">{item.name}</p>
                       {item.type === "loan" && item.subtype === "credit_card" && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#F0E6D6] text-[#8B6B3E] font-body">Credit card</span>}
@@ -964,8 +1060,36 @@ export default function Finance() {
                       );
                     })()}
 
-                    {item.type === "savings_goal" && (
+                    {item.type === "savings_goal" && item.goal_kind === "payoff" && (() => {
+                      const loan = items.find(x => x.id === item.loan_id);
+                      if (!loan) return <p className="text-[12px] text-muted-foreground mt-1.5">The linked card or loan was removed. Edit to pick another.</p>;
+                      const total = Number(loan.total_amount) || 0, paid = Number(loan.amount_paid) || 0, left = Math.max(0, total - paid);
+                      const pct = total ? Math.min(100, Math.round((paid / total) * 100)) : 0;
+                      return (
+                        <div className="mt-2">
+                          <div className="flex items-baseline gap-2 mb-1">
+                            <span className="font-heading text-base text-foreground">${left.toLocaleString()}</span>
+                            <span className="text-xs text-muted-foreground">left{total ? ` of $${total.toLocaleString()}` : ""}</span>
+                          </div>
+                          {total > 0 && <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden"><div className="h-full rounded-full" style={{ background: "#A77C81", width: `${pct}%` }} /></div>}
+                          <p className="text-[11.5px] text-muted-foreground mt-1.5">{pct}% paid down · follows {loan.name}{item.target_date ? ` · by ${fmtDate(item.target_date)}` : ""}</p>
+                        </div>
+                      );
+                    })()}
+
+                    {item.type === "savings_goal" && item.goal_kind !== "payoff" && (
                       <div className="mt-2">
+                        {item.trip_id && (() => {
+                          const t = trips.find(x => x.id === item.trip_id);
+                          if (!t) return null;
+                          const days = t.start_date ? Math.ceil((new Date(`${t.start_date}T12:00:00`) - new Date()) / 86400000) : null;
+                          return (
+                            <Link to={`/travel?openTrip=${t.id}`} onClick={(e) => e.stopPropagation()} className="flex items-center gap-2 mb-2">
+                              {t.hero_image_url ? <img src={t.hero_image_url} alt="" className="w-8 h-8 rounded-lg object-cover" /> : <span className="w-8 h-8 rounded-lg bg-[#7D8A5322]" />}
+                              <span className="text-[12px] text-muted-foreground">For {t.title}{days != null && days > 0 ? ` · ${days} days to go` : ""}</span>
+                            </Link>
+                          );
+                        })()}
                         <div className="flex items-baseline gap-2 mb-1">
                           <span className="font-heading text-base text-foreground">${(item.current_amount || 0).toLocaleString()}</span>
                           {item.target_amount && <span className="text-xs text-muted-foreground">of ${Number(item.target_amount).toLocaleString()}</span>}
@@ -1024,7 +1148,7 @@ export default function Finance() {
 
                   <RowMenu open={menuId === item.id} onToggle={() => setMenuId(menuId === item.id ? null : item.id)} onClose={() => setMenuId(null)}>
                     <button className={menuBtn} onClick={() => { setMenuId(null); openEditItem(item); }}><Pencil className="w-3.5 h-3.5" /> Edit</button>
-                    {item.type === "savings_goal" && <button className={menuBtn} onClick={() => { setMenuId(null); setContribId(item.id); setContribAmt(""); }}><Plus className="w-3.5 h-3.5" /> Add contribution</button>}
+                    {item.type === "savings_goal" && item.goal_kind !== "payoff" && <button className={menuBtn} onClick={() => { setMenuId(null); setContribId(item.id); setContribAmt(""); }}><Plus className="w-3.5 h-3.5" /> Add contribution</button>}
                     <button className={`${menuBtn} text-[#8F5F65]`} onClick={() => { setMenuId(null); if (confirm(`Delete ${item.name}?`)) remove(item.id); }}><Trash2 className="w-3.5 h-3.5" /> Delete</button>
                   </RowMenu>
                 </div>

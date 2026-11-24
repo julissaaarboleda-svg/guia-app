@@ -9,7 +9,7 @@ const ALL_SECTIONS = [
   { id: "tasks",    label: "Tasks",    emoji: "✅", description: "Daily to-dos, reminders, priorities" },
   { id: "goals",    label: "Goals",    emoji: "🎯", description: "Track long-term goals and milestones" },
   { id: "work",     label: "Work",     emoji: "💼", description: "Career and business, together" },
-  { id: "finance",  label: "Finance",  emoji: "💳", description: "Credit scores & bills" },
+  { id: "finance",  label: "Finance",  emoji: "💳", description: "Bills, budget & money goals" },
   { id: "travel",   label: "Journeys", emoji: "✈️", description: "Trips & itineraries" },
   { id: "projects", label: "Projects", emoji: "🗂️", description: "Tasks & timelines" },
   { id: "notes",    label: "Notes",    emoji: "📝", description: "Ideas & lists" },
