@@ -27,7 +27,7 @@ Return only JSON:
 {"title":"short name of the project or dish, under 6 words","groups":[{"name":"group name","items":[{"text":"item with amount","maybe_have":false}]}]}
 Rules:
 - Groups fit the topic (food: Produce, Meat & seafood, Dairy, Bakery, Pantry, Spices, Frozen; builds: Lumber, Hardware, Paint & finish, Tools; sewing: Fabric, Notions, Thread; otherwise sensible groups).
-- Put the amount in the text ("3 onions", "24 wood screws, 1¼ in", "2 yd linen"). Combine duplicates into one line with the total.
+- Write each item the way you'd shop for it: short, item first, then how much to buy in store units ("Sharp cheddar, 10 oz", "Heavy cream, 1 pint", "Evaporated milk, 2 cans", "Wood screws 1¼ in, 24"). No gram conversions, no prep notes ("for greasing", "for garnish", "shredded"). Combine duplicates into one line with the total.
 - "maybe_have": true for basics most people already own (salt, pepper, cooking oil, water; common tools like a screwdriver, tape measure, scissors, iron).
 - Leave out steps, equipment that is only mentioned in passing, and anything that isn't something to get.
 - At most 40 items. If the content has nothing to make a list from, return {"title":"","groups":[]}.`;
