@@ -272,6 +272,7 @@ export default function NotesLanding({
                         <p className="font-heading text-[16px] text-foreground truncate leading-snug">{n.title || "Untitled"}</p>
                         <span className="font-body text-[11px] text-muted-foreground flex-shrink-0">{done} of {items.length}</span>
                       </div>
+                      {n.list_note && <p className="font-body text-[12px] text-muted-foreground truncate mt-0.5">{String(n.list_note).split("\n")[0]}</p>}
                       {items.length > 0 && (
                         <div className="h-1 rounded-full bg-[#EFE9DF] overflow-hidden mt-2.5">
                           <div className="h-full rounded-full" style={{ width: `${pct}%`, background: lc }} />

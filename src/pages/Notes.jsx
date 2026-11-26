@@ -46,7 +46,9 @@ export default function Notes() {
   // Import list (from a file/link, or from a note's own text).
   const [importOpen, setImportOpen] = useState(false);
   const [importSource, setImportSource] = useState(null);
-  const [linkDraft, setLinkDraft] = useState(null); // null = closed, string = adding a link
+  const [linkDraft, setLinkDraft] = useState(null);
+  const [listNoteOpen, setListNoteOpen] = useState(false);
+  useEffect(() => { setListNoteOpen(false); }, [selected?.id]); // null = closed, string = adding a link
   // The "What's the difference?" tips show open the first time only.
   const [listTipsOpen, setListTipsOpen] = useState(() => { try { const first = !localStorage.getItem("guia-list-tips-seen"); if (first) localStorage.setItem("guia-list-tips-seen", "1"); return first; } catch { return false; } });
   const [loading, setLoading] = useState(true);
@@ -71,7 +73,12 @@ export default function Notes() {
       ent.Folder.list("-created_date"),
       ent.SavedPlace.list("-updated_date"),
     ]);
-    setNotes(n);
+    // Repair: a list that got saved back as a plain note (two quick saves could
+    // overwrite each other) still has its items. Turn it back into a list.
+    const plain = (html) => String(html || "").replace(/<[^>]+>/g, "").trim();
+    const healed = n.map((x) => (x.note_type !== "list" && (x.list_items || []).length && !plain(x.content)) ? { ...x, note_type: "list" } : x);
+    healed.forEach((x, i) => { if (x !== n[i]) ent.Note.update(x.id, { note_type: "list", list_items: x.list_items, title: x.title }).catch(() => {}); });
+    setNotes(healed);
     setFolders(f);
     setSavedPlaces(p);
     setLoading(false);
@@ -142,7 +149,9 @@ export default function Notes() {
   };
 
   const persistNote = async (note, showToast = false) => {
-    const patch = { title: note.title, content: note.content, list_items: note.list_items, attachments: note.attachments || [] };
+    // Send everything we know (type and collection too) so a save can never put
+    // back an older version of a field it didn't mention.
+    const patch = { title: note.title, content: note.content, list_items: note.list_items, attachments: note.attachments || [], note_type: note.note_type || "text", folder_id: note.folder_id || null, list_note: note.list_note || "" };
     setNotes(prev => prev.map(n => n.id === note.id ? { ...n, ...patch } : n));
     await ent.Note.update(note.id, patch);
     if (showToast) toast({ title: "Note saved" });
@@ -159,7 +168,7 @@ export default function Notes() {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => { persistNote(selected, false); }, 900);
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
-  }, [selected?.title, selected?.content]);
+  }, [selected?.title, selected?.content, selected?.list_note]);
 
   const remove = async (id) => {
     setNotes(prev => prev.filter(n => n.id !== id));
@@ -175,7 +184,7 @@ export default function Notes() {
     setSelected(updated);
     setNotes(prev => prev.map(n => n.id === selected.id ? { ...n, list_items: items } : n));
     setNewItemText("");
-    await ent.Note.update(selected.id, { list_items: items });
+    await ent.Note.update(selected.id, { list_items: items, note_type: "list", title: selected.title || "" });
     newItemRef.current?.focus();
   };
 
@@ -185,14 +194,14 @@ export default function Notes() {
     );
     setSelected({ ...selected, list_items: items });
     setNotes(prev => prev.map(n => n.id === selected.id ? { ...n, list_items: items } : n));
-    await ent.Note.update(selected.id, { list_items: items });
+    await ent.Note.update(selected.id, { list_items: items, note_type: "list", title: selected.title || "" });
   };
 
   const removeItem = async (idx) => {
     const items = (selected.list_items || []).filter((_, i) => i !== idx);
     setSelected({ ...selected, list_items: items });
     setNotes(prev => prev.map(n => n.id === selected.id ? { ...n, list_items: items } : n));
-    await ent.Note.update(selected.id, { list_items: items });
+    await ent.Note.update(selected.id, { list_items: items, note_type: "list", title: selected.title || "" });
   };
 
   const handleUpload = async (newAttachments) => {
@@ -217,7 +226,7 @@ export default function Notes() {
     const have = new Set((target?.list_items || []).filter(i => !i.checked).map(i => String(i.text).trim().toLowerCase()));
     const fresh = items.filter(t => !have.has(String(t).trim().toLowerCase()));
     const merged = [...(target?.list_items || []), ...fresh.map(mk)];
-    await ent.Note.update(listId, { list_items: merged });
+    await ent.Note.update(listId, { list_items: merged, note_type: "list", title: target?.title || "" });
     setNotes(prev => prev.map(n => n.id === listId ? { ...n, list_items: merged } : n));
     if (selected?.id === listId) setSelected(sel => ({ ...sel, list_items: merged }));
     const skipped = items.length - fresh.length;
@@ -396,7 +405,7 @@ export default function Notes() {
                           <button onClick={() => setShowCheckedItems((v) => !v)} className="text-[10.5px] tracking-[0.16em] uppercase font-semibold text-muted-foreground flex items-center gap-1.5">
                             Completed · {checked.length} <span className="text-[9px]">{showCheckedItems ? "▲" : "▼"}</span>
                           </button>
-                          <button onClick={async () => { if (!confirm(`Clear ${checked.length} completed ${checked.length === 1 ? "item" : "items"}?`)) return; const items = (selected.list_items || []).filter((i) => !i.checked); setSelected({ ...selected, list_items: items }); setNotes(prev => prev.map(n => n.id === selected.id ? { ...n, list_items: items } : n)); await ent.Note.update(selected.id, { list_items: items }); }} className="text-xs font-medium text-[#A7773F]">Clear {checked.length}</button>
+                          <button onClick={async () => { if (!confirm(`Clear ${checked.length} completed ${checked.length === 1 ? "item" : "items"}?`)) return; const items = (selected.list_items || []).filter((i) => !i.checked); setSelected({ ...selected, list_items: items }); setNotes(prev => prev.map(n => n.id === selected.id ? { ...n, list_items: items } : n)); await ent.Note.update(selected.id, { list_items: items, note_type: "list", title: selected.title || "" }); }} className="text-xs font-medium text-[#A7773F]">Clear {checked.length}</button>
                         </li>
                       )}
                       {showCheckedItems && checked.map(({ item, idx }) => (
@@ -546,6 +555,13 @@ export default function Notes() {
               {isList ? <List className="w-4 h-4 text-[#B49399] flex-shrink-0" /> : <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
               <input value={selected.title} onChange={(e) => setSelected({ ...selected, title: e.target.value })} placeholder={isList ? "List name (e.g. Grocery)" : "Title"} className="flex-1 bg-transparent border-0 border-b border-border rounded-none text-foreground text-[19px] font-heading px-0 py-1 outline-none focus:border-ring transition-colors" autoFocus />
             </div>
+            {isList && (listNoteOpen || selected.list_note) ? (
+              <textarea value={selected.list_note || ""} onChange={(e) => setSelected({ ...selected, list_note: e.target.value })} onBlur={() => { if (!String(selected.list_note || "").trim()) setListNoteOpen(false); }}
+                rows={2} autoFocus={listNoteOpen && !selected.list_note} placeholder="A note for this list, e.g. Costco Saturday · use the coupon"
+                className="w-full bg-transparent text-[14px] text-muted-foreground leading-snug outline-none resize-none placeholder:text-muted-foreground/60" />
+            ) : isList ? (
+              <button type="button" onClick={() => setListNoteOpen(true)} className="text-[12.5px] text-[#A7773F]">+ Add a note</button>
+            ) : null}
 
             <div className="flex items-center gap-2">
               <FolderIcon className="w-3.5 h-3.5 text-muted-foreground" />
