@@ -88,14 +88,14 @@ async function readLink(u0, opts = {}) {
     && (/^(vm|vt)\./.test(u0.hostname) || /^\/t\//.test(u0.pathname) || /goo\.gl|instagr\.am/.test(u0.hostname));
   const u = short ? await expand(u0) : u0;
   const host = u.hostname.replace(/^www\./, "");
-  const src = { kind: "web", url: u0.toString(), title: "", thumbnail: "" };
+  const src = { kind: "web", url: u0.toString(), title: "", thumbnail: "", author: "", site: u.hostname.replace(/^www\./, "") };
   let text = "";
   if (/(^|\.)tiktok\.com$/.test(host)) {
     src.kind = "tiktok";
     try {
       const r = await fetchText(`https://www.tiktok.com/oembed?url=${encodeURIComponent(clean(u))}`);
       const j = JSON.parse(r.text);
-      src.title = j.title || ""; src.thumbnail = j.thumbnail_url || "";
+      src.title = j.title || ""; src.thumbnail = j.thumbnail_url || ""; src.author = j.author_name ? `@${String(j.author_unique_id || j.author_name).replace(/^@/, "")}` : "";
       text = `TikTok by ${j.author_name || "unknown"}: ${j.title || ""}`;
     } catch { /* fall through to the page */ }
   } else if (/(^|\.)instagram\.com$/.test(host)) {
@@ -104,11 +104,19 @@ async function readLink(u0, opts = {}) {
       const r = await fetchText(`https://graph.facebook.com/v25.0/instagram_oembed?url=${encodeURIComponent(clean(u))}`);
       const j = JSON.parse(r.text);
       if (!j.error) {
-        src.thumbnail = j.thumbnail_url || "";
+        src.thumbnail = j.thumbnail_url || ""; src.author = j.author_name ? `@${String(j.author_name).replace(/^@/, "")}` : "";
         const cap = strip(j.html || "");
         src.title = (j.title || cap).slice(0, 200);
         text = `Instagram post by ${j.author_name || "unknown"}: ${j.title || ""} ${cap}`;
       }
+    } catch { /* fall through to the page */ }
+  } else if (/(^|\.)(youtube\.com|youtu\.be)$/.test(host)) {
+    src.kind = "youtube";
+    try {
+      const r = await fetchText(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(u.toString())}`);
+      const j = JSON.parse(r.text);
+      src.title = j.title || ""; src.thumbnail = j.thumbnail_url || ""; src.author = j.author_name || "";
+      text = `YouTube video by ${j.author_name || "unknown"}: ${j.title || ""}`;
     } catch { /* fall through to the page */ }
   } else if (/(^|\.)(google\.[a-z.]+|goo\.gl|maps\.app\.goo\.gl)$/.test(host)) {
     src.kind = "maps";

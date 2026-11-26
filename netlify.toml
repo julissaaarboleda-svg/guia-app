@@ -18,6 +18,10 @@
 [functions."link-place"]
   timeout = 26
 
+# Link previews: read the link, then fetch its cover image.
+[functions."link-preview"]
+  timeout = 20
+
 # Import list: read a link/file and ask AI for the items.
 [functions."make-list"]
   timeout = 26

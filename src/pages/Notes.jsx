@@ -17,6 +17,7 @@ import AttachmentSheet from "@/components/notes/AttachmentSheet";
 import ImportListSheet from "@/components/notes/ImportListSheet";
 import ListInstructionsSheet from "@/components/notes/ListInstructionsSheet";
 import { stepsToHtml, firstLine, hasText } from "@/lib/listInstructions";
+import { linkAttachment } from "@/lib/linkPreview";
 import NoteAttachments from "@/components/notes/NoteAttachments";
 import AttachmentViewer from "@/components/notes/AttachmentViewer";
 import NotesLanding from "@/components/notes/NotesLanding";
@@ -247,11 +248,28 @@ export default function Notes() {
     const t = String(linkDraft || "").trim();
     if (!t) { setLinkDraft(null); return; }
     const url = /^https?:\/\//i.test(t) ? t : `https://${t}`;
-    let name = url; try { name = new URL(url).hostname.replace(/^www\./, "") + new URL(url).pathname.replace(/\/$/, ""); } catch { /* keep */ }
-    await handleUpload([{ url, name: name.slice(0, 60), type: "link" }]);
     setLinkDraft(null);
+    toast({ title: "Adding link…" });
+    await handleUpload([await linkAttachment(url)]);
   };
   const noteText = (n) => { const d = document.createElement("div"); d.innerHTML = n?.content || ""; return `${n?.title || ""}\n${d.innerText || d.textContent || ""}`.trim(); };
+
+  // Links saved before previews existed: fetch their preview once when opened.
+  useEffect(() => {
+    if (!selected) return;
+    const atts = selected.attachments || [];
+    if (!atts.some((a) => a.type === "link" && !a.preview_checked)) return;
+    let alive = true;
+    const id = selected.id;
+    (async () => {
+      const updated = await Promise.all(atts.map((a) => (a.type === "link" && !a.preview_checked ? linkAttachment(a.url) : a)));
+      if (!alive) return;
+      setSelected((sel) => (sel && sel.id === id ? { ...sel, attachments: updated } : sel));
+      setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, attachments: updated } : n)));
+      ent.Note.update(id, { attachments: updated }).catch(() => {});
+    })();
+    return () => { alive = false; };
+  }, [selected?.id]);
 
   const removeAttachment = async (idx) => {
     const updated = (selected.attachments || []).filter((_, i) => i !== idx);
