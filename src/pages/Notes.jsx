@@ -10,10 +10,11 @@ import { base44 } from "@/api/base44Client";
 import { ent } from "@/lib/freshEntities";
 import {
   Plus, Trash2, List, FileText, Check, ArrowLeft, Paperclip, Pencil,
-  Folder as FolderIcon, Share2, Download, MoreHorizontal, Navigation, X, Pin, Link2, Globe, Instagram, Music2,
+  Folder as FolderIcon, Share2, Download, MoreHorizontal, Navigation, X, Pin, Link2, Globe, Instagram, Music2, ListChecks, Info, Image as ImageIcon,
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import AttachmentSheet from "@/components/notes/AttachmentSheet";
+import ImportListSheet from "@/components/notes/ImportListSheet";
 import NoteAttachments from "@/components/notes/NoteAttachments";
 import AttachmentViewer from "@/components/notes/AttachmentViewer";
 import NotesLanding from "@/components/notes/NotesLanding";
@@ -42,6 +43,12 @@ export default function Notes() {
   const [newItemText, setNewItemText] = useState("");
   const [showCheckedItems, setShowCheckedItems] = useState(false);
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
+  // Import list (from a file/link, or from a note's own text).
+  const [importOpen, setImportOpen] = useState(false);
+  const [importSource, setImportSource] = useState(null);
+  const [linkDraft, setLinkDraft] = useState(null); // null = closed, string = adding a link
+  // The "What's the difference?" tips show open the first time only.
+  const [listTipsOpen, setListTipsOpen] = useState(() => { try { const first = !localStorage.getItem("guia-list-tips-seen"); if (first) localStorage.setItem("guia-list-tips-seen", "1"); return first; } catch { return false; } });
   const [loading, setLoading] = useState(true);
   const [sharing, setSharing] = useState(false);
   const [openCollection, setOpenCollection] = useState(null);
@@ -197,6 +204,35 @@ export default function Notes() {
     toast({ title: "Attachment saved", description: `${newAttachments.length} file${newAttachments.length > 1 ? "s" : ""} uploaded.` });
   };
 
+  // Add imported items to a list (or a new list), skipping ones already there.
+  const addImported = async ({ listId, newName, items, from }) => {
+    const mk = (t) => ({ text: t, checked: false, ...(from ? { from } : {}) });
+    if (!listId) {
+      const created = await ent.Note.create({ title: newName, note_type: "list", list_items: items.map(mk), content: "", attachments: [], ...(selected?.folder_id ? { folder_id: selected.folder_id } : {}) });
+      setNotes(prev => [created, ...prev]);
+      toast({ title: `Added ${items.length} to ${newName}` });
+      return;
+    }
+    const target = listId === selected?.id ? selected : notes.find(n => n.id === listId);
+    const have = new Set((target?.list_items || []).filter(i => !i.checked).map(i => String(i.text).trim().toLowerCase()));
+    const fresh = items.filter(t => !have.has(String(t).trim().toLowerCase()));
+    const merged = [...(target?.list_items || []), ...fresh.map(mk)];
+    await ent.Note.update(listId, { list_items: merged });
+    setNotes(prev => prev.map(n => n.id === listId ? { ...n, list_items: merged } : n));
+    if (selected?.id === listId) setSelected(sel => ({ ...sel, list_items: merged }));
+    const skipped = items.length - fresh.length;
+    toast({ title: `Added ${fresh.length} to ${target?.title || "your list"}`, description: skipped ? `${skipped} already on the list` : undefined });
+  };
+  const saveLink = async () => {
+    const t = String(linkDraft || "").trim();
+    if (!t) { setLinkDraft(null); return; }
+    const url = /^https?:\/\//i.test(t) ? t : `https://${t}`;
+    let name = url; try { name = new URL(url).hostname.replace(/^www\./, "") + new URL(url).pathname.replace(/\/$/, ""); } catch { /* keep */ }
+    await handleUpload([{ url, name: name.slice(0, 60), type: "link" }]);
+    setLinkDraft(null);
+  };
+  const noteText = (n) => { const d = document.createElement("div"); d.innerHTML = n?.content || ""; return `${n?.title || ""}\n${d.innerText || d.textContent || ""}`.trim(); };
+
   const removeAttachment = async (idx) => {
     const updated = (selected.attachments || []).filter((_, i) => i !== idx);
     setSelected({ ...selected, attachments: updated });
@@ -348,7 +384,7 @@ export default function Notes() {
                       {unchecked.map(({ item, idx }) => (
                         <li key={idx} className="flex items-center gap-3 group">
                           <button onClick={() => toggleItem(idx)} className="w-5 h-5 rounded-full border-2 border-muted-foreground/30 hover:border-muted-foreground flex items-center justify-center flex-shrink-0 transition-all" />
-                          <button type="button" onClick={() => toggleItem(idx)} className="text-sm flex-1 text-left text-foreground py-1">{item.text}</button>
+                          <button type="button" onClick={() => toggleItem(idx)} className="text-sm flex-1 text-left text-foreground py-1">{item.text}{item.from && <span className="ml-2 text-[11px] text-muted-foreground">{item.from}</span>}</button>
                           <button onClick={() => removeItem(idx)} className="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-destructive transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
                         </li>
                       ))}
@@ -372,10 +408,29 @@ export default function Notes() {
                   );
                 })()}
                 <NoteAttachments attachments={selected.attachments} onRemove={removeAttachment} onPreview={setViewerAttachment} />
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="text-[11px] text-[#A7773F] px-1">Saved automatically</span>
-                  <button onClick={() => setShowAttachmentSheet(true)} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground px-3 py-2 rounded-lg text-sm transition-colors"><Paperclip className="w-4 h-4" /> Attach</button>
+                <div className="flex flex-wrap items-center gap-1.5 mt-3">
+                  <button onClick={() => { setImportSource(null); setImportOpen(true); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#A7773F] text-[#8A5F2F] text-[12.5px]"><ListChecks className="w-4 h-4" /> Import list</button>
+                  <button onClick={() => setShowAttachmentSheet(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border text-muted-foreground text-[12.5px]"><ImageIcon className="w-4 h-4" /> Attach photo</button>
+                  <button onClick={() => setLinkDraft("")} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border text-muted-foreground text-[12.5px]"><Link2 className="w-4 h-4" /> Add link</button>
                 </div>
+                {linkDraft !== null && (
+                  <div className="flex gap-2 mt-2">
+                    <input value={linkDraft} onChange={(e) => setLinkDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && saveLink()} placeholder="Paste a link" inputMode="url" autoFocus
+                      className="flex-1 min-w-0 bg-card border border-border rounded-xl px-3 h-10 text-[16px] md:text-[14px] text-foreground outline-none focus:border-[#A7773F]" />
+                    <button onClick={saveLink} className="h-10 px-3.5 rounded-xl bg-[#A7773F] text-[#F7F3EC] text-[13px]">Save</button>
+                    <button onClick={() => setLinkDraft(null)} aria-label="Cancel" className="px-1 text-muted-foreground"><X className="w-4 h-4" /></button>
+                  </div>
+                )}
+                <button type="button" onClick={() => { setListTipsOpen((o) => !o); try { localStorage.setItem("guia-list-tips-seen", "1"); } catch { /* ignore */ } }}
+                  className="mt-2 text-[11.5px] text-muted-foreground inline-flex items-center gap-1"><Info className="w-3.5 h-3.5" /> What's the difference?</button>
+                {listTipsOpen && (
+                  <div className="mt-1.5 rounded-xl bg-card border border-border px-3.5 py-2.5 space-y-1.5 text-[12.5px] text-muted-foreground">
+                    <p><span className="text-[#8A5F2F] font-medium">Import list:</span> give it a recipe, instructions or a pattern (file, photo or link). Guía finds the items and you choose which to add.</p>
+                    <p><span className="text-foreground font-medium">Attach photo:</span> keeps a picture or file on the list, like a receipt. It isn't read.</p>
+                    <p><span className="text-foreground font-medium">Add link:</span> saves a link on the list, like a product page or a tutorial.</p>
+                  </div>
+                )}
+                <p className="text-[11px] text-[#A7773F] px-1 mt-2">Saved automatically</p>
               </div>
   );
 
@@ -506,9 +561,11 @@ export default function Notes() {
                   <ReactQuill theme="snow" value={selected.content || ""} onChange={(val) => setSelected({ ...selected, content: val })} modules={{ toolbar: [[{ size: ["small", false, "large", "huge"] }], ["bold", "italic", "underline", "strike"], [{ list: "ordered" }, { list: "bullet" }], ["link", "blockquote", "clean"]] }} style={{ minHeight: "320px" }} />
                 </div>
                 <NoteAttachments attachments={selected.attachments} onRemove={removeAttachment} onPreview={setViewerAttachment} />
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-[11px] text-[#A7773F] px-1">Saved automatically</span>
                   <button onClick={() => setShowAttachmentSheet(true)} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground px-3 py-2 rounded-lg text-sm transition-colors"><Paperclip className="w-4 h-4" /> Attach</button>
+                  <button onClick={() => { const t = noteText(selected); if (t.length < 15) { toast({ title: "Add the recipe or instructions to the note first" }); return; } setImportSource({ text: t, title: selected.title || "" }); setImportOpen(true); }}
+                    className="flex items-center gap-1.5 text-[#8A5F2F] px-3 py-2 rounded-lg text-sm"><ListChecks className="w-4 h-4" /> Make a list from this</button>
                 </div>
               </>
             )}
@@ -517,6 +574,8 @@ export default function Notes() {
         </div>
 
         <AttachmentSheet open={showAttachmentSheet} onClose={() => setShowAttachmentSheet(false)} onUpload={handleUpload} />
+        <ImportListSheet open={importOpen} onClose={() => { setImportOpen(false); setImportSource(null); }} source={importSource}
+          lists={notes.filter(n => n.note_type === "list")} currentListId={selected?.note_type === "list" ? selected.id : null} onAdd={addImported} />
         <AttachmentViewer attachment={viewerAttachment} onClose={() => setViewerAttachment(null)} />
       </div>
     );

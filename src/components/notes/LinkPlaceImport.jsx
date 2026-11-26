@@ -4,11 +4,10 @@ import { base44 } from "@/api/base44Client";
 
 const KIND_LABEL = { tiktok: "TikTok", instagram: "Instagram", maps: "Google Maps", web: "the page", screenshot: "the screenshot" };
 
-// Shrink a screenshot and return { mimeType, data } (base64). HEIC goes as-is.
-async function imagePayload(file) {
-  const isHeic = /heic|heif/i.test(file.type) || /\.(heic|heif)$/i.test(file.name || "");
+// Shrink a photo or screenshot to a JPEG and return { mimeType, data } (base64).
+export async function imagePayload(file) {
   const toB64 = (blob) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1]); r.onerror = rej; r.readAsDataURL(blob); });
-  if (isHeic) return { mimeType: "image/heic", data: await toB64(file) };
+  // iPhone Safari can draw HEIC photos, so they're converted to JPEG like any other.
   const url = URL.createObjectURL(file);
   try {
     const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });

@@ -299,6 +299,15 @@ async function PlacesFromLink({ url, image }) {
   return res.json(); // { source: { kind, url, title, thumbnail }, places: [{ placeId, name, address, types, primaryType, why }], reason }
 }
 
+// Things to buy or gather, from a recipe / instructions / pattern (link, file or text).
+async function ListFromSource({ url, file, text }) {
+  const headers = await authHeaders();
+  const res = await checkOk(
+    await fetch(`${API_BASE}/make-list`, { method: "POST", headers, body: JSON.stringify({ url, file, text }) })
+  );
+  return res.json(); // { title, groups: [{ name, items: [{ text, maybe_have }] }], reason }
+}
+
 // Worldwide address autocomplete for free-text address fields (e.g. Saved
 // Places) — same Google Places API key as GetPlacePhoto, different endpoint.
 async function SearchPlacesAutocomplete({ input }) {
@@ -381,7 +390,7 @@ export const base44 = {
   },
   entities,
   integrations: {
-    Core: { InvokeLLM, GenerateImage, GetPlacePhoto, GetPlaceDetails, LookupPlace, PlacesFromLink, SearchPlacesAutocomplete, UploadFile, GetPrivateFile, DeletePrivateFile, ImportFinanceFile },
+    Core: { InvokeLLM, GenerateImage, GetPlacePhoto, GetPlaceDetails, LookupPlace, PlacesFromLink, ListFromSource, SearchPlacesAutocomplete, UploadFile, GetPrivateFile, DeletePrivateFile, ImportFinanceFile },
   },
   functions: {
     // KNOWN GAP: base44.functions.invoke("exportTripPdf", ...) (used in TripDetail.jsx)

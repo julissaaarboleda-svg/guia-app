@@ -1,4 +1,4 @@
-import { FileText, X } from "lucide-react";
+import { FileText, X, Link2 } from "lucide-react";
 
 export default function NoteAttachments({ attachments, onRemove, onPreview }) {
   if (!attachments || attachments.length === 0) return null;
@@ -6,7 +6,13 @@ export default function NoteAttachments({ attachments, onRemove, onPreview }) {
     <div className="grid grid-cols-2 gap-2 py-2">
       {attachments.map((att, idx) => (
         <div key={idx} className="relative group">
-          {att.type === "image" ? (
+          {att.type === "link" ? (
+            <a href={att.url} target="_blank" rel="noopener noreferrer"
+              className="w-full aspect-square flex flex-col items-center justify-center bg-secondary rounded-lg border border-border p-3 text-center">
+              <Link2 className="w-6 h-6 text-[#A7773F] mb-1.5" />
+              <span className="text-[10px] text-muted-foreground break-all line-clamp-3">{att.name || att.url}</span>
+            </a>
+          ) : att.type === "image" ? (
             <img
               src={att.url}
               alt={att.name}
