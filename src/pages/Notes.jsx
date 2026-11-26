@@ -519,6 +519,13 @@ export default function Notes() {
               <h1 className="font-heading text-[24px] leading-tight text-foreground">{selected.title || "Untitled"}</h1>
               {selected.updated_date && <p className="text-[11px] text-muted-foreground mt-1">Edited {new Date(selected.updated_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>}
             </div>
+            {isList && (listNoteOpen || selected.list_note) ? (
+              <textarea value={selected.list_note || ""} onChange={(e) => setSelected({ ...selected, list_note: e.target.value })} onBlur={() => { if (!String(selected.list_note || "").trim()) setListNoteOpen(false); }}
+                rows={2} autoFocus={listNoteOpen && !selected.list_note} placeholder="A note for this list, e.g. Costco Saturday · use the coupon"
+                className="-mt-2 w-full bg-transparent text-[14px] text-muted-foreground leading-snug outline-none resize-none placeholder:text-muted-foreground/60" />
+            ) : isList ? (
+              <button type="button" onClick={() => setListNoteOpen(true)} className="-mt-2 self-start text-[12.5px] text-[#A7773F]">+ Add a note</button>
+            ) : null}
             {isList ? (
               <>
                 {selected.folder_id && folders.find((f) => f.id === selected.folder_id) && (
