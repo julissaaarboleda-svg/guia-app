@@ -61,9 +61,14 @@ export default function ImportListSheet({ open, onClose, lists = [], currentList
     if (!m) { setErr("Paste a link that starts with https://"); return; }
     run({ url: m[0] });
   };
-  const fromFile = async (f) => {
-    if (!f) return;
-    try { run({ file: await filePayload(f) }, (f.name || "").replace(/\.[^.]+$/, "")); } catch { setErr("Couldn't open that file."); }
+  // One or several files (a long recipe in a few screenshots), read together in order.
+  const fromFiles = async (list) => {
+    const fs = Array.from(list || []).slice(0, 8);
+    if (!fs.length) return;
+    try {
+      const payloads = await Promise.all(fs.map(filePayload));
+      run(payloads.length > 1 ? { files: payloads } : { file: payloads[0] }, (fs[0].name || "").replace(/\.[^.]+$/, ""));
+    } catch { setErr("Couldn't open that file."); }
   };
 
   const toggle = (k) => setPicked((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n; });
@@ -105,10 +110,10 @@ export default function ImportListSheet({ open, onClose, lists = [], currentList
                 {link.trim() && <button type="button" onClick={fromLink} className="h-10 px-3.5 rounded-xl bg-[#A7773F] text-[#F7F3EC] text-[13px]">Read</button>}
               </div>
               <button type="button" onClick={() => fileRef.current?.click()} className="w-full h-10 mt-2 rounded-xl bg-[#2E2A27] text-[#F7F3EC] text-[13.5px] inline-flex items-center justify-center gap-1.5">
-                <Upload className="w-4 h-4" />Choose a file or photo
+                <Upload className="w-4 h-4" />Choose files or photos
               </button>
-              <input ref={fileRef} type="file" accept="image/*,image/heic,image/heif,.heic,.heif,application/pdf,.pdf,text/plain,.txt,.md,.csv,*/*" className="hidden" onChange={(e) => { fromFile(e.target.files?.[0]); e.target.value = ""; }} />
-              <p className="text-[11.5px] text-muted-foreground mt-2">A recipe, build instructions, a sewing pattern, a packing guide… Files are read once and not kept.</p>
+              <input ref={fileRef} type="file" accept="image/*,image/heic,image/heif,.heic,.heif,application/pdf,.pdf,text/plain,.txt,.md,.csv,*/*" multiple className="hidden" onChange={(e) => { fromFiles(e.target.files); e.target.value = ""; }} />
+              <p className="text-[11.5px] text-muted-foreground mt-2">A recipe, build instructions, a sewing pattern, a packing guide… Long one? Pick several screenshots at once. Files are read once and not kept.</p>
             </div>
           )}
 

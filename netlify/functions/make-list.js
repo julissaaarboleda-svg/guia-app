@@ -44,16 +44,18 @@ function parseJson(text) {
   try { return JSON.parse(s.slice(a, b + 1)); } catch { return null; }
 }
 
-async function ask({ text, file, prompt = ASK }) {
+async function ask({ text, file, files, prompt = ASK }) {
   const ASK = prompt;
+  const list = files || (file ? [file] : null);
+  const multi = list && list.length > 1 ? `\n\nThese ${list.length} files are parts of the same thing, in order. Combine them into one result.` : "";
   if (claudeEnabled()) {
-    const content = file
-      ? [fileBlock(file.mimeType, file.data), { type: "text", text: ASK }]
+    const content = list
+      ? [...list.map((f) => fileBlock(f.mimeType, f.data)), { type: "text", text: ASK + multi + (text ? `\n\nAlso:\n${text}` : "") }]
       : `${ASK}\n\nContent:\n${text}`;
     try { return parseJson(await claudeText({ content, model: CLAUDE_FAST_MODEL, maxTokens: 2000, timeoutMs: 22000 })); } catch (e) { console.error("Claude make-list failed:", e.message); }
   }
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-  const parts = file ? [{ inlineData: { mimeType: file.mimeType, data: file.data } }, { text: ASK }] : [{ text: `${ASK}\n\nContent:\n${text}` }];
+  const parts = list ? [...list.map((f) => ({ inlineData: { mimeType: f.mimeType, data: f.data } })), { text: ASK + multi + (text ? `\n\nAlso:\n${text}` : "") }] : [{ text: `${ASK}\n\nContent:\n${text}` }];
   const r = await ai.models.generateContent({ model: "gemini-3.6-flash", contents: [{ role: "user", parts }] });
   return parseJson(r.text);
 }
@@ -72,7 +74,15 @@ const handler = async (event, context) => {
     let out;
     const stepsOnly = body.mode === "instructions";
     const prompt = stepsOnly ? ASK_STEPS : ASK;
-    if (body.file && body.file.data) {
+    const files = Array.isArray(body.files) ? body.files.filter((f) => f && f.data).slice(0, 8) : (body.file && body.file.data ? [body.file] : []);
+    if (files.length > 1) {
+      if (files.reduce((n, f) => n + String(f.data).length, 0) > 18_000_000) return reply(413, { error: "Those files are too large together. Try fewer, or smaller screenshots." });
+      const readable = files.filter((f) => READABLE.test(String(f.mimeType || "").toLowerCase()));
+      const texts = files.filter((f) => /^text\//i.test(f.mimeType || "") || /\.(txt|md|csv)$/i.test(f.name || "")).map((f) => Buffer.from(f.data, "base64").toString("utf8")).join("\n\n").slice(0, 12000);
+      if (!readable.length && !texts) return reply(200, { title: "", groups: [], reason: "unreadable" });
+      out = readable.length ? await ask({ files: readable.map((f) => ({ mimeType: String(f.mimeType).toLowerCase(), data: f.data })), text: texts, prompt }) : await ask({ text: texts, prompt });
+    } else if (files.length === 1) {
+      body.file = files[0];
       if (String(body.file.data).length > 14_000_000) return reply(413, { error: "That file is too large. Try a screenshot of the list part." });
       const mt = String(body.file.mimeType || "").toLowerCase();
       if (READABLE.test(mt)) out = await ask({ file: { mimeType: mt, data: body.file.data }, prompt });

@@ -64,6 +64,24 @@ function embeddedCaption(html) {
     pick(/"(?:poi|location)(?:Name)?"\s*:\s*\{[^}]*?"name"\s*:\s*"((?:[^"\\]|\\.){2,200})"/)].filter(Boolean).join(" | ");
 }
 
+// TikTok auto-captions (WebVTT), English first. Best effort: not every video has them.
+async function tiktokCaptions(u) {
+  const r = await fetchText(clean(u), 8000);
+  const html = r.text;
+  const dec = (x) => { try { return JSON.parse(`"${x}"`); } catch { return x; } };
+  const infos = [...html.matchAll(/\{[^{}]*?"Format"\s*:\s*"webvtt"[^{}]*?\}/g)].map((m) => m[0]);
+  const pick = infos.find((b) => /eng|en-/i.test(b)) || infos[0];
+  if (!pick) return "";
+  const urlM = pick.match(/"Url"\s*:\s*"([^"]+)"/);
+  if (!urlM) return "";
+  const vttUrl = dec(urlM[1]);
+  if (!safeUrl(vttUrl)) return "";
+  const v = await fetchText(vttUrl, 6000);
+  return v.text.split("\n")
+    .filter((l) => l.trim() && !/^WEBVTT/.test(l) && !/-->/.test(l) && !/^\d+$/.test(l.trim()))
+    .join(" ").replace(/\s+/g, " ").slice(0, 8000);
+}
+
 // Read what the link says about itself.
 async function readLink(u0, opts = {}) {
   const short = /^(vm|vt)\.tiktok\.com$|(^|\.)tiktok\.com$|^instagr\.am$|^maps\.app\.goo\.gl$|^goo\.gl$/.test(u0.hostname.replace(/^www\./, ""))
@@ -113,6 +131,11 @@ async function readLink(u0, opts = {}) {
       if (ing) { try { text += ` Ingredients: ${JSON.parse(ing[1]).join("; ")}`; } catch { /* ignore */ } }
       text += ` ${strip(html).slice(0, 14000)}`;
     } else if (src.kind === "web" && text.length < 300) text += ` ${strip(html).slice(0, 3000)}`;
+  }
+  // TikTok: when we need the whole how-to, also try the video's auto-captions
+  // (what's said out loud), which TikTok includes for many videos.
+  if (opts.fullText && src.kind === "tiktok") {
+    try { const said = await tiktokCaptions(u); if (said) text += ` What's said in the video: ${said}`; } catch { /* captions are a bonus */ }
   }
   console.log("link-place read", { kind: src.kind, url: src.url, chars: text.trim().length, sample: text.trim().slice(0, 160) });
   return { src, text: text.trim().slice(0, opts.fullText ? 18000 : 6000) };

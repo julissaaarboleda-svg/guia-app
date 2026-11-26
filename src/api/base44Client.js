@@ -300,10 +300,10 @@ async function PlacesFromLink({ url, image }) {
 }
 
 // Things to buy or gather, from a recipe / instructions / pattern (link, file or text).
-async function ListFromSource({ url, file, text, mode }) {
+async function ListFromSource({ url, file, files, text, mode }) {
   const headers = await authHeaders();
   const res = await checkOk(
-    await fetch(`${API_BASE}/make-list`, { method: "POST", headers, body: JSON.stringify({ url, file, text, mode }) })
+    await fetch(`${API_BASE}/make-list`, { method: "POST", headers, body: JSON.stringify({ url, file, files, text, mode }) })
   );
   return res.json(); // { title, groups: [{ name, items: [{ text, maybe_have }] }], reason }
 }

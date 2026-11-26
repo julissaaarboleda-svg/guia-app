@@ -83,11 +83,11 @@ export default function ListInstructionsSheet({ open, value, onChange, onClose, 
               {link.trim() && <button type="button" disabled={busy} onClick={() => { const m = link.match(/https?:\/\/\S+/); if (m) fill({ url: m[0] }); else setErr("Paste a link that starts with https://"); }} className="h-10 px-3.5 rounded-xl bg-[#A7773F] text-[#F7F3EC] text-[13px] disabled:opacity-60">Read</button>}
             </div>
             <button type="button" disabled={busy} onClick={() => fileRef.current?.click()} className="w-full h-10 mt-2 rounded-xl bg-[#2E2A27] text-[#F7F3EC] text-[13px] inline-flex items-center justify-center gap-1.5 disabled:opacity-60">
-              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}{busy ? "Reading it…" : "Choose a file or photo"}
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}{busy ? "Reading it…" : "Choose files or photos"}
             </button>
             <input ref={fileRef} type="file" accept="image/*,image/heic,image/heif,.heic,.heif,application/pdf,.pdf,text/plain,.txt,.md,*/*" className="hidden"
-              onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; try { fill({ file: await filePayload(f) }); } catch { setErr("Couldn't open that file."); } }} />
-            <p className="text-[11px] text-muted-foreground mt-2">Guía writes the steps in, numbered and ready to edit. The file isn't kept.</p>
+              multiple onChange={async (e) => { const fs = Array.from(e.target.files || []).slice(0, 8); e.target.value = ""; if (!fs.length) return; try { const p = await Promise.all(fs.map(filePayload)); fill(p.length > 1 ? { files: p } : { file: p[0] }); } catch { setErr("Couldn't open that file."); } }} />
+            <p className="text-[11px] text-muted-foreground mt-2">Long one? Pick several screenshots at once. Guía writes the steps in, numbered and ready to edit. Files aren't kept.</p>
             {err && <p className="text-[12px] text-[#8F5F65] mt-2">{err}</p>}
           </div>
         )}
