@@ -24,13 +24,19 @@ const reply = (statusCode, body) => ({ statusCode, headers: CORS, body: JSON.str
 const ASK = `From this content, make the list of things someone needs to buy or gather to do it.
 It could be a recipe (ingredients), furniture or DIY instructions (materials, hardware, tools), a sewing pattern (fabric, notions, thread), a packing guide, a party plan, or anything similar.
 Return only JSON:
-{"title":"short name of the project or dish, under 6 words","groups":[{"name":"group name","items":[{"text":"item with amount","maybe_have":false}]}]}
+{"title":"short name of the project or dish, under 6 words","groups":[{"name":"group name","items":[{"text":"item with amount","maybe_have":false}]}],"key_info":"one short line with the most useful fact (oven temp and time, servings, finished size), or empty","steps":["step 1 in your own concise words","step 2"]}
 Rules:
 - Groups fit the topic (food: Produce, Meat & seafood, Dairy, Bakery, Pantry, Spices, Frozen; builds: Lumber, Hardware, Paint & finish, Tools; sewing: Fabric, Notions, Thread; otherwise sensible groups).
 - Write each item the way you'd shop for it: short, item first, then how much to buy in store units ("Sharp cheddar, 10 oz", "Heavy cream, 1 pint", "Evaporated milk, 2 cans", "Wood screws 1¼ in, 24"). No gram conversions, no prep notes ("for greasing", "for garnish", "shredded"). Combine duplicates into one line with the total.
 - "maybe_have": true for basics most people already own (salt, pepper, cooking oil, water; common tools like a screwdriver, tape measure, scissors, iron).
 - Leave out steps, equipment that is only mentioned in passing, and anything that isn't something to get.
-- At most 40 items. If the content has nothing to make a list from, return {"title":"","groups":[]}.`;
+- "steps": the how-to steps, short and in order (at most 20), reworded concisely; [] if the content has none.
+- At most 40 items. If the content has nothing to make a list from, return {"title":"","groups":[],"key_info":"","steps":[]}.`;
+
+// "Upload" in a list's instructions: just the steps, as tidy rich text.
+const ASK_STEPS = `Turn this into clear, concise instructions someone can follow.
+Return only JSON: {"title":"short name","key_info":"one short line with the most useful fact (oven temp and time, servings, finished size), or empty","steps":["step 1","step 2"],"tips":["optional short tip"]}
+Rules: reword in your own concise words; keep amounts and temperatures; at most 25 steps and 5 tips; leave out ads, stories and comments; if there are no instructions, return {"title":"","key_info":"","steps":[],"tips":[]}.`;
 
 function parseJson(text) {
   const s = String(text || ""); const a = s.indexOf("{"), b = s.lastIndexOf("}");
@@ -38,7 +44,8 @@ function parseJson(text) {
   try { return JSON.parse(s.slice(a, b + 1)); } catch { return null; }
 }
 
-async function ask({ text, file }) {
+async function ask({ text, file, prompt = ASK }) {
+  const ASK = prompt;
   if (claudeEnabled()) {
     const content = file
       ? [fileBlock(file.mimeType, file.data), { type: "text", text: ASK }]
@@ -63,27 +70,33 @@ const handler = async (event, context) => {
   try { body = JSON.parse(event.body || "{}"); } catch { return reply(400, { error: "Bad request" }); }
   try {
     let out;
+    const stepsOnly = body.mode === "instructions";
+    const prompt = stepsOnly ? ASK_STEPS : ASK;
     if (body.file && body.file.data) {
       if (String(body.file.data).length > 14_000_000) return reply(413, { error: "That file is too large. Try a screenshot of the list part." });
       const mt = String(body.file.mimeType || "").toLowerCase();
-      if (READABLE.test(mt)) out = await ask({ file: { mimeType: mt, data: body.file.data } });
-      else if (/^text\//.test(mt) || /\.(txt|md|csv)$/i.test(body.file.name || "")) out = await ask({ text: Buffer.from(body.file.data, "base64").toString("utf8").slice(0, 18000) });
+      if (READABLE.test(mt)) out = await ask({ file: { mimeType: mt, data: body.file.data }, prompt });
+      else if (/^text\//.test(mt) || /\.(txt|md|csv)$/i.test(body.file.name || "")) out = await ask({ text: Buffer.from(body.file.data, "base64").toString("utf8").slice(0, 18000), prompt });
       else return reply(200, { title: "", groups: [], reason: "unreadable" });
     } else if (body.url) {
       const u = safeUrl(body.url);
       if (!u) return reply(400, { error: "That doesn't look like a web link." });
       const read = await readLink(u, { fullText: true });
       if (read.text.length < 20) return reply(200, { title: "", groups: [], reason: "unreadable" });
-      out = await ask({ text: read.text });
+      out = await ask({ text: read.text, prompt });
     } else if (body.text && String(body.text).trim().length > 10) {
-      out = await ask({ text: String(body.text).slice(0, 18000) });
+      out = await ask({ text: String(body.text).slice(0, 18000), prompt });
     } else {
       return reply(400, { error: "Nothing to read." });
     }
+    const clip = (a, n, len) => (Array.isArray(a) ? a : []).filter(Boolean).slice(0, n).map((x) => String(x).slice(0, len));
+    const steps = clip(out && out.steps, 25, 400), tips = clip(out && out.tips, 5, 300);
+    const keyInfo = String((out && out.key_info) || "").slice(0, 160);
+    if (stepsOnly) return reply(200, { title: String((out && out.title) || "").slice(0, 60), key_info: keyInfo, steps, tips, reason: steps.length ? "" : "nothing_found" });
     const groups = ((out && out.groups) || [])
       .map((g) => ({ name: String(g.name || "Items").slice(0, 40), items: (g.items || []).filter((i) => i && i.text).slice(0, 40).map((i) => ({ text: String(i.text).slice(0, 120), maybe_have: !!i.maybe_have })) }))
       .filter((g) => g.items.length);
-    return reply(200, { title: String((out && out.title) || "").slice(0, 60), groups, reason: groups.length ? "" : "nothing_found" });
+    return reply(200, { title: String((out && out.title) || "").slice(0, 60), groups, key_info: keyInfo, steps, reason: groups.length ? "" : "nothing_found" });
   } catch (err) {
     console.error("make-list failed:", err);
     return reply(500, { error: "Couldn't read that. Try a screenshot of the list part." });

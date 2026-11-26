@@ -26,11 +26,12 @@ export default function ImportListSheet({ open, onClose, lists = [], currentList
   const [target, setTarget] = useState("");
   const [newName, setNewName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [keepSteps, setKeepSteps] = useState(true);
   const fileRef = useRef(null);
 
   useEffect(() => {
     if (!open) return;
-    setLink(""); setErr(""); setResult(null); setBusy(false); setSaving(false); setNewName("");
+    setLink(""); setErr(""); setResult(null); setBusy(false); setSaving(false); setNewName(""); setKeepSteps(true);
     let last = "";
     try { last = localStorage.getItem(LAST_LIST_KEY) || ""; } catch { /* ignore */ }
     setTarget(currentListId || (lists.some((l) => l.id === last) ? last : lists[0]?.id || "__new__"));
@@ -72,7 +73,8 @@ export default function ImportListSheet({ open, onClose, lists = [], currentList
     if (!items.length) { setErr("Check at least one item."); return; }
     setSaving(true);
     try {
-      await onAdd({ listId: target === "__new__" ? null : target, newName: newName.trim() || result.title || "New list", items, from: result.title || "" });
+      await onAdd({ listId: target === "__new__" ? null : target, newName: newName.trim() || result.title || "New list", items, from: result.title || "",
+        steps: keepSteps && result.steps?.length ? { key_info: result.key_info, steps: result.steps } : null });
       try { if (target !== "__new__") localStorage.setItem(LAST_LIST_KEY, target); } catch { /* ignore */ }
       onClose();
     } catch { setErr("Couldn't add them. Try again."); }
@@ -151,6 +153,14 @@ export default function ImportListSheet({ open, onClose, lists = [], currentList
                   className="w-full mt-2 bg-card border border-border rounded-xl px-3 h-10 text-[14px] text-foreground outline-none" />
               )}
               <p className="text-[11px] text-muted-foreground mt-1.5">Items already on the list aren't added twice.</p>
+              {result.steps?.length > 0 && (
+                <button type="button" onClick={() => setKeepSteps((k) => !k)} className="w-full flex items-center gap-2.5 mt-3 text-left">
+                  <span className="w-[18px] h-[18px] rounded-[5px] flex items-center justify-center flex-shrink-0" style={keepSteps ? { background: "#A7773F" } : { border: "1.5px solid #D9CFBF" }}>
+                    {keepSteps && <Check className="w-3 h-3 text-white" strokeWidth={2.6} />}
+                  </span>
+                  <span className="text-[13px] text-foreground">Also save the {result.steps.length} steps in the list's instructions</span>
+                </button>
+              )}
               <button type="button" onClick={add} disabled={saving || !count} className="w-full h-12 mt-3 rounded-xl bg-[#2E2A27] text-[#F7F3EC] text-[14.5px] disabled:opacity-60 inline-flex items-center justify-center gap-2">
                 {saving && <Loader2 className="w-4 h-4 animate-spin" />}Add {count} {count === 1 ? "item" : "items"}
               </button>

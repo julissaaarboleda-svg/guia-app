@@ -15,6 +15,8 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import AttachmentSheet from "@/components/notes/AttachmentSheet";
 import ImportListSheet from "@/components/notes/ImportListSheet";
+import ListInstructionsSheet from "@/components/notes/ListInstructionsSheet";
+import { stepsToHtml, firstLine, hasText } from "@/lib/listInstructions";
 import NoteAttachments from "@/components/notes/NoteAttachments";
 import AttachmentViewer from "@/components/notes/AttachmentViewer";
 import NotesLanding from "@/components/notes/NotesLanding";
@@ -47,8 +49,15 @@ export default function Notes() {
   const [importOpen, setImportOpen] = useState(false);
   const [importSource, setImportSource] = useState(null);
   const [linkDraft, setLinkDraft] = useState(null);
-  const [listNoteOpen, setListNoteOpen] = useState(false);
-  useEffect(() => { setListNoteOpen(false); }, [selected?.id]); // null = closed, string = adding a link
+  const [listNoteOpen, setListNoteOpen] = useState(false); // the list's instructions pop-up
+  useEffect(() => { setListNoteOpen(false); }, [selected?.id]);
+  const paperBtn = (
+    <button type="button" onClick={() => setListNoteOpen(true)} aria-label="Notes and instructions" title="Notes and instructions"
+      className="relative w-9 h-9 rounded-[10px] bg-[#A7773F]/10 text-[#A7773F] flex items-center justify-center flex-shrink-0">
+      <FileText className="w-[18px] h-[18px]" strokeWidth={1.6} />
+      {hasText(selected?.list_note) && <span className="absolute top-1.5 right-1.5 w-[7px] h-[7px] rounded-full bg-[#A7773F]" />}
+    </button>
+  ); // null = closed, string = adding a link
   // The "What's the difference?" tips show open the first time only.
   const [listTipsOpen, setListTipsOpen] = useState(() => { try { const first = !localStorage.getItem("guia-list-tips-seen"); if (first) localStorage.setItem("guia-list-tips-seen", "1"); return first; } catch { return false; } });
   const [loading, setLoading] = useState(true);
@@ -214,10 +223,11 @@ export default function Notes() {
   };
 
   // Add imported items to a list (or a new list), skipping ones already there.
-  const addImported = async ({ listId, newName, items, from }) => {
+  const addImported = async ({ listId, newName, items, from, steps }) => {
     const mk = (t) => ({ text: t, checked: false, ...(from ? { from } : {}) });
+    const stepsHtml = steps ? `${from ? `<h3>${from.replace(/[<>&]/g, "")}</h3>` : ""}${stepsToHtml(steps)}` : "";
     if (!listId) {
-      const created = await ent.Note.create({ title: newName, note_type: "list", list_items: items.map(mk), content: "", attachments: [], ...(selected?.folder_id ? { folder_id: selected.folder_id } : {}) });
+      const created = await ent.Note.create({ title: newName, note_type: "list", list_items: items.map(mk), content: "", attachments: [], ...(stepsHtml ? { list_note: stepsHtml } : {}), ...(selected?.folder_id ? { folder_id: selected.folder_id } : {}) });
       setNotes(prev => [created, ...prev]);
       toast({ title: `Added ${items.length} to ${newName}` });
       return;
@@ -226,9 +236,10 @@ export default function Notes() {
     const have = new Set((target?.list_items || []).filter(i => !i.checked).map(i => String(i.text).trim().toLowerCase()));
     const fresh = items.filter(t => !have.has(String(t).trim().toLowerCase()));
     const merged = [...(target?.list_items || []), ...fresh.map(mk)];
-    await ent.Note.update(listId, { list_items: merged, note_type: "list", title: target?.title || "" });
-    setNotes(prev => prev.map(n => n.id === listId ? { ...n, list_items: merged } : n));
-    if (selected?.id === listId) setSelected(sel => ({ ...sel, list_items: merged }));
+    const note = stepsHtml ? (hasText(target?.list_note) ? `${target.list_note}<p><br></p>${stepsHtml}` : stepsHtml) : (target?.list_note || "");
+    await ent.Note.update(listId, { list_items: merged, note_type: "list", title: target?.title || "", list_note: note });
+    setNotes(prev => prev.map(n => n.id === listId ? { ...n, list_items: merged, list_note: note } : n));
+    if (selected?.id === listId) setSelected(sel => ({ ...sel, list_items: merged, list_note: note }));
     const skipped = items.length - fresh.length;
     toast({ title: `Added ${fresh.length} to ${target?.title || "your list"}`, description: skipped ? `${skipped} already on the list` : undefined });
   };
@@ -516,16 +527,12 @@ export default function Notes() {
         {selected && !isEditing && (
           <div className="flex flex-col gap-4">
             <div>
-              <h1 className="font-heading text-[24px] leading-tight text-foreground">{selected.title || "Untitled"}</h1>
-              {selected.updated_date && <p className="text-[11px] text-muted-foreground mt-1">Edited {new Date(selected.updated_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>}
+              <div className="flex items-start gap-3">
+                <h1 className="flex-1 min-w-0 font-heading text-[24px] leading-tight text-foreground">{selected.title || "Untitled"}</h1>
+                {isList && paperBtn}
+              </div>
+              {selected.updated_date && <p className="text-[11px] text-muted-foreground mt-1 truncate">Edited {new Date(selected.updated_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}{isList && hasText(selected.list_note) ? ` · ${firstLine(selected.list_note)}` : ""}</p>}
             </div>
-            {isList && (listNoteOpen || selected.list_note) ? (
-              <textarea value={selected.list_note || ""} onChange={(e) => setSelected({ ...selected, list_note: e.target.value })} onBlur={() => { if (!String(selected.list_note || "").trim()) setListNoteOpen(false); }}
-                rows={2} autoFocus={listNoteOpen && !selected.list_note} placeholder="A note for this list, e.g. Costco Saturday · use the coupon"
-                className="-mt-2 w-full bg-transparent text-[14px] text-muted-foreground leading-snug outline-none resize-none placeholder:text-muted-foreground/60" />
-            ) : isList ? (
-              <button type="button" onClick={() => setListNoteOpen(true)} className="-mt-2 self-start text-[12.5px] text-[#A7773F]">+ Add a note</button>
-            ) : null}
             {isList ? (
               <>
                 {selected.folder_id && folders.find((f) => f.id === selected.folder_id) && (
@@ -561,14 +568,8 @@ export default function Notes() {
             <div className="flex items-center gap-2">
               {isList ? <List className="w-4 h-4 text-[#B49399] flex-shrink-0" /> : <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
               <input value={selected.title} onChange={(e) => setSelected({ ...selected, title: e.target.value })} placeholder={isList ? "List name (e.g. Grocery)" : "Title"} className="flex-1 bg-transparent border-0 border-b border-border rounded-none text-foreground text-[19px] font-heading px-0 py-1 outline-none focus:border-ring transition-colors" autoFocus />
+              {isList && paperBtn}
             </div>
-            {isList && (listNoteOpen || selected.list_note) ? (
-              <textarea value={selected.list_note || ""} onChange={(e) => setSelected({ ...selected, list_note: e.target.value })} onBlur={() => { if (!String(selected.list_note || "").trim()) setListNoteOpen(false); }}
-                rows={2} autoFocus={listNoteOpen && !selected.list_note} placeholder="A note for this list, e.g. Costco Saturday · use the coupon"
-                className="w-full bg-transparent text-[14px] text-muted-foreground leading-snug outline-none resize-none placeholder:text-muted-foreground/60" />
-            ) : isList ? (
-              <button type="button" onClick={() => setListNoteOpen(true)} className="text-[12.5px] text-[#A7773F]">+ Add a note</button>
-            ) : null}
 
             <div className="flex items-center gap-2">
               <FolderIcon className="w-3.5 h-3.5 text-muted-foreground" />
@@ -599,6 +600,8 @@ export default function Notes() {
         </div>
 
         <AttachmentSheet open={showAttachmentSheet} onClose={() => setShowAttachmentSheet(false)} onUpload={handleUpload} />
+        {selected && <ListInstructionsSheet open={listNoteOpen} title={selected.title} value={selected.list_note || ""}
+          onChange={(html) => setSelected((sel) => (sel ? { ...sel, list_note: html } : sel))} onClose={() => setListNoteOpen(false)} />}
         <ImportListSheet open={importOpen} onClose={() => { setImportOpen(false); setImportSource(null); }} source={importSource}
           lists={notes.filter(n => n.note_type === "list")} currentListId={selected?.note_type === "list" ? selected.id : null} onAdd={addImported} />
         <AttachmentViewer attachment={viewerAttachment} onClose={() => setViewerAttachment(null)} />
