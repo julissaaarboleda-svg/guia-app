@@ -365,6 +365,8 @@ export default function Notes() {
   const isEditing = !!selected && editingId === selected.id;
   const stripHtml = (h) => (h || "").replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
 
+  // Only label where items came from when the list mixes more than one source.
+  const mixedSources = new Set((selected?.list_items || []).filter((i) => !i.checked).map((i) => i.from || "")).size > 1;
   const renderChecklist = () => (
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-2">
@@ -384,7 +386,7 @@ export default function Notes() {
                       {unchecked.map(({ item, idx }) => (
                         <li key={idx} className="flex items-center gap-3 group">
                           <button onClick={() => toggleItem(idx)} className="w-5 h-5 rounded-full border-2 border-muted-foreground/30 hover:border-muted-foreground flex items-center justify-center flex-shrink-0 transition-all" />
-                          <button type="button" onClick={() => toggleItem(idx)} className="text-sm flex-1 text-left text-foreground py-1">{item.text}{item.from && <span className="ml-2 text-[11px] text-muted-foreground">{item.from}</span>}</button>
+                          <button type="button" onClick={() => toggleItem(idx)} className="text-sm flex-1 text-left text-foreground py-1">{item.text}{item.from && mixedSources && <span className="ml-2 text-[11px] text-muted-foreground">{item.from}</span>}</button>
                           <button onClick={() => removeItem(idx)} className="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-destructive transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
                         </li>
                       ))}
