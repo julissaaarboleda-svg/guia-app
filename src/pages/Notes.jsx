@@ -950,7 +950,7 @@ function PlaceFormSheet({ form, onChange, onClose, onSave, onSaveMany }) {
           <div className="relative">
             <label className="font-body text-[12px] text-muted-foreground mb-1 block">Name</label>
             <input
-              autoFocus
+              autoFocus={!!form.id}
               value={form.name}
               onChange={(e) => { setTypedName(true); patch({ name: e.target.value, place_id: "" }); }}
               placeholder="Search a place, e.g. Nari"
