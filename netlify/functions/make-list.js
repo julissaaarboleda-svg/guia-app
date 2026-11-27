@@ -28,7 +28,7 @@ Return only JSON:
 Rules:
 - Groups fit the topic (food: Produce, Meat & seafood, Dairy, Bakery, Pantry, Spices, Frozen; builds: Lumber, Hardware, Paint & finish, Tools; sewing: Fabric, Notions, Thread; otherwise sensible groups).
 - Write each item the way you'd shop for it: short, item first, then how much to buy in store units ("Sharp cheddar, 10 oz", "Heavy cream, 1 pint", "Evaporated milk, 2 cans", "Wood screws 1¼ in, 24"). No gram conversions, no prep notes ("for greasing", "for garnish", "shredded"). Combine duplicates into one line with the total.
-- "maybe_have": true for basics most people already own (salt, pepper, cooking oil, water; common tools like a screwdriver, tape measure, scissors, iron).
+- "maybe_have": true for kitchen staples and basics most people already keep on hand (salt, pepper, cooking oil, butter, flour, sugar, garlic powder, onion powder, paprika and other common dried spices, baking soda, vanilla, water; common tools like a screwdriver, tape measure, scissors, iron). Still list them: they go in the user's pantry section.
 - Leave out steps, equipment that is only mentioned in passing, and anything that isn't something to get.
 - "steps": the how-to steps, short and in order (at most 20), reworded concisely; [] if the content has none.
 - At most 40 items. If the content has nothing to make a list from, return {"title":"","groups":[],"key_info":"","steps":[]}.`;

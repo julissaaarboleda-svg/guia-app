@@ -16,6 +16,7 @@ import { useToast } from "@/components/ui/use-toast";
 import AttachmentSheet from "@/components/notes/AttachmentSheet";
 import ImportListSheet from "@/components/notes/ImportListSheet";
 import ListInstructionsSheet from "@/components/notes/ListInstructionsSheet";
+import { isPantry } from "@/lib/pantry";
 import { stepsToHtml, firstLine, hasText } from "@/lib/listInstructions";
 import { linkAttachment } from "@/lib/linkPreview";
 import NoteAttachments from "@/components/notes/NoteAttachments";
@@ -161,7 +162,7 @@ export default function Notes() {
   const persistNote = async (note, showToast = false) => {
     // Send everything we know (type and collection too) so a save can never put
     // back an older version of a field it didn't mention.
-    const patch = { title: note.title, content: note.content, list_items: note.list_items, attachments: note.attachments || [], note_type: note.note_type || "text", folder_id: note.folder_id || null, list_note: note.list_note || "" };
+    const patch = { title: note.title, content: note.content, list_items: note.list_items, attachments: note.attachments || [], note_type: note.note_type || "text", folder_id: note.folder_id || null, list_note: note.list_note || "", list_steps_done: note.list_steps_done || [] };
     setNotes(prev => prev.map(n => n.id === note.id ? { ...n, ...patch } : n));
     await ent.Note.update(note.id, patch);
     if (showToast) toast({ title: "Note saved" });
@@ -178,7 +179,7 @@ export default function Notes() {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => { persistNote(selected, false); }, 900);
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
-  }, [selected?.title, selected?.content, selected?.list_note]);
+  }, [selected?.title, selected?.content, selected?.list_note, (selected?.list_steps_done || []).join("\u0001")]);
 
   const remove = async (id) => {
     setNotes(prev => prev.filter(n => n.id !== id));
@@ -225,7 +226,8 @@ export default function Notes() {
 
   // Add imported items to a list (or a new list), skipping ones already there.
   const addImported = async ({ listId, newName, items, from, steps }) => {
-    const mk = (t) => ({ text: t, checked: false, ...(from ? { from } : {}) });
+    const mk = (it) => { const t = typeof it === "string" ? it : it.text; return { text: t, checked: false, ...(from ? { from } : {}), ...(typeof it === "object" ? { pantry: !!it.pantry } : {}) }; };
+    const textOf = (it) => (typeof it === "string" ? it : it.text);
     const stepsHtml = steps ? `${from ? `<h3>${from.replace(/[<>&]/g, "")}</h3>` : ""}${stepsToHtml(steps)}` : "";
     if (!listId) {
       const created = await ent.Note.create({ title: newName, note_type: "list", list_items: items.map(mk), content: "", attachments: [], ...(stepsHtml ? { list_note: stepsHtml } : {}), ...(selected?.folder_id ? { folder_id: selected.folder_id } : {}) });
@@ -235,7 +237,7 @@ export default function Notes() {
     }
     const target = listId === selected?.id ? selected : notes.find(n => n.id === listId);
     const have = new Set((target?.list_items || []).filter(i => !i.checked).map(i => String(i.text).trim().toLowerCase()));
-    const fresh = items.filter(t => !have.has(String(t).trim().toLowerCase()));
+    const fresh = items.filter(t => !have.has(String(textOf(t)).trim().toLowerCase()));
     const merged = [...(target?.list_items || []), ...fresh.map(mk)];
     const note = stepsHtml ? (hasText(target?.list_note) ? `${target.list_note}<p><br></p>${stepsHtml}` : stepsHtml) : (target?.list_note || "");
     await ent.Note.update(listId, { list_items: merged, note_type: "list", title: target?.title || "", list_note: note });
@@ -417,18 +419,27 @@ export default function Notes() {
                   </div>
                 )}
                 {(() => {
-                  const unchecked = (selected.list_items || []).map((item, idx) => ({ item, idx })).filter(({ item }) => !item.checked);
-                  const checked = (selected.list_items || []).map((item, idx) => ({ item, idx })).filter(({ item }) => item.checked);
-                  return (
-                    <ul className="space-y-1.5">
-                      {unchecked.map(({ item, idx }) => (
+                  const open = (selected.list_items || []).map((item, idx) => ({ item, idx })).filter(({ item }) => !item.checked);
+                  const pantry = open.filter(({ item }) => isPantry(item));
+                  const unchecked = open.filter(({ item }) => !isPantry(item));
+                  const row = ({ item, idx }) => (
                         <li key={idx} className="flex items-center gap-3 group">
                           <button onClick={() => toggleItem(idx)} className="w-5 h-5 rounded-full border-2 border-muted-foreground/30 hover:border-muted-foreground flex items-center justify-center flex-shrink-0 transition-all" />
                           <button type="button" onClick={() => toggleItem(idx)} className="text-sm flex-1 text-left text-foreground py-1">{item.text}{item.from && mixedSources && <span className="ml-2 text-[11px] text-muted-foreground">{item.from}</span>}</button>
                           <button onClick={() => removeItem(idx)} className="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-destructive transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
                         </li>
-                      ))}
-                      {unchecked.length === 0 && checked.length > 0 && <li className="text-sm text-muted-foreground py-1">All done. Nice work.</li>}
+                  );
+                  const checked = (selected.list_items || []).map((item, idx) => ({ item, idx })).filter(({ item }) => item.checked);
+                  return (
+                    <ul className="space-y-1.5">
+                      {unchecked.map(row)}
+                      {pantry.length > 0 && (
+                        <li className="pt-2.5 mt-1 border-t border-border">
+                          <p className="text-[10.5px] tracking-[0.16em] uppercase font-semibold text-[#7D8A53]">Pantry · you may have these</p>
+                        </li>
+                      )}
+                      {pantry.map(row)}
+                      {open.length === 0 && checked.length > 0 && <li className="text-sm text-muted-foreground py-1">All done. Nice work.</li>}
                       {checked.length > 0 && (
                         <li className="flex items-center justify-between border-t border-border pt-2.5 mt-1">
                           <button onClick={() => setShowCheckedItems((v) => !v)} className="text-[10.5px] tracking-[0.16em] uppercase font-semibold text-muted-foreground flex items-center gap-1.5">
@@ -619,7 +630,8 @@ export default function Notes() {
 
         <AttachmentSheet open={showAttachmentSheet} onClose={() => setShowAttachmentSheet(false)} onUpload={handleUpload} />
         {selected && <ListInstructionsSheet open={listNoteOpen} title={selected.title} value={selected.list_note || ""}
-          onChange={(html) => setSelected((sel) => (sel ? { ...sel, list_note: html } : sel))} onClose={() => setListNoteOpen(false)} />}
+          onChange={(html) => setSelected((sel) => (sel ? { ...sel, list_note: html } : sel))} onClose={() => setListNoteOpen(false)}
+          done={selected.list_steps_done || []} onDoneChange={(d) => setSelected((sel) => (sel ? { ...sel, list_steps_done: d } : sel))} />}
         <ImportListSheet open={importOpen} onClose={() => { setImportOpen(false); setImportSource(null); }} source={importSource}
           lists={notes.filter(n => n.note_type === "list")} currentListId={selected?.note_type === "list" ? selected.id : null} onAdd={addImported} />
         <AttachmentViewer attachment={viewerAttachment} onClose={() => setViewerAttachment(null)} />

@@ -48,7 +48,7 @@ export default function ImportListSheet({ open, onClose, lists = [], currentList
         const title = r.title || fallbackTitle;
         setResult({ ...r, title });
         const on = new Set();
-        r.groups.forEach((g, gi) => g.items.forEach((it, ii) => { if (!it.maybe_have) on.add(`${gi}-${ii}`); }));
+        r.groups.forEach((g, gi) => g.items.forEach((it, ii) => on.add(`${gi}-${ii}`)));
         setPicked(on);
         if (!newName) setNewName(title);
       }
@@ -74,7 +74,7 @@ export default function ImportListSheet({ open, onClose, lists = [], currentList
   const toggle = (k) => setPicked((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const add = async () => {
     const items = [];
-    result.groups.forEach((g, gi) => g.items.forEach((it, ii) => { if (picked.has(`${gi}-${ii}`)) items.push(it.text); }));
+    result.groups.forEach((g, gi) => g.items.forEach((it, ii) => { if (picked.has(`${gi}-${ii}`)) items.push({ text: it.text, pantry: !!it.maybe_have }); }));
     if (!items.length) { setErr("Check at least one item."); return; }
     setSaving(true);
     try {
@@ -126,7 +126,7 @@ export default function ImportListSheet({ open, onClose, lists = [], currentList
 
           {result && (
             <>
-              <p className="text-[12.5px] text-muted-foreground mb-2">Uncheck what you already have.</p>
+              <p className="text-[12.5px] text-muted-foreground mb-2">Everything's included. Things you may already have go in a Pantry section at the bottom of the list.</p>
               <div className="bg-card border border-border rounded-2xl px-4 pb-1">
                 {result.groups.map((g, gi) => (
                   <div key={gi}>
@@ -139,7 +139,7 @@ export default function ImportListSheet({ open, onClose, lists = [], currentList
                             {on && <Check className="w-3 h-3 text-white" strokeWidth={2.6} />}
                           </span>
                           <span className={`flex-1 min-w-0 text-[14px] ${on ? "text-foreground" : "text-muted-foreground"}`}>{it.text}</span>
-                          {it.maybe_have && <span className="text-[10.5px] text-muted-foreground whitespace-nowrap">you may have it</span>}
+                          {it.maybe_have && <span className="text-[10.5px] text-muted-foreground whitespace-nowrap">pantry</span>}
                         </button>
                       );
                     })}
