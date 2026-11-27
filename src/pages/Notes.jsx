@@ -225,10 +225,19 @@ export default function Notes() {
   };
 
   // Add imported items to a list (or a new list), skipping ones already there.
+  // Re-importing the same thing never doubles up: items match by name (the part
+  // before the comma), so a corrected amount replaces the old line, and a list
+  // with the same name is reused.
   const addImported = async ({ listId, newName, items, from, steps }) => {
-    const mk = (it) => { const t = typeof it === "string" ? it : it.text; return { text: t, checked: false, ...(from ? { from } : {}), ...(typeof it === "object" ? { pantry: !!it.pantry } : {}) }; };
     const textOf = (it) => (typeof it === "string" ? it : it.text);
-    const stepsHtml = steps ? `${from ? `<h3>${from.replace(/[<>&]/g, "")}</h3>` : ""}${stepsToHtml(steps)}` : "";
+    const mk = (it) => ({ text: textOf(it), checked: false, ...(from ? { from } : {}), ...(typeof it === "object" ? { pantry: !!it.pantry } : {}) });
+    const keyOf = (t) => String(t || "").split(",")[0].replace(/\(.*?\)/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\b(\w+?)s\b/g, "$1").trim();
+    const safeFrom = (from || "").replace(/[<>&]/g, "");
+    const stepsHtml = steps ? `${safeFrom ? `<h3>${safeFrom}</h3>` : ""}${stepsToHtml(steps)}` : "";
+    if (!listId) {
+      const same = notes.find(n => n.note_type === "list" && String(n.title || "").trim().toLowerCase() === String(newName || "").trim().toLowerCase());
+      if (same) listId = same.id;
+    }
     if (!listId) {
       const created = await ent.Note.create({ title: newName, note_type: "list", list_items: items.map(mk), content: "", attachments: [], ...(stepsHtml ? { list_note: stepsHtml } : {}), ...(selected?.folder_id ? { folder_id: selected.folder_id } : {}) });
       setNotes(prev => [created, ...prev]);
@@ -236,15 +245,25 @@ export default function Notes() {
       return;
     }
     const target = listId === selected?.id ? selected : notes.find(n => n.id === listId);
-    const have = new Set((target?.list_items || []).filter(i => !i.checked).map(i => String(i.text).trim().toLowerCase()));
-    const fresh = items.filter(t => !have.has(String(textOf(t)).trim().toLowerCase()));
-    const merged = [...(target?.list_items || []), ...fresh.map(mk)];
-    const note = stepsHtml ? (hasText(target?.list_note) ? `${target.list_note}<p><br></p>${stepsHtml}` : stepsHtml) : (target?.list_note || "");
+    const merged = [...(target?.list_items || [])];
+    const at = new Map(merged.map((it, i) => [keyOf(it.text), i]));
+    let added = 0, updated = 0, same = 0;
+    items.forEach((it) => {
+      const k = keyOf(textOf(it));
+      const i = k ? at.get(k) : undefined;
+      if (i === undefined) { merged.push(mk(it)); if (k) at.set(k, merged.length - 1); added++; return; }
+      const old = merged[i];
+      if (String(old.text).trim().toLowerCase() === String(textOf(it)).trim().toLowerCase()) { same++; return; }
+      merged[i] = { ...old, text: textOf(it), ...(from ? { from } : {}), ...(typeof it === "object" ? { pantry: !!it.pantry } : {}) };
+      updated++;
+    });
+    const already = safeFrom && String(target?.list_note || "").includes(`<h3>${safeFrom}</h3>`);
+    const note = stepsHtml && !already ? (hasText(target?.list_note) ? `${target.list_note}<p><br></p>${stepsHtml}` : stepsHtml) : (target?.list_note || "");
     await ent.Note.update(listId, { list_items: merged, note_type: "list", title: target?.title || "", list_note: note });
     setNotes(prev => prev.map(n => n.id === listId ? { ...n, list_items: merged, list_note: note } : n));
     if (selected?.id === listId) setSelected(sel => ({ ...sel, list_items: merged, list_note: note }));
-    const skipped = items.length - fresh.length;
-    toast({ title: `Added ${fresh.length} to ${target?.title || "your list"}`, description: skipped ? `${skipped} already on the list` : undefined });
+    const bits = [updated && `${updated} updated`, same && `${same} already on the list`].filter(Boolean).join(" · ");
+    toast({ title: added ? `Added ${added} to ${target?.title || "your list"}` : `${target?.title || "Your list"} is up to date`, description: bits || undefined });
   };
   const saveLink = async () => {
     const t = String(linkDraft || "").trim();
